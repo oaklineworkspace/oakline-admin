@@ -1,7 +1,8 @@
+// pages/login.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { login } from '../lib/auth';
-import styles from './Login.module.css';
+import styles from '../styles/Login.module.css';
 
 export default function Login() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(email, password);
+      await login(email, password); // login should store token
       router.push('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed');
