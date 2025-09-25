@@ -1,7 +1,8 @@
+// pages/index.js
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { isAuthenticated } from '../lib/auth';
-import styles from './Index.module.css';
+import styles from '../styles/Index.module.css';
 
 export default function Home() {
   const router = useRouter();
