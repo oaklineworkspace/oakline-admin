@@ -1,0 +1,10 @@
+.notification {
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.success { background: #28a745; }
+.warning { background: #ffc107; color: #333; }
+.error { background: #dc3545; }
