@@ -1,10 +1,13 @@
+import React from 'react';
+import styles from './UserProfile.module.css';
+
 export default function UserProfile({ user, onLogout }) {
   return (
-    <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+    <div className={styles.container}>
       <h2>Welcome, {user.email}!</h2>
-      <button onClick={onLogout} style={{ padding: '0.5rem 1rem', marginTop: '1rem' }}>
+      <button onClick={onLogout} className={styles.logoutButton}>
         Logout
       </button>
     </div>
-  )
+  );
 }
