@@ -22,9 +22,8 @@ export const AuthProvider = ({ children }) => {
     // Get initial session
     const getSession = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error getting session:', error);
-      }
+      if (error) console.error('Error getting session:', error);
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -42,29 +41,22 @@ export const AuthProvider = ({ children }) => {
         if (event === 'SIGNED_IN') {
           router.push('/dashboard');
         } else if (event === 'SIGNED_OUT') {
-          router.push('/sign-in');
+          router.push('/login'); // ✅ fixed
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, [router]);
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    return await supabase.auth.signInWithPassword({ email, password });
   };
 
   const signUp = async (email, password, options = {}) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options
-    });
-    return { data, error };
+    return await supabase.auth.signUp({ email, password, options });
   };
 
   const signOut = async () => {
@@ -72,16 +64,15 @@ export const AuthProvider = ({ children }) => {
     if (!error) {
       setUser(null);
       setSession(null);
-      router.push('/sign-in');
+      router.push('/login'); // ✅ fixed
     }
     return { error };
   };
 
   const resetPassword = async (email) => {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    return await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    return { data, error };
   };
 
   const value = {
