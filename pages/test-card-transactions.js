@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
-import AdminRoute from '../../components/AdminRoute'; // Assuming AdminRoute is in this path
-
+import { supabase } from '../lib/supabaseClient';
+import AdminRoute from '../components/AdminRoute';
 function TestCardTransactions() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
