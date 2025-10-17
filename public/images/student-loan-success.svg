@@ -1,0 +1,35 @@
+
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg8" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#bg8)"/>
+  
+  <!-- Graduation cap -->
+  <polygon points="400,150 350,170 450,170" fill="#374151"/>
+  <rect x="395" y="150" width="10" height="30" fill="#374151"/>
+  
+  <!-- Student -->
+  <ellipse cx="400" cy="450" rx="50" ry="100" fill="#1e293b" opacity="0.8"/>
+  
+  <!-- Books -->
+  <rect x="500" y="400" width="60" height="8" fill="#1e40af"/>
+  <rect x="505" y="390" width="50" height="8" fill="#dc2626"/>
+  <rect x="510" y="380" width="40" height="8" fill="#10b981"/>
+  
+  <!-- Success Banner -->
+  <rect x="100" y="220" width="600" height="180" rx="20" fill="rgba(255,255,255,0.95)" stroke="#fbbf24" stroke-width="4"/>
+  
+  <!-- Banner Content -->
+  <text x="400" y="260" text-anchor="middle" fill="#059669" font-family="Arial, sans-serif" font-size="28" font-weight="bold">STUDENT LOAN APPROVED</text>
+  <text x="400" y="290" text-anchor="middle" fill="#374151" font-family="Arial, sans-serif" font-size="18">Emma Thompson</text>
+  <text x="400" y="320" text-anchor="middle" fill="#059669" font-family="Arial, sans-serif" font-size="32" font-weight="bold">$35,000</text>
+  <text x="400" y="345" text-anchor="middle" fill="#374151" font-family="Arial, sans-serif" font-size="16">Education Financing</text>
+  <text x="400" y="370" text-anchor="middle" fill="#374151" font-family="Arial, sans-serif" font-size="14">Rate: 4.99% | Grace Period: 6 Months</text>
+  <text x="400" y="390" text-anchor="middle" fill="#1e40af" font-family="Arial, sans-serif" font-size="18" font-weight="bold">OAKLINE BANK - Investing in Your Future</text>
+</svg>
