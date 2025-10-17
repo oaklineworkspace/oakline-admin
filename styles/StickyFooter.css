@@ -1,0 +1,149 @@
+/* Professional Banking Footer Styles */
+.sticky-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    z-index: 1000;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 35px;
+    display: flex;
+    align-items: center;
+  }
+
+.sticky-footer {
+    width: 100%;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+  animation: slideUpFooter 0.5s ease-out;
+}
+
+@keyframes slideUpFooter {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Navigation button hover effects */
+.sticky-footer a[style*="navButton"]:hover,
+.sticky-footer button[style*="navButton"]:hover {
+  background-color: #f8fafc !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 62, 111, 0.25) !important;
+  border-color: rgba(26, 62, 111, 0.2) !important;
+}
+
+.sticky-footer a[style*="navButton"]:active,
+.sticky-footer button[style*="navButton"]:active {
+  transform: translateY(0px);
+  box-shadow: 0 2px 6px rgba(26, 62, 111, 0.2) !important;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 968px) {
+  .sticky-footer div[style*="navigationSection"] {
+    gap: 0.25rem !important;
+  }
+
+  .sticky-footer a[style*="navButton"],
+  .sticky-footer button[style*="navButton"] {
+    padding: 0.5rem 0.25rem !important;
+    min-height: 55px !important;
+  }
+
+  .sticky-footer span[style*="navText"] {
+    font-size: 0.65rem !important;
+  }
+
+  .sticky-footer span[style*="navIcon"] {
+    font-size: 1rem !important;
+    margin-bottom: 0.15rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .sticky-footer div[style*="navigationSection"] {
+    gap: 0.125rem !important;
+  }
+
+  .sticky-footer a[style*="navButton"],
+  .sticky-footer button[style*="navButton"] {
+    padding: 0.4rem 0.125rem !important;
+    min-height: 50px !important;
+    border-radius: 8px !important;
+  }
+
+  .sticky-footer span[style*="navText"] {
+    font-size: 0.6rem !important;
+  }
+
+  .sticky-footer span[style*="navIcon"] {
+    font-size: 0.9rem !important;
+    margin-bottom: 0.1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .sticky-footer div[style*="featuresSection"] {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    max-width: 280px !important;
+  }
+
+  .sticky-footer div[style*="userInfo"] {
+    display: none !important;
+  }
+
+  .sticky-footer {
+    min-height: 90px !important;
+  }
+}
+
+/* Animation for feature buttons */
+.sticky-footer a[style*="featureButton"] {
+  animation: fadeInScale 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+.sticky-footer a[style*="featureButton"]:nth-child(1) { animation-delay: 0.1s; }
+.sticky-footer a[style*="featureButton"]:nth-child(2) { animation-delay: 0.2s; }
+.sticky-footer a[style*="featureButton"]:nth-child(3) { animation-delay: 0.3s; }
+.sticky-footer a[style*="featureButton"]:nth-child(4) { animation-delay: 0.4s; }
+.sticky-footer a[style*="featureButton"]:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sticky-footer-subtitle {
+    font-size: 0.8rem !important;
+  }
+
+/* Ensure footer doesn't overlap content */
+body {
+  padding-bottom: 100px;
+}
+
+/* Hide footer on admin and dashboard pages */
+body[data-hide-footer="true"] .sticky-footer {
+  display: none !important;
+}

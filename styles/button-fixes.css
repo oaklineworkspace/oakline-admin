@@ -1,0 +1,21 @@
+
+/* Fix for button style conflicts */
+button {
+  background: none !important;
+}
+
+button[style*="background:"], 
+button[style*="backgroundColor"] {
+  background-color: var(--button-bg, #1e40af) !important;
+  background-image: none !important;
+}
+
+.serviceCard {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+.serviceCard:hover {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
