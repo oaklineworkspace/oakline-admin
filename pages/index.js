@@ -16,6 +16,9 @@ const LoanApprovalSection = lazy(() => import('../components/LoanApprovalSection
 const CTA = lazy(() => import('../components/CTA'));
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
   const [user, setUser] = useState(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentAccountSlide, setCurrentAccountSlide] = useState(0);
@@ -25,7 +28,19 @@ export default function Home() {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showBankingDropdown, setShowBankingDropdown] = useState(false);
 
+  const ADMIN_PASSWORD = 'Chrismorgan23$';
+
   useEffect(() => {
+    // Check if user is already authenticated
+    const pageAuth = localStorage.getItem('pageAuthenticated');
+    if (pageAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
     // Get initial session and set up auth listener
     const getInitialSession = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -321,6 +336,51 @@ export default function Home() {
   // Show different account types based on authentication
   const visibleAccountTypes = user ? accountTypes : accountTypes.filter(account => account.featured);
 
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      localStorage.setItem('pageAuthenticated', 'true');
+      setAuthError('');
+    } else {
+      setAuthError('Invalid password');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('pageAuthenticated');
+    setPassword('');
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={styles.loginContainer}>
+        <div style={styles.loginCard}>
+          <h1 style={styles.loginTitle}>🔐 Access Required</h1>
+          <p style={styles.loginSubtitle}>Enter password to access Oakline Bank</p>
+          <form onSubmit={handleLogin} style={styles.loginForm}>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.input}
+                placeholder="Enter password"
+                required
+              />
+            </div>
+            {authError && <div style={styles.errorMessage}>{authError}</div>}
+            <button type="submit" style={styles.loginButton}>
+              🔓 Access Site
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div style={styles.loadingContainer}>
@@ -383,6 +443,13 @@ export default function Home() {
                 <div style={styles.iconLine}></div>
               </div>
               <span style={styles.bankingPlusText}>Banking+</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              style={styles.logoutButtonHeader}
+              title="Logout"
+            >
+              🚪 Logout
             </button>
 
             {showBankingDropdown && (
@@ -4469,6 +4536,93 @@ const styles = {
     fontSize: '1.2rem',
     color: '#64748b',
     fontWeight: '500'
+  },
+
+  // Login Page Styles
+  loginContainer: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+    padding: '20px'
+  },
+  loginCard: {
+    background: 'white',
+    padding: '40px',
+    borderRadius: '16px',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+    width: '100%',
+    maxWidth: '400px'
+  },
+  loginTitle: {
+    fontSize: '28px',
+    fontWeight: 'bold',
+    color: '#1e3c72',
+    margin: '0 0 10px 0',
+    textAlign: 'center'
+  },
+  loginSubtitle: {
+    fontSize: '14px',
+    color: '#666',
+    margin: '0 0 30px 0',
+    textAlign: 'center'
+  },
+  loginForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  label: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#333'
+  },
+  input: {
+    padding: '12px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '8px',
+    fontSize: '16px',
+    transition: 'border-color 0.3s ease'
+  },
+  errorMessage: {
+    color: '#dc3545',
+    fontSize: '14px',
+    textAlign: 'center',
+    padding: '10px',
+    backgroundColor: '#fee2e2',
+    borderRadius: '8px'
+  },
+  loginButton: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  logoutButtonHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.75rem 1.5rem',
+    background: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    marginLeft: '1rem'
   },
 
   // Account Card styles
