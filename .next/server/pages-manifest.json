@@ -4,6 +4,5 @@
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
   "/admin/resend-enrollment": "pages/admin/resend-enrollment.js",
-  "/main-menu": "pages/main-menu.js",
   "/dashboard": "pages/dashboard.js"
 }
