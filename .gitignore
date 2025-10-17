@@ -35,3 +35,12 @@ coverage/
 .idea/
 *.sublime-workspace
 *.sublime-project
+
+# Next.js
+.next/
+out/
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
