@@ -54,7 +54,8 @@ export default function StickyFooter() {
     { name: 'Home', href: '/', icon: '🏠', gradient: 'from-blue-500 to-blue-600' },
     { name: 'Apply', href: '/apply', icon: '📝', gradient: 'from-green-500 to-green-600' },
     { name: 'Sign In', href: '/sign-in', icon: '🔑', gradient: 'from-indigo-500 to-indigo-600' },
-    { name: 'About', href: '/about', icon: 'ℹ️', gradient: 'from-teal-500 to-teal-600' }
+    { name: 'Admin', href: '/admin', icon: '🔐', gradient: 'from-red-500 to-red-600' },
+    { name: 'Manage Users', href: '/admin/manage-all-users', icon: '👥', gradient: 'from-orange-500 to-orange-600' }
   ];
 
   // Premium income-generating features for dropdown
