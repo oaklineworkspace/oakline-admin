@@ -1210,7 +1210,7 @@ export default function Home() {
 
       {/* Testimonials Section */}
       <Suspense fallback={<div style={styles.loadingComponent}>Loading testimonials...</div>}>
-        <TestimonialsSection />
+        <Testimonials />
       </Suspense>
 
 
@@ -3053,7 +3053,7 @@ const styles = {
     fontSize: '1rem',
     fontWeight: '700',
     transition: 'all 0.3s ease',
-    boxShadow: '0 6px 20px rgba(30, 64, 175, 0.3)'
+    boxShadow: '0 6px 20px rgba(30, 64, 175, 0.4)'
   },
 
   // Student Banking Section
@@ -3790,7 +3790,7 @@ const styles = {
     background: 'rgba(255,255,255,0.95)',
     color: '#1e40af',
     padding: '8px 16px',
-    borderRadius: '20px',
+    borderRadius: '12px',
     fontSize: '0.85rem',
     fontWeight: '700',
     boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
@@ -4830,7 +4830,7 @@ const styles = {
   mobileBankingFeature: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '1rem'
+    gap: '0.75rem'
   },
   mobileBankingFeatureIcon: {
     fontSize: '1.5rem',
@@ -5207,16 +5207,16 @@ const styles = {
   // Add CSS animations to the document
   // These should be defined in the global scope or loaded via a CSS file.
   // For example, using styled-components:
-  // const SpinKeyframes = keyframes\`
+  // const SpinKeyframes = keyframes`
   //   0% { transform: rotate(0deg); }
   //   100% { transform: rotate(360deg); }
-  // \`;
+  // `;
   //
-  // const ProgressBarKeyframes = keyframes\`
+  // const ProgressBarKeyframes = keyframes`
   //   0% { transform: translateX(-100%); }
   //   50% { transform: translateX(0%); }
   //   100% { transform: translateX(100%); }
-  // \`;
+  // `;
 };
 
 // Add hover effects for dropdown items  
