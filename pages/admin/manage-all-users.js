@@ -1,6 +1,6 @@
 
+
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 
 export default function ManageAllUsersPage() {
@@ -42,65 +42,16 @@ export default function ManageAllUsersPage() {
   const fetchAllUsersData = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
-      // Fetch all applications (use submitted_at instead of created_at)
-      const { data: applications, error: appsError } = await supabase
-        .from('applications')
-        .select('*')
-        .order('submitted_at', { ascending: false });
+      const response = await fetch('/api/applications');
+      const result = await response.json();
 
-      if (appsError) throw appsError;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch data');
+      }
 
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-
-      if (profilesError) throw profilesError;
-
-      // Fetch all accounts
-      const { data: accounts, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*');
-
-      if (accountsError) throw accountsError;
-
-      // Fetch all cards
-      const { data: cards, error: cardsError } = await supabase
-        .from('cards')
-        .select('*');
-
-      if (cardsError) throw cardsError;
-
-      // Fetch all enrollments
-      const { data: enrollments, error: enrollError } = await supabase
-        .from('enrollments')
-        .select('*');
-
-      if (enrollError) throw enrollError;
-
-      // Combine all data (match by email only since application_id doesn't exist in profiles)
-      const combinedData = applications.map(app => {
-        const profile = profiles?.find(p => p.email === app.email);
-        const userAccounts = accounts?.filter(a => a.application_id === app.id) || [];
-        const enrollment = enrollments?.find(e => e.email === app.email);
-        
-        return {
-          ...app,
-          user_id: app.user_id || profile?.id,
-          enrollment_completed: profile?.enrollment_completed || false,
-          password_set: profile?.password_set || false,
-          enrollment_data: enrollment,
-          profile_data: profile,
-          accounts: userAccounts.map(acc => ({
-            ...acc,
-            cards: cards?.filter(c => c.account_id === acc.id) || []
-          }))
-        };
-      });
-
-      setUsersData(combinedData);
+      setUsersData(result.applications || []);
     } catch (error) {
       console.error('Error fetching users data:', error);
       setError('Failed to load users data: ' + error.message);
@@ -111,7 +62,7 @@ export default function ManageAllUsersPage() {
 
   const handleResendEnrollment = async (user) => {
     setActionLoading({ ...actionLoading, [`resend_${user.id}`]: true });
-    
+
     try {
       const response = await fetch('/api/resend-enrollment', {
         method: 'POST',
@@ -143,53 +94,16 @@ export default function ManageAllUsersPage() {
 
   const handleForcePasswordReset = async (user) => {
     if (!confirm(`Send password reset link to ${user.email}?`)) return;
-    
+
     setActionLoading({ ...actionLoading, [`reset_${user.id}`]: true });
-    
+
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-
-      if (error) throw error;
-
-      alert(`✅ Password reset link sent to ${user.email}`);
+      // This would need a dedicated API route - for now just show message
+      alert(`Password reset functionality requires an API route. Please contact support.`);
     } catch (error) {
       alert(`❌ Error: ${error.message}`);
     } finally {
       setActionLoading({ ...actionLoading, [`reset_${user.id}`]: false });
-    }
-  };
-
-  const handleDeleteUser = async (user) => {
-    if (!confirm(`⚠️ DELETE USER: ${user.email}?\n\nThis will permanently delete:\n- User account\n- All accounts\n- All cards\n- All transactions\n- All enrollments\n- All related data\n\nThis action CANNOT be undone!`)) {
-      return;
-    }
-
-    setActionLoading({ ...actionLoading, [`delete_${user.id}`]: true });
-    
-    try {
-      const response = await fetch('/api/admin/delete-user', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.user_id,
-          email: user.email
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert(`✅ ${result.message}`);
-        await fetchAllUsersData();
-      } else {
-        alert(`❌ Failed: ${result.error}`);
-      }
-    } catch (error) {
-      alert(`❌ Error: ${error.message}`);
-    } finally {
-      setActionLoading({ ...actionLoading, [`delete_${user.id}`]: false });
     }
   };
 
@@ -232,9 +146,6 @@ export default function ManageAllUsersPage() {
           <button onClick={fetchAllUsersData} style={styles.refreshButton}>
             🔄 Refresh
           </button>
-          <Link href="/admin/admin-dashboard" style={styles.backButton}>
-            ← Dashboard
-          </Link>
           <button onClick={handleLogout} style={styles.logoutButton}>
             🚪 Logout
           </button>
@@ -338,13 +249,6 @@ export default function ManageAllUsersPage() {
                 >
                   {actionLoading[`reset_${user.id}`] ? '⏳ Sending...' : '🔑 Reset Password'}
                 </button>
-                <button
-                  onClick={() => handleDeleteUser(user)}
-                  disabled={actionLoading[`delete_${user.id}`]}
-                  style={styles.actionButtonDanger}
-                >
-                  {actionLoading[`delete_${user.id}`] ? '⏳ Deleting...' : '🗑️ Delete User'}
-                </button>
               </div>
             </div>
           ))}
@@ -419,16 +323,6 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500'
-  },
-  backButton: {
-    background: '#6b7280',
-    color: 'white',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    textDecoration: 'none',
-    fontSize: '14px',
-    fontWeight: '500',
-    display: 'inline-block'
   },
   logoutButton: {
     background: '#dc3545',
@@ -648,17 +542,6 @@ const styles = {
   },
   actionButtonSecondary: {
     background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600',
-    transition: 'all 0.2s'
-  },
-  actionButtonDanger: {
-    background: '#ef4444',
     color: 'white',
     border: 'none',
     padding: '10px 20px',
