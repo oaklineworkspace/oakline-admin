@@ -31,12 +31,25 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
+    "/admin/resend-enrollment": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendors.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/admin/resend-enrollment.js"
+    ],
     "/dashboard": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
       "static/chunks/components_LiveChat_js.js",
       "static/chunks/pages/dashboard.js"
+    ],
+    "/main-menu": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendors.js",
+      "static/chunks/main.js",
+      "static/chunks/components_LiveChat_js.js",
+      "static/chunks/pages/main-menu.js"
     ]
   },
   "ampFirstPages": []
