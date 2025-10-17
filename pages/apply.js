@@ -412,6 +412,13 @@ export default function Apply() {
 
         if (!authResponse.ok) {
           console.error('Failed to create auth user:', authResult);
+          
+          // If auth creation failed, clean up the application record
+          await supabase
+            .from('applications')
+            .delete()
+            .eq('id', applicationId);
+          
           throw new Error(authResult.error || 'Failed to create user account');
         }
 
@@ -435,40 +442,8 @@ export default function Apply() {
         return;
       }
 
-      // STEP 3: Create profile for the user (will be completed during enrollment)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert([{
-          id: userId,
-          application_id: applicationId,
-          email: formData.email.trim().toLowerCase(),
-          first_name: formData.firstName.trim(),
-          middle_name: formData.middleName.trim() || null,
-          last_name: formData.lastName.trim(),
-          mothers_maiden_name: formData.mothersMaidenName.trim() || null,
-          phone: formData.phone.trim(),
-          date_of_birth: formData.dateOfBirth,
-          country: effectiveCountry,
-          city: effectiveCity,
-          state: effectiveState,
-          zip_code: formData.zipCode.trim(),
-          address: formData.address.trim(),
-          ssn: effectiveCountry === 'US' ? formData.ssn.trim() : null,
-          id_number: effectiveCountry !== 'US' ? formData.idNumber.trim() : null,
-          employment_status: formData.employmentStatus,
-          annual_income: formData.annualIncome,
-          account_types: mappedAccountTypes,
-          enrollment_completed: false,
-          password_set: false,
-          application_status: 'pending',
-          updated_at: new Date().toISOString()
-        }], {
-          onConflict: 'id'
-        });
-
-      if (profileError) {
-        console.error('Error upserting profile:', profileError);
-      }
+      // Profile will be created during enrollment process
+      console.log('Skipping profile creation - will be handled during enrollment');
 
       // Helper function to generate unique account number
       const generateAccountNumber = () => {
@@ -595,72 +570,7 @@ export default function Apply() {
         }
       }
 
-      // Create a preliminary profile record (will be completed during enrollment)
-      try {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            application_id: applicationId,
-            email: formData.email.trim().toLowerCase(),
-            first_name: formData.firstName.trim(),
-            middle_name: formData.middleName.trim() || null,
-            last_name: formData.lastName.trim(),
-            mothers_maiden_name: formData.mothersMaidenName.trim() || null,
-            phone: formData.phone.trim(),
-            date_of_birth: formData.dateOfBirth,
-            country: effectiveCountry,
-            address: formData.address.trim(),
-            city: effectiveCity,
-            state: effectiveState,
-            zip_code: formData.zipCode.trim(),
-            ssn: effectiveCountry === 'US' ? formData.ssn.trim() : null,
-            id_number: effectiveCountry !== 'US' ? formData.idNumber.trim() : null,
-            employment_status: formData.employmentStatus,
-            annual_income: formData.annualIncome,
-            account_types: formData.accountTypes.map(id => {
-              const accountType = ACCOUNT_TYPES.find(at => at.id === id);
-              const enumMapping = {
-                'Checking Account': 'checking_account',
-                'Savings Account': 'savings_account',
-                'Business Checking': 'business_checking',
-                'Business Savings': 'business_savings',
-                'Student Checking': 'student_checking',
-                'Money Market Account': 'money_market',
-                'Certificate of Deposit (CD)': 'certificate_of_deposit',
-                'Retirement Account (IRA)': 'retirement_ira',
-                'Joint Checking Account': 'joint_checking',
-                'Trust Account': 'trust_account',
-                'Investment Brokerage Account': 'investment_brokerage',
-                'High-Yield Savings Account': 'high_yield_savings',
-                'International Checking': 'international_checking',
-                'Foreign Currency Account': 'foreign_currency',
-                'Cryptocurrency Wallet': 'cryptocurrency_wallet',
-                'Loan Repayment Account': 'loan_repayment',
-                'Mortgage Account': 'mortgage',
-                'Auto Loan Account': 'auto_loan',
-                'Credit Card Account': 'credit_card',
-                'Prepaid Card Account': 'prepaid_card',
-                'Payroll Account': 'payroll_account',
-                'Nonprofit/Charity Account': 'nonprofit_charity',
-                'Escrow Account': 'escrow_account'
-              };
-              return enumMapping[accountType?.name] || accountType?.name?.toLowerCase().replace(/\s+/g, '_');
-            }),
-            enrollment_completed: false,
-            application_status: 'pending'
-          }])
-          .single();
-
-        if (profileError && profileError.code !== '23505') { // Ignore duplicate key errors
-          console.error('Error creating profile record:', profileError);
-        } else {
-          console.log('Profile record created or already exists');
-        }
-      } catch (profileInsertError) {
-        console.log('Profile creation skipped:', profileInsertError.message);
-      }
-
-      // Auth user was already created earlier in the process
+      // Auth user and accounts were created - enrollment will handle profile creation
 
       // Send welcome email with enrollment link using resend-enrollment API
       try {
