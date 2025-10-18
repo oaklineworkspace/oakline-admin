@@ -3,7 +3,7 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/admin": "pages/admin.js",
-  "/admin/manage-all-users": "pages/admin/manage-all-users.js",
-  "/admin/admin-users": "pages/admin/admin-users.js",
+  "/admin/manage-user-enrollment": "pages/admin/manage-user-enrollment.js",
+  "/admin/approve-accounts": "pages/admin/approve-accounts.js",
   "/": "pages/index.js"
 }

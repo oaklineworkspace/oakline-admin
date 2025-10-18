@@ -36,11 +36,11 @@
       "static/chunks/main.js",
       "static/chunks/pages/admin.js"
     ],
-    "/admin/admin-users": [
+    "/admin/approve-accounts": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/admin-users.js"
+      "static/chunks/pages/admin/approve-accounts.js"
     ]
   },
   "ampFirstPages": []
