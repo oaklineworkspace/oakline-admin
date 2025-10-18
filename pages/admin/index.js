@@ -49,6 +49,7 @@ export default function AdminNavigationHub() {
       pages: [
         { name: 'Admin Users', path: '/admin/admin-users', icon: '👨‍💼', description: 'Manage customer users' },
         { name: 'Admin Users Management', path: '/admin/admin-users-management', icon: '🔐', description: 'Manage admin users & permissions' },
+        { name: 'Manage User Enrollment', path: '/admin/manage-user-enrollment', icon: '🔑', description: 'Assign passwords & complete enrollment' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕', description: 'Create new user account' },
         { name: 'Delete User', path: '/admin/delete-user', icon: '🗑️', description: 'Delete user accounts' },
       ]

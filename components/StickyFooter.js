@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
+import AdminDropdown from './AdminDropdown';
 
 export default function StickyFooter() {
   const { user, loading } = useAuth();
@@ -19,7 +19,7 @@ export default function StickyFooter() {
     };
 
     handleRouteChange();
-    
+
     const handleRouteChangeComplete = () => handleRouteChange();
     router.events.on('routeChangeComplete', handleRouteChangeComplete);
 
@@ -90,7 +90,7 @@ export default function StickyFooter() {
                 <span style={styles.navText}>{navItem.name}</span>
               </Link>
             ))}
-            
+
             {/* Features Dropdown Button - Centered */}
             <div style={styles.featuresContainer}>
               <button
@@ -100,7 +100,7 @@ export default function StickyFooter() {
                 <span style={styles.navIcon}>💰</span>
                 <span style={styles.navText}>Banking+</span>
               </button>
-              
+
               {showFeatures && (
                 <>
                   <div style={styles.backdrop} onClick={() => setShowFeatures(false)}></div>
@@ -109,7 +109,7 @@ export default function StickyFooter() {
                       <h4 style={styles.dropdownTitle}>Premium Banking Services</h4>
                       <p style={styles.dropdownSubtitle}>High-income generating banking solutions</p>
                     </div>
-                    
+
                     <div style={styles.featuresGrid}>
                       {premiumFeatures.map((feature) => (
                         <button
@@ -135,7 +135,7 @@ export default function StickyFooter() {
                         </button>
                       ))}
                     </div>
-                    
+
                     <div style={styles.dropdownFooter}>
                       <button 
                         onClick={() => {
@@ -184,6 +184,8 @@ export default function StickyFooter() {
           </div>
         </div>
       </div>
+      
+      <AdminDropdown />
     </div>
   );
 }
