@@ -122,7 +122,6 @@ export default async function handler(req, res) {
     }
 
     // Create transaction record
-    // Try with reference_number first, fallback to reference if needed
     const transactionData = {
       account_id: accountId,
       user_id: userId,
@@ -130,36 +129,15 @@ export default async function handler(req, res) {
       amount: transactionAmount,
       status: 'completed',
       description: description || `Manual ${type.replace(/_/g, ' ')}`,
+      reference: `MANUAL_${Date.now()}`,
       created_at: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString()
     };
 
-    // Check if table has reference_number or reference column
-    const referenceValue = `MANUAL_${Date.now()}`;
-    
-    // Try to insert with both possible column names
-    let transaction, transactionError;
-    
-    // First attempt with reference_number
-    const result1 = await supabase
+    const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
-      .insert([{ ...transactionData, reference_number: referenceValue }])
+      .insert([transactionData])
       .select()
       .single();
-    
-    if (result1.error && result1.error.message.includes('reference_number')) {
-      // Fallback to 'reference' column name
-      const result2 = await supabase
-        .from('transactions')
-        .insert([{ ...transactionData, reference: referenceValue }])
-        .select()
-        .single();
-      
-      transaction = result2.data;
-      transactionError = result2.error;
-    } else {
-      transaction = result1.data;
-      transactionError = result1.error;
-    }
 
     if (transactionError) {
       // Try to revert balance update if transaction creation fails

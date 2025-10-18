@@ -72,7 +72,7 @@ export default function ApproveAccounts() {
 
       // Fetch related applications
       const applicationIds = accounts?.map(acc => acc.application_id).filter(Boolean) || [];
-      
+
       if (applicationIds.length > 0) {
         const { data: applications, error: appsError } = await supabase
           .from('applications')
@@ -143,6 +143,21 @@ export default function ApproveAccounts() {
 
   const approveAccount = async (accountId, accountNumber) => {
     await updateAccountStatus(accountId, accountNumber, 'active', 'approved');
+    // After approval, show the success modal
+    // Fetch the account details again to populate the modal
+    const { data: approvedAcc, error: fetchError } = await supabase
+      .from('accounts')
+      .select('*, applications(*)') // Join with applications table
+      .eq('id', accountId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching approved account details:', fetchError);
+      setError('Failed to fetch details for success modal.');
+      return;
+    }
+    setApprovedAccount(approvedAcc);
+    setShowSuccessModal(true);
   };
 
   const suspendAccount = async (accountId, accountNumber) => {

@@ -46,10 +46,13 @@ export default function AdminBalance() {
       const { data: applicationsData, error: appError } = await supabase
         .from('applications')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('submitted_at', { ascending: false });
 
-      if (!appError && applicationsData) {
-        setUsers(applicationsData);
+      if (appError) {
+        console.error('Error fetching applications:', appError);
+        setError('Failed to fetch applications: ' + appError.message);
+      } else {
+        setUsers(applicationsData || []);
       }
 
       // Fetch all accounts
@@ -58,12 +61,15 @@ export default function AdminBalance() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!accountsError && accountsData) {
-        setAccounts(accountsData);
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+        setError('Failed to fetch accounts: ' + accountsError.message);
+      } else {
+        setAccounts(accountsData || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to fetch data');
+      setError('Failed to fetch data: ' + error.message);
     } finally {
       setLoading(false);
     }
