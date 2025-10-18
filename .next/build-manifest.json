@@ -30,11 +30,17 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/admin/manage-all-users": [
+    "/admin": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/manage-all-users.js"
+      "static/chunks/pages/admin.js"
+    ],
+    "/admin/admin-users": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendors.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/admin/admin-users.js"
     ]
   },
   "ampFirstPages": []
