@@ -41,8 +41,9 @@ export default function AdminBalance() {
 
   const fetchData = async () => {
     setLoading(true);
+    setError('');
     try {
-      // Fetch users from applications
+      // Fetch applications with user data
       const { data: applicationsData, error: appError } = await supabase
         .from('applications')
         .select('*')
@@ -50,26 +51,35 @@ export default function AdminBalance() {
 
       if (appError) {
         console.error('Error fetching applications:', appError);
-        setError('Failed to fetch applications: ' + appError.message);
-      } else {
-        setUsers(applicationsData || []);
+        throw new Error('Failed to fetch applications: ' + appError.message);
       }
 
-      // Fetch all accounts
+      setUsers(applicationsData || []);
+
+      // Fetch all accounts with application data
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
-        .select('*')
+        .select(`
+          *,
+          applications!accounts_application_id_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            user_id
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (accountsError) {
         console.error('Error fetching accounts:', accountsError);
-        setError('Failed to fetch accounts: ' + accountsError.message);
-      } else {
-        setAccounts(accountsData || []);
+        throw new Error('Failed to fetch accounts: ' + accountsError.message);
       }
+
+      setAccounts(accountsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to fetch data: ' + error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }

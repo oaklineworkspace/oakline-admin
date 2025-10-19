@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import AdminDropdown from './AdminDropdown';
 
 export default function StickyFooter() {
   const { user, loading } = useAuth();
@@ -184,8 +183,6 @@ export default function StickyFooter() {
           </div>
         </div>
       </div>
-      
-      <AdminDropdown />
     </div>
   );
 }

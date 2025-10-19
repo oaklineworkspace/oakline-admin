@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import AdminDropdown from '../../components/AdminDropdown';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -163,6 +164,16 @@ export default function AdminNavigationHub() {
         <p style={styles.footerText}>
           Total Admin Pages: <strong>{adminPages.reduce((acc, section) => acc + section.pages.length, 0)}</strong>
         </p>
+      </div>
+
+      {/* Admin Dropdown - Only shown on admin page */}
+      <div style={{
+        position: 'fixed',
+        bottom: '90px',
+        right: '20px',
+        zIndex: 9999
+      }}>
+        <AdminDropdown />
       </div>
     </div>
   );

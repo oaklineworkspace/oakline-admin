@@ -58,10 +58,26 @@ export default function ApproveAccounts() {
     setLoading(true);
     setError('');
     try {
-      // Fetch pending accounts
+      // Fetch pending accounts with application data using proper join
       const { data: accounts, error: accountsError } = await supabase
         .from('accounts')
-        .select('*')
+        .select(`
+          *,
+          applications!accounts_application_id_fkey(
+            id,
+            first_name,
+            last_name,
+            middle_name,
+            email,
+            phone,
+            address,
+            city,
+            state,
+            zip_code,
+            date_of_birth,
+            user_id
+          )
+        `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
@@ -70,29 +86,7 @@ export default function ApproveAccounts() {
         throw new Error(`Failed to load pending accounts: ${accountsError.message}`);
       }
 
-      // Fetch related applications
-      const applicationIds = accounts?.map(acc => acc.application_id).filter(Boolean) || [];
-
-      if (applicationIds.length > 0) {
-        const { data: applications, error: appsError } = await supabase
-          .from('applications')
-          .select('*')
-          .in('id', applicationIds);
-
-        if (appsError) {
-          console.error('Error fetching applications:', appsError);
-        }
-
-        // Merge application data with accounts
-        const enrichedAccounts = accounts.map(account => ({
-          ...account,
-          applications: applications?.find(app => app.id === account.application_id) || null
-        }));
-
-        setPendingAccounts(enrichedAccounts);
-      } else {
-        setPendingAccounts(accounts || []);
-      }
+      setPendingAccounts(accounts || []);
     } catch (error) {
       console.error('Error:', error);
       setError(error.message);
@@ -147,7 +141,17 @@ export default function ApproveAccounts() {
     // Fetch the account details again to populate the modal
     const { data: approvedAcc, error: fetchError } = await supabase
       .from('accounts')
-      .select('*, applications(*)') // Join with applications table
+      .select(`
+        *,
+        applications!accounts_application_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          user_id
+        )
+      `)
       .eq('id', accountId)
       .single();
 
