@@ -82,14 +82,15 @@ export default function ManageUserEnrollmentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: selectedUser.email,
-          password: newPassword
+          password: newPassword,
+          sendEmail: true
         })
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        alert(`✅ Password assigned successfully to ${selectedUser.email}`);
+        alert(`✅ Password assigned and sent to ${selectedUser.email}`);
         setShowPasswordModal(false);
         setSelectedUser(null);
         setNewPassword('');
@@ -101,6 +102,37 @@ export default function ManageUserEnrollmentPage() {
       alert(`❌ Error: ${error.message}`);
     } finally {
       setActionLoading({ ...actionLoading, [`password_${selectedUser.id}`]: false });
+    }
+  };
+
+  const handleConfirmEmail = async (user) => {
+    if (!confirm(`Confirm email for ${user.email}?\n\nThis will allow the user to log in.`)) {
+      return;
+    }
+
+    setActionLoading({ ...actionLoading, [`confirm_${user.id}`]: true });
+
+    try {
+      const response = await fetch('/api/admin/confirm-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`✅ Email confirmed for ${user.email}`);
+        await fetchUsers();
+      } else {
+        alert(`❌ Failed: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Error: ${error.message}`);
+    } finally {
+      setActionLoading({ ...actionLoading, [`confirm_${user.id}`]: false });
     }
   };
 
@@ -226,6 +258,13 @@ export default function ManageUserEnrollmentPage() {
                   style={styles.actionButton}
                 >
                   {actionLoading[`password_${user.id}`] ? '⏳ Assigning...' : '🔑 Assign Password'}
+                </button>
+                <button
+                  onClick={() => handleConfirmEmail(user)}
+                  disabled={actionLoading[`confirm_${user.id}`]}
+                  style={styles.actionButtonTertiary}
+                >
+                  {actionLoading[`confirm_${user.id}`] ? '⏳ Confirming...' : '✉️ Confirm Email'}
                 </button>
                 <button
                   onClick={() => handleCompleteEnrollment(user)}
@@ -478,6 +517,17 @@ const styles = {
   },
   actionButtonSecondary: {
     background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  },
+  actionButtonTertiary: {
+    background: '#f59e0b',
     color: 'white',
     border: 'none',
     padding: '10px 20px',
