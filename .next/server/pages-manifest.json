@@ -3,5 +3,8 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/admin": "pages/admin.js",
-  "/": "pages/index.js"
+  "/": "pages/index.js",
+  "/admin/manage-user-enrollment": "pages/admin/manage-user-enrollment.js",
+  "/admin/approve-accounts": "pages/admin/approve-accounts.js",
+  "/api/applications": "pages/api/applications.js"
 }
