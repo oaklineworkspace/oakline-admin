@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,165 +6,80 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { accountId, userId, type, amount, description, transactionDate } = req.body;
+    const { accountId, amount, type, description } = req.body;
 
-    // Validate required fields
-    if (!accountId || !userId || !type || !amount) {
+    if (!accountId || amount === undefined || !type) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Validate amount is a number
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount)) {
-      return res.status(400).json({ error: 'Amount must be a valid number' });
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount)) {
+      return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    if (numericAmount <= 0) {
-      return res.status(400).json({ error: 'Amount must be greater than 0' });
-    }
-
-    // Get current account data
-    const { data: account, error: accountError } = await supabase
+    // Get current account balance
+    const { data: accountData, error: fetchError } = await supabaseAdmin
       .from('accounts')
-      .select('*')
+      .select('balance, account_number')
       .eq('id', accountId)
-      .eq('user_id', userId)
       .single();
 
-    if (accountError || !account) {
+    if (fetchError || !accountData) {
+      console.error('Fetch error:', fetchError);
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    const currentBalance = parseFloat(account.balance);
+    // Calculate new balance based on transaction type
     let newBalance;
-    let transactionAmount;
-    let transactionType;
-
-    // Determine transaction amount and new balance based on type
-    // Note: Store amounts as POSITIVE values, type determines if it's debit/credit
-    switch (type) {
-      case 'deposit':
-      case 'interest':
-      case 'bonus':
-      case 'refund':
-      case 'transfer_in':
-        transactionAmount = numericAmount; // Positive amount
-        newBalance = currentBalance + numericAmount;
-        transactionType = 'credit';
-        break;
-      
-      case 'withdrawal':
-      case 'atm_withdrawal':
-        transactionAmount = numericAmount; // Store as positive
-        newBalance = currentBalance - numericAmount;
-        transactionType = 'debit';
-        break;
-      
-      case 'debit_card':
-      case 'card_charge':
-        transactionAmount = numericAmount; // Store as positive
-        newBalance = currentBalance - numericAmount;
-        transactionType = 'debit';
-        break;
-      
-      case 'transfer':
-      case 'transfer_out':
-      case 'wire_transfer':
-      case 'ach_transfer':
-        transactionAmount = numericAmount; // Store as positive
-        newBalance = currentBalance - numericAmount;
-        transactionType = 'transfer_out';
-        break;
-      
-      case 'check':
-      case 'check_payment':
-        transactionAmount = numericAmount; // Store as positive
-        newBalance = currentBalance - numericAmount;
-        transactionType = 'debit';
-        break;
-      
-      case 'fee':
-      case 'service_fee':
-        transactionAmount = numericAmount; // Store as positive
-        newBalance = currentBalance - numericAmount;
-        transactionType = 'fee';
-        break;
-      
-      case 'adjustment':
-        // For adjustments, the amount can be positive or negative
-        transactionAmount = Math.abs(numericAmount);
-        newBalance = currentBalance + numericAmount;
-        transactionType = numericAmount >= 0 ? 'credit' : 'debit';
-        break;
-      
-      default:
-        return res.status(400).json({ error: 'Invalid transaction type' });
-    }
-
-    // Check for negative balance on debit transactions
-    if (newBalance < 0 && !['adjustment'].includes(type)) {
-      return res.status(400).json({ 
-        error: `Insufficient funds. Current balance: $${currentBalance.toFixed(2)}, Transaction amount: $${numericAmount.toFixed(2)}` 
-      });
+    if (type === 'balance_update') {
+      newBalance = parsedAmount;
+    } else if (type === 'credit' || type === 'deposit') {
+      newBalance = parseFloat(accountData.balance) + parsedAmount;
+    } else if (type === 'debit' || type === 'withdrawal') {
+      newBalance = parseFloat(accountData.balance) - parsedAmount;
+    } else {
+      // Defaulting to parsedAmount if type is unknown, could be 'balance_update' or similar
+      newBalance = parsedAmount;
     }
 
     // Update account balance
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('accounts')
-      .update({ 
-        balance: newBalance.toFixed(2),
+      .update({
+        balance: newBalance,
         updated_at: new Date().toISOString()
       })
       .eq('id', accountId);
 
     if (updateError) {
+      console.error('Update error:', updateError);
       throw updateError;
     }
 
     // Create transaction record
-    const transactionData = {
-      account_id: accountId,
-      user_id: userId,
-      type: transactionType,
-      amount: transactionAmount,
-      status: 'completed',
-      description: description || `Manual ${type.replace(/_/g, ' ')}`,
-      reference: `MANUAL_${Date.now()}`,
-      created_at: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString()
-    };
-
-    const { data: transaction, error: transactionError } = await supabase
+    const { error: transactionError } = await supabaseAdmin
       .from('transactions')
-      .insert([transactionData])
-      .select()
-      .single();
+      .insert({
+        account_id: accountId,
+        type: type === 'balance_update' ? 'credit' : type, // Map 'balance_update' to 'credit' for transaction log
+        amount: type === 'balance_update' ? parsedAmount : Math.abs(parsedAmount), // Store absolute amount for transactions
+        description: description || 'Manual transaction by admin',
+        status: 'completed',
+        created_at: new Date().toISOString()
+      });
 
     if (transactionError) {
-      // Try to revert balance update if transaction creation fails
-      await supabase
-        .from('accounts')
-        .update({ 
-          balance: currentBalance.toFixed(2),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', accountId);
-
-      throw transactionError;
+      console.error('Transaction error:', transactionError);
+      // Consider a more robust error handling here, e.g., attempting to revert the balance update
     }
 
     res.status(200).json({
-      success: true,
-      message: 'Transaction processed successfully',
-      transaction: transaction,
-      newBalance: newBalance.toFixed(2),
-      previousBalance: currentBalance.toFixed(2)
+      message: 'Transaction completed successfully',
+      newBalance: newBalance,
+      accountNumber: accountData.account_number
     });
-
   } catch (error) {
-    console.error('Manual transaction error:', error);
-    res.status(500).json({
-      error: 'Internal server error during transaction processing',
-      details: error.message
-    });
+    console.error('Error processing manual transaction:', error);
+    res.status(500).json({ error: error.message });
   }
 }

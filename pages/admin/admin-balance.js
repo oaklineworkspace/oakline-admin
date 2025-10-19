@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
@@ -89,12 +88,12 @@ export default function AdminBalance() {
     const userId = e.target.value;
     setSelectedUser(userId);
     setSelectedAccount('');
-    
+
     // Filter accounts for selected user
     const userAccounts = accounts.filter(acc => 
       acc.application_id === userId || acc.user_id === userId
     );
-    
+
     if (userAccounts.length === 1) {
       setSelectedAccount(userAccounts[0].id);
     }
@@ -204,6 +203,41 @@ export default function AdminBalance() {
       acc.application_id === userId || acc.user_id === userId
     );
   };
+
+  // Function to handle manual balance updates via API
+  const handleUpdateBalance = async (accountId) => {
+    const newBalance = prompt('Enter new balance:');
+    if (!newBalance || isNaN(newBalance)) {
+      alert('Invalid balance amount');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/manual-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: accountId,
+          amount: parseFloat(newBalance),
+          type: 'balance_update',
+          description: 'Admin balance update'
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update balance');
+      }
+
+      alert('Balance updated successfully!');
+      fetchData(); // Refresh data after successful update
+    } catch (error) {
+      console.error('Error updating balance:', error);
+      alert('Failed to update balance: ' + error.message);
+    }
+  };
+
 
   if (!isAuthenticated) {
     return (
@@ -345,6 +379,36 @@ export default function AdminBalance() {
             </span>
             <span style={styles.summaryLabel}>Total Balance</span>
           </div>
+        </div>
+      </div>
+
+      {/* Display all accounts with an option to manually update balance */}
+      <div style={styles.card}>
+        <h2 style={styles.cardTitle}>All Accounts</h2>
+        <div style={styles.accountList}>
+          {accounts.map(account => (
+            <div key={account.id} style={styles.accountItem}>
+              <div style={styles.accountDetails}>
+                <span style={styles.accountName}>
+                  {account.applications?.first_name || 'N/A'} {account.applications?.last_name || 'N/A'}
+                </span>
+                <span style={styles.accountEmail}>{account.applications?.email || 'N/A'}</span>
+                <span style={styles.accountType}>{account.account_type} - ****{account.account_number?.slice(-4)}</span>
+              </div>
+              <div style={styles.accountBalanceContainer}>
+                <span style={styles.accountBalance}>
+                  ${parseFloat(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <button 
+                  onClick={() => handleUpdateBalance(account.id)}
+                  style={styles.updateButton}
+                  disabled={loading}
+                >
+                  Update Balance
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -505,5 +569,57 @@ const styles = {
     fontSize: '12px',
     color: '#64748b',
     fontWeight: '500'
+  },
+  accountList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+  accountItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px',
+    background: '#f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #eee'
+  },
+  accountDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  accountName: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1e3a8a'
+  },
+  accountEmail: {
+    fontSize: '13px',
+    color: '#64748b'
+  },
+  accountType: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#374151'
+  },
+  accountBalanceContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  accountBalance: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#15803d'
+  },
+  updateButton: {
+    background: '#1e3a8a',
+    color: 'white',
+    border: 'none',
+    padding: '8px 12px',
+    borderRadius: '6px',
+    fontSize: '12px',
+    cursor: 'pointer'
   }
 };

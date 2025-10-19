@@ -99,19 +99,19 @@ export default function ApproveAccounts() {
     setProcessing(accountId);
     setError('');
     try {
-      const updateData = {
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
+      const response = await fetch('/api/admin/update-account-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: accountId,
+          status: newStatus
+        })
+      });
 
-      const { error: updateError } = await supabase
-        .from('accounts')
-        .update(updateData)
-        .eq('id', accountId);
+      const result = await response.json();
 
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw new Error(`Failed to ${actionName} account: ${updateError.message}`);
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to ${actionName} account`);
       }
 
       const statusEmojis = {
