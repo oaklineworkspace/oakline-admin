@@ -2,10 +2,5 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/admin": "pages/admin.js",
-  "/": "pages/index.js",
-  "/admin/manage-user-enrollment": "pages/admin/manage-user-enrollment.js",
-  "/api/applications": "pages/api/applications.js",
-  "/api/admin/complete-enrollment": "pages/api/admin/complete-enrollment.js",
-  "/api/admin/assign-password": "pages/api/admin/assign-password.js"
+  "/": "pages/index.js"
 }
