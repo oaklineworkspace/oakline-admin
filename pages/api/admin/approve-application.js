@@ -90,10 +90,10 @@ export default async function handler(req, res) {
     const userId = authUser.user.id;
     console.log(`Auth user created: ${userId}`);
 
-    // 3. Create profile
+    // 3. Create or update profile (upsert)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
+      .upsert({
         id: userId,
         email: email,
         first_name: firstName,
@@ -106,17 +106,20 @@ export default async function handler(req, res) {
         city: application.city,
         state: application.state,
         zip_code: application.zip_code,
-        enrollment_completed: false
+        enrollment_completed: false,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
       });
 
     if (profileError) {
-      console.error('Profile creation error:', profileError);
+      console.error('Profile upsert error:', profileError);
       // Cleanup auth user if profile fails
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
     }
 
-    console.log('Profile created successfully');
+    console.log('Profile created/updated successfully');
 
     // 4. Create accounts
     const accountTypes = application.account_types || ['checking_account'];
