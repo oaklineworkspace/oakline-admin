@@ -116,76 +116,78 @@ export default async function handler(req, res) {
     let userCreated = false;
 
     if (!userId) {
-      temporaryPassword = `Temp${Math.random().toString(36).substring(2, 10)}@${Date.now().toString().slice(-4)}`;
+      // First check if user already exists in auth
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const existingAuthUser = authUsers?.users?.find(u => u.email === application.email);
 
-      const { data: newUser, error: userError } = await supabaseAdmin.auth.admin.createUser({
-        email: application.email,
-        password: temporaryPassword,
-        email_confirm: true,
-        user_metadata: {
-          first_name: application.first_name,
-          last_name: application.last_name,
-        },
-      });
-
-      if (userError) {
-        if (userError.message.includes('already registered') || userError.message.includes('already exists')) {
-          const { data: existingProfile, error: profileError } = await supabaseAdmin
-            .from('profiles')
-            .select('id')
-            .eq('email', application.email)
-            .maybeSingle();
-
-          if (profileError) {
-            throw new Error(`Failed to retrieve existing user: ${profileError.message}`);
-          }
-
-          if (existingProfile) {
-            userId = existingProfile.id;
-            temporaryPassword = null;
-            console.log(`User already exists with ID: ${userId}`);
-          } else {
-            throw new Error('User exists in auth but profile not found. Please create profile manually.');
-          }
-        } else {
-          throw userError;
-        }
+      if (existingAuthUser) {
+        // User exists in auth, use that ID
+        userId = existingAuthUser.id;
+        temporaryPassword = null;
+        console.log(`User already exists in auth with ID: ${userId}`);
       } else {
+        // Create new user
+        temporaryPassword = `Temp${Math.random().toString(36).substring(2, 10)}@${Date.now().toString().slice(-4)}`;
+
+        const { data: newUser, error: userError } = await supabaseAdmin.auth.admin.createUser({
+          email: application.email,
+          password: temporaryPassword,
+          email_confirm: true,
+          user_metadata: {
+            first_name: application.first_name,
+            last_name: application.last_name,
+          },
+        });
+
+        if (userError) {
+          console.error('Error creating user in auth:', userError);
+          throw new Error(`Failed to create user: ${userError.message}`);
+        }
+
         userId = newUser.user.id;
         userCreated = true;
+        console.log(`New user created with ID: ${userId}`);
       }
     }
 
-    const { error: profileError } = await supabaseAdmin
+    // Upsert the profile
+    const { data: profileData, error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: userId,
         email: application.email,
         first_name: application.first_name,
-        middle_name: application.middle_name,
+        middle_name: application.middle_name || null,
         last_name: application.last_name,
-        phone: application.phone,
-        date_of_birth: application.date_of_birth,
-        country: application.country,
-        ssn: application.ssn,
-        id_number: application.id_number,
-        address: application.address,
-        city: application.city,
-        state: application.state,
-        zip_code: application.zip_code,
-        employment_status: application.employment_status,
-        annual_income: application.annual_income,
-        mothers_maiden_name: application.mothers_maiden_name,
-        account_types: application.account_types,
+        phone: application.phone || null,
+        date_of_birth: application.date_of_birth || null,
+        country: application.country || null,
+        ssn: application.ssn || null,
+        id_number: application.id_number || null,
+        address: application.address || null,
+        city: application.city || null,
+        state: application.state || null,
+        zip_code: application.zip_code || null,
+        employment_status: application.employment_status || null,
+        annual_income: application.annual_income || null,
+        mothers_maiden_name: application.mothers_maiden_name || null,
+        account_types: application.account_types || [],
         application_status: 'approved',
+        enrollment_completed: true,
+        password_set: temporaryPassword ? false : true,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'id'
-      });
+      })
+      .select()
+      .single();
 
     if (profileError) {
-      throw new Error(`Profile creation failed: ${profileError.message}`);
+      console.error('Profile upsert error:', profileError);
+      throw new Error(`Profile creation failed: ${profileError.message} (Code: ${profileError.code})`);
     }
+
+    console.log('Profile created/updated successfully:', profileData?.id);
 
     const accountTypes = application.account_types || ['Checking Account'];
     const createdAccounts = [];
@@ -384,9 +386,17 @@ Please log in and change your password immediately.
 
   } catch (error) {
     console.error('Error approving application:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      details: error.details || error.hint || error.code
+    });
     return res.status(500).json({
       error: 'Failed to approve application',
-      details: error.message,
+      details: error.message || 'Unknown error occurred',
+      errorCode: error.code,
+      errorHint: error.hint,
     });
   }
 }
