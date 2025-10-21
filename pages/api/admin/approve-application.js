@@ -66,19 +66,20 @@ export default async function handler(req, res) {
 
     console.log(`Processing application for ${fullName} (${email})`);
 
-    // Check if profile already exists
+    // Check if profile already exists by email
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id, email')
+      .select('id, email, enrollment_completed')
       .eq('email', email)
       .maybeSingle();
 
     let userId;
+    let isNewUser = false;
 
     if (existingProfile) {
       // Use existing user
       userId = existingProfile.id;
-      console.log(`Using existing user: ${userId}`);
+      console.log(`Using existing profile for user: ${userId}`);
     } else {
       // 2. Create Supabase Auth user
       const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).substring(2, 8)}`;
@@ -101,38 +102,37 @@ export default async function handler(req, res) {
       }
 
       userId = authUser.user.id;
-      console.log(`Auth user created: ${userId}`);
-    }
+      isNewUser = true;
+      console.log(`New auth user created: ${userId}`);
 
-    // 3. Create or update profile (upsert)
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert({
-        id: userId,
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-        middle_name: middleName,
-        phone: application.phone,
-        date_of_birth: application.date_of_birth,
-        country: application.country,
-        address: application.address,
-        city: application.city,
-        state: application.state,
-        zip_code: application.zip_code,
-        enrollment_completed: false,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      });
+      // 3. Create profile for new user
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+          middle_name: middleName,
+          phone: application.phone,
+          date_of_birth: application.date_of_birth,
+          country: application.country,
+          address: application.address,
+          city: application.city,
+          state: application.state,
+          zip_code: application.zip_code,
+          enrollment_completed: false,
+          updated_at: new Date().toISOString()
+        });
 
-    if (profileError) {
-      console.error('Profile upsert error:', profileError);
-      // Cleanup auth user if profile fails and was newly created
-      if (!existingProfile) {
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // Cleanup auth user if profile creation fails
         await supabaseAdmin.auth.admin.deleteUser(userId);
+        return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
       }
-      return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
+
+      console.log('Profile created successfully');
     }
 
     console.log('Profile created/updated successfully');
