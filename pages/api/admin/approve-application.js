@@ -118,39 +118,41 @@ export default async function handler(req, res) {
     if (!userId) {
       temporaryPassword = `Temp${Math.random().toString(36).substring(2, 10)}@${Date.now().toString().slice(-4)}`;
 
-      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(u => u.email === application.email);
+      const { data: newUser, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email: application.email,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          first_name: application.first_name,
+          last_name: application.last_name,
+        },
+      });
 
-      if (existingUser) {
-        userId = existingUser.id;
-        console.log(`User already exists with ID: ${userId}`);
-      } else {
-        const { data: newUser, error: userError } = await supabaseAdmin.auth.admin.createUser({
-          email: application.email,
-          password: temporaryPassword,
-          email_confirm: true,
-          user_metadata: {
-            first_name: application.first_name,
-            last_name: application.last_name,
-          },
-        });
+      if (userError) {
+        if (userError.message.includes('already registered') || userError.message.includes('already exists')) {
+          const { data: existingProfile, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('email', application.email)
+            .maybeSingle();
 
-        if (userError) {
-          if (userError.message.includes('already registered')) {
-            const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-            const matchingUser = users?.users?.find(u => u.email === application.email);
-            if (matchingUser) {
-              userId = matchingUser.id;
-            } else {
-              throw new Error('User exists but could not be retrieved');
-            }
+          if (profileError) {
+            throw new Error(`Failed to retrieve existing user: ${profileError.message}`);
+          }
+
+          if (existingProfile) {
+            userId = existingProfile.id;
+            temporaryPassword = null;
+            console.log(`User already exists with ID: ${userId}`);
           } else {
-            throw userError;
+            throw new Error('User exists in auth but profile not found. Please create profile manually.');
           }
         } else {
-          userId = newUser.user.id;
-          userCreated = true;
+          throw userError;
         }
+      } else {
+        userId = newUser.user.id;
+        userCreated = true;
       }
     }
 

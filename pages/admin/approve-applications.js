@@ -4,7 +4,6 @@ import Link from 'next/link';
 
 export default function ApproveApplications() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,33 +12,15 @@ export default function ApproveApplications() {
   const [expandedApp, setExpandedApp] = useState(null);
   const router = useRouter();
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
     const adminAuth = localStorage.getItem('adminAuthenticated');
     if (adminAuth === 'true') {
       setIsAuthenticated(true);
       fetchApplications();
+    } else {
+      router.push('/admin');
     }
   }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-      fetchApplications();
-    } else {
-      setError('Invalid password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    setPassword('');
-  };
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -108,24 +89,7 @@ export default function ApproveApplications() {
       <div style={styles.loginContainer}>
         <div style={styles.loginCard}>
           <h1 style={styles.title}>Approve Applications</h1>
-          <p style={styles.subtitle}>Admin authentication required</p>
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-            {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              Access Panel
-            </button>
-          </form>
+          <p style={styles.subtitle}>Redirecting to admin login...</p>
         </div>
       </div>
     );
@@ -145,9 +109,6 @@ export default function ApproveApplications() {
           <Link href="/admin" style={styles.backButton}>
             Back to Admin
           </Link>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            Logout
-          </button>
         </div>
       </div>
 
