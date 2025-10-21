@@ -164,6 +164,25 @@ export default function ApproveApplications() {
                     </div>
                   )}
 
+                  <div style={styles.infoRow}>
+                    <span style={styles.infoLabel}>Country:</span>
+                    <span style={styles.infoValue}>{app.country || 'N/A'}</span>
+                  </div>
+
+                  {app.ssn && (
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>SSN:</span>
+                      <span style={styles.infoValue}>***-**-{app.ssn.slice(-4)}</span>
+                    </div>
+                  )}
+
+                  {app.id_number && (
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>ID Number:</span>
+                      <span style={styles.infoValue}>***{app.id_number.slice(-4)}</span>
+                    </div>
+                  )}
+
                   {app.account_types && app.account_types.length > 0 && (
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Accounts:</span>
@@ -178,7 +197,7 @@ export default function ApproveApplications() {
                       <div style={styles.detailsGrid}>
                         {app.address && (
                           <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Address:</span>
+                            <span style={styles.detailLabel}>Full Address:</span>
                             <span style={styles.detailValue}>
                               {app.address}
                               {app.city && `, ${app.city}`}
@@ -187,24 +206,32 @@ export default function ApproveApplications() {
                             </span>
                           </div>
                         )}
-                        {app.country && (
+                        {app.mothers_maiden_name && (
                           <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Country:</span>
-                            <span style={styles.detailValue}>{app.country}</span>
+                            <span style={styles.detailLabel}>Mother's Maiden Name:</span>
+                            <span style={styles.detailValue}>{app.mothers_maiden_name}</span>
                           </div>
                         )}
                         {app.employment_status && (
                           <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Employment:</span>
+                            <span style={styles.detailLabel}>Employment Status:</span>
                             <span style={styles.detailValue}>{app.employment_status}</span>
                           </div>
                         )}
                         {app.annual_income && (
                           <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Income:</span>
+                            <span style={styles.detailLabel}>Annual Income:</span>
                             <span style={styles.detailValue}>{app.annual_income}</span>
                           </div>
                         )}
+                        <div style={styles.detailItem}>
+                          <span style={styles.detailLabel}>Application ID:</span>
+                          <span style={styles.detailValue}>{app.id}</span>
+                        </div>
+                        <div style={styles.detailItem}>
+                          <span style={styles.detailLabel}>Agree to Terms:</span>
+                          <span style={styles.detailValue}>{app.agree_to_terms ? '✅ Yes' : '❌ No'}</span>
+                        </div>
                       </div>
                     </div>
                   )}

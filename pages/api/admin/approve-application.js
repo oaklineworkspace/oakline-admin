@@ -1,4 +1,6 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { createEnrollmentEmail, EMAIL_ADDRESSES } from '../../../lib/emailTemplates';
 import nodemailer from 'nodemailer';
 
 function generateAccountNumber() {
@@ -25,64 +27,8 @@ function generateExpiryDate() {
   return expiryDate.toISOString().split('T')[0];
 }
 
-async function sendWelcomeEmail(email, firstName, temporaryPassword, accounts, card) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn('SMTP not configured. Skipping email sending.');
-    return { sent: false, reason: 'SMTP not configured' };
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    const accountsList = accounts.map(acc => 
-      `${acc.account_type}: ${acc.account_number}`
-    ).join('\n        ');
-
-    const emailBody = `
-Dear ${firstName},
-
-Congratulations! Your application has been approved.
-
-Your account details:
-    Accounts:
-        ${accountsList}
-    
-    Card Number: ${card.card_number}
-    Expiry Date: ${card.expiry_date}
-    CVC: ${card.cvc}
-
-Login Credentials:
-    Email: ${email}
-    Temporary Password: ${temporaryPassword}
-
-Please log in and change your password immediately.
-
-Welcome to our banking family!
-
-Best regards,
-The Banking Team
-    `.trim();
-
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to: email,
-      subject: 'Welcome! Your Application Has Been Approved',
-      text: emailBody,
-    });
-
-    return { sent: true };
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return { sent: false, error: error.message };
-  }
+function generateEnrollmentToken() {
+  return `enroll_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 }
 
 export default async function handler(req, res) {
@@ -97,6 +43,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // 1. Get application details
     const { data: application, error: appError } = await supabaseAdmin
       .from('applications')
       .select('*')
@@ -104,6 +51,7 @@ export default async function handler(req, res) {
       .single();
 
     if (appError || !application) {
+      console.error('Application not found:', appError);
       return res.status(404).json({ error: 'Application not found' });
     }
 
@@ -111,19 +59,68 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Application already approved' });
     }
 
-    let userId = application.user_id;
-    let temporaryPassword = null;
-    let userCreated = false;
+    const email = application.email.toLowerCase();
+    const firstName = application.first_name;
+    const middleName = application.middle_name || '';
+    const lastName = application.last_name;
+    const fullName = `${firstName} ${middleName} ${lastName}`.trim();
 
-    // Skip auth user creation entirely - accounts will be created without user_id
-    // User will create their account during enrollment process
-    console.log('Skipping auth user creation - user will complete enrollment separately');
-    userId = null;
+    console.log(`Processing application for ${fullName} (${email})`);
 
-    // Skip profile creation - will be created during enrollment
-    console.log('Skipping profile creation - will be handled during user enrollment');
+    // 2. Create Supabase Auth user
+    const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).substring(2, 8)}`;
+    
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: tempPassword,
+      email_confirm: false,
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
+        middle_name: middleName,
+        application_id: applicationId
+      }
+    });
 
-    const accountTypes = application.account_types || ['Checking Account'];
+    if (authError) {
+      console.error('Auth user creation error:', authError);
+      return res.status(500).json({ error: `Failed to create auth user: ${authError.message}` });
+    }
+
+    const userId = authUser.user.id;
+    console.log(`Auth user created: ${userId}`);
+
+    // 3. Create profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        middle_name: middleName,
+        phone: application.phone,
+        date_of_birth: application.date_of_birth,
+        country: application.country,
+        address: application.address,
+        city: application.city,
+        state: application.state,
+        zip_code: application.zip_code,
+        application_id: applicationId,
+        enrollment_completed: false
+      });
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      // Cleanup auth user if profile fails
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
+    }
+
+    console.log('Profile created successfully');
+
+    // 4. Create accounts
+    const accountTypes = application.account_types || ['checking_account'];
     const createdAccounts = [];
 
     for (const accountType of accountTypes) {
@@ -152,24 +149,28 @@ export default async function handler(req, res) {
       const { data: newAccount, error: accountError } = await supabaseAdmin
         .from('accounts')
         .insert({
-          user_id: null, // Will be linked during enrollment
+          user_id: userId,
           application_id: applicationId,
           account_number: accountNumber,
           account_type: accountType,
           balance: 0,
-          status: 'pending', // Pending until enrollment completes (allowed by accounts table)
+          status: 'pending',
           routing_number: '075915826',
         })
         .select()
         .single();
 
       if (accountError) {
+        console.error('Account creation error:', accountError);
         throw new Error(`Account creation failed: ${accountError.message}`);
       }
 
       createdAccounts.push(newAccount);
     }
 
+    console.log(`Created ${createdAccounts.length} accounts`);
+
+    // 5. Create debit card for first account
     const firstAccount = createdAccounts[0];
     let cardNumber;
     let isUnique = false;
@@ -196,11 +197,11 @@ export default async function handler(req, res) {
     const { data: newCard, error: cardError } = await supabaseAdmin
       .from('cards')
       .insert({
-        user_id: null, // Will be linked during enrollment
+        user_id: userId,
         account_id: firstAccount.id,
         card_number: cardNumber,
         card_type: 'debit',
-        status: 'inactive', // Inactive until enrollment completes
+        status: 'inactive',
         expiry_date: generateExpiryDate(),
         cvc: generateCVC(),
         daily_limit: 5000,
@@ -213,13 +214,62 @@ export default async function handler(req, res) {
       .single();
 
     if (cardError) {
+      console.error('Card creation error:', cardError);
       throw new Error(`Card creation failed: ${cardError.message}`);
     }
 
-    // Note: Email will be sent during enrollment process
-    // Skip email queue since user_id doesn't exist yet
-    console.log('Skipping email queue - user will receive enrollment instructions separately');
+    console.log('Debit card created successfully');
 
+    // 6. Generate enrollment token
+    const enrollmentToken = generateEnrollmentToken();
+
+    const { error: enrollmentError } = await supabaseAdmin
+      .from('enrollments')
+      .insert({
+        email: email,
+        token: enrollmentToken,
+        is_used: false,
+        application_id: applicationId,
+        user_id: userId
+      });
+
+    if (enrollmentError) {
+      console.error('Enrollment record creation error:', enrollmentError);
+    }
+
+    // 7. Send enrollment email
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+    const enrollLink = `${siteUrl}/enroll?token=${enrollmentToken}`;
+
+    const emailTemplate = createEnrollmentEmail(fullName, enrollLink);
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_PORT === '465',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: emailTemplate.from,
+        to: email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+
+      console.log(`Enrollment email sent to ${email}`);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Don't fail the approval for email issues
+    }
+
+    // 8. Update application status
     const { error: updateError } = await supabaseAdmin
       .from('applications')
       .update({
@@ -231,15 +281,19 @@ export default async function handler(req, res) {
       .eq('id', applicationId);
 
     if (updateError) {
+      console.error('Application update error:', updateError);
       throw new Error(`Application update failed: ${updateError.message}`);
     }
 
+    console.log('Application approved successfully');
+
     return res.status(200).json({
       success: true,
-      message: 'Application approved successfully. Accounts created and pending user enrollment.',
+      message: 'Application approved successfully. User created and enrollment email sent.',
       data: {
         applicationId,
-        enrollmentRequired: true,
+        userId,
+        email,
         accounts: createdAccounts.map(acc => ({
           id: acc.id,
           account_number: acc.account_number,
@@ -249,27 +303,20 @@ export default async function handler(req, res) {
         })),
         card: {
           id: newCard.id,
-          card_number: newCard.card_number,
+          card_number: `****${newCard.card_number.slice(-4)}`,
           card_type: newCard.card_type,
           expiry_date: newCard.expiry_date,
           status: newCard.status,
         },
+        enrollmentEmailSent: true
       },
     });
 
   } catch (error) {
     console.error('Error approving application:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      details: error.details || error.hint || error.code
-    });
     return res.status(500).json({
       error: 'Failed to approve application',
       details: error.message || 'Unknown error occurred',
-      errorCode: error.code,
-      errorHint: error.hint,
     });
   }
 }
