@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { createEnrollmentEmail, EMAIL_ADDRESSES } from '../../../lib/emailTemplates';
 import nodemailer from 'nodemailer';
@@ -67,28 +66,43 @@ export default async function handler(req, res) {
 
     console.log(`Processing application for ${fullName} (${email})`);
 
-    // 2. Create Supabase Auth user
-    const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).substring(2, 8)}`;
-    
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      password: tempPassword,
-      email_confirm: false,
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
-        middle_name: middleName,
-        application_id: applicationId
+    // Check if profile already exists
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email')
+      .eq('email', email)
+      .maybeSingle();
+
+    let userId;
+
+    if (existingProfile) {
+      // Use existing user
+      userId = existingProfile.id;
+      console.log(`Using existing user: ${userId}`);
+    } else {
+      // 2. Create Supabase Auth user
+      const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).substring(2, 8)}`;
+
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: email,
+        password: tempPassword,
+        email_confirm: false,
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName,
+          middle_name: middleName,
+          application_id: applicationId
+        }
+      });
+
+      if (authError) {
+        console.error('Auth user creation error:', authError);
+        return res.status(500).json({ error: `Failed to create auth user: ${authError.message}` });
       }
-    });
 
-    if (authError) {
-      console.error('Auth user creation error:', authError);
-      return res.status(500).json({ error: `Failed to create auth user: ${authError.message}` });
+      userId = authUser.user.id;
+      console.log(`Auth user created: ${userId}`);
     }
-
-    const userId = authUser.user.id;
-    console.log(`Auth user created: ${userId}`);
 
     // 3. Create or update profile (upsert)
     const { error: profileError } = await supabaseAdmin
@@ -114,8 +128,10 @@ export default async function handler(req, res) {
 
     if (profileError) {
       console.error('Profile upsert error:', profileError);
-      // Cleanup auth user if profile fails
-      await supabaseAdmin.auth.admin.deleteUser(userId);
+      // Cleanup auth user if profile fails and was newly created
+      if (!existingProfile) {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+      }
       return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
     }
 
