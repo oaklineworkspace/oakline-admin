@@ -157,7 +157,7 @@ export default async function handler(req, res) {
           account_number: accountNumber,
           account_type: accountType,
           balance: 0,
-          status: 'pending', // Keep pending until enrollment completes
+          status: 'pending', // Pending until enrollment completes (allowed by accounts table)
           routing_number: '075915826',
         })
         .select()
@@ -200,7 +200,7 @@ export default async function handler(req, res) {
         account_id: firstAccount.id,
         card_number: cardNumber,
         card_type: 'debit',
-        status: 'pending', // Keep pending until enrollment completes
+        status: 'inactive', // Inactive until enrollment completes
         expiry_date: generateExpiryDate(),
         cvc: generateCVC(),
         daily_limit: 5000,
