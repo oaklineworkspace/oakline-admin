@@ -216,31 +216,9 @@ export default async function handler(req, res) {
       throw new Error(`Card creation failed: ${cardError.message}`);
     }
 
-    // Queue enrollment email instead of welcome email
-    const emailBody = `
-Dear ${application.first_name},
-
-Congratulations! Your application has been approved.
-
-Please complete your enrollment by visiting the enrollment page and following the instructions sent to your email.
-
-Your account details will be activated once you complete the enrollment process.
-
-Best regards,
-The Banking Team
-    `.trim();
-
-    await supabaseAdmin
-      .from('email_queue')
-      .insert({
-        user_id: null,
-        email: application.email,
-        subject: 'Application Approved - Complete Your Enrollment',
-        body: emailBody,
-        sent: false,
-      })
-      .then(() => console.log('Enrollment notification queued'))
-      .catch(err => console.error('Failed to queue email:', err));
+    // Note: Email will be sent during enrollment process
+    // Skip email queue since user_id doesn't exist yet
+    console.log('Skipping email queue - user will receive enrollment instructions separately');
 
     const { error: updateError } = await supabaseAdmin
       .from('applications')
