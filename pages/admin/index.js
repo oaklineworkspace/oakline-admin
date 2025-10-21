@@ -76,6 +76,7 @@ export default function AdminNavigationHub() {
     {
       category: '✅ Approvals & Applications',
       pages: [
+        { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅', description: 'Approve pending user applications' },
         { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️', description: 'Approve new accounts' },
         { name: 'Admin Approvals', path: '/admin/admin-approvals', icon: '👍', description: 'Review pending approvals' },
         { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧', description: 'Resend enrollment links' },
