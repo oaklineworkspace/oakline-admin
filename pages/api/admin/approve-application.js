@@ -106,7 +106,6 @@ export default async function handler(req, res) {
         city: application.city,
         state: application.state,
         zip_code: application.zip_code,
-        application_id: applicationId,
         enrollment_completed: false
       });
 
