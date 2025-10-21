@@ -116,37 +116,69 @@ export default async function handler(req, res) {
     let userCreated = false;
 
     if (!userId) {
-      // First check if user already exists in auth
-      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const existingAuthUser = authUsers?.users?.find(u => u.email === application.email);
+      // First try to find existing user by email
+      try {
+        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+        
+        if (!listError && users) {
+          const existingAuthUser = users.find(u => u.email?.toLowerCase() === application.email?.toLowerCase());
+          
+          if (existingAuthUser) {
+            userId = existingAuthUser.id;
+            temporaryPassword = null;
+            console.log(`User already exists in auth with ID: ${userId}`);
+          }
+        }
+      } catch (listErr) {
+        console.warn('Could not list users, will try to create:', listErr);
+      }
 
-      if (existingAuthUser) {
-        // User exists in auth, use that ID
-        userId = existingAuthUser.id;
-        temporaryPassword = null;
-        console.log(`User already exists in auth with ID: ${userId}`);
-      } else {
-        // Create new user
+      // If no existing user found, create new one
+      if (!userId) {
         temporaryPassword = `Temp${Math.random().toString(36).substring(2, 10)}@${Date.now().toString().slice(-4)}`;
 
-        const { data: newUser, error: userError } = await supabaseAdmin.auth.admin.createUser({
-          email: application.email,
-          password: temporaryPassword,
-          email_confirm: true,
-          user_metadata: {
-            first_name: application.first_name,
-            last_name: application.last_name,
-          },
-        });
+        try {
+          const { data: newUser, error: userError } = await supabaseAdmin.auth.admin.createUser({
+            email: application.email.toLowerCase(),
+            password: temporaryPassword,
+            email_confirm: true,
+            user_metadata: {
+              first_name: application.first_name,
+              last_name: application.last_name,
+            },
+          });
 
-        if (userError) {
-          console.error('Error creating user in auth:', userError);
-          throw new Error(`Failed to create user: ${userError.message}`);
+          if (userError) {
+            // Check if user already exists error
+            if (userError.message?.includes('already') || userError.code === '23505') {
+              console.log('User already exists, trying to find them...');
+              // Try one more time to get the user
+              const { data: { users }, error: retryListError } = await supabaseAdmin.auth.admin.listUsers();
+              if (!retryListError && users) {
+                const foundUser = users.find(u => u.email?.toLowerCase() === application.email?.toLowerCase());
+                if (foundUser) {
+                  userId = foundUser.id;
+                  temporaryPassword = null;
+                  console.log(`Found existing user with ID: ${userId}`);
+                } else {
+                  throw new Error('User exists but could not be found');
+                }
+              } else {
+                throw new Error(`Failed to create user: ${userError.message}`);
+              }
+            } else {
+              console.error('Error creating user in auth:', userError);
+              throw new Error(`Failed to create user: ${userError.message}`);
+            }
+          } else {
+            userId = newUser.user.id;
+            userCreated = true;
+            console.log(`New user created with ID: ${userId}`);
+          }
+        } catch (createErr) {
+          console.error('User creation error:', createErr);
+          throw createErr;
         }
-
-        userId = newUser.user.id;
-        userCreated = true;
-        console.log(`New user created with ID: ${userId}`);
       }
     }
 
