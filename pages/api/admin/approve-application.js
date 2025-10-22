@@ -247,7 +247,6 @@ export default async function handler(req, res) {
         application_id: applicationId,
         account_number: checkingAccountNumber,
         account_type: 'checking_account',
-        account_name: 'Checking Account',
         balance: 100.00,
         status: 'active',
         routing_number: '075915826',
@@ -276,6 +275,20 @@ export default async function handler(req, res) {
     const otherAccountTypes = accountTypes.filter(type => type !== 'checking_account');
     const pendingAccounts = [];
 
+    const accountTypeConfig = {
+      'savings_account': { initialBalance: 0.00 },
+      'business_checking': { initialBalance: 500.00 },
+      'business_savings': { initialBalance: 250.00 },
+      'student_checking': { initialBalance: 25.00 },
+      'money_market': { initialBalance: 1000.00 },
+      'certificate_of_deposit': { initialBalance: 5000.00 },
+      'retirement_ira': { initialBalance: 0.00 },
+      'joint_checking': { initialBalance: 100.00 },
+      'trust_account': { initialBalance: 10000.00 },
+      'investment_brokerage': { initialBalance: 2500.00 },
+      'high_yield_savings': { initialBalance: 500.00 }
+    };
+
     for (const accountType of otherAccountTypes) {
       let accountNumber;
       isUnique = false;
@@ -299,21 +312,7 @@ export default async function handler(req, res) {
         throw new Error('Failed to generate unique account number for ' + accountType);
       }
 
-      const accountTypeConfig = {
-        'savings_account': { name: 'Savings Account', initialBalance: 0.00 },
-        'business_checking': { name: 'Business Checking', initialBalance: 500.00 },
-        'business_savings': { name: 'Business Savings', initialBalance: 250.00 },
-        'student_checking': { name: 'Student Checking', initialBalance: 25.00 },
-        'money_market': { name: 'Money Market Account', initialBalance: 1000.00 },
-        'certificate_of_deposit': { name: 'Certificate of Deposit', initialBalance: 5000.00 },
-        'retirement_ira': { name: 'IRA Account', initialBalance: 0.00 },
-        'joint_checking': { name: 'Joint Checking', initialBalance: 100.00 },
-        'trust_account': { name: 'Trust Account', initialBalance: 10000.00 },
-        'investment_brokerage': { name: 'Investment Account', initialBalance: 2500.00 },
-        'high_yield_savings': { name: 'High-Yield Savings', initialBalance: 500.00 }
-      };
-
-      const config = accountTypeConfig[accountType] || { name: 'Account', initialBalance: 0.00 };
+      const config = accountTypeConfig[accountType] || { initialBalance: 0.00 };
 
       const { data: newAccount, error: accountError } = await supabaseAdmin
         .from('accounts')
@@ -322,7 +321,6 @@ export default async function handler(req, res) {
           application_id: applicationId,
           account_number: accountNumber,
           account_type: accountType,
-          account_name: config.name,
           balance: config.initialBalance,
           status: 'pending',
           routing_number: '075915826',
@@ -428,7 +426,7 @@ export default async function handler(req, res) {
                   <strong>Pending Accounts (requires admin approval):</strong>
                 </p>
                 <ul style="color: #047857; font-size: 14px; margin: 0; padding-left: 20px;">
-                  ${pendingAccounts.map(acc => `<li>${acc.account_name}</li>`).join('')}
+                  ${pendingAccounts.map(acc => `<li>${acc.account_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>`).join('')}
                 </ul>
                 ` : ''}
               </div>
@@ -495,10 +493,10 @@ export default async function handler(req, res) {
           id: acc.id,
           account_number: acc.account_number,
           account_type: acc.account_type,
-          account_name: acc.account_name,
           status: acc.status,
         })),
-        welcomeEmailSent: true
+        welcomeEmailSent: true,
+        userCreated: true
       },
     });
 
