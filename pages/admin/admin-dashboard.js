@@ -204,11 +204,13 @@ export default function AdminDashboard() {
       {/* Quick Links */}
       <h2 style={{ marginTop: '30px' }}>Quick Actions</h2>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <Link href="/admin/admin-users"><button>Manage Users</button></Link>
-        <Link href="/admin/approve-accounts"><button>Approve Accounts</button></Link>
-        <Link href="/admin/admin-transactions"><button>All Transactions</button></Link>
-        <Link href="/admin/admin-loans"><button>Manage Loans</button></Link>
-        <Link href="/admin/admin-card-applications"><button>Card Applications</button></Link>
+        <Link href="/admin/manage-users"><button style={styles.adminButton}>👥 Manage All Users</button></Link>
+        <Link href="/admin/admin-users"><button style={styles.adminButton}>📋 User Applications</button></Link>
+        <Link href="/admin/approve-accounts"><button style={styles.adminButton}>✅ Approve Accounts</button></Link>
+        <Link href="/admin/admin-transactions"><button style={styles.adminButton}>💰 All Transactions</button></Link>
+        <Link href="/admin/admin-loans"><button style={styles.adminButton}>🏦 Manage Loans</button></Link>
+        <Link href="/admin/admin-card-applications"><button style={styles.adminButton}>💳 Card Applications</button></Link>
+        <Link href="/admin/delete-users"><button style={styles.adminButton}>🗑️ Delete Users</button></Link>
       </div>
     </div>
   );

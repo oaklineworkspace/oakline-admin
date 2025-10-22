@@ -46,13 +46,16 @@ export default function DeleteUsers() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: user.email }),
+        body: JSON.stringify({ 
+          email: user.email,
+          userId: user.id 
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ type: 'success', text: 'User deleted successfully' });
+        setMessage({ type: 'success', text: '✅ User deleted successfully' });
         setUsers(users.filter(u => u.id !== user.id));
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to delete user' });
