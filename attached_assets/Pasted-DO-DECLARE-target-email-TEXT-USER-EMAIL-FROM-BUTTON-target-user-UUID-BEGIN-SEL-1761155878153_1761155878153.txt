@@ -1,0 +1,47 @@
+DO $$
+DECLARE
+    target_email TEXT := 'USER_EMAIL_FROM_BUTTON';
+    target_user UUID;
+BEGIN
+    SELECT id INTO target_user FROM public.profiles WHERE email = target_email;
+    IF target_user IS NULL THEN
+        SELECT id INTO target_user FROM auth.users WHERE email = target_email;
+    END IF;
+    IF target_user IS NULL THEN
+        RAISE NOTICE 'No user found for email: %', target_email;
+        RETURN;
+    END IF;
+
+    DELETE FROM public.card_transactions
+    WHERE card_id IN (SELECT id FROM public.cards WHERE user_id = target_user);
+    DELETE FROM public.card_activity_log WHERE user_id = target_user;
+    DELETE FROM public.cards WHERE user_id = target_user;
+    DELETE FROM public.card_applications WHERE user_id = target_user;
+    DELETE FROM public.zelle_transactions
+    WHERE sender_id = target_user OR recipient_user_id = target_user;
+    DELETE FROM public.zelle_settings WHERE user_id = target_user;
+    DELETE FROM public.zelle_contacts WHERE user_id = target_user;
+    DELETE FROM public.loan_payments
+    WHERE loan_id IN (SELECT id FROM public.loans WHERE user_id = target_user);
+    DELETE FROM public.loans WHERE user_id = target_user;
+    DELETE FROM public.transactions
+    WHERE account_id IN (SELECT id FROM public.accounts WHERE user_id = target_user);
+    DELETE FROM public.accounts WHERE user_id = target_user;
+    DELETE FROM public.enrollments
+    WHERE application_id IN (SELECT id FROM public.applications WHERE user_id = target_user);
+    DELETE FROM public.applications WHERE user_id = target_user;
+    DELETE FROM public.notifications WHERE user_id = target_user;
+    DELETE FROM public.audit_logs WHERE user_id = target_user;
+    DELETE FROM public.system_logs WHERE user_id = target_user OR admin_id = target_user;
+    DELETE FROM public.beneficiaries WHERE user_id = target_user;
+    DELETE FROM public.staff WHERE id = target_user;
+    DELETE FROM public.plaid_accounts
+    WHERE plaid_item_id IN (
+        SELECT id FROM public.plaid_items WHERE user_id = target_user
+    );
+    DELETE FROM public.plaid_items WHERE user_id = target_user;
+    DELETE FROM public.password_reset_otps WHERE email = target_email;
+    DELETE FROM public.email_queue WHERE user_id = target_user;
+    DELETE FROM public.profiles WHERE id = target_user;
+    DELETE FROM auth.users WHERE id = target_user;
+END $$;

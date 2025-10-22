@@ -3,8 +3,8 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/admin": "pages/admin.js",
-  "/api/applications": "pages/api/applications.js",
+  "/admin/issue-debit-card": "pages/admin/issue-debit-card.js",
   "/": "pages/index.js",
-  "/admin/approve-applications": "pages/admin/approve-applications.js",
-  "/api/admin/approve-application": "pages/api/admin/approve-application.js"
+  "/admin/delete-user": "pages/admin/delete-user.js",
+  "/api/admin/get-users": "pages/api/admin/get-users.js"
 }

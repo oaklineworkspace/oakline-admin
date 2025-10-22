@@ -36,17 +36,17 @@
       "static/chunks/main.js",
       "static/chunks/pages/admin.js"
     ],
-    "/admin/approve-applications": [
+    "/admin/delete-user": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/approve-applications.js"
+      "static/chunks/pages/admin/delete-user.js"
     ],
-    "/apply": [
+    "/admin/issue-debit-card": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/apply.js"
+      "static/chunks/pages/admin/issue-debit-card.js"
     ]
   },
   "ampFirstPages": []
