@@ -106,28 +106,38 @@ export default async function handler(req, res) {
       .single();
 
     if (appError || !application) {
-      console.error('Application not found:', appError);
-      return res.status(404).json({ error: 'Application not found' });
+      console.error('Application fetch error:', appError);
+      return res.status(404).json({ error: 'Application not found', details: appError?.message });
     }
 
     if (application.application_status === 'approved') {
       return res.status(400).json({ error: 'Application already approved' });
     }
 
-    const email = application.email.toLowerCase();
-    const firstName = application.first_name;
-    const middleName = application.middle_name || '';
-    const lastName = application.last_name;
+    // Validate required fields
+    if (!application.email || !application.first_name || !application.last_name) {
+      return res.status(400).json({ error: 'Application missing required fields' });
+    }
+
+    const email = application.email.toLowerCase().trim();
+    const firstName = application.first_name.trim();
+    const middleName = application.middle_name ? application.middle_name.trim() : '';
+    const lastName = application.last_name.trim();
     const fullName = `${firstName} ${middleName} ${lastName}`.trim();
 
     console.log(`Processing application for ${fullName} (${email})`);
 
     // Check if user already exists
-    const { data: existingProfile } = await supabaseAdmin
+    const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
       .from('profiles')
       .select('id, email')
       .eq('email', email)
       .maybeSingle();
+
+    if (profileCheckError) {
+      console.error('Error checking existing profile:', profileCheckError);
+      return res.status(500).json({ error: 'Error checking user existence', details: profileCheckError.message });
+    }
 
     if (existingProfile) {
       return res.status(400).json({ error: 'User with this email already exists' });
@@ -135,6 +145,8 @@ export default async function handler(req, res) {
 
     // 2. Create temporary password and auth user
     const tempPassword = generateTempPassword();
+
+    console.log('Creating auth user for:', email);
 
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
@@ -150,13 +162,24 @@ export default async function handler(req, res) {
 
     if (authError) {
       console.error('Auth user creation error:', authError);
-      return res.status(500).json({ error: `Failed to create auth user: ${authError.message}` });
+      return res.status(500).json({ 
+        error: 'Failed to create auth user', 
+        details: authError.message,
+        code: authError.code
+      });
+    }
+
+    if (!authUser || !authUser.user) {
+      console.error('Auth user creation returned no user');
+      return res.status(500).json({ error: 'Failed to create auth user - no user returned' });
     }
 
     const userId = authUser.user.id;
-    console.log(`Auth user created: ${userId}`);
+    console.log(`Auth user created successfully: ${userId}`);
 
     // 3. Create profile
+    console.log('Creating profile for user:', userId);
+    
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -165,21 +188,26 @@ export default async function handler(req, res) {
         first_name: firstName,
         last_name: lastName,
         middle_name: middleName,
-        phone: application.phone,
-        date_of_birth: application.date_of_birth,
-        country: application.country,
-        address: application.address,
-        city: application.city,
-        state: application.state,
-        zip_code: application.zip_code,
+        phone: application.phone || null,
+        date_of_birth: application.date_of_birth || null,
+        country: application.country || 'US',
+        address: application.address || null,
+        city: application.city || null,
+        state: application.state || null,
+        zip_code: application.zip_code || null,
         enrollment_completed: true,
         updated_at: new Date().toISOString()
       });
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
+      console.log('Rolling back auth user creation');
       await supabaseAdmin.auth.admin.deleteUser(userId);
-      return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
+      return res.status(500).json({ 
+        error: 'Failed to create profile', 
+        details: profileError.message,
+        code: profileError.code
+      });
     }
 
     console.log('Profile created successfully');
@@ -205,8 +233,12 @@ export default async function handler(req, res) {
     }
 
     if (!isUnique) {
-      throw new Error('Failed to generate unique account number');
+      console.error('Failed to generate unique account number');
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return res.status(500).json({ error: 'Failed to generate unique account number' });
     }
+
+    console.log('Creating checking account with number:', checkingAccountNumber);
 
     const { data: checkingAccount, error: checkingError } = await supabaseAdmin
       .from('accounts')
@@ -225,11 +257,16 @@ export default async function handler(req, res) {
 
     if (checkingError) {
       console.error('Checking account creation error:', checkingError);
+      console.log('Rolling back auth user and profile');
       await supabaseAdmin.auth.admin.deleteUser(userId);
-      throw new Error(`Checking account creation failed: ${checkingError.message}`);
+      return res.status(500).json({ 
+        error: 'Failed to create checking account', 
+        details: checkingError.message,
+        code: checkingError.code
+      });
     }
 
-    console.log('Default checking account created');
+    console.log('Default checking account created:', checkingAccount.id);
 
     // 5. Create debit card for checking account
     const checkingCard = await createDebitCardForAccount(userId, checkingAccount.id);

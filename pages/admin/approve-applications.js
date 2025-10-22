@@ -64,7 +64,11 @@ export default function ApproveApplications() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || result.details || 'Failed to approve application');
+        console.error('Approval failed:', result);
+        const errorMessage = result.details 
+          ? `${result.error}: ${result.details}` 
+          : result.error || 'Failed to approve application';
+        throw new Error(errorMessage);
       }
 
       setSuccessMessage(
