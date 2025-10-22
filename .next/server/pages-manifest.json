@@ -2,9 +2,7 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/admin": "pages/admin.js",
-  "/admin/issue-debit-card": "pages/admin/issue-debit-card.js",
   "/": "pages/index.js",
-  "/admin/delete-user": "pages/admin/delete-user.js",
-  "/api/admin/get-users": "pages/api/admin/get-users.js"
+  "/admin": "pages/admin.js",
+  "/admin/delete-users": "pages/admin/delete-users.js"
 }
