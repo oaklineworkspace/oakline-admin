@@ -2,9 +2,8 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/api/applications": "pages/api/applications.js",
-  "/admin/approve-applications": "pages/admin/approve-applications.js",
   "/admin": "pages/admin.js",
-  "/api/admin/approve-application": "pages/api/admin/approve-application.js"
+  "/admin/manage-user-enrollment": "pages/admin/manage-user-enrollment.js",
+  "/": "pages/index.js",
+  "/api/applications": "pages/api/applications.js"
 }
