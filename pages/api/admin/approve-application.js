@@ -1,5 +1,5 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { createEnrollmentEmail, EMAIL_ADDRESSES } from '../../../lib/emailTemplates';
 import nodemailer from 'nodemailer';
 
 function generateAccountNumber() {
@@ -26,8 +26,64 @@ function generateExpiryDate() {
   return expiryDate.toISOString().split('T')[0];
 }
 
-function generateEnrollmentToken() {
-  return `enroll_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+function generateTempPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const special = '!@#$%';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  password += special.charAt(Math.floor(Math.random() * special.length));
+  return password;
+}
+
+async function createDebitCardForAccount(userId, accountId) {
+  let cardNumber;
+  let isUnique = false;
+  let attempts = 0;
+
+  while (!isUnique && attempts < 10) {
+    cardNumber = generateCardNumber();
+    const { data: existing } = await supabaseAdmin
+      .from('cards')
+      .select('id')
+      .eq('card_number', cardNumber)
+      .maybeSingle();
+
+    if (!existing) {
+      isUnique = true;
+    }
+    attempts++;
+  }
+
+  if (!isUnique) {
+    throw new Error('Failed to generate unique card number');
+  }
+
+  const { data: newCard, error: cardError } = await supabaseAdmin
+    .from('cards')
+    .insert({
+      user_id: userId,
+      account_id: accountId,
+      card_number: cardNumber,
+      card_type: 'debit',
+      status: 'active',
+      expiry_date: generateExpiryDate(),
+      cvc: generateCVC(),
+      daily_limit: 5000,
+      monthly_limit: 20000,
+      daily_spent: 0,
+      monthly_spent: 0,
+      is_locked: false,
+    })
+    .select()
+    .single();
+
+  if (cardError) {
+    throw new Error(`Card creation failed: ${cardError.message}`);
+  }
+
+  return newCard;
 }
 
 export default async function handler(req, res) {
@@ -66,85 +122,127 @@ export default async function handler(req, res) {
 
     console.log(`Processing application for ${fullName} (${email})`);
 
-    // Check if profile already exists by email
+    // Check if user already exists
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, enrollment_completed')
+      .select('id, email')
       .eq('email', email)
       .maybeSingle();
 
-    let userId;
-    let isNewUser = false;
-
     if (existingProfile) {
-      // Use existing user
-      userId = existingProfile.id;
-      console.log(`Using existing profile for user: ${userId}`);
-    } else {
-      // 2. Create Supabase Auth user
-      const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).substring(2, 8)}`;
-
-      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: email,
-        password: tempPassword,
-        email_confirm: false,
-        user_metadata: {
-          first_name: firstName,
-          last_name: lastName,
-          middle_name: middleName,
-          application_id: applicationId
-        }
-      });
-
-      if (authError) {
-        console.error('Auth user creation error:', authError);
-        return res.status(500).json({ error: `Failed to create auth user: ${authError.message}` });
-      }
-
-      userId = authUser.user.id;
-      isNewUser = true;
-      console.log(`New auth user created: ${userId}`);
-
-      // 3. Create profile for new user
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .insert({
-          id: userId,
-          email: email,
-          first_name: firstName,
-          last_name: lastName,
-          middle_name: middleName,
-          phone: application.phone,
-          date_of_birth: application.date_of_birth,
-          country: application.country,
-          address: application.address,
-          city: application.city,
-          state: application.state,
-          zip_code: application.zip_code,
-          enrollment_completed: false,
-          updated_at: new Date().toISOString()
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Cleanup auth user if profile creation fails
-        await supabaseAdmin.auth.admin.deleteUser(userId);
-        return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
-      }
-
-      console.log('Profile created successfully');
+      return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    console.log('Profile created/updated successfully');
+    // 2. Create temporary password and auth user
+    const tempPassword = generateTempPassword();
 
-    // 4. Create accounts
-    const accountTypes = application.account_types || ['checking_account'];
-    const createdAccounts = [];
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
+        middle_name: middleName,
+        application_id: applicationId
+      }
+    });
 
-    for (const accountType of accountTypes) {
+    if (authError) {
+      console.error('Auth user creation error:', authError);
+      return res.status(500).json({ error: `Failed to create auth user: ${authError.message}` });
+    }
+
+    const userId = authUser.user.id;
+    console.log(`Auth user created: ${userId}`);
+
+    // 3. Create profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        middle_name: middleName,
+        phone: application.phone,
+        date_of_birth: application.date_of_birth,
+        country: application.country,
+        address: application.address,
+        city: application.city,
+        state: application.state,
+        zip_code: application.zip_code,
+        enrollment_completed: true,
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return res.status(500).json({ error: `Failed to create profile: ${profileError.message}` });
+    }
+
+    console.log('Profile created successfully');
+
+    // 4. Create default checking account
+    const accountTypes = application.account_types || [];
+    let checkingAccountNumber;
+    let isUnique = false;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 10) {
+      checkingAccountNumber = generateAccountNumber();
+      const { data: existing } = await supabaseAdmin
+        .from('accounts')
+        .select('id')
+        .eq('account_number', checkingAccountNumber)
+        .maybeSingle();
+
+      if (!existing) {
+        isUnique = true;
+      }
+      attempts++;
+    }
+
+    if (!isUnique) {
+      throw new Error('Failed to generate unique account number');
+    }
+
+    const { data: checkingAccount, error: checkingError } = await supabaseAdmin
+      .from('accounts')
+      .insert({
+        user_id: userId,
+        application_id: applicationId,
+        account_number: checkingAccountNumber,
+        account_type: 'checking_account',
+        account_name: 'Checking Account',
+        balance: 100.00,
+        status: 'active',
+        routing_number: '075915826',
+      })
+      .select()
+      .single();
+
+    if (checkingError) {
+      console.error('Checking account creation error:', checkingError);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw new Error(`Checking account creation failed: ${checkingError.message}`);
+    }
+
+    console.log('Default checking account created');
+
+    // 5. Create debit card for checking account
+    const checkingCard = await createDebitCardForAccount(userId, checkingAccount.id);
+    console.log('Debit card created for checking account');
+
+    // 6. Create other requested accounts as pending
+    const otherAccountTypes = accountTypes.filter(type => type !== 'checking_account');
+    const pendingAccounts = [];
+
+    for (const accountType of otherAccountTypes) {
       let accountNumber;
-      let isUnique = false;
-      let attempts = 0;
+      isUnique = false;
+      attempts = 0;
 
       while (!isUnique && attempts < 10) {
         accountNumber = generateAccountNumber();
@@ -161,8 +259,24 @@ export default async function handler(req, res) {
       }
 
       if (!isUnique) {
-        throw new Error('Failed to generate unique account number');
+        throw new Error('Failed to generate unique account number for ' + accountType);
       }
+
+      const accountTypeConfig = {
+        'savings_account': { name: 'Savings Account', initialBalance: 0.00 },
+        'business_checking': { name: 'Business Checking', initialBalance: 500.00 },
+        'business_savings': { name: 'Business Savings', initialBalance: 250.00 },
+        'student_checking': { name: 'Student Checking', initialBalance: 25.00 },
+        'money_market': { name: 'Money Market Account', initialBalance: 1000.00 },
+        'certificate_of_deposit': { name: 'Certificate of Deposit', initialBalance: 5000.00 },
+        'retirement_ira': { name: 'IRA Account', initialBalance: 0.00 },
+        'joint_checking': { name: 'Joint Checking', initialBalance: 100.00 },
+        'trust_account': { name: 'Trust Account', initialBalance: 10000.00 },
+        'investment_brokerage': { name: 'Investment Account', initialBalance: 2500.00 },
+        'high_yield_savings': { name: 'High-Yield Savings', initialBalance: 500.00 }
+      };
+
+      const config = accountTypeConfig[accountType] || { name: 'Account', initialBalance: 0.00 };
 
       const { data: newAccount, error: accountError } = await supabaseAdmin
         .from('accounts')
@@ -171,7 +285,8 @@ export default async function handler(req, res) {
           application_id: applicationId,
           account_number: accountNumber,
           account_type: accountType,
-          balance: 0,
+          account_name: config.name,
+          balance: config.initialBalance,
           status: 'pending',
           routing_number: '075915826',
         })
@@ -179,115 +294,16 @@ export default async function handler(req, res) {
         .single();
 
       if (accountError) {
-        console.error('Account creation error:', accountError);
-        throw new Error(`Account creation failed: ${accountError.message}`);
+        console.error('Pending account creation error:', accountError);
+        continue;
       }
 
-      createdAccounts.push(newAccount);
+      pendingAccounts.push(newAccount);
     }
 
-    console.log(`Created ${createdAccounts.length} accounts`);
+    console.log(`Created ${pendingAccounts.length} pending accounts`);
 
-    // 5. Create debit card for first account
-    const firstAccount = createdAccounts[0];
-    let cardNumber;
-    let isUnique = false;
-    let attempts = 0;
-
-    while (!isUnique && attempts < 10) {
-      cardNumber = generateCardNumber();
-      const { data: existing } = await supabaseAdmin
-        .from('cards')
-        .select('id')
-        .eq('card_number', cardNumber)
-        .maybeSingle();
-
-      if (!existing) {
-        isUnique = true;
-      }
-      attempts++;
-    }
-
-    if (!isUnique) {
-      throw new Error('Failed to generate unique card number');
-    }
-
-    const { data: newCard, error: cardError } = await supabaseAdmin
-      .from('cards')
-      .insert({
-        user_id: userId,
-        account_id: firstAccount.id,
-        card_number: cardNumber,
-        card_type: 'debit',
-        status: 'inactive',
-        expiry_date: generateExpiryDate(),
-        cvc: generateCVC(),
-        daily_limit: 5000,
-        monthly_limit: 20000,
-        daily_spent: 0,
-        monthly_spent: 0,
-        is_locked: false,
-      })
-      .select()
-      .single();
-
-    if (cardError) {
-      console.error('Card creation error:', cardError);
-      throw new Error(`Card creation failed: ${cardError.message}`);
-    }
-
-    console.log('Debit card created successfully');
-
-    // 6. Generate enrollment token
-    const enrollmentToken = generateEnrollmentToken();
-
-    const { error: enrollmentError } = await supabaseAdmin
-      .from('enrollments')
-      .insert({
-        email: email,
-        token: enrollmentToken,
-        is_used: false,
-        application_id: applicationId,
-        user_id: userId
-      });
-
-    if (enrollmentError) {
-      console.error('Enrollment record creation error:', enrollmentError);
-    }
-
-    // 7. Send enrollment email
-    const protocol = req.headers['x-forwarded-proto'] || 'http';
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
-    const enrollLink = `${siteUrl}/enroll?token=${enrollmentToken}`;
-
-    const emailTemplate = createEnrollmentEmail(fullName, enrollLink);
-
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_PORT === '465',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-
-      await transporter.sendMail({
-        from: emailTemplate.from,
-        to: email,
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-      });
-
-      console.log(`Enrollment email sent to ${email}`);
-    } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      // Don't fail the approval for email issues
-    }
-
-    // 8. Update application status
+    // 7. Update application status
     const { error: updateError } = await supabaseAdmin
       .from('applications')
       .update({
@@ -305,28 +321,147 @@ export default async function handler(req, res) {
 
     console.log('Application approved successfully');
 
+    // 8. Send welcome email with credentials
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_PORT === '465',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const protocol = req.headers['x-forwarded-proto'] || 'http';
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+      const loginUrl = `${siteUrl}/login`;
+
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🏦 Welcome to Oakline Bank!</h1>
+            </div>
+            
+            <div style="padding: 40px 32px;">
+              <h2 style="color: #1e40af; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+                Your Account is Ready!
+              </h2>
+              
+              <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                Hello ${fullName},
+              </p>
+
+              <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                Congratulations! Your application has been approved and your account is now active.
+              </p>
+              
+              <div style="background-color: #f7fafc; border-radius: 12px; padding: 24px; margin: 32px 0;">
+                <h3 style="color: #1a365d; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+                  🔐 Your Login Credentials
+                </h3>
+                <p style="color: #4a5568; font-size: 16px; margin: 8px 0;">
+                  <strong>Email:</strong> ${email}
+                </p>
+                <p style="color: #4a5568; font-size: 16px; margin: 8px 0;">
+                  <strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 4px 8px; border-radius: 4px;">${tempPassword}</code>
+                </p>
+              </div>
+
+              <div style="background-color: #ecfdf5; border-radius: 12px; padding: 24px; margin: 32px 0;">
+                <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+                  💳 Your Account Summary
+                </h3>
+                <p style="color: #047857; font-size: 16px; margin: 8px 0;">
+                  <strong>Checking Account:</strong> ****${checkingAccountNumber.slice(-4)}
+                </p>
+                <p style="color: #047857; font-size: 16px; margin: 8px 0;">
+                  <strong>Debit Card:</strong> ****${checkingCard.card_number.slice(-4)}
+                </p>
+                ${pendingAccounts.length > 0 ? `
+                <p style="color: #047857; font-size: 14px; margin: 16px 0 8px 0;">
+                  <strong>Pending Accounts (requires admin approval):</strong>
+                </p>
+                <ul style="color: #047857; font-size: 14px; margin: 0; padding-left: 20px;">
+                  ${pendingAccounts.map(acc => `<li>${acc.account_name}</li>`).join('')}
+                </ul>
+                ` : ''}
+              </div>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #0066cc 0%, #2c5aa0 100%); color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                  Login to Your Account
+                </a>
+              </div>
+
+              <div style="background-color: #fef5e7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0;">
+                <p style="color: #92400e; font-size: 14px; font-weight: 500; margin: 0;">
+                  🔒 <strong>Security Notice:</strong> Please change your password immediately after your first login.
+                </p>
+              </div>
+            </div>
+            
+            <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #718096; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br>
+                Member FDIC | Routing: 075915826
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: email,
+        subject: 'Welcome to Oakline Bank - Your Account is Active!',
+        html: emailHtml,
+      });
+
+      console.log(`Welcome email sent to ${email}`);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Application approved successfully. User created and enrollment email sent.',
+      message: 'Application approved successfully. User can now login.',
       data: {
         applicationId,
         userId,
         email,
-        accounts: createdAccounts.map(acc => ({
+        tempPassword,
+        checkingAccount: {
+          id: checkingAccount.id,
+          account_number: checkingAccount.account_number,
+          account_type: checkingAccount.account_type,
+          balance: checkingAccount.balance,
+          status: checkingAccount.status,
+        },
+        checkingCard: {
+          id: checkingCard.id,
+          card_number: `****${checkingCard.card_number.slice(-4)}`,
+          card_type: checkingCard.card_type,
+          expiry_date: checkingCard.expiry_date,
+          status: checkingCard.status,
+        },
+        pendingAccounts: pendingAccounts.map(acc => ({
           id: acc.id,
           account_number: acc.account_number,
           account_type: acc.account_type,
-          balance: acc.balance,
+          account_name: acc.account_name,
           status: acc.status,
         })),
-        card: {
-          id: newCard.id,
-          card_number: `****${newCard.card_number.slice(-4)}`,
-          card_type: newCard.card_type,
-          expiry_date: newCard.expiry_date,
-          status: newCard.status,
-        },
-        enrollmentEmailSent: true
+        welcomeEmailSent: true
       },
     });
 
