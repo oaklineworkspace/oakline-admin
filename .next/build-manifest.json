@@ -41,12 +41,6 @@
       "static/chunks/vendors.js",
       "static/chunks/main.js",
       "static/chunks/pages/admin/approve-applications.js"
-    ],
-    "/admin/manage-user-enrollment": [
-      "static/chunks/webpack.js",
-      "static/chunks/vendors.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin/manage-user-enrollment.js"
     ]
   },
   "ampFirstPages": []
