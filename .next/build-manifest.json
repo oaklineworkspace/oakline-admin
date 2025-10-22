@@ -41,6 +41,12 @@
       "static/chunks/vendors.js",
       "static/chunks/main.js",
       "static/chunks/pages/admin/approve-applications.js"
+    ],
+    "/apply": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendors.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/apply.js"
     ]
   },
   "ampFirstPages": []

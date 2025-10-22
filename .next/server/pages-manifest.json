@@ -3,7 +3,8 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/admin": "pages/admin.js",
+  "/api/applications": "pages/api/applications.js",
   "/": "pages/index.js",
   "/admin/approve-applications": "pages/admin/approve-applications.js",
-  "/api/applications": "pages/api/applications.js"
+  "/api/admin/approve-application": "pages/api/admin/approve-application.js"
 }
