@@ -29,18 +29,6 @@
       "static/chunks/vendors.js",
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
-    ],
-    "/admin": [
-      "static/chunks/webpack.js",
-      "static/chunks/vendors.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin.js"
-    ],
-    "/admin/delete-users": [
-      "static/chunks/webpack.js",
-      "static/chunks/vendors.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin/delete-users.js"
     ]
   },
   "ampFirstPages": []
