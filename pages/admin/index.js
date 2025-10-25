@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -219,7 +218,6 @@ const styles = {
     border: 'none',
     padding: '12px 24px',
     borderRadius: '8px',
-    cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.3s ease'
