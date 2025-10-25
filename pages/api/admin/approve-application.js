@@ -1,6 +1,6 @@
 
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import nodemailer from 'nodemailer';
+import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 function generateAccountNumber() {
   const prefix = '1234';
@@ -358,16 +358,6 @@ export default async function handler(req, res) {
 
     // 8. Send welcome email with credentials
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_PORT === '465',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-
       const protocol = req.headers['x-forwarded-proto'] || 'http';
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
@@ -455,11 +445,11 @@ export default async function handler(req, res) {
         </html>
       `;
 
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      await sendEmail({
         to: email,
         subject: 'Welcome to Oakline Bank - Your Account is Active!',
         html: emailHtml,
+        type: EMAIL_TYPES.WELCOME
       });
 
       console.log(`Welcome email sent to ${email}`);

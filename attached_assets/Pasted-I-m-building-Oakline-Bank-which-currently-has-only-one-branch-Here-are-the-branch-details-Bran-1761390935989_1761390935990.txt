@@ -1,0 +1,34 @@
+I’m building Oakline Bank, which currently has only one branch. Here are the branch details:
+
+- Branch Name: Oakline Bank – Oklahoma City Branch
+- Address: 12201 N. May Avenue, Oklahoma City, OK 73120
+- Phone/Text: +1 (636) 635-6122
+- Email aliases: info@theoaklinebank.com, welcome@theoaklinebank.com, updates@theoaklinebank.com, contact-us@theoaklinebank.com, notify@theoaklinebank.com
+- SMTP host: smtp.zoho.com, port: 465, user: info@theoaklinebank.com, password: <app-password-for-info@>
+
+Requirements for Replit AI:
+
+1. **Do NOT hardcode any sensitive values** (SMTP passwords, API keys, JWT keys, site URLs, Plaid credentials, etc.) in the code.  
+   - Use environment variables only. I will set the real values in Replit secrets/deployment secrets.  
+2. Add the branch address and phone in the website’s About Us / Contact section.
+3. Integrate all email aliases into my Vercel/Supabase deployment using SMTP so the correct alias is used for different email types:
+   - Welcome emails → welcome@
+   - Account updates → updates@
+   - Customer inquiries → contact-us@
+   - Transactional notifications → notify@
+4. Keep the sender name “Oakline Bank” for all emails.
+5. Provide **example code** for sending emails dynamically via Supabase/Vercel, using the environment variables for SMTP credentials.
+6. Suggest a professional layout for the website contact section including:
+   - Branch address
+   - Phone/Text
+   - Email links
+   - Business hours (optional)
+7. Ensure the branch location appears when users search the address online (Google Maps, Apple Maps, Bing).
+8. Include instructions or example code to test email deliverability to inboxes (Gmail, Outlook, Yahoo).
+9. Provide a complete `.env.example` file with **placeholders only** for Supabase, SMTP, Plaid, JWT, site URLs, and feature flags. No real values.
+
+The output should include:
+- Supabase environment variable setup using environment variables only
+- Example email sending code using aliases and environment variables
+- Professional About Us / Contact section layout
+- Optional tips for testing email delivery

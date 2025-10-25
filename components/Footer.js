@@ -217,29 +217,29 @@ export default function Footer() {
               <div style={styles.contactItem}>
                 <span style={styles.contactIcon}>📞</span>
                 <div>
-                  <p style={styles.contactLabel}>Customer Service</p>
-                  <p style={styles.contactValue}>1-800-OAKLINE (625-5463)</p>
+                  <p style={styles.contactLabel}>Phone/Text</p>
+                  <p style={styles.contactValue}>+1 (636) 635-6122</p>
                 </div>
               </div>
               <div style={styles.contactItem}>
                 <span style={styles.contactIcon}>✉️</span>
                 <div>
                   <p style={styles.contactLabel}>Email Support</p>
-                  <p style={styles.contactValue}>support@oaklinebank.com</p>
+                  <p style={styles.contactValue}>info@theoaklinebank.com</p>
                 </div>
               </div>
               <div style={styles.contactItem}>
                 <span style={styles.contactIcon}>🕒</span>
                 <div>
-                  <p style={styles.contactLabel}>Support Hours</p>
-                  <p style={styles.contactValue}>24/7 Available</p>
+                  <p style={styles.contactLabel}>Branch Hours</p>
+                  <p style={styles.contactValue}>Mon-Fri: 9 AM - 5 PM</p>
                 </div>
               </div>
               <div style={styles.contactItem}>
                 <span style={styles.contactIcon}>📍</span>
                 <div>
-                  <p style={styles.contactLabel}>Headquarters</p>
-                  <p style={styles.contactValue}>123 Financial District, NY 10001</p>
+                  <p style={styles.contactLabel}>Oklahoma City Branch</p>
+                  <p style={styles.contactValue}>12201 N. May Avenue<br/>Oklahoma City, OK 73120</p>
                 </div>
               </div>
             </div>

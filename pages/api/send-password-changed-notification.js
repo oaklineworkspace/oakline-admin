@@ -1,5 +1,5 @@
 
-import { sendEmail } from '../../lib/email';
+import { sendEmail, EMAIL_TYPES } from '../../lib/email';
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
@@ -26,6 +26,7 @@ export default async function handler(req, res) {
     await sendEmail({
       to: email,
       subject: '✅ Password Successfully Changed - Oakline Bank',
+      type: EMAIL_TYPES.NOTIFY,
       html: `
         <!DOCTYPE html>
         <html>
