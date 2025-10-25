@@ -4,5 +4,7 @@
   "/_document": "pages/_document.js",
   "/admin": "pages/admin.js",
   "/": "pages/index.js",
-  "/admin/delete-users": "pages/admin/delete-users.js"
+  "/admin/delete-user-by-id": "pages/admin/delete-user-by-id.js",
+  "/api/admin/get-users": "pages/api/admin/get-users.js",
+  "/api/admin/find-user": "pages/api/admin/find-user.js"
 }

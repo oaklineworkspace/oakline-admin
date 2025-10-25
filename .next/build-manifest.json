@@ -36,11 +36,11 @@
       "static/chunks/main.js",
       "static/chunks/pages/admin.js"
     ],
-    "/admin/delete-users": [
+    "/admin/delete-user-by-id": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/delete-users.js"
+      "static/chunks/pages/admin/delete-user-by-id.js"
     ]
   },
   "ampFirstPages": []
