@@ -140,9 +140,9 @@ export default function DeleteUserById() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>🗑️ Delete User & Dependencies</h1>
-          <p style={styles.subtitle}>Permanently remove users and all associated data</p>
+        <div style={styles.headerContent}>
+          <h1 style={styles.title}>🗑️ Delete User Management</h1>
+          <p style={styles.subtitle}>Permanently remove users and all associated data from the system</p>
         </div>
         <Link href="/admin/admin-dashboard" style={styles.backButton}>
           ← Back to Dashboard
@@ -359,43 +359,51 @@ const styles = {
   container: {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-    padding: '20px',
+    padding: '24px',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
+    marginBottom: '32px',
     background: 'white',
-    padding: '24px',
+    padding: '28px 32px',
     borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
     flexWrap: 'wrap',
-    gap: '15px',
+    gap: '20px',
+  },
+  headerContent: {
+    flex: 1,
   },
   title: {
-    fontSize: '32px',
-    fontWeight: 'bold',
+    fontSize: '28px',
+    fontWeight: '700',
     color: '#1e293b',
     margin: 0,
+    letterSpacing: '-0.5px',
   },
   subtitle: {
-    fontSize: '15px',
+    fontSize: '14px',
     color: '#64748b',
-    margin: '4px 0 0 0',
+    margin: '8px 0 0 0',
+    fontWeight: '400',
   },
   backButton: {
-    padding: '10px 20px',
-    background: '#64748b',
+    padding: '12px 24px',
+    background: '#475569',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight: '600',
     textDecoration: 'none',
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
     transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
   },
   message: {
     padding: '16px 20px',
@@ -415,15 +423,15 @@ const styles = {
   },
   contentGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
-    gap: '24px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))',
+    gap: '28px',
   },
   card: {
     background: 'white',
     borderRadius: '16px',
-    padding: '24px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    border: '1px solid rgba(0,0,0,0.05)',
+    padding: '28px',
+    boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+    border: '1px solid #e2e8f0',
   },
   cardHeader: {
     display: 'flex',
@@ -447,13 +455,17 @@ const styles = {
   },
   filterInput: {
     width: '100%',
-    padding: '12px 16px',
+    padding: '14px 20px',
+    paddingLeft: '44px',
     border: '2px solid #e2e8f0',
-    borderRadius: '8px',
+    borderRadius: '10px',
     fontSize: '14px',
-    marginBottom: '16px',
+    marginBottom: '20px',
     outline: 'none',
     transition: 'all 0.2s ease',
+    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'8\'%3E%3C/circle%3E%3Cpath d=\'m21 21-4.35-4.35\'%3E%3C/path%3E%3C/svg%3E")',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: '16px center',
   },
   loadingContainer: {
     display: 'flex',
@@ -473,11 +485,12 @@ const styles = {
     marginBottom: '16px',
   },
   userList: {
-    maxHeight: '500px',
+    maxHeight: '520px',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '10px',
+    paddingRight: '4px',
   },
   emptyState: {
     textAlign: 'center',
@@ -490,9 +503,9 @@ const styles = {
     marginBottom: '12px',
   },
   userItem: {
-    padding: '16px',
+    padding: '18px',
     background: '#f8fafc',
-    borderRadius: '8px',
+    borderRadius: '10px',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     border: '2px solid transparent',
@@ -501,8 +514,9 @@ const styles = {
     alignItems: 'center',
   },
   userItemSelected: {
-    background: '#dbeafe',
+    background: '#eff6ff',
     borderColor: '#3b82f6',
+    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
   },
   userInfo: {
     flex: 1,
