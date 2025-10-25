@@ -549,7 +549,8 @@ const styles = {
     maxWidth: '500px',
     width: '100%',
     maxHeight: '90vh',
-    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
     boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
     animation: 'slideUp 0.3s ease',
   },
@@ -559,6 +560,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
+    flexShrink: 0,
   },
   modalIcon: {
     fontSize: '32px',
@@ -571,6 +573,8 @@ const styles = {
   },
   modalBody: {
     padding: '24px',
+    overflowY: 'auto',
+    flex: '1 1 auto',
   },
   modalText: {
     fontSize: '15px',
@@ -620,6 +624,7 @@ const styles = {
     gap: '12px',
     justifyContent: 'flex-end',
     flexWrap: 'wrap',
+    flexShrink: 0,
   },
   cancelBtn: {
     padding: '12px 24px',

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
@@ -39,24 +38,27 @@ export default function DeleteUsers() {
   };
 
   const handleDeleteUser = async (user) => {
+    setDeleteLoading(user.id);
     try {
-      setDeleteLoading(user.id);
       const response = await fetch('/api/admin/delete-user-complete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          email: user.email,
-          userId: user.id 
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ type: 'success', text: '✅ User deleted successfully' });
-        setUsers(users.filter(u => u.id !== user.id));
+        setMessage({
+          type: 'success',
+          text: `✅ User ${user.first_name} ${user.last_name} and all associated data deleted successfully!`
+        });
+        await fetchUsers();
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to delete user' });
       }
@@ -212,31 +214,71 @@ export default function DeleteUsers() {
         }}>
           <div style={{
             backgroundColor: 'white',
-            padding: '30px',
             borderRadius: '8px',
             maxWidth: '500px',
-            width: '90%'
+            width: '90%',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '80vh'
           }}>
-            <h3 style={{ color: '#dc3545', marginTop: 0 }}>⚠️ Confirm Complete Deletion</h3>
-            <p>
-              Are you sure you want to permanently delete <strong>{confirmDelete.first_name} {confirmDelete.last_name}</strong> ({confirmDelete.email})?
-            </p>
-            <p style={{ color: '#666', fontSize: '14px' }}>
-              This will delete all associated data including:
-            </p>
-            <ul style={{ color: '#666', fontSize: '14px', marginLeft: '20px' }}>
-              <li>Cards and card transactions</li>
-              <li>Zelle transactions and contacts</li>
-              <li>Loans and loan payments</li>
-              <li>Accounts and transactions</li>
-              <li>Applications and enrollments</li>
-              <li>Notifications and audit logs</li>
-              <li>Profile and authentication</li>
-            </ul>
-            <p style={{ color: '#dc3545', fontSize: '14px', fontWeight: 'bold' }}>
-              ⚠️ This action cannot be undone!
-            </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #e2e8f0',
+              flexShrink: 0
+            }}>
+              <h3 style={{ color: '#dc3545', marginTop: 0 }}>⚠️ Confirm Complete Deletion</h3>
+            </div>
+            <div style={{
+              padding: '24px',
+              overflowY: 'auto',
+              flex: '1 1 auto'
+            }}>
+              <p>
+                Are you sure you want to permanently delete <strong>{confirmDelete.first_name} {confirmDelete.last_name}</strong> ({confirmDelete.email})?
+              </p>
+              <div style={{
+                background: '#f8fafc',
+                padding: '16px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                fontSize: '14px'
+              }}>
+                <div><strong>Name:</strong> {confirmDelete.first_name} {confirmDelete.last_name}</div>
+                <div><strong>Email:</strong> {confirmDelete.email}</div>
+                <div><strong>ID:</strong> {confirmDelete.id}</div>
+              </div>
+              <div style={{
+                background: '#fef3c7',
+                border: '2px solid #f59e0b',
+                borderRadius: '8px',
+                padding: '16px'
+              }}>
+                <p style={{ color: '#92400e', fontWeight: '600', fontSize: '14px', marginBottom: '12px' }}>
+                  This will permanently delete:
+                </p>
+                <ul style={{ color: '#92400e', fontSize: '13px', marginLeft: '20px', marginBottom: '12px' }}>
+                  <li>All user accounts and balances</li>
+                  <li>Card transactions and cards</li>
+                  <li>Zelle transactions and settings</li>
+                  <li>Loan payments and loans</li>
+                  <li>Applications and enrollments</li>
+                  <li>Notifications and logs</li>
+                  <li>User profile and authentication</li>
+                </ul>
+                <p style={{ color: '#dc3545', fontSize: '14px', fontWeight: 'bold', margin: 0 }}>
+                  ⚠️ This action cannot be undone!
+                </p>
+              </div>
+            </div>
+            <div style={{
+              padding: '20px 24px',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              flexShrink: 0,
+              flexWrap: 'wrap'
+            }}>
               <button
                 onClick={() => setConfirmDelete(null)}
                 style={{
