@@ -221,7 +221,7 @@ export default function AdminDashboard() {
             <div style={styles.quickActionIcon}>💳</div>
             <div style={styles.quickActionText}>Card Applications</div>
           </Link>
-          <Link href="/admin/delete-users" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' } }}>
+          <Link href="/admin/delete-user-by-id" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' } }}>
             <div style={styles.quickActionIcon}>🗑️</div>
             <div style={styles.quickActionText}>Delete Users</div>
           </Link>

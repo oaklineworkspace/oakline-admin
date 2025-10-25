@@ -1,16 +1,41 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 
 export default function DeleteUserById() {
   const router = useRouter();
   const [userId, setUserId] = useState('');
   const [email, setEmail] = useState('');
-  const [searchMethod, setSearchMethod] = useState('email'); // 'email' or 'userId'
+  const [searchMethod, setSearchMethod] = useState('email');
   const [loading, setLoading] = useState(false);
+  const [fetchingUsers, setFetchingUsers] = useState(true);
   const [message, setMessage] = useState(null);
   const [userFound, setUserFound] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+
+  useEffect(() => {
+    fetchAllUsers();
+  }, []);
+
+  const fetchAllUsers = async () => {
+    setFetchingUsers(true);
+    try {
+      const response = await fetch('/api/admin/get-users');
+      const data = await response.json();
+      
+      if (response.ok && data.users) {
+        setAllUsers(data.users);
+        setFilteredUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setFetchingUsers(false);
+    }
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -19,7 +44,6 @@ export default function DeleteUserById() {
     setUserFound(null);
 
     try {
-      // Fetch user details from profiles table
       const response = await fetch('/api/admin/find-user', {
         method: 'POST',
         headers: {
@@ -35,9 +59,9 @@ export default function DeleteUserById() {
 
       if (response.ok && data.user) {
         setUserFound(data.user);
-        setMessage({ type: 'success', text: 'User found!' });
+        setMessage({ type: 'success', text: '✅ User found successfully!' });
       } else {
-        setMessage({ type: 'error', text: data.error || 'User not found' });
+        setMessage({ type: 'error', text: data.error || 'User not found in system' });
       }
     } catch (error) {
       console.error('Error searching user:', error);
@@ -64,11 +88,23 @@ export default function DeleteUserById() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ type: 'success', text: '✅ User and all dependencies deleted successfully!' });
+        setMessage({ 
+          type: 'success', 
+          text: '✅ User and all dependencies deleted successfully!' 
+        });
+        
+        // Refresh user list
+        await fetchAllUsers();
+        
         setUserFound(null);
         setConfirmDelete(false);
         setUserId('');
         setEmail('');
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setMessage(null);
+        }, 5000);
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to delete user' });
       }
@@ -80,147 +116,240 @@ export default function DeleteUserById() {
     }
   };
 
+  const handleSelectUser = (user) => {
+    setUserFound(user);
+    setEmail(user.email);
+    setUserId(user.id);
+    setMessage({ type: 'success', text: '✅ User selected from list' });
+  };
+
+  const handleFilterChange = (searchTerm) => {
+    if (!searchTerm) {
+      setFilteredUsers(allUsers);
+      return;
+    }
+
+    const filtered = allUsers.filter(user => 
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.id?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredUsers(filtered);
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>🗑️ Delete User by ID/Email</h1>
-        <button
-          onClick={() => router.push('/admin/admin-dashboard')}
-          style={styles.backButton}
-        >
+        <div>
+          <h1 style={styles.title}>🗑️ Delete User & Dependencies</h1>
+          <p style={styles.subtitle}>Permanently remove users and all associated data</p>
+        </div>
+        <Link href="/admin/admin-dashboard" style={styles.backButton}>
           ← Back to Dashboard
-        </button>
+        </Link>
       </div>
 
       {message && (
         <div
           style={{
             ...styles.message,
-            backgroundColor: message.type === 'success' ? '#d4edda' : '#f8d7da',
-            color: message.type === 'success' ? '#155724' : '#721c24',
-            border: `1px solid ${message.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+            backgroundColor: message.type === 'success' ? '#d1fae5' : '#fee2e2',
+            color: message.type === 'success' ? '#065f46' : '#991b1b',
+            border: `2px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
           }}
         >
-          {message.text}
+          <div style={styles.messageContent}>
+            <span style={styles.messageIcon}>
+              {message.type === 'success' ? '✅' : '⚠️'}
+            </span>
+            <span>{message.text}</span>
+          </div>
         </div>
       )}
 
-      <div style={styles.card}>
-        <h2 style={styles.cardTitle}>Search for User</h2>
+      <div style={styles.contentGrid}>
+        {/* User List Section */}
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <h2 style={styles.cardTitle}>👥 All Users</h2>
+            <span style={styles.userCount}>{filteredUsers.length} users</span>
+          </div>
 
-        <div style={styles.searchMethodToggle}>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              value="email"
-              checked={searchMethod === 'email'}
-              onChange={(e) => setSearchMethod(e.target.value)}
-              style={styles.radio}
-            />
-            Search by Email
-          </label>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              value="userId"
-              checked={searchMethod === 'userId'}
-              onChange={(e) => setSearchMethod(e.target.value)}
-              style={styles.radio}
-            />
-            Search by User ID
-          </label>
-        </div>
+          <input
+            type="text"
+            placeholder="🔍 Filter by email, name, or ID..."
+            onChange={(e) => handleFilterChange(e.target.value)}
+            style={styles.filterInput}
+          />
 
-        <form onSubmit={handleSearch} style={styles.form}>
-          {searchMethod === 'email' ? (
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                style={styles.input}
-                required
-              />
+          {fetchingUsers ? (
+            <div style={styles.loadingContainer}>
+              <div style={styles.spinner}></div>
+              <p>Loading users...</p>
             </div>
           ) : (
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>User ID (UUID)</label>
-              <input
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="f6017868-af40-4337-98b9-90d6b57395ca"
-                style={styles.input}
-                required
-              />
+            <div style={styles.userList}>
+              {filteredUsers.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <span style={styles.emptyIcon}>📭</span>
+                  <p>No users found</p>
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    style={{
+                      ...styles.userItem,
+                      ...(userFound?.id === user.id ? styles.userItemSelected : {})
+                    }}
+                    onClick={() => handleSelectUser(user)}
+                  >
+                    <div style={styles.userInfo}>
+                      <div style={styles.userName}>{user.name || 'Unknown User'}</div>
+                      <div style={styles.userEmail}>{user.email}</div>
+                      <div style={styles.userId}>ID: {user.id}</div>
+                    </div>
+                    {userFound?.id === user.id && (
+                      <span style={styles.selectedBadge}>Selected</span>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           )}
+        </div>
 
-          <button type="submit" disabled={loading} style={styles.searchButton}>
-            {loading ? 'Searching...' : '🔍 Search User'}
-          </button>
-        </form>
+        {/* Search & Delete Section */}
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>🔍 Search & Delete User</h2>
 
-        {userFound && (
-          <div style={styles.userDetails}>
-            <h3 style={styles.userDetailsTitle}>User Found</h3>
-            <div style={styles.userInfo}>
-              <p><strong>ID:</strong> {userFound.id}</p>
-              <p><strong>Email:</strong> {userFound.email}</p>
-              <p><strong>Name:</strong> {userFound.first_name} {userFound.last_name}</p>
-              <p><strong>Created:</strong> {new Date(userFound.created_at).toLocaleString()}</p>
-            </div>
+          <div style={styles.searchMethodToggle}>
+            <button
+              onClick={() => setSearchMethod('email')}
+              style={{
+                ...styles.toggleButton,
+                ...(searchMethod === 'email' ? styles.toggleButtonActive : {})
+              }}
+            >
+              📧 Email
+            </button>
+            <button
+              onClick={() => setSearchMethod('userId')}
+              style={{
+                ...styles.toggleButton,
+                ...(searchMethod === 'userId' ? styles.toggleButtonActive : {})
+              }}
+            >
+              🆔 User ID
+            </button>
+          </div>
 
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                style={styles.deleteButton}
-              >
-                🗑️ Delete This User
-              </button>
+          <form onSubmit={handleSearch} style={styles.form}>
+            {searchMethod === 'email' ? (
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  style={styles.input}
+                  required
+                />
+              </div>
             ) : (
-              <div style={styles.confirmSection}>
-                <div style={styles.warningBox}>
-                  <h4 style={styles.warningTitle}>⚠️ Warning: Permanent Deletion</h4>
-                  <p style={styles.warningText}>
-                    This will permanently delete:
-                  </p>
-                  <ul style={styles.warningList}>
-                    <li>Card transactions and cards</li>
-                    <li>Zelle transactions, settings, and contacts</li>
-                    <li>Loan payments and loans</li>
-                    <li>Accounts and transactions</li>
-                    <li>Applications and enrollments</li>
-                    <li>Notifications and audit logs</li>
-                    <li>Profile and authentication</li>
-                    <li>All other associated data</li>
-                  </ul>
-                  <p style={styles.warningFooter}>
-                    <strong>This action cannot be undone!</strong>
-                  </p>
-                </div>
-
-                <div style={styles.confirmButtons}>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    style={styles.cancelButton}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteUser}
-                    disabled={loading}
-                    style={styles.confirmDeleteButton}
-                  >
-                    {loading ? 'Deleting...' : '✅ Yes, Delete Permanently'}
-                  </button>
-                </div>
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>User ID (UUID)</label>
+                <input
+                  type="text"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="f6017868-af40-4337-98b9-90d6b57395ca"
+                  style={styles.input}
+                  required
+                />
               </div>
             )}
-          </div>
-        )}
+
+            <button type="submit" disabled={loading} style={styles.findButton}>
+              {loading ? '🔄 Searching...' : '🔍 Find User'}
+            </button>
+          </form>
+
+          {userFound && (
+            <div style={styles.userDetails}>
+              <h3 style={styles.userDetailsTitle}>User Details</h3>
+              <div style={styles.detailsGrid}>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>ID:</span>
+                  <span style={styles.detailValue}>{userFound.id}</span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Email:</span>
+                  <span style={styles.detailValue}>{userFound.email}</span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Name:</span>
+                  <span style={styles.detailValue}>
+                    {userFound.first_name} {userFound.last_name}
+                  </span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Created:</span>
+                  <span style={styles.detailValue}>
+                    {new Date(userFound.created_at).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  style={styles.deleteButton}
+                >
+                  🗑️ Delete This User
+                </button>
+              ) : (
+                <div style={styles.confirmSection}>
+                  <div style={styles.warningBox}>
+                    <h4 style={styles.warningTitle}>⚠️ Permanent Deletion Warning</h4>
+                    <p style={styles.warningText}>
+                      This will permanently delete all data including:
+                    </p>
+                    <ul style={styles.warningList}>
+                      <li>Card transactions and cards</li>
+                      <li>Zelle transactions and settings</li>
+                      <li>Loan payments and loans</li>
+                      <li>Accounts and transactions</li>
+                      <li>Applications and enrollments</li>
+                      <li>Notifications and audit logs</li>
+                      <li>Profile and authentication</li>
+                    </ul>
+                    <p style={styles.warningFooter}>
+                      <strong>This action cannot be undone!</strong>
+                    </p>
+                  </div>
+
+                  <div style={styles.confirmButtons}>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      style={styles.cancelButton}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteUser}
+                      disabled={loading}
+                      style={styles.confirmDeleteButton}
+                    >
+                      {loading ? '🔄 Deleting...' : '✅ Confirm Deletion'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -229,67 +358,200 @@ export default function DeleteUserById() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
+    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
     padding: '20px',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
+    marginBottom: '30px',
+    background: 'white',
+    padding: '24px',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
     flexWrap: 'wrap',
     gap: '15px',
   },
   title: {
-    fontSize: '28px',
+    fontSize: '32px',
     fontWeight: 'bold',
-    color: 'white',
+    color: '#1e293b',
     margin: 0,
+  },
+  subtitle: {
+    fontSize: '15px',
+    color: '#64748b',
+    margin: '4px 0 0 0',
   },
   backButton: {
     padding: '10px 20px',
-    backgroundColor: '#6c757d',
+    background: '#64748b',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500',
+    textDecoration: 'none',
+    display: 'inline-block',
+    transition: 'all 0.2s ease',
   },
   message: {
-    padding: '15px',
+    padding: '16px 20px',
     marginBottom: '20px',
-    borderRadius: '8px',
-    fontSize: '14px',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: '500',
+    animation: 'slideDown 0.3s ease',
+  },
+  messageContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  messageIcon: {
+    fontSize: '20px',
+  },
+  contentGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+    gap: '24px',
   },
   card: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '30px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    maxWidth: '800px',
-    margin: '0 auto',
+    background: 'white',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    border: '1px solid rgba(0,0,0,0.05)',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
   },
   cardTitle: {
     fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#1e3c72',
-    marginBottom: '20px',
+    fontWeight: '600',
+    color: '#1e293b',
+    margin: 0,
+  },
+  userCount: {
+    fontSize: '14px',
+    color: '#64748b',
+    backgroundColor: '#f1f5f9',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontWeight: '600',
+  },
+  filterInput: {
+    width: '100%',
+    padding: '12px 16px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    marginBottom: '16px',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px',
+    color: '#64748b',
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e2e8f0',
+    borderTop: '4px solid #3b82f6',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '16px',
+  },
+  userList: {
+    maxHeight: '500px',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#94a3b8',
+  },
+  emptyIcon: {
+    fontSize: '48px',
+    display: 'block',
+    marginBottom: '12px',
+  },
+  userItem: {
+    padding: '16px',
+    background: '#f8fafc',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    border: '2px solid transparent',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  userItemSelected: {
+    background: '#dbeafe',
+    borderColor: '#3b82f6',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontWeight: '600',
+    color: '#1e293b',
+    fontSize: '15px',
+    marginBottom: '4px',
+  },
+  userEmail: {
+    fontSize: '13px',
+    color: '#64748b',
+    marginBottom: '4px',
+  },
+  userId: {
+    fontSize: '11px',
+    color: '#94a3b8',
+    fontFamily: 'monospace',
+  },
+  selectedBadge: {
+    background: '#3b82f6',
+    color: 'white',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
   },
   searchMethodToggle: {
     display: 'flex',
-    gap: '20px',
+    gap: '12px',
     marginBottom: '20px',
   },
-  radioLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
+  toggleButton: {
+    flex: 1,
+    padding: '12px',
+    background: '#f1f5f9',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
     fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    color: '#64748b',
   },
-  radio: {
-    cursor: 'pointer',
+  toggleButtonActive: {
+    background: '#3b82f6',
+    color: 'white',
+    borderColor: '#3b82f6',
   },
   form: {
     display: 'flex',
@@ -304,105 +566,132 @@ const styles = {
   label: {
     fontSize: '14px',
     fontWeight: '500',
-    color: '#333',
+    color: '#475569',
   },
   input: {
     padding: '12px',
-    border: '2px solid #e0e0e0',
+    border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: '16px',
+    fontSize: '14px',
     outline: 'none',
+    transition: 'all 0.2s ease',
   },
-  searchButton: {
-    padding: '12px 24px',
-    backgroundColor: '#3b82f6',
+  findButton: {
+    padding: '14px 24px',
+    background: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '16px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   userDetails: {
-    marginTop: '30px',
+    marginTop: '24px',
     padding: '20px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '2px solid #e0e0e0',
+    background: '#f8fafc',
+    borderRadius: '12px',
+    border: '2px solid #e2e8f0',
   },
   userDetailsTitle: {
     fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#1e3c72',
-    marginBottom: '15px',
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: '16px',
   },
-  userInfo: {
+  detailsGrid: {
+    display: 'grid',
+    gap: '12px',
     marginBottom: '20px',
   },
+  detailItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '12px',
+    background: 'white',
+    borderRadius: '6px',
+  },
+  detailLabel: {
+    fontWeight: '600',
+    color: '#64748b',
+    fontSize: '14px',
+  },
+  detailValue: {
+    color: '#1e293b',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
   deleteButton: {
-    padding: '12px 24px',
-    backgroundColor: '#dc3545',
+    width: '100%',
+    padding: '14px',
+    background: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '16px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
-    width: '100%',
+    transition: 'all 0.2s ease',
   },
   confirmSection: {
-    marginTop: '20px',
+    marginTop: '16px',
   },
   warningBox: {
-    backgroundColor: '#fff3cd',
-    border: '2px solid #ffc107',
+    background: '#fef3c7',
+    border: '2px solid #f59e0b',
     borderRadius: '8px',
     padding: '20px',
-    marginBottom: '20px',
+    marginBottom: '16px',
   },
   warningTitle: {
-    color: '#856404',
-    marginTop: 0,
-    marginBottom: '10px',
+    color: '#92400e',
+    margin: '0 0 12px 0',
+    fontSize: '16px',
   },
   warningText: {
-    color: '#856404',
-    marginBottom: '10px',
+    color: '#92400e',
+    marginBottom: '8px',
+    fontSize: '14px',
   },
   warningList: {
-    color: '#856404',
+    color: '#92400e',
     marginLeft: '20px',
-    marginBottom: '10px',
+    marginBottom: '12px',
+    fontSize: '14px',
   },
   warningFooter: {
-    color: '#dc3545',
+    color: '#dc2626',
     fontWeight: 'bold',
     marginBottom: 0,
+    fontSize: '14px',
   },
   confirmButtons: {
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
   },
   cancelButton: {
     flex: 1,
-    padding: '12px 24px',
-    backgroundColor: '#6c757d',
+    padding: '14px',
+    background: '#64748b',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '16px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   confirmDeleteButton: {
     flex: 1,
-    padding: '12px 24px',
-    backgroundColor: '#dc3545',
+    padding: '14px',
+    background: '#dc2626',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '16px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
 };
