@@ -39,66 +39,64 @@ export default function AdminNavigationHub() {
     {
       category: '📊 Dashboard & Overview',
       pages: [
-        { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏦', description: 'Main admin dashboard with stats' },
-        { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥', description: 'Complete user management panel' },
-        { name: 'All Users Info', path: '/admin/all-users-info', icon: '📋', description: 'View all user information' },
+        { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏦', description: 'Main admin dashboard with analytics and stats' },
+        { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥', description: 'Comprehensive user management with full details' },
       ]
     },
     {
       category: '👤 User Management',
       pages: [
-        { name: 'Admin Users', path: '/admin/admin-users', icon: '👨‍💼', description: 'Manage customer users' },
-        { name: 'Admin Users Management', path: '/admin/admin-users-management', icon: '🔐', description: 'Manage admin users & permissions' },
-        { name: 'Manage User Enrollment', path: '/admin/manage-user-enrollment', icon: '🔑', description: 'Assign passwords & complete enrollment' },
-        { name: 'Create User', path: '/admin/create-user', icon: '➕', description: 'Create new user account' },
-        { name: 'Delete User', path: '/admin/delete-user', icon: '🗑️', description: 'Delete user accounts' },
+        { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼', description: 'View and manage customer accounts' },
+        { name: 'Admin Users', path: '/admin/admin-users-management', icon: '🔐', description: 'Manage admin roles and permissions' },
+        { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '🔑', description: 'Complete user enrollment and password setup' },
+        { name: 'Create User', path: '/admin/create-user', icon: '➕', description: 'Add new user accounts' },
+        { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️', description: 'Remove user accounts and data' },
       ]
     },
     {
       category: '💳 Card Management',
       pages: [
-        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝', description: 'Review card applications' },
-        { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '💳', description: 'Manage all cards' },
-        { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫', description: 'Issue new debit cards' },
-        { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗', description: 'Assign cards to users' },
-        { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪', description: 'Test card transaction processing' },
+        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝', description: 'Review and process card applications' },
+        { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '💳', description: 'Manage all issued cards' },
+        { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫', description: 'Issue new debit cards to users' },
+        { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗', description: 'Link cards to user accounts' },
+        { name: 'Test Transactions', path: '/admin/test-card-transactions', icon: '🧪', description: 'Test card payment processing' },
       ]
     },
     {
       category: '💰 Financial Operations',
       pages: [
-        { name: 'Transactions', path: '/admin/admin-transactions', icon: '💸', description: 'View all transactions' },
+        { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸', description: 'View and monitor all transactions' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✍️', description: 'Create manual transactions' },
-        { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦', description: 'Process bulk transactions' },
-        { name: 'Admin Balance', path: '/admin/admin-balance', icon: '💵', description: 'Manage account balances' },
+        { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦', description: 'Process multiple transactions at once' },
+        { name: 'Account Balances', path: '/admin/admin-balance', icon: '💵', description: 'Manage and adjust account balances' },
       ]
     },
     {
       category: '✅ Approvals & Applications',
       pages: [
-        { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅', description: 'Approve pending user applications' },
-        { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️', description: 'Approve new accounts' },
-        { name: 'Admin Approvals', path: '/admin/admin-approvals', icon: '👍', description: 'Review pending approvals' },
-        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧', description: 'Resend enrollment links' },
+        { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅', description: 'Review and approve user applications' },
+        { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️', description: 'Approve pending account requests' },
+        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧', description: 'Resend enrollment emails to users' },
       ]
     },
     {
       category: '🏦 Banking Services',
       pages: [
-        { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠', description: 'Manage loan applications' },
-        { name: 'Investments', path: '/admin/admin-investments', icon: '📈', description: 'Manage investments' },
-        { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿', description: 'Cryptocurrency operations' },
+        { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠', description: 'Manage loan applications and approvals' },
+        { name: 'Investments', path: '/admin/admin-investments', icon: '📈', description: 'Handle investment accounts' },
+        { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿', description: 'Manage cryptocurrency operations' },
       ]
     },
     {
       category: '🔧 System & Security',
       pages: [
-        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍', description: 'View system audit logs' },
-        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜', description: 'View system logs' },
-        { name: 'Reports', path: '/admin/admin-reports', icon: '📊', description: 'Generate reports' },
-        { name: 'Settings', path: '/admin/admin-settings', icon: '⚙️', description: 'System settings' },
-        { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭', description: 'Manage user roles' },
-        { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔', description: 'System notifications' },
+        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍', description: 'Review system audit trails' },
+        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜', description: 'View detailed system logs' },
+        { name: 'Reports', path: '/admin/admin-reports', icon: '📊', description: 'Generate financial and system reports' },
+        { name: 'Settings', path: '/admin/admin-settings', icon: '⚙️', description: 'Configure system settings' },
+        { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭', description: 'Manage access control and roles' },
+        { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔', description: 'System-wide notifications' },
       ]
     }
   ];
