@@ -16,9 +16,6 @@ const LoanApprovalSection = lazy(() => import('../components/LoanApprovalSection
 const CTA = lazy(() => import('../components/CTA'));
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [authError, setAuthError] = useState('');
   const [user, setUser] = useState(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentAccountSlide, setCurrentAccountSlide] = useState(0);
@@ -28,18 +25,7 @@ export default function Home() {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showBankingDropdown, setShowBankingDropdown] = useState(false);
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
-    // Check if user is already authenticated
-    const pageAuth = localStorage.getItem('pageAuthenticated');
-    if (pageAuth === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
 
     // Get initial session and set up auth listener
     const getInitialSession = async () => {
@@ -336,51 +322,6 @@ export default function Home() {
   // Show different account types based on authentication
   const visibleAccountTypes = user ? accountTypes : accountTypes.filter(account => account.featured);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('pageAuthenticated', 'true');
-      setAuthError('');
-    } else {
-      setAuthError('Invalid password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('pageAuthenticated');
-    setPassword('');
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.loginTitle}>🔐 Access Required</h1>
-          <p style={styles.loginSubtitle}>Enter password to access Oakline Bank</p>
-          <form onSubmit={handleLogin} style={styles.loginForm}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter password"
-                required
-              />
-            </div>
-            {authError && <div style={styles.errorMessage}>{authError}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔓 Access Site
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div style={styles.loadingContainer}>
@@ -443,13 +384,6 @@ export default function Home() {
                 <div style={styles.iconLine}></div>
               </div>
               <span style={styles.bankingPlusText}>Banking+</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              style={styles.logoutButtonHeader}
-              title="Logout"
-            >
-              🚪 Logout
             </button>
 
             {showBankingDropdown && (
