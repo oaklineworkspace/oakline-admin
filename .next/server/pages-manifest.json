@@ -2,8 +2,6 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/admin": "pages/admin.js",
-  "/admin/manage-all-users": "pages/admin/manage-all-users.js",
-  "/admin/delete-user-by-id": "pages/admin/delete-user-by-id.js",
-  "/": "pages/index.js"
+  "/": "pages/index.js",
+  "/admin": "pages/admin.js"
 }
