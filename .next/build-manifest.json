@@ -30,17 +30,17 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/admin": [
+    "/admin/delete-user-by-id": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin.js"
+      "static/chunks/pages/admin/delete-user-by-id.js"
     ],
-    "/admin/manage-user-enrollment": [
+    "/admin/manage-all-users": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/manage-user-enrollment.js"
+      "static/chunks/pages/admin/manage-all-users.js"
     ]
   },
   "ampFirstPages": []
