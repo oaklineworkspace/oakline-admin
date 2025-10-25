@@ -2,9 +2,5 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/admin": "pages/admin.js",
-  "/": "pages/index.js",
-  "/admin/delete-user-by-id": "pages/admin/delete-user-by-id.js",
-  "/api/admin/get-users": "pages/api/admin/get-users.js",
-  "/api/admin/find-user": "pages/api/admin/find-user.js"
+  "/": "pages/index.js"
 }
