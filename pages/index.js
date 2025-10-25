@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, lazy, Suspense } from 'react';
+import { useState, useEffect, memo } from 'react';
 import Link from 'next/link';
 import { supabase } from '../lib/supabaseClient';
 import MainMenu from '../components/MainMenu';
@@ -8,12 +8,10 @@ import ServicesSection from '../components/ServicesSection';
 import FeaturesSection from '../components/FeaturesSection';
 import Footer from '../components/Footer';
 import LiveChat from '../components/LiveChat';
-
-// Lazy load heavy components
-const Testimonials = lazy(() => import('../components/Testimonials'));
-const TestimonialsSection = lazy(() => import('../components/TestimonialsSection'));
-const LoanApprovalSection = lazy(() => import('../components/LoanApprovalSection'));
-const CTA = lazy(() => import('../components/CTA'));
+import Testimonials from '../components/Testimonials';
+import TestimonialsSection from '../components/TestimonialsSection';
+import LoanApprovalSection from '../components/LoanApprovalSection';
+import CTA from '../components/CTA';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -1210,9 +1208,7 @@ export default function Home() {
 
 
       {/* Testimonials Section */}
-      <Suspense fallback={<div style={styles.loadingComponent}>Loading testimonials...</div>}>
-        <Testimonials />
-      </Suspense>
+      <Testimonials />
 
 
 
@@ -1584,18 +1580,16 @@ export default function Home() {
       <div id="final-cta" data-animate style={{
         ...(isVisible['final-cta'] ? styles.pulseGlow : {})
       }}>
-        <Suspense fallback={<div style={styles.loadingComponent}>Loading...</div>}>
-          <CTA
-            title={user ? "Ready to Expand Your Banking?" : "Ready to Start Your Financial Journey?"}
-            subtitle={user ?
-              "Access premium banking services and explore all account options." :
-              "Join over 500,000 customers who trust Oakline Bank. Open your account today."
-            }
-            buttonText={user ? "View Account Types" : "Open Account Now"}
-            buttonLink={user ? "/account-types" : "/apply"}
-            variant="primary"
-          />
-        </Suspense>
+        <CTA
+          title={user ? "Ready to Expand Your Banking?" : "Ready to Start Your Financial Journey?"}
+          subtitle={user ?
+            "Access premium banking services and explore all account options." :
+            "Join over 500,000 customers who trust Oakline Bank. Open your account today."
+          }
+          buttonText={user ? "View Account Types" : "Open Account Now"}
+          buttonLink={user ? "/account-types" : "/apply"}
+          variant="primary"
+        />
       </div>
 
       {/* Live Chat Component */}

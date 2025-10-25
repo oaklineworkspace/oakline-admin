@@ -33,29 +33,26 @@ export default async function handler(req, res) {
     }
 
     // Merge auth users with profile data
-    const enrichedUsers = users.map(authUser => {
-      const profile = profiles?.find(p => p.id === authUser.id);
+    const enrichedUsers = users.map(user => {
+      const profile = profiles?.find(p => p.id === user.id);
       return {
-        id: authUser.id,
-        email: authUser.email,
-        name: profile 
-          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() 
-          : authUser.email?.split('@')[0] || 'Unknown User',
-        first_name: profile?.first_name || '',
-        last_name: profile?.last_name || '',
-        created_at: authUser.created_at,
-        last_sign_in_at: authUser.last_sign_in_at,
+        id: user.id,
+        email: user.email,
+        name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : null,
+        first_name: profile?.first_name || null,
+        last_name: profile?.last_name || null,
+        created_at: user.created_at,
+        last_sign_in_at: user.last_sign_in_at,
       };
     });
 
-    return res.status(200).json({
-      success: true,
+    return res.status(200).json({ 
       users: enrichedUsers,
-      count: enrichedUsers.length
+      total: enrichedUsers.length 
     });
 
   } catch (error) {
-    console.error('Error in get-users:', error);
+    console.error('Error in get-users API:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
