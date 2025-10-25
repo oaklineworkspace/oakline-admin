@@ -2,6 +2,8 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/apply": "pages/apply.js"
+  "/apply": "pages/apply.js",
+  "/admin": "pages/admin.js",
+  "/admin/manage-user-enrollment": "pages/admin/manage-user-enrollment.js",
+  "/": "pages/index.js"
 }

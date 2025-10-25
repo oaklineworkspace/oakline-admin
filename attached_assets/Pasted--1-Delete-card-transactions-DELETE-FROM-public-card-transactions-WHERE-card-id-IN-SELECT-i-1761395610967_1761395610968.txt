@@ -1,0 +1,107 @@
+-- 1️⃣ Delete card transactions
+DELETE FROM public.card_transactions
+WHERE card_id IN (
+    SELECT id FROM public.cards WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+);
+
+-- 2️⃣ Delete card activity logs
+DELETE FROM public.card_activity_log
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 3️⃣ Delete cards
+DELETE FROM public.cards
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 4️⃣ Delete card applications
+DELETE FROM public.card_applications
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 5️⃣ Delete Zelle transactions
+DELETE FROM public.zelle_transactions
+WHERE sender_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+   OR recipient_user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 6️⃣ Delete Zelle settings
+DELETE FROM public.zelle_settings
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 7️⃣ Delete Zelle contacts
+DELETE FROM public.zelle_contacts
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 8️⃣ Delete loan payments
+DELETE FROM public.loan_payments
+WHERE loan_id IN (
+    SELECT id FROM public.loans WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+);
+
+-- 9️⃣ Delete loans
+DELETE FROM public.loans
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 🔟 Delete transactions referencing accounts
+DELETE FROM public.transactions
+WHERE account_id IN (
+    SELECT id FROM public.accounts WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+);
+
+-- 1️⃣1️⃣ Delete accounts
+DELETE FROM public.accounts
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣2️⃣ Delete enrollments
+DELETE FROM public.enrollments
+WHERE application_id IN (
+    SELECT id FROM public.applications WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+);
+
+-- 1️⃣3️⃣ Delete applications
+DELETE FROM public.applications
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣4️⃣ Delete profiles
+DELETE FROM public.profiles
+WHERE id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣5️⃣ Delete notifications
+DELETE FROM public.notifications
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣6️⃣ Delete beneficiaries
+DELETE FROM public.beneficiaries
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣7️⃣ Delete audit logs
+DELETE FROM public.audit_logs
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣8️⃣ Delete system logs
+DELETE FROM public.system_logs
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+   OR admin_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 1️⃣9️⃣ Delete staff entries
+DELETE FROM public.staff
+WHERE id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 2️⃣0️⃣ Delete Plaid accounts/items
+DELETE FROM public.plaid_accounts
+WHERE plaid_item_id IN (
+    SELECT id FROM public.plaid_items WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+);
+DELETE FROM public.plaid_items
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 2️⃣1️⃣ Delete password reset OTPs
+DELETE FROM public.password_reset_otps
+WHERE email IN (
+    SELECT email FROM public.profiles WHERE id = 'f6017868-af40-4337-98b9-90d6b57395ca'
+);
+
+-- 2️⃣2️⃣ Delete from email queue
+DELETE FROM public.email_queue
+WHERE user_id = 'f6017868-af40-4337-98b9-90d6b57395ca';
+
+-- 2️⃣3️⃣ Finally, delete the auth user
+DELETE FROM auth.users
+WHERE id = 'f6017868-af40-4337-98b9-90d6b57395ca';

@@ -30,11 +30,17 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/apply": [
+    "/admin": [
       "static/chunks/webpack.js",
       "static/chunks/vendors.js",
       "static/chunks/main.js",
-      "static/chunks/pages/apply.js"
+      "static/chunks/pages/admin.js"
+    ],
+    "/admin/manage-user-enrollment": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendors.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/admin/manage-user-enrollment.js"
     ]
   },
   "ampFirstPages": []
