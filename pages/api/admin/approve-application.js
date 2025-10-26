@@ -397,8 +397,6 @@ export default async function handler(req, res) {
 
     console.log('Application status updated to approved');
 
-    console.log('Application status updated to approved');
-
     try {
       await sendEmail({
         to: email,
