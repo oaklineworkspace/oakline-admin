@@ -380,5 +380,39 @@ const styles = {
     textAlign: 'center',
     lineHeight: '1',
     color: 'inherit'
+  },
+  footerNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '100%',
+    padding: '0.5rem 0',
+    flexWrap: 'nowrap',
+    position: 'relative',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
+    boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.08)',
+    backdropFilter: 'blur(10px)',
+    zIndex: 1000,
+    borderTop: '2px solid #e2e8f0'
+  },
+  navLink: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.5rem 0.75rem',
+    color: '#64748b',
+    textDecoration: 'none',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    transition: 'color 0.3s ease',
+    cursor: 'pointer',
+    flex: 1,
+    textAlign: 'center',
+    minWidth: '50px',
+    height: '60px'
   }
 };

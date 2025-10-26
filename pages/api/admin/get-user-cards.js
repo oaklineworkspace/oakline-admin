@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
@@ -6,22 +7,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: accounts, error } = await supabaseAdmin
-      .from('accounts')
+    const { data: cards, error } = await supabaseAdmin
+      .from('cards')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching accounts:', error);
-      return res.status(500).json({ error: 'Failed to fetch accounts' });
+      console.error('Error fetching cards:', error);
+      return res.status(500).json({ error: 'Failed to fetch cards' });
     }
 
     return res.status(200).json({ 
       success: true,
-      accounts: accounts || [] 
+      cards: cards || [] 
     });
   } catch (error) {
-    console.error('Error in get-accounts:', error);
+    console.error('Error in get-user-cards:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -16,55 +16,32 @@ export default function ManageAllUsersPage() {
     setError('');
 
     try {
-      // Fetch all applications (use submitted_at instead of created_at)
-      const { data: applications, error: appsError } = await supabase
-        .from('applications')
-        .select('*')
-        .order('submitted_at', { ascending: false });
+      // Fetch all applications
+      const applicationsRes = await fetch('/api/applications');
+      if (!applicationsRes.ok) throw new Error('Failed to fetch applications');
+      const applicationsData = await applicationsRes.json();
+      const applications = applicationsData.applications || [];
 
-      if (appsError) throw appsError;
+      // Fetch all accounts via API
+      const accountsRes = await fetch('/api/admin/get-accounts');
+      if (!accountsRes.ok) throw new Error('Failed to fetch accounts');
+      const accountsData = await accountsRes.json();
+      const accounts = accountsData.accounts || [];
 
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
+      // Fetch all cards via API
+      const cardsRes = await fetch('/api/admin/get-user-cards');
+      if (!cardsRes.ok) throw new Error('Failed to fetch cards');
+      const cardsData = await cardsRes.json();
+      const cards = cardsData.cards || [];
 
-      if (profilesError) throw profilesError;
-
-      // Fetch all accounts
-      const { data: accounts, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*');
-
-      if (accountsError) throw accountsError;
-
-      // Fetch all cards
-      const { data: cards, error: cardsError } = await supabase
-        .from('cards')
-        .select('*');
-
-      if (cardsError) throw cardsError;
-
-      // Fetch all enrollments
-      const { data: enrollments, error: enrollError } = await supabase
-        .from('enrollments')
-        .select('*');
-
-      if (enrollError) throw enrollError;
-
-      // Combine all data (match by email only since application_id doesn't exist in profiles)
+      // Combine all data
       const combinedData = applications.map(app => {
-        const profile = profiles?.find(p => p.email === app.email);
         const userAccounts = accounts?.filter(a => a.application_id === app.id) || [];
-        const enrollment = enrollments?.find(e => e.email === app.email);
 
         return {
           ...app,
-          user_id: app.user_id || profile?.id,
-          enrollment_completed: profile?.enrollment_completed || false,
-          password_set: profile?.password_set || false,
-          enrollment_data: enrollment,
-          profile_data: profile,
+          enrollment_completed: app.enrollment_completed || false,
+          password_set: app.password_set || false,
           accounts: userAccounts.map(acc => ({
             ...acc,
             cards: cards?.filter(c => c.account_id === acc.id) || []
