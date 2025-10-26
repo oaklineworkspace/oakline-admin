@@ -365,9 +365,14 @@ export default function Home() {
                 Welcome to Oakline Bank - Your trusted financial partner since 1995 • Explore all 23 account types with detailed benefits • Join over 500,000+ satisfied customers • Award-winning mobile app • FDIC Insured up to $250,000 • Rated #1 Customer Service
               </div>
             </div>
-            {/* Comprehensive Admin Dropdown Button */}
-            {user && <AdminNavDropdown />}
           </div>
+          
+          {/* Comprehensive Admin Dropdown Button - Mobile Friendly Row */}
+          {user && (
+            <div style={styles.adminDropdownRow}>
+              <AdminNavDropdown />
+            </div>
+          )}
 
         </div>
       </header>
@@ -4028,6 +4033,15 @@ const styles = {
     fontSize: '0.9rem',
     fontWeight: '500',
     letterSpacing: '0.5px'
+  },
+  adminDropdownRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    padding: '0.75rem 1rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.1)'
   },
 
   // Mobile Navigation Row Styles
