@@ -145,30 +145,53 @@ export default async function handler(req, res) {
     console.log('Application status updated to approved - trigger will handle account/card creation');
 
     // Wait a moment for trigger to complete
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Fetch created accounts and cards to return to admin
-    const { data: createdAccounts } = await supabaseAdmin
+    const { data: createdAccounts, error: accountsFetchError } = await supabaseAdmin
       .from('accounts')
       .select('*')
       .eq('application_id', applicationId);
 
-    const { data: createdCards } = await supabaseAdmin
-      .from('cards')
-      .select('*')
-      .in('account_id', (createdAccounts || []).map(acc => acc.id));
+    if (accountsFetchError) {
+      console.error('Error fetching created accounts:', accountsFetchError);
+    }
 
-    // Update accounts and cards with the user_id
-    if (createdAccounts && createdAccounts.length > 0) {
-      await supabaseAdmin
+    const accountIds = (createdAccounts || []).map(acc => acc.id);
+    let createdCards = [];
+
+    if (accountIds.length > 0) {
+      const { data: cardsData, error: cardsFetchError } = await supabaseAdmin
+        .from('cards')
+        .select('*')
+        .in('account_id', accountIds);
+
+      if (cardsFetchError) {
+        console.error('Error fetching created cards:', cardsFetchError);
+      } else {
+        createdCards = cardsData || [];
+      }
+
+      // Update accounts and cards with the user_id
+      const { error: accountsUpdateError } = await supabaseAdmin
         .from('accounts')
         .update({ user_id: userId })
         .eq('application_id', applicationId);
 
-      await supabaseAdmin
-        .from('cards')
-        .update({ user_id: userId })
-        .in('account_id', createdAccounts.map(acc => acc.id));
+      if (accountsUpdateError) {
+        console.error('Error updating accounts with user_id:', accountsUpdateError);
+      }
+
+      if (createdCards.length > 0) {
+        const { error: cardsUpdateError } = await supabaseAdmin
+          .from('cards')
+          .update({ user_id: userId })
+          .in('account_id', accountIds);
+
+        if (cardsUpdateError) {
+          console.error('Error updating cards with user_id:', cardsUpdateError);
+        }
+      }
     }
 
     // Send welcome email with credentials

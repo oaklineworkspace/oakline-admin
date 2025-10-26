@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 
+// Note: This page uses API routes, not direct Supabase client
+
 export default function ApproveApplications() {
   const [error, setError] = useState('');
   const [applications, setApplications] = useState([]);
