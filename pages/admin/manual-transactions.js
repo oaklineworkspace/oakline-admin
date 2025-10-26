@@ -2,6 +2,66 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
 
+// Placeholder for AdminFooter component - actual implementation would be in a separate file
+const AdminFooter = () => {
+  const router = useRouter();
+  const footerLinks = [
+    { href: '/admin/admin-dashboard', label: 'Dashboard' },
+    { href: '/admin/approve-applications', label: 'Approve Applications' },
+    { href: '/admin/manual-transactions', label: 'Manual Transactions' },
+    { href: '/admin/pages/admin', label: 'Admin Pages' },
+    { href: '/admin/manage-accounts', label: 'Manage Accounts' }
+  ];
+
+  const styles = {
+    footer: {
+      position: 'sticky',
+      bottom: 0,
+      left: 0,
+      width: '100%',
+      backgroundColor: '#0f766e',
+      padding: '1rem 0',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '1.5rem',
+      boxShadow: '0 -2px 5px rgba(0,0,0,0.1)',
+      zIndex: 1000,
+      flexWrap: 'wrap'
+    },
+    link: {
+      color: 'white',
+      textDecoration: 'none',
+      fontSize: '0.9rem',
+      fontWeight: '500',
+      transition: 'opacity 0.2s',
+    },
+    linkHover: { // For demonstration, actual hover would be in CSS or onMouseEnter
+      opacity: 0.8
+    }
+  };
+
+  return (
+    <footer style={styles.footer}>
+      {footerLinks.map((link) => (
+        <a
+          key={link.href}
+          href="#" // Prevent default navigation for now, to be handled by router.push
+          onClick={(e) => {
+            e.preventDefault();
+            router.push(link.href);
+          }}
+          style={styles.link}
+          // onMouseEnter={(e) => e.target.style.opacity = styles.linkHover.opacity}
+          // onMouseLeave={(e) => e.target.style.opacity = 1}
+        >
+          {link.label}
+        </a>
+      ))}
+    </footer>
+  );
+};
+
 const CREDIT_TYPES = [
   { value: 'deposit_adjust', label: 'Deposit Adjust', icon: '💰' },
   { value: 'transfer_in', label: 'Transfer In', icon: '📥' },
@@ -381,7 +441,7 @@ export default function ManualTransactions() {
               filteredTransactions.map((tx) => {
                 const isCredit = tx.type === 'credit';
                 const statusStyle = getStatusBadgeStyle(tx.status);
-                
+
                 return (
                   <div key={tx.id} style={styles.transactionItem}>
                     <div style={{
@@ -429,6 +489,8 @@ export default function ManualTransactions() {
             )}
           </div>
         </div>
+
+        <AdminFooter />
       </div>
     </AdminAuth>
   );

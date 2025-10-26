@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
+import AdminFooter from '../../components/AdminFooter';
 
 export default function ManageAccounts() {
   const [users, setUsers] = useState([]);
@@ -336,6 +337,8 @@ export default function ManageAccounts() {
             </div>
           )}
         </div>
+
+        <AdminFooter />
       </div>
     </AdminAuth>
   );
@@ -346,6 +349,7 @@ const styles = {
     minHeight: '100vh',
     background: '#f5f7fa',
     padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
     background: 'white',

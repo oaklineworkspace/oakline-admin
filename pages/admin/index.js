@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
+import AdminFooter from '../../components/AdminFooter';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -266,6 +267,8 @@ export default function AdminNavigationHub() {
           Total Admin Pages: <strong>{adminPages.reduce((acc, section) => acc + section.pages.length, 0)}</strong>
         </p>
       </div>
+
+      <AdminFooter />
     </div>
   );
 }
@@ -291,7 +294,7 @@ const styles = {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
     padding: '20px',
-    paddingBottom: '60px'
+    paddingBottom: '100px'
   },
   header: {
     display: 'flex',

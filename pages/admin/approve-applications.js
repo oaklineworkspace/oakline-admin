@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminButton from '../../components/AdminButton';
+import AdminFooter from '../../components/AdminFooter';
 
 // Note: This page uses API routes, not direct Supabase client
 
@@ -427,6 +428,8 @@ export default function ApproveApplications() {
             </div>
           </div>
         )}
+
+        <AdminFooter />
       </div>
     </AdminAuth>
   );
@@ -437,6 +440,7 @@ const styles = {
     minHeight: '100vh',
     background: '#f5f7fa',
     padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
     background: 'white',
