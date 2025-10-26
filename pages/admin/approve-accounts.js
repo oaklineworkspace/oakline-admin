@@ -22,7 +22,7 @@ export default function ApproveAccounts() {
   const fetchPendingAccounts = async () => {
     setLoading(true);
     setError('');
-    try:
+    try {
       // Fetch pending accounts with application data using proper join
       const { data: accounts, error: accountsError } = await supabaseAdmin
         .from('accounts')
@@ -139,6 +139,16 @@ export default function ApproveAccounts() {
 
   const rejectAccount = async (accountId, accountNumber) => {
     await updateAccountStatus(accountId, accountNumber, 'rejected', 'rejected');
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      await supabase.auth.signOut();
+      router.push('/admin');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
   };
 
   
