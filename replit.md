@@ -189,6 +189,17 @@ Preferred communication style: Simple, everyday language.
   - Eliminated password-based admin access in favor of database-verified authentication
   - Admin access now requires both Supabase authentication AND admin_profiles table entry
   - Environment secrets securely managed through Replit
+- **Admin Panel API Fixes** (Latest):
+  - **approve-pending-account.js**: Refactored to use explicit foreign key lookups instead of joins
+    - Fetches account and application separately to avoid Supabase join array ambiguity
+    - Uses account.application_id to retrieve the correct application record
+    - Added robust validation with .trim() to catch empty/whitespace-only strings
+    - Returns clear 422 errors for missing or incomplete application data
+    - Prevents null dereference errors when sending approval emails
+  - **get-accounts.js**: Added optional status query parameter
+    - Supports filtering accounts by status (e.g., ?status=pending)
+    - Falls back to returning all accounts when no status specified
+    - Enables both manual-transactions page (all accounts) and approve-accounts page (pending only)
 - **Deployment**: 
   - Development server running successfully on port 5000
   - Dependencies installed and verified (Next.js 14.2.3)
