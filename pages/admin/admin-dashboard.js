@@ -1,437 +1,273 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { supabase } from '../../lib/supabaseClient';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminDashboard() {
-  const router = useRouter();
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalAccounts: 0,
-    totalTransactions: 0,
     pendingApplications: 0,
-    totalBalance: 0,
+    totalTransactions: 0
   });
-  const [recentUsers, setRecentUsers] = useState([]);
-  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth !== 'true') {
-      router.push('/admin');
-      return;
-    }
-    fetchStats();
-  }, [router]);
+    fetchDashboardStats();
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminAuthenticated');
-    router.push('/admin');
-  };
-
-  // -------------------
-  // Fetch Stats & Data
-  // -------------------
-  const fetchStats = async () => {
-    setLoading(true);
+  const fetchDashboardStats = async () => {
     try {
-      // Fetch applications
-      const applicationsRes = await fetch('/api/applications');
-      const applicationsData = await applicationsRes.json();
-      const users = applicationsData.applications || [];
+      setLoading(true);
 
-      // Fetch accounts
-      const accountsRes = await fetch('/api/admin/get-accounts');
-      const accountsData = await accountsRes.json();
-      const accounts = accountsData.accounts || [];
-
-      // Fetch transactions
-      const transactionsRes = await fetch('/api/admin/get-transactions');
-      const transactionsData = await transactionsRes.json();
-      const transactions = transactionsData.transactions || [];
-
-      // Calculate total balance
-      const totalBalance = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
-
-      // Recent users
-      const recentUsersList = users.slice(0, 5).map(user => ({
-        id: user.id,
-        name: `${user.first_name || ''} ${user.middle_name ? user.middle_name + ' ' : ''}${user.last_name || ''}`.trim(),
-        email: user.email,
-        created_at: user.submitted_at,
-        status: user.application_status || 'pending'
-      }));
-
-      // Recent transactions
-      const recentTxList = transactions.slice(0, 10);
-
-      // Pending applications
-      const pendingApplications = users.filter(u => u.application_status === 'pending').length;
+      const [usersRes, accountsRes, appsRes, transactionsRes] = await Promise.all([
+        supabase.from('users').select('id', { count: 'exact', head: true }),
+        supabase.from('accounts').select('id', { count: 'exact', head: true }),
+        supabase.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('transactions').select('id', { count: 'exact', head: true })
+      ]);
 
       setStats({
-        totalUsers: users.length,
-        totalAccounts: accounts.length,
-        totalTransactions: transactions.length,
-        pendingApplications,
-        totalBalance,
+        totalUsers: usersRes.count || 0,
+        totalAccounts: accountsRes.count || 0,
+        pendingApplications: appsRes.count || 0,
+        totalTransactions: transactionsRes.count || 0
       });
-
-      setRecentUsers(recentUsersList);
-      setRecentTransactions(recentTxList);
-    } catch (err) {
-      console.error('Error fetching stats:', err);
-      setError('Failed to fetch dashboard data.');
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'
-      }}>
-        <div style={{ color: 'white', fontSize: '20px' }}>Loading dashboard...</div>
-      </div>
-    );
-  }
-
   return (
-    <div style={styles.pageContainer}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>🏦 Admin Dashboard</h1>
-          <p style={styles.subtitle}>Oakline Bank Administrative Control Panel</p>
+    <AdminAuth>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>📊 Admin Dashboard</h1>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <Link href="/admin" style={styles.backButton}>
-            ← Back to Menu
-          </Link>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            🚪 Logout
-          </button>
-        </div>
-      </div>
 
-      {/* Stats Grid */}
-      <div style={styles.statsGrid}>
-        <StatCard label="Total Users" value={stats.totalUsers} icon="👥" color="#3b82f6" />
-        <StatCard label="Total Accounts" value={stats.totalAccounts} icon="🏦" color="#10b981" />
-        <StatCard label="Transactions" value={stats.totalTransactions} icon="💸" color="#8b5cf6" />
-        <StatCard label="Pending Applications" value={stats.pendingApplications} icon="⏳" color="#f59e0b" />
-        <StatCard label="Total Balance" value={`$${stats.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} icon="💰" color="#06b6d4" />
-      </div>
-
-      {/* Content Grid */}
-      <div style={styles.contentGrid}>
-        {/* Recent Users */}
-        <div style={styles.contentCard}>
-          <h2 style={styles.contentCardTitle}>👥 Recent Users</h2>
-          {recentUsers.length === 0 ? (
-            <p style={styles.emptyMessage}>No recent users</p>
-          ) : (
-            <div style={styles.table}>
-              {recentUsers.map(user => (
-                <div key={user.id} style={styles.tableRow}>
-                  <div style={styles.userInfo}>
-                    <div style={styles.userName}>{user.name}</div>
-                    <div style={styles.userEmail}>{user.email}</div>
-                  </div>
-                  <div style={styles.userMeta}>
-                    <span style={{ ...styles.statusBadge, ...(user.status === 'approved' ? styles.statusApproved : styles.statusPending) }}>
-                      {user.status}
-                    </span>
-                    <span style={styles.dateText}>{new Date(user.created_at).toLocaleDateString()}</span>
-                  </div>
+        {loading ? (
+          <div style={styles.loading}>Loading dashboard...</div>
+        ) : (
+          <>
+            <div style={styles.statsGrid}>
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>👥</div>
+                <div style={styles.statContent}>
+                  <h3 style={styles.statValue}>{stats.totalUsers}</h3>
+                  <p style={styles.statLabel}>Total Users</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
 
-        {/* Recent Transactions */}
-        <div style={styles.contentCard}>
-          <h2 style={styles.contentCardTitle}>💸 Recent Transactions</h2>
-          {recentTransactions.length === 0 ? (
-            <p style={styles.emptyMessage}>No recent transactions</p>
-          ) : (
-            <div style={styles.table}>
-              {recentTransactions.slice(0, 5).map(tx => (
-                <div key={tx.id} style={styles.tableRow}>
-                  <div style={styles.txInfo}>
-                    <div style={styles.txType}>{tx.type || 'Transaction'}</div>
-                    <div style={styles.txAmount}>${parseFloat(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <span style={{ ...styles.statusBadge, ...(tx.status === 'completed' ? styles.statusApproved : styles.statusPending) }}>
-                    {tx.status}
-                  </span>
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>💳</div>
+                <div style={styles.statContent}>
+                  <h3 style={styles.statValue}>{stats.totalAccounts}</h3>
+                  <p style={styles.statLabel}>Total Accounts</p>
                 </div>
-              ))}
+              </div>
+
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>📝</div>
+                <div style={styles.statContent}>
+                  <h3 style={styles.statValue}>{stats.pendingApplications}</h3>
+                  <p style={styles.statLabel}>Pending Applications</p>
+                </div>
+              </div>
+
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>💰</div>
+                <div style={styles.statContent}>
+                  <h3 style={styles.statValue}>{stats.totalTransactions}</h3>
+                  <p style={styles.statLabel}>Total Transactions</p>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div style={styles.quickActionsSection}>
-        <h2 style={styles.sectionTitle}>⚡ Quick Actions</h2>
-        <div style={styles.quickActionsGrid}>
-          <Link href="/admin/manage-all-users" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' } }}>
-            <div style={styles.quickActionIcon}>👥</div>
-            <div style={styles.quickActionText}>Manage Users</div>
-          </Link>
-          <Link href="/admin/approve-applications" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' } }}>
-            <div style={styles.quickActionIcon}>✅</div>
-            <div style={styles.quickActionText}>Approve Applications</div>
-          </Link>
-          <Link href="/admin/approve-accounts" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' } }}>
-            <div style={styles.quickActionIcon}>✔️</div>
-            <div style={styles.quickActionText}>Approve Accounts</div>
-          </Link>
-          <Link href="/admin/admin-transactions" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' } }}>
-            <div style={styles.quickActionIcon}>💰</div>
-            <div style={styles.quickActionText}>Transactions</div>
-          </Link>
-          <Link href="/admin/admin-card-applications" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' } }}>
-            <div style={styles.quickActionIcon}>💳</div>
-            <div style={styles.quickActionText}>Card Applications</div>
-          </Link>
-          <Link href="/admin/delete-user-by-id" style={{ ...styles.quickActionCard, ...{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' } }}>
-            <div style={styles.quickActionIcon}>🗑️</div>
-            <div style={styles.quickActionText}>Delete Users</div>
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
+            <div style={styles.adminPagesGrid}>
+              <Link href="/admin/manage-all-users" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>👥</div>
+                <h3 style={styles.cardTitle}>Manage All Users</h3>
+                <p style={styles.cardDescription}>View and manage all users</p>
+              </Link>
 
-// -------------------
-// Stat Card Component
-// -------------------
-function StatCard({ label, value, icon, color }) {
-  return (
-    <div style={{
-      background: 'white',
-      padding: '24px',
-      borderRadius: '16px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-      border: '1px solid rgba(0,0,0,0.05)',
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      cursor: 'default'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-        <div style={{ fontSize: '32px' }}>{icon}</div>
-        <div style={{
-          backgroundColor: `${color}15`,
-          color: color,
-          padding: '4px 8px',
-          borderRadius: '6px',
-          fontSize: '11px',
-          fontWeight: '600',
-          textTransform: 'uppercase'
-        }}>
-          Live
-        </div>
+              <Link href="/admin/admin-users" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>👤</div>
+                <h3 style={styles.cardTitle}>User Management</h3>
+                <p style={styles.cardDescription}>Manage individual users</p>
+              </Link>
+
+              <Link href="/admin/admin-users-management" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>👨‍💼</div>
+                <h3 style={styles.cardTitle}>Admin Users</h3>
+                <p style={styles.cardDescription}>Manage admin accounts</p>
+              </Link>
+
+              <Link href="/admin/approve-applications" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>✅</div>
+                <h3 style={styles.cardTitle}>Approve Applications</h3>
+                <p style={styles.cardDescription}>Review and approve applications</p>
+              </Link>
+
+              <Link href="/admin/approve-accounts" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>🏦</div>
+                <h3 style={styles.cardTitle}>Approve Accounts</h3>
+                <p style={styles.cardDescription}>Review and approve accounts</p>
+              </Link>
+
+              <Link href="/admin/issue-debit-card" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>💳</div>
+                <h3 style={styles.cardTitle}>Issue Debit Cards</h3>
+                <p style={styles.cardDescription}>Issue new debit cards</p>
+              </Link>
+
+              <Link href="/admin/admin-cards-dashboard" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>🃏</div>
+                <h3 style={styles.cardTitle}>Cards Dashboard</h3>
+                <p style={styles.cardDescription}>Manage all cards</p>
+              </Link>
+
+              <Link href="/admin/admin-transactions" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>💸</div>
+                <h3 style={styles.cardTitle}>Transactions</h3>
+                <p style={styles.cardDescription}>View all transactions</p>
+              </Link>
+
+              <Link href="/admin/manual-transactions" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>✏️</div>
+                <h3 style={styles.cardTitle}>Manual Transactions</h3>
+                <p style={styles.cardDescription}>Create manual transactions</p>
+              </Link>
+
+              <Link href="/admin/bulk-transactions" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>📦</div>
+                <h3 style={styles.cardTitle}>Bulk Transactions</h3>
+                <p style={styles.cardDescription}>Perform bulk operations</p>
+              </Link>
+
+              <Link href="/admin/admin-balance" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>💰</div>
+                <h3 style={styles.cardTitle}>Balance Management</h3>
+                <p style={styles.cardDescription}>Manage account balances</p>
+              </Link>
+
+              <Link href="/admin/resend-enrollment" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>📧</div>
+                <h3 style={styles.cardTitle}>Resend Enrollment</h3>
+                <p style={styles.cardDescription}>Resend enrollment emails</p>
+              </Link>
+
+              <Link href="/admin/delete-users" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>🗑️</div>
+                <h3 style={styles.cardTitle}>Delete Users</h3>
+                <p style={styles.cardDescription}>Remove users from system</p>
+              </Link>
+
+              <Link href="/admin/admin-audit" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>📋</div>
+                <h3 style={styles.cardTitle}>Audit Logs</h3>
+                <p style={styles.cardDescription}>View system audit logs</p>
+              </Link>
+            </div>
+          </>
+        )}
       </div>
-      <div style={{ color: '#64748b', fontSize: '13px', fontWeight: '500', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1e293b' }}>
-        {value}
-      </div>
-    </div>
+    </AdminAuth>
   );
 }
 
 const styles = {
-  pageContainer: {
+  container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-    padding: '20px',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    padding: '20px'
   },
   header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
     background: 'white',
-    padding: '24px',
-    borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+    padding: '25px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    marginBottom: '30px'
   },
   title: {
-    fontSize: '32px',
+    fontSize: '28px',
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#1e3c72',
     margin: 0
   },
-  subtitle: {
-    fontSize: '15px',
-    color: '#64748b',
-    margin: '4px 0 0 0'
-  },
-  backButton: {
-    background: '#64748b',
+  loading: {
+    textAlign: 'center',
+    padding: '40px',
     color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    textDecoration: 'none',
-    display: 'inline-block'
-  },
-  logoutButton: {
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500'
+    fontSize: '18px'
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '20px',
     marginBottom: '30px'
   },
-  contentGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-    gap: '24px',
-    marginBottom: '30px'
-  },
-  contentCard: {
+  statCard: {
     background: 'white',
-    padding: '24px',
-    borderRadius: '16px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    border: '1px solid rgba(0,0,0,0.05)'
+    padding: '25px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px'
   },
-  contentCardTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1e293b',
-    marginTop: 0,
-    marginBottom: '20px'
+  statIcon: {
+    fontSize: '48px'
   },
-  emptyMessage: {
-    textAlign: 'center',
-    color: '#94a3b8',
-    fontSize: '14px',
-    padding: '20px 0'
-  },
-  table: {
+  statContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px'
+    gap: '5px'
   },
-  tableRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px',
-    background: '#f8fafc',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0'
+  statValue: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#1e3c72',
+    margin: 0
   },
-  userInfo: {
-    flex: 1
-  },
-  userName: {
-    fontWeight: '600',
-    color: '#1e293b',
+  statLabel: {
     fontSize: '14px',
-    marginBottom: '4px'
+    color: '#666',
+    margin: 0
   },
-  userEmail: {
-    fontSize: '13px',
-    color: '#64748b'
-  },
-  userMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
-  },
-  statusBadge: {
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'capitalize'
-  },
-  statusApproved: {
-    background: '#dcfce7',
-    color: '#166534'
-  },
-  statusPending: {
-    background: '#fef3c7',
-    color: '#92400e'
-  },
-  dateText: {
-    fontSize: '13px',
-    color: '#94a3b8'
-  },
-  txInfo: {
-    flex: 1
-  },
-  txType: {
-    fontWeight: '600',
-    color: '#1e293b',
-    fontSize: '14px',
-    marginBottom: '4px',
-    textTransform: 'capitalize'
-  },
-  txAmount: {
-    fontSize: '13px',
-    color: '#64748b',
-    fontWeight: '500'
-  },
-  quickActionsSection: {
-    marginBottom: '30px'
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: '20px'
-  },
-  quickActionsGrid: {
+  adminPagesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: '16px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '20px'
   },
-  quickActionCard: {
-    padding: '24px',
+  adminPageCard: {
+    background: 'white',
+    padding: '25px',
     borderRadius: '12px',
-    color: 'white',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
     textDecoration: 'none',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
+    color: 'inherit',
     transition: 'transform 0.2s, box-shadow 0.2s',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-  },
-  quickActionIcon: {
-    fontSize: '36px'
-  },
-  quickActionText: {
-    fontSize: '14px',
-    fontWeight: '600',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
     textAlign: 'center'
   },
+  cardIcon: {
+    fontSize: '48px',
+    marginBottom: '15px'
+  },
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#1e3c72',
+    margin: '0 0 10px 0'
+  },
+  cardDescription: {
+    fontSize: '14px',
+    color: '#666',
+    margin: 0
+  }
 };
-
