@@ -10,6 +10,11 @@ export default function ApproveApplications() {
   const [successMessage, setSuccessMessage] = useState('');
   const [expandedApp, setExpandedApp] = useState(null);
   const [showApprovalModal, setShowApprovalModal] = useState(null);
+  const [approvalConfig, setApprovalConfig] = useState({
+    accountNumberMode: 'auto',
+    manualAccountNumbers: {},
+    cardTypes: {}
+  });
   const [approvalResult, setApprovalResult] = useState(null);
 
   useEffect(() => {
@@ -37,7 +42,44 @@ export default function ApproveApplications() {
   };
 
   const openApprovalModal = (app) => {
+    const accountTypes = app.account_types || ['checking_account'];
+    if (!accountTypes.includes('checking_account')) {
+      accountTypes.unshift('checking_account');
+    }
+
+    const initialManualNumbers = {};
+    const initialCardTypes = {};
+    accountTypes.forEach(type => {
+      initialManualNumbers[type] = '';
+      initialCardTypes[type] = 'debit';
+    });
+
+    setApprovalConfig({
+      accountNumberMode: 'auto',
+      manualAccountNumbers: initialManualNumbers,
+      cardTypes: initialCardTypes
+    });
     setShowApprovalModal(app);
+  };
+
+  const handleAccountNumberChange = (accountType, value) => {
+    setApprovalConfig(prev => ({
+      ...prev,
+      manualAccountNumbers: {
+        ...prev.manualAccountNumbers,
+        [accountType]: value
+      }
+    }));
+  };
+
+  const handleCardTypeChange = (accountType, value) => {
+    setApprovalConfig(prev => ({
+      ...prev,
+      cardTypes: {
+        ...prev.cardTypes,
+        [accountType]: value
+      }
+    }));
   };
 
   const handleApprove = async () => {
@@ -52,7 +94,12 @@ export default function ApproveApplications() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          applicationId: showApprovalModal.id
+          applicationId: showApprovalModal.id,
+          accountNumberMode: approvalConfig.accountNumberMode,
+          manualAccountNumbers: approvalConfig.accountNumberMode === 'manual' 
+            ? approvalConfig.manualAccountNumbers 
+            : {},
+          cardTypes: approvalConfig.cardTypes
         }),
       });
 
@@ -68,14 +115,10 @@ export default function ApproveApplications() {
 
       setApprovalResult(result.data);
       setSuccessMessage(
-        `✅ Application approved! User accounts and cards are being created automatically.`
+        `✅ Application approved! Created ${result.data.accountsCreated} accounts and ${result.data.cardsCreated} cards.`
       );
       setShowApprovalModal(null);
-      
-      // Refresh applications list after a short delay to show updated status
-      setTimeout(() => {
-        fetchApplications();
-      }, 1000);
+      fetchApplications();
     } catch (error) {
       console.error('Error approving application:', error);
       setError('Failed to approve application: ' + error.message);
@@ -86,6 +129,14 @@ export default function ApproveApplications() {
 
   const toggleExpanded = (appId) => {
     setExpandedApp(expandedApp === appId ? null : appId);
+  };
+
+  const getAccountTypes = (app) => {
+    const types = app.account_types || ['checking_account'];
+    if (!types.includes('checking_account')) {
+      types.unshift('checking_account');
+    }
+    return types;
   };
 
   return (
@@ -114,29 +165,27 @@ export default function ApproveApplications() {
             <h3 style={styles.resultTitle}>✅ Approval Successful</h3>
             <div style={styles.resultDetails}>
               <p><strong>Email:</strong> {approvalResult.email}</p>
-              <p><strong>User ID:</strong> <code style={styles.code}>{approvalResult.userId || 'Processing...'}</code></p>
-              <p style={{ color: '#059669', fontSize: '14px', marginTop: '12px' }}>
-                ✉️ Welcome email with login credentials has been sent to the user.
-              </p>
+              <p><strong>Temporary Password:</strong> <code style={styles.code}>{approvalResult.tempPassword}</code></p>
+              <p><strong>User ID:</strong> <code style={styles.code}>{approvalResult.userId}</code></p>
               
-              <h4 style={styles.sectionHeading}>📊 Accounts Created ({approvalResult.accountsCreated || 0})</h4>
-              {approvalResult.accounts && approvalResult.accounts.length > 0 ? approvalResult.accounts.map((acc, idx) => (
+              <h4 style={styles.sectionHeading}>📊 Accounts Created ({approvalResult.accountsCreated})</h4>
+              {approvalResult.accounts.map((acc, idx) => (
                 <div key={idx} style={styles.accountDetail}>
                   <span>💳 {acc.type.replace(/_/g, ' ').toUpperCase()}</span>
                   <span>Account: {acc.number}</span>
                   <span style={{color: '#059669'}}>Balance: ${parseFloat(acc.balance).toFixed(2)}</span>
                   <span>Status: {acc.status.toUpperCase()}</span>
                 </div>
-              )) : <p style={{ color: '#64748b', fontSize: '14px' }}>Processing accounts...</p>}
+              ))}
 
-              <h4 style={styles.sectionHeading}>💳 Cards Issued ({approvalResult.cardsCreated || 0})</h4>
-              {approvalResult.cards && approvalResult.cards.length > 0 ? approvalResult.cards.map((card, idx) => (
+              <h4 style={styles.sectionHeading}>💳 Cards Issued ({approvalResult.cardsCreated})</h4>
+              {approvalResult.cards.map((card, idx) => (
                 <div key={idx} style={styles.cardDetail}>
                   <span>{card.type.toUpperCase()} Card</span>
                   <span>****-****-****-{card.lastFour}</span>
                   <span>Expires: {new Date(card.expiryDate).toLocaleDateString()}</span>
                 </div>
-              )) : <p style={{ color: '#64748b', fontSize: '14px' }}>Processing cards...</p>}
+              ))}
             </div>
             <button onClick={() => setApprovalResult(null)} style={styles.closeResultButton}>
               Close
@@ -280,42 +329,58 @@ export default function ApproveApplications() {
         {showApprovalModal && (
           <div style={styles.modalOverlay}>
             <div style={styles.modal}>
-              <h2 style={styles.modalTitle}>✅ Approve Application</h2>
+              <h2 style={styles.modalTitle}>⚙️ Configure Account Approval</h2>
               <p style={styles.modalSubtitle}>
                 {showApprovalModal.first_name} {showApprovalModal.last_name} - {showApprovalModal.email}
               </p>
 
-              <div style={{
-                background: '#f0f9ff',
-                border: '2px solid #3b82f6',
-                borderRadius: '12px',
-                padding: '20px',
-                marginBottom: '24px'
-              }}>
-                <h3 style={{ margin: '0 0 12px 0', color: '#1e40af', fontSize: '16px' }}>
-                  🤖 Automated Processing
-                </h3>
-                <p style={{ margin: 0, color: '#1e40af', fontSize: '14px', lineHeight: '1.6' }}>
-                  Upon approval, our system will automatically:
-                </p>
-                <ul style={{ margin: '12px 0 0 0', color: '#1e40af', fontSize: '14px', lineHeight: '1.8' }}>
-                  <li>Create user authentication account</li>
-                  <li>Generate checking account and debit card</li>
-                  <li>Create requested account types (as pending)</li>
-                  <li>Send welcome email with login credentials</li>
-                </ul>
+              <div style={styles.modalSection}>
+                <label style={styles.label}>Account Number Generation</label>
+                <select
+                  value={approvalConfig.accountNumberMode}
+                  onChange={(e) => setApprovalConfig(prev => ({ ...prev, accountNumberMode: e.target.value }))}
+                  style={styles.select}
+                >
+                  <option value="auto">🤖 Automatic - System generates account numbers</option>
+                  <option value="manual">✏️ Manual - Enter account numbers manually</option>
+                </select>
               </div>
 
-              <div style={{
-                background: '#fef3c7',
-                border: '2px solid #f59e0b',
-                borderRadius: '8px',
-                padding: '16px',
-                marginBottom: '24px'
-              }}>
-                <p style={{ margin: 0, color: '#92400e', fontSize: '14px', fontWeight: '500' }}>
-                  ⚠️ <strong>Note:</strong> This action cannot be undone. The user will receive login credentials immediately.
-                </p>
+              <div style={styles.accountsConfig}>
+                <h3 style={styles.sectionHeading}>📊 Accounts to Create</h3>
+                {getAccountTypes(showApprovalModal).map((accountType) => (
+                  <div key={accountType} style={styles.accountConfigItem}>
+                    <h4 style={styles.accountTypeTitle}>
+                      💳 {accountType.replace(/_/g, ' ').toUpperCase()}
+                    </h4>
+                    
+                    {approvalConfig.accountNumberMode === 'manual' && (
+                      <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Account Number</label>
+                        <input
+                          type="text"
+                          value={approvalConfig.manualAccountNumbers[accountType] || ''}
+                          onChange={(e) => handleAccountNumberChange(accountType, e.target.value)}
+                          placeholder="e.g., 123456789012"
+                          style={styles.input}
+                          required={approvalConfig.accountNumberMode === 'manual'}
+                        />
+                      </div>
+                    )}
+
+                    <div style={styles.field}>
+                      <label style={styles.fieldLabel}>Card Type</label>
+                      <select
+                        value={approvalConfig.cardTypes[accountType] || 'debit'}
+                        onChange={(e) => handleCardTypeChange(accountType, e.target.value)}
+                        style={styles.select}
+                      >
+                        <option value="debit">💳 Debit Card</option>
+                        <option value="credit">💎 Credit Card</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div style={styles.modalFooter}>
