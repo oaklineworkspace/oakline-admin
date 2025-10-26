@@ -254,8 +254,11 @@ export default function ApproveAccounts() {
         </div>
 
         {showSuccessModal && approvedAccount && (
-          <div style={styles.modalOverlay}>
-            <div style={styles.successModal}>
+          <div style={styles.modalOverlay} onClick={() => {
+            setShowSuccessModal(false);
+            setApprovedAccount(null);
+          }}>
+            <div style={styles.successModal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.successHeader}>
                 <div style={styles.successIcon}>✅</div>
                 <h2 style={styles.successTitle}>Account Approved Successfully!</h2>
@@ -270,48 +273,20 @@ export default function ApproveAccounts() {
                   <div style={styles.successInfo}>
                     <div style={styles.successInfoRow}>
                       <span style={styles.successLabel}>Account Number:</span>
-                      <span style={styles.successValue}>{approvedAccount.account?.account_number}</span>
+                      <span style={styles.successValue}>{approvedAccount.accountNumber}</span>
                     </div>
                     <div style={styles.successInfoRow}>
                       <span style={styles.successLabel}>Account Type:</span>
                       <span style={styles.successValue}>
-                        {approvedAccount.account?.account_type?.replace('_', ' ').toUpperCase()}
+                        {approvedAccount.accountType?.replace('_', ' ').toUpperCase()}
                       </span>
                     </div>
                     <div style={styles.successInfoRow}>
                       <span style={styles.successLabel}>Status:</span>
-                      <span style={styles.successStatusActive}>ACTIVE</span>
-                    </div>
-                    <div style={styles.successInfoRow}>
-                      <span style={styles.successLabel}>Balance:</span>
-                      <span style={styles.successValue}>${parseFloat(approvedAccount.account?.balance || 0).toFixed(2)}</span>
+                      <span style={styles.successStatusActive}>{approvedAccount.status?.toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
-
-                {approvedAccount.card && (
-                  <div style={styles.successCard}>
-                    <h3 style={styles.successCardTitle}>Card Information</h3>
-                    <div style={styles.successInfo}>
-                      <div style={styles.successInfoRow}>
-                        <span style={styles.successLabel}>Card Number:</span>
-                        <span style={styles.successValue}>{approvedAccount.card.card_number}</span>
-                      </div>
-                      <div style={styles.successInfoRow}>
-                        <span style={styles.successLabel}>Card Type:</span>
-                        <span style={styles.successValue}>{approvedAccount.card.card_type?.toUpperCase()}</span>
-                      </div>
-                      <div style={styles.successInfoRow}>
-                        <span style={styles.successLabel}>Expiry Date:</span>
-                        <span style={styles.successValue}>{new Date(approvedAccount.card.expiry_date).toLocaleDateString()}</span>
-                      </div>
-                      <div style={styles.successInfoRow}>
-                        <span style={styles.successLabel}>Status:</span>
-                        <span style={styles.successStatusActive}>{approvedAccount.card.status?.toUpperCase()}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div style={styles.successActions}>
                   <div style={styles.successActionItem}>
@@ -636,8 +611,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
-    padding: 'clamp(1rem, 3vw, 2rem)'
+    zIndex: 10000,
+    padding: 'clamp(1rem, 3vw, 2rem)',
+    overflowY: 'auto'
   },
   successModal: {
     backgroundColor: 'white',
@@ -648,7 +624,9 @@ const styles = {
     maxHeight: '90vh',
     overflow: 'hidden',
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    margin: 'auto',
+    position: 'relative'
   },
   successHeader: {
     textAlign: 'center',

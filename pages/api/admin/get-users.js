@@ -38,15 +38,18 @@ export default async function handler(req, res) {
       return {
         id: user.id,
         email: user.email,
-        name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : null,
-        first_name: profile?.first_name || null,
-        last_name: profile?.last_name || null,
+        profiles: {
+          first_name: profile?.first_name || null,
+          last_name: profile?.last_name || null,
+          email: profile?.email || user.email
+        },
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
       };
     });
 
     return res.status(200).json({ 
+      success: true,
       users: enrichedUsers,
       total: enrichedUsers.length 
     });
