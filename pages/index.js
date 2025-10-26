@@ -12,6 +12,7 @@ import Testimonials from '../components/Testimonials';
 import TestimonialsSection from '../components/TestimonialsSection';
 import LoanApprovalSection from '../components/LoanApprovalSection';
 import CTA from '../components/CTA';
+import AdminDropdown from '../components/AdminDropdown';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -1594,6 +1595,9 @@ export default function Home() {
 
       {/* Live Chat Component */}
       <LiveChat />
+
+      {/* Admin Dropdown */}
+      <AdminDropdown />
 
       <Footer />
     </div>

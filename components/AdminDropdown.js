@@ -61,6 +61,8 @@ export default function AdminDropdown() {
         { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
         { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
         { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
+        { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫' },
+        { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗' },
       ]
     },
     {
@@ -86,6 +88,7 @@ export default function AdminDropdown() {
         { name: 'Admin Roles', path: '/admin/admin-roles', icon: '👑' },
         { name: 'Admin Logs', path: '/admin/admin-logs', icon: '📝' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
+        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧' },
       ]
     }
   ];
@@ -127,8 +130,8 @@ export default function AdminDropdown() {
           <div style={styles.dropdown}>
             <div style={styles.dropdownHeader}>
               <h3 style={styles.dropdownTitle}>Admin Navigation</h3>
-              <Link href="/admin/admin-dashboard" style={styles.viewAllLink} onClick={() => setIsOpen(false)}>
-                Dashboard Home
+              <Link href="/admin" style={styles.viewAllLink} onClick={() => setIsOpen(false)}>
+                Admin Hub
               </Link>
             </div>
 
@@ -161,8 +164,10 @@ export default function AdminDropdown() {
 
 const styles = {
   container: {
-    position: 'relative',
-    display: 'inline-block'
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    zIndex: 9999
   },
   button: {
     display: 'flex',
@@ -177,12 +182,13 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-    textDecoration: 'none'
+    textDecoration: 'none',
+    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.3)'
   },
   buttonActive: {
     backgroundColor: '#1e3a8a',
-    transform: 'translateY(-1px)',
-    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.3)'
+    transform: 'translateY(-2px)',
+    boxShadow: '0 6px 16px rgba(30, 64, 175, 0.4)'
   },
   icon: {
     fontSize: '1.1rem'
@@ -214,8 +220,7 @@ const styles = {
     maxWidth: '1200px',
     maxHeight: '85vh',
     overflowY: 'auto',
-    zIndex: 9999,
-    animation: 'slideIn 0.3s ease-out'
+    zIndex: 9999
   },
   dropdownHeader: {
     display: 'flex',
