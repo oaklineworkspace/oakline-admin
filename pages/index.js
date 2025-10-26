@@ -12,6 +12,7 @@ import Testimonials from '../components/Testimonials';
 import TestimonialsSection from '../components/TestimonialsSection';
 import LoanApprovalSection from '../components/LoanApprovalSection';
 import CTA from '../components/CTA';
+import AdminDropdown from '../components/AdminDropdown';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -3666,7 +3667,7 @@ const styles = {
     right: '20px',
     background: 'rgba(255,255,255,0.95)',
     color: '#1e40af',
-    padding: '8px 16px',
+    padding: '10px 16px',
     borderRadius: '12px',
     fontSize: '0.85rem',
     fontWeight: '700',
