@@ -118,3 +118,38 @@ export default async function handler(req, res) {
     });
   }
 }
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { status } = req.query;
+
+    let query = supabaseAdmin
+      .from('applications')
+      .select('*')
+      .order('submitted_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('application_status', status);
+    }
+
+    const { data: applications, error } = await query;
+
+    if (error) {
+      console.error('Error fetching applications:', error);
+      return res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      applications: applications || []
+    });
+  } catch (error) {
+    console.error('Error in get-applications-with-status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}

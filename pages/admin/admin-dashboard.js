@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -38,37 +37,20 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      // Fetch total users from applications table
-      const { data: usersData, error: usersError } = await supabase
-        .from('applications')
-        .select('*, profiles(*)')
-        .order('submitted_at', { ascending: false });
-
-      if (usersError) {
-        console.error('Error fetching users:', usersError);
-      }
-
-      const users = usersData || [];
+      // Fetch applications
+      const applicationsRes = await fetch('/api/applications');
+      const applicationsData = await applicationsRes.json();
+      const users = applicationsData.applications || [];
 
       // Fetch accounts
-      const { data: accountsData, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*');
-
-      if (accountsError) console.error('Error fetching accounts:', accountsError);
-
-      const accounts = accountsData || [];
+      const accountsRes = await fetch('/api/admin/get-accounts');
+      const accountsData = await accountsRes.json();
+      const accounts = accountsData.accounts || [];
 
       // Fetch transactions
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (transactionsError) console.error('Error fetching transactions:', transactionsError);
-
-      const transactions = transactionsData || [];
+      const transactionsRes = await fetch('/api/admin/get-transactions');
+      const transactionsData = await transactionsRes.json();
+      const transactions = transactionsData.transactions || [];
 
       // Calculate total balance
       const totalBalance = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
