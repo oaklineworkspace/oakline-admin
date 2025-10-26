@@ -22,7 +22,6 @@ export default function Home() {
   const [isVisible, setIsVisible] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState(null);
-  const [showBankingDropdown, setShowBankingDropdown] = useState(false);
 
   useEffect(() => {
 
@@ -366,123 +365,6 @@ export default function Home() {
                 Welcome to Oakline Bank - Your trusted financial partner since 1995 • Explore all 23 account types with detailed benefits • Join over 500,000+ satisfied customers • Award-winning mobile app • FDIC Insured up to $250,000 • Rated #1 Customer Service
               </div>
             </div>
-          </div>
-
-          {/* Banking+ Dropdown Button - Centered */}
-          <div style={styles.bankingPlusContainer}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowBankingDropdown(!showBankingDropdown);
-              }}
-              style={styles.bankingPlusButton}
-            >
-              <div style={styles.bankingPlusIconLines}>
-                <div style={styles.iconLine}></div>
-                <div style={styles.iconLine}></div>
-                <div style={styles.iconLine}></div>
-              </div>
-              <span style={styles.bankingPlusText}>Banking+</span>
-            </button>
-
-            {showBankingDropdown && (
-              <>
-                <div 
-                  style={styles.dropdownBackdrop} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBankingDropdown(false);
-                  }}
-                ></div>
-                <div style={styles.bankingDropdown} onClick={(e) => e.stopPropagation()}>
-                  <div style={styles.bankingDropdownHeader}>
-                    <h4 style={styles.bankingDropdownTitle}>Complete Banking Solutions</h4>
-                    <p style={styles.bankingDropdownSubtitle}>Access all your banking services in one place</p>
-                  </div>
-
-                  <div style={styles.bankingTwoColumnGrid}>
-                    {/* Core Banking Services Section */}
-                    <div style={styles.bankingSection}>
-                      <div style={styles.bankingSectionHeader}>
-                        <span style={styles.bankingSectionIcon}>🏦</span>
-                        <h5 style={styles.bankingSectionTitle}>Core Banking</h5>
-                      </div>
-                      <div style={styles.bankingFeaturesGrid}>
-                        {coreFeatures.map((feature) => (
-                          <Link
-                            key={feature.name}
-                            href={feature.href}
-                            onClick={() => setShowBankingDropdown(false)}
-                            style={styles.bankingFeatureItem}
-                          >
-                            <div style={{
-                              ...styles.bankingFeatureIcon,
-                              backgroundColor: `${feature.color}15`,
-                              border: `1px solid ${feature.color}30`
-                            }}>
-                              {feature.icon}
-                            </div>
-                            <div style={styles.bankingFeatureContent}>
-                              <div style={styles.bankingFeatureName}>{feature.name}</div>
-                              <div style={styles.bankingFeatureDesc}>{feature.desc}</div>
-                            </div>
-                            <div style={{ ...styles.bankingFeatureArrow, color: feature.color }}>→</div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Premium & Advanced Services Section */}
-                    <div style={styles.bankingSection}>
-                      <div style={styles.bankingSectionHeader}>
-                        <span style={styles.bankingSectionIcon}>⭐</span>
-                        <h5 style={styles.bankingSectionTitle}>Premium Services</h5>
-                      </div>
-                      <div style={styles.bankingFeaturesGrid}>
-                        {premiumServices.map((feature) => (
-                          <Link
-                            key={feature.name}
-                            href={feature.href}
-                            onClick={() => setShowBankingDropdown(false)}
-                            style={styles.bankingFeatureItem}
-                          >
-                            <div style={{
-                              ...styles.bankingFeatureIcon,
-                              backgroundColor: `${feature.color}15`,
-                              border: `1px solid ${feature.color}30`
-                            }}>
-                              {feature.icon}
-                            </div>
-                            <div style={styles.bankingFeatureContent}>
-                              <div style={styles.bankingFeatureName}>{feature.name}</div>
-                              <div style={styles.bankingFeatureDesc}>{feature.desc}</div>
-                            </div>
-                            <div style={{ ...styles.bankingFeatureArrow, color: feature.color }}>→</div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={styles.bankingDropdownFooter}>
-                    <Link 
-                      href="/account-types"
-                      onClick={() => setShowBankingDropdown(false)}
-                      style={styles.viewAllServicesButton}
-                    >
-                      Explore All Banking Services
-                    </Link>
-                    <Link 
-                      href="/support"
-                      onClick={() => setShowBankingDropdown(false)}
-                      style={styles.viewAllServicesButtonSecondary}
-                    >
-                      Contact Support
-                    </Link>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
 
         </div>

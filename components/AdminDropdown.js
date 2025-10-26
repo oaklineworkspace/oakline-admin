@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
@@ -22,7 +21,7 @@ export default function AdminDropdown() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const adminPages = [
+  const coreAdminFunctions = [
     {
       category: '📊 Dashboard & Overview',
       links: [
@@ -44,13 +43,6 @@ export default function AdminDropdown() {
       ]
     },
     {
-      category: '📋 Applications',
-      links: [
-        { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅' },
-        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
-      ]
-    },
-    {
       category: '🏦 Account Management',
       links: [
         { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
@@ -58,6 +50,16 @@ export default function AdminDropdown() {
         { name: 'Account Balance', path: '/admin/admin-balance', icon: '💰' },
       ]
     },
+    {
+      category: '📋 Applications',
+      links: [
+        { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅' },
+        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
+      ]
+    },
+  ];
+
+  const advancedFeatures = [
     {
       category: '💳 Card Management',
       links: [
@@ -132,31 +134,76 @@ export default function AdminDropdown() {
           <div style={styles.backdrop} onClick={() => setIsOpen(false)}></div>
           <div style={styles.dropdown}>
             <div style={styles.dropdownHeader}>
-              <h3 style={styles.dropdownTitle}>Admin Navigation</h3>
+              <h3 style={styles.dropdownTitle}>🏦 Admin Navigation Center</h3>
               <Link href="/admin" style={styles.viewAllLink} onClick={() => setIsOpen(false)}>
-                Admin Hub
+                Admin Hub →
               </Link>
             </div>
 
-            <div style={styles.dropdownContent}>
-              {adminPages.map((section, index) => (
-                <div key={index} style={styles.section}>
-                  <h4 style={styles.sectionTitle}>{section.category}</h4>
-                  <div style={styles.linkList}>
-                    {section.links.map((link, linkIndex) => (
-                      <Link
-                        key={linkIndex}
-                        href={link.path}
-                        style={styles.link}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <span style={styles.linkIcon}>{link.icon}</span>
-                        <span style={styles.linkText}>{link.name}</span>
-                      </Link>
-                    ))}
-                  </div>
+            <div style={styles.twoColumnLayout}>
+              <div style={styles.columnSection}>
+                <div style={styles.columnHeader}>
+                  <span style={styles.columnHeaderIcon}>🎯</span>
+                  <h4 style={styles.columnHeaderTitle}>Core Admin Functions</h4>
                 </div>
-              ))}
+                <div style={styles.columnContent}>
+                  {coreAdminFunctions.map((section, index) => (
+                    <div key={index} style={styles.section}>
+                      <h5 style={styles.sectionTitle}>{section.category}</h5>
+                      <div style={styles.linkList}>
+                        {section.links.map((link, linkIndex) => (
+                          <Link
+                            key={linkIndex}
+                            href={link.path}
+                            style={styles.link}
+                            onClick={() => setIsOpen(false)}
+                          >
+                            <span style={styles.linkIcon}>{link.icon}</span>
+                            <span style={styles.linkText}>{link.name}</span>
+                            <span style={styles.linkArrow}>→</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={styles.columnDivider}></div>
+
+              <div style={styles.columnSection}>
+                <div style={styles.columnHeader}>
+                  <span style={styles.columnHeaderIcon}>⚡</span>
+                  <h4 style={styles.columnHeaderTitle}>Advanced Features</h4>
+                </div>
+                <div style={styles.columnContent}>
+                  {advancedFeatures.map((section, index) => (
+                    <div key={index} style={styles.section}>
+                      <h5 style={styles.sectionTitle}>{section.category}</h5>
+                      <div style={styles.linkList}>
+                        {section.links.map((link, linkIndex) => (
+                          <Link
+                            key={linkIndex}
+                            href={link.path}
+                            style={styles.link}
+                            onClick={() => setIsOpen(false)}
+                          >
+                            <span style={styles.linkIcon}>{link.icon}</span>
+                            <span style={styles.linkText}>{link.name}</span>
+                            <span style={styles.linkArrow}>→</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.dropdownFooter}>
+              <p style={styles.footerText}>
+                Manage your banking platform with full administrative control
+              </p>
             </div>
           </div>
         </>
@@ -176,29 +223,31 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    padding: '0.75rem 1.25rem',
-    backgroundColor: '#1e40af',
+    padding: '0.875rem 1.5rem',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    fontWeight: '600',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '700',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.3s ease',
     textDecoration: 'none',
-    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.3)'
+    boxShadow: '0 8px 20px rgba(30, 64, 175, 0.4)',
+    position: 'relative',
+    overflow: 'hidden'
   },
   buttonActive: {
-    backgroundColor: '#1e3a8a',
-    transform: 'translateY(-2px)',
-    boxShadow: '0 6px 16px rgba(30, 64, 175, 0.4)'
+    background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+    transform: 'translateY(-3px)',
+    boxShadow: '0 12px 28px rgba(30, 64, 175, 0.5)'
   },
   icon: {
-    fontSize: '1.1rem'
+    fontSize: '1.25rem'
   },
   arrow: {
-    fontSize: '0.7rem',
-    transition: 'transform 0.2s ease',
+    fontSize: '0.8rem',
+    transition: 'transform 0.3s ease',
     marginLeft: '0.25rem'
   },
   backdrop: {
@@ -207,8 +256,10 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 9998
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 9998,
+    animation: 'fadeIn 0.2s ease'
   },
   dropdown: {
     position: 'fixed',
@@ -216,85 +267,144 @@ const styles = {
     left: '50%',
     transform: 'translate(-50%, -50%)',
     backgroundColor: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+    borderRadius: '20px',
+    boxShadow: '0 25px 70px rgba(0,0,0,0.35)',
     border: '2px solid #e2e8f0',
-    width: '90vw',
-    maxWidth: '1200px',
-    maxHeight: '85vh',
+    width: '92vw',
+    maxWidth: '1400px',
+    maxHeight: '90vh',
     overflowY: 'auto',
-    zIndex: 9999
+    zIndex: 9999,
+    animation: 'slideIn 0.3s ease'
   },
   dropdownHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '1.5rem',
-    borderBottom: '2px solid #e2e8f0',
+    padding: '1.75rem 2rem',
+    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+    borderBottom: '3px solid #1e40af',
     position: 'sticky',
     top: 0,
-    backgroundColor: 'white',
-    zIndex: 1
+    zIndex: 10,
+    borderRadius: '20px 20px 0 0'
   },
   dropdownTitle: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    color: '#1e293b',
+    fontSize: '1.75rem',
+    fontWeight: '800',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
     margin: 0
   },
   viewAllLink: {
     color: '#1e40af',
     textDecoration: 'none',
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#dbeafe',
-    borderRadius: '8px',
-    transition: 'all 0.2s ease'
+    fontSize: '1rem',
+    fontWeight: '700',
+    padding: '0.75rem 1.5rem',
+    background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+    borderRadius: '10px',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.2)'
   },
-  dropdownContent: {
+  twoColumnLayout: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '1.5rem',
-    padding: '1.5rem'
+    gridTemplateColumns: '1fr 2px 1fr',
+    gap: '2rem',
+    padding: '2rem'
+  },
+  columnSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem'
+  },
+  columnHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '1rem 1.5rem',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.25)'
+  },
+  columnHeaderIcon: {
+    fontSize: '1.75rem'
+  },
+  columnHeaderTitle: {
+    fontSize: '1.25rem',
+    fontWeight: '700',
+    color: 'white',
+    margin: 0
+  },
+  columnDivider: {
+    width: '2px',
+    background: 'linear-gradient(180deg, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)',
+    borderRadius: '1px'
+  },
+  columnContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.25rem'
   },
   section: {
     backgroundColor: '#f8fafc',
-    padding: '1rem',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0'
+    padding: '1.25rem',
+    borderRadius: '14px',
+    border: '2px solid #e2e8f0',
+    transition: 'all 0.3s ease'
   },
   sectionTitle: {
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
+    fontSize: '1rem',
+    fontWeight: '700',
     color: '#1e40af',
-    margin: '0 0 0.75rem 0',
-    paddingBottom: '0.5rem',
-    borderBottom: '1px solid #e2e8f0'
+    margin: '0 0 1rem 0',
+    paddingBottom: '0.75rem',
+    borderBottom: '2px solid #dbeafe'
   },
   linkList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.25rem'
+    gap: '0.4rem'
   },
   link: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    padding: '0.75rem',
+    padding: '0.875rem 1rem',
     color: '#374151',
     textDecoration: 'none',
-    borderRadius: '8px',
-    fontSize: '0.875rem',
+    borderRadius: '10px',
+    fontSize: '0.9rem',
+    fontWeight: '500',
     transition: 'all 0.2s ease',
-    backgroundColor: 'white'
+    backgroundColor: 'white',
+    border: '1px solid #e5e7eb'
   },
   linkIcon: {
-    fontSize: '1.1rem',
-    width: '24px',
+    fontSize: '1.15rem',
+    width: '26px',
     textAlign: 'center'
   },
   linkText: {
     flex: 1
+  },
+  linkArrow: {
+    fontSize: '0.9rem',
+    color: '#9ca3af',
+    transition: 'all 0.2s ease'
+  },
+  dropdownFooter: {
+    padding: '1.5rem 2rem',
+    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+    borderTop: '2px solid #e2e8f0',
+    borderRadius: '0 0 20px 20px',
+    textAlign: 'center'
+  },
+  footerText: {
+    margin: 0,
+    color: '#64748b',
+    fontSize: '0.9rem',
+    fontWeight: '500'
   }
 };
