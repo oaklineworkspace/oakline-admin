@@ -1,0 +1,86 @@
+Goal:
+Implement an admin manual transaction system for our banking application using Supabase. Transactions must correctly link to the user account, update balances safely, and reflect the correct credit/debit type with colors and signs.
+
+⸻
+
+Requirements:
+	1.	Transaction Types & Credit/Debit Logic
+Admin can select from:
+Credit (+, green):
+	•	Deposit Adjust
+	•	Transfer In
+	•	Refund
+	•	Interest
+	•	Bonus
+	•	Check Deposit
+Debit (−, red):
+	•	Withdrawal
+	•	ATM Withdrawal
+	•	Debit Card Charge
+	•	Transfer Out
+	•	Wire Transfer
+	•	ACH Transfer
+	•	Check Payment
+	•	Service Fee
+	•	Other
+Some types (like Check Deposit, Wire Transfer) can be either credit or debit; logic should allow the admin to choose.
+Display “+” for credit and “-” for debit next to the amount.
+Colors: Green for credit, Red for debit.
+
+⸻
+
+	2.	Amount & Description
+	•	Admin inputs amount (numeric, >0).
+	•	Admin can add an optional description.
+
+⸻
+
+	3.	Status
+	•	Each transaction has status: completed, pending, or failed.
+	•	Admin must be able to select status.
+
+⸻
+
+	4.	Balance Updates
+	•	On creation:
+	•	Credit → add amount to accounts.balance.
+	•	Debit → subtract amount from accounts.balance.
+	•	Must not reset current balance.
+	•	Should handle multiple transactions atomically.
+
+⸻
+
+	5.	Database Integration
+	•	Insert into transactions table with:
+	•	user_id → linked to auth.users
+	•	account_id → linked to accounts.id
+	•	type → “credit” or “debit”
+	•	transaction_type → selected from the list
+	•	amount
+	•	description
+	•	status
+	•	created_at → now()
+
+⸻
+
+	6.	Display & UI
+	•	Show running balance for the account.
+	•	Color-code transactions:
+	•	Green for credit (+)
+	•	Red for debit (−)
+	•	Include filters: by type, status, date.
+	•	Show +/- sign next to the transaction amount.
+
+⸻
+
+	7.	Admin Account Number Option
+	•	When approving a user application, admin can choose:
+	•	Generate account number automatically
+	•	Enter account number manually
+
+⸻
+
+	8.	Optional Features
+	•	Allow edit/delete by admin for pending transactions.
+	•	Log all manual transactions in audit_logs with admin_id.
+	•	Validate that user_id and account_id exist.
