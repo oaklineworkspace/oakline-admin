@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import AdminAuth from '../../components/AdminAuth'; // Import AdminAuth component
+import AdminAuth from '../../components/AdminAuth';
 
 export default function ApproveApplications() {
-  // Removed 'isAuthenticated' state as it's now managed by AdminAuth
   const [error, setError] = useState('');
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [expandedApp, setExpandedApp] = useState(null);
-  // Removed 'router' import as it's no longer directly used for navigation
+  const [showApprovalModal, setShowApprovalModal] = useState(null);
+  const [approvalConfig, setApprovalConfig] = useState({
+    accountNumberMode: 'auto',
+    manualAccountNumbers: {},
+    cardTypes: {}
+  });
+  const [approvalResult, setApprovalResult] = useState(null);
 
   useEffect(() => {
-    // Removed the localStorage check and router.push logic
     fetchApplications();
   }, []);
 
@@ -37,12 +41,51 @@ export default function ApproveApplications() {
     }
   };
 
-  const handleApprove = async (applicationId) => {
-    if (!confirm('Are you sure you want to approve this application? This will create the user, accounts, and cards.')) {
-      return;
+  const openApprovalModal = (app) => {
+    const accountTypes = app.account_types || ['checking_account'];
+    if (!accountTypes.includes('checking_account')) {
+      accountTypes.unshift('checking_account');
     }
 
-    setProcessing(applicationId);
+    const initialManualNumbers = {};
+    const initialCardTypes = {};
+    accountTypes.forEach(type => {
+      initialManualNumbers[type] = '';
+      initialCardTypes[type] = 'debit';
+    });
+
+    setApprovalConfig({
+      accountNumberMode: 'auto',
+      manualAccountNumbers: initialManualNumbers,
+      cardTypes: initialCardTypes
+    });
+    setShowApprovalModal(app);
+  };
+
+  const handleAccountNumberChange = (accountType, value) => {
+    setApprovalConfig(prev => ({
+      ...prev,
+      manualAccountNumbers: {
+        ...prev.manualAccountNumbers,
+        [accountType]: value
+      }
+    }));
+  };
+
+  const handleCardTypeChange = (accountType, value) => {
+    setApprovalConfig(prev => ({
+      ...prev,
+      cardTypes: {
+        ...prev.cardTypes,
+        [accountType]: value
+      }
+    }));
+  };
+
+  const handleApprove = async () => {
+    if (!showApprovalModal) return;
+
+    setProcessing(showApprovalModal.id);
     setError('');
     setSuccessMessage('');
 
@@ -50,7 +93,14 @@ export default function ApproveApplications() {
       const response = await fetch('/api/admin/approve-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId }),
+        body: JSON.stringify({
+          applicationId: showApprovalModal.id,
+          accountNumberMode: approvalConfig.accountNumberMode,
+          manualAccountNumbers: approvalConfig.accountNumberMode === 'manual' 
+            ? approvalConfig.manualAccountNumbers 
+            : {},
+          cardTypes: approvalConfig.cardTypes
+        }),
       });
 
       const result = await response.json();
@@ -63,10 +113,11 @@ export default function ApproveApplications() {
         throw new Error(errorMessage);
       }
 
+      setApprovalResult(result.data);
       setSuccessMessage(
-        `Application approved successfully! ${result.data.userCreated ? 'User created with temporary password.' : 'Existing user updated.'}`
+        `✅ Application approved! Created ${result.data.accountsCreated} accounts and ${result.data.cardsCreated} cards.`
       );
-
+      setShowApprovalModal(null);
       fetchApplications();
     } catch (error) {
       console.error('Error approving application:', error);
@@ -80,28 +131,67 @@ export default function ApproveApplications() {
     setExpandedApp(expandedApp === appId ? null : appId);
   };
 
+  const getAccountTypes = (app) => {
+    const types = app.account_types || ['checking_account'];
+    if (!types.includes('checking_account')) {
+      types.unshift('checking_account');
+    }
+    return types;
+  };
+
   return (
-    // Wrap the entire component content with AdminAuth for authentication
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
-            <h1 style={styles.title}>Approve Applications</h1>
-            <p style={styles.subtitle}>Review and approve pending user applications</p>
+            <h1 style={styles.title}>💼 Approve Applications</h1>
+            <p style={styles.subtitle}>Review and approve pending user applications with full control</p>
           </div>
           <div style={styles.headerActions}>
             <button onClick={fetchApplications} style={styles.refreshButton} disabled={loading}>
-              {loading ? 'Loading...' : 'Refresh'}
+              {loading ? '⏳ Loading...' : '🔄 Refresh'}
             </button>
-            {/* Updated Link href */}
             <Link href="/admin/admin-dashboard" style={styles.backButton}>
-              Back to Dashboard
+              ← Dashboard
             </Link>
           </div>
         </div>
 
         {error && <div style={styles.errorBanner}>{error}</div>}
         {successMessage && <div style={styles.successBanner}>{successMessage}</div>}
+
+        {approvalResult && (
+          <div style={styles.resultModal}>
+            <h3 style={styles.resultTitle}>✅ Approval Successful</h3>
+            <div style={styles.resultDetails}>
+              <p><strong>Email:</strong> {approvalResult.email}</p>
+              <p><strong>Temporary Password:</strong> <code style={styles.code}>{approvalResult.tempPassword}</code></p>
+              <p><strong>User ID:</strong> <code style={styles.code}>{approvalResult.userId}</code></p>
+              
+              <h4 style={styles.sectionHeading}>📊 Accounts Created ({approvalResult.accountsCreated})</h4>
+              {approvalResult.accounts.map((acc, idx) => (
+                <div key={idx} style={styles.accountDetail}>
+                  <span>💳 {acc.type.replace(/_/g, ' ').toUpperCase()}</span>
+                  <span>Account: {acc.number}</span>
+                  <span style={{color: '#059669'}}>Balance: ${parseFloat(acc.balance).toFixed(2)}</span>
+                  <span>Status: {acc.status.toUpperCase()}</span>
+                </div>
+              ))}
+
+              <h4 style={styles.sectionHeading}>💳 Cards Issued ({approvalResult.cardsCreated})</h4>
+              {approvalResult.cards.map((card, idx) => (
+                <div key={idx} style={styles.cardDetail}>
+                  <span>{card.type.toUpperCase()} Card</span>
+                  <span>****-****-****-{card.lastFour}</span>
+                  <span>Expires: {new Date(card.expiryDate).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setApprovalResult(null)} style={styles.closeResultButton}>
+              Close
+            </button>
+          </div>
+        )}
 
         <div style={styles.content}>
           {loading && <p style={styles.loadingText}>Loading applications...</p>}
@@ -173,9 +263,9 @@ export default function ApproveApplications() {
 
                     {app.account_types && app.account_types.length > 0 && (
                       <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Accounts:</span>
+                        <span style={styles.infoLabel}>Requested Accounts:</span>
                         <span style={styles.infoValue}>
-                          {app.account_types.join(', ')}
+                          {app.account_types.map(t => t.replace(/_/g, ' ')).join(', ')}
                         </span>
                       </div>
                     )}
@@ -194,12 +284,6 @@ export default function ApproveApplications() {
                               </span>
                             </div>
                           )}
-                          {app.mothers_maiden_name && (
-                            <div style={styles.detailItem}>
-                              <span style={styles.detailLabel}>Mother's Maiden Name:</span>
-                              <span style={styles.detailValue}>{app.mothers_maiden_name}</span>
-                            </div>
-                          )}
                           {app.employment_status && (
                             <div style={styles.detailItem}>
                               <span style={styles.detailLabel}>Employment Status:</span>
@@ -216,10 +300,6 @@ export default function ApproveApplications() {
                             <span style={styles.detailLabel}>Application ID:</span>
                             <span style={styles.detailValue}>{app.id}</span>
                           </div>
-                          <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Agree to Terms:</span>
-                            <span style={styles.detailValue}>{app.agree_to_terms ? '✅ Yes' : '❌ No'}</span>
-                          </div>
                         </div>
                       </div>
                     )}
@@ -230,14 +310,14 @@ export default function ApproveApplications() {
                       onClick={() => toggleExpanded(app.id)}
                       style={styles.detailsButton}
                     >
-                      {expandedApp === app.id ? 'Hide Details' : 'Show Details'}
+                      {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
                     <button
-                      onClick={() => handleApprove(app.id)}
+                      onClick={() => openApprovalModal(app)}
                       style={styles.approveButton}
                       disabled={processing === app.id}
                     >
-                      {processing === app.id ? 'Approving...' : 'Approve'}
+                      {processing === app.id ? '⏳ Approving...' : '✅ Approve'}
                     </button>
                   </div>
                 </div>
@@ -245,6 +325,83 @@ export default function ApproveApplications() {
             </div>
           )}
         </div>
+
+        {showApprovalModal && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modal}>
+              <h2 style={styles.modalTitle}>⚙️ Configure Account Approval</h2>
+              <p style={styles.modalSubtitle}>
+                {showApprovalModal.first_name} {showApprovalModal.last_name} - {showApprovalModal.email}
+              </p>
+
+              <div style={styles.modalSection}>
+                <label style={styles.label}>Account Number Generation</label>
+                <select
+                  value={approvalConfig.accountNumberMode}
+                  onChange={(e) => setApprovalConfig(prev => ({ ...prev, accountNumberMode: e.target.value }))}
+                  style={styles.select}
+                >
+                  <option value="auto">🤖 Automatic - System generates account numbers</option>
+                  <option value="manual">✏️ Manual - Enter account numbers manually</option>
+                </select>
+              </div>
+
+              <div style={styles.accountsConfig}>
+                <h3 style={styles.sectionHeading}>📊 Accounts to Create</h3>
+                {getAccountTypes(showApprovalModal).map((accountType) => (
+                  <div key={accountType} style={styles.accountConfigItem}>
+                    <h4 style={styles.accountTypeTitle}>
+                      💳 {accountType.replace(/_/g, ' ').toUpperCase()}
+                    </h4>
+                    
+                    {approvalConfig.accountNumberMode === 'manual' && (
+                      <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Account Number</label>
+                        <input
+                          type="text"
+                          value={approvalConfig.manualAccountNumbers[accountType] || ''}
+                          onChange={(e) => handleAccountNumberChange(accountType, e.target.value)}
+                          placeholder="e.g., 123456789012"
+                          style={styles.input}
+                          required={approvalConfig.accountNumberMode === 'manual'}
+                        />
+                      </div>
+                    )}
+
+                    <div style={styles.field}>
+                      <label style={styles.fieldLabel}>Card Type</label>
+                      <select
+                        value={approvalConfig.cardTypes[accountType] || 'debit'}
+                        onChange={(e) => handleCardTypeChange(accountType, e.target.value)}
+                        style={styles.select}
+                      >
+                        <option value="debit">💳 Debit Card</option>
+                        <option value="credit">💎 Credit Card</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={styles.modalFooter}>
+                <button
+                  onClick={() => setShowApprovalModal(null)}
+                  style={styles.cancelButton}
+                  disabled={processing}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApprove}
+                  style={styles.confirmButton}
+                  disabled={processing}
+                >
+                  {processing ? '⏳ Processing...' : '✅ Approve & Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminAuth>
   );
@@ -254,11 +411,11 @@ const styles = {
   container: {
     minHeight: '100vh',
     background: '#f5f7fa',
-    padding: '20px',
+    padding: 'clamp(1rem, 3vw, 20px)',
   },
   header: {
     background: 'white',
-    padding: '24px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
     borderRadius: '12px',
     marginBottom: '20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -270,14 +427,14 @@ const styles = {
   },
   title: {
     margin: '0 0 8px 0',
-    fontSize: '28px',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
     color: '#1a202c',
     fontWeight: '700',
   },
   subtitle: {
     margin: 0,
     color: '#718096',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
   },
   headerActions: {
     display: 'flex',
@@ -285,23 +442,23 @@ const styles = {
     flexWrap: 'wrap',
   },
   refreshButton: {
-    padding: '10px 20px',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
     background: '#4299e1',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
   },
   backButton: {
-    padding: '10px 20px',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
     background: '#718096',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     textDecoration: 'none',
@@ -314,7 +471,7 @@ const styles = {
     padding: '16px',
     borderRadius: '8px',
     marginBottom: '20px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '500',
   },
   successBanner: {
@@ -323,50 +480,113 @@ const styles = {
     padding: '16px',
     borderRadius: '8px',
     marginBottom: '20px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '500',
+  },
+  resultModal: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    marginBottom: '20px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    border: '2px solid #48bb78'
+  },
+  resultTitle: {
+    margin: '0 0 1rem 0',
+    fontSize: 'clamp(1.25rem, 3.5vw, 20px)',
+    color: '#2f855a'
+  },
+  resultDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem'
+  },
+  code: {
+    background: '#edf2f7',
+    padding: '0.25rem 0.5rem',
+    borderRadius: '4px',
+    fontFamily: 'monospace',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)'
+  },
+  sectionHeading: {
+    margin: '1rem 0 0.5rem 0',
+    fontSize: 'clamp(1rem, 2.5vw, 16px)',
+    color: '#2d3748',
+    fontWeight: '600'
+  },
+  accountDetail: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.75rem',
+    padding: '0.75rem',
+    background: '#f7fafc',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    marginBottom: '0.5rem'
+  },
+  cardDetail: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.75rem',
+    padding: '0.75rem',
+    background: '#edf2f7',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    marginBottom: '0.5rem'
+  },
+  closeResultButton: {
+    marginTop: '1.5rem',
+    padding: '0.75rem 1.5rem',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    width: '100%'
   },
   content: {
     background: 'white',
     borderRadius: '12px',
-    padding: '24px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   },
   loadingText: {
     textAlign: 'center',
     color: '#718096',
-    fontSize: '16px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
     padding: '40px',
   },
   emptyState: {
     textAlign: 'center',
-    padding: '60px 20px',
+    padding: 'clamp(2rem, 6vw, 60px) 20px',
   },
   emptyStateIcon: {
-    fontSize: '64px',
-    margin: '0 0 16px 0',
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px',
   },
   emptyStateText: {
-    fontSize: '20px',
-    color: '#2d3748',
+    fontSize: 'clamp(1.1rem, 3vw, 20px)',
     fontWeight: '600',
+    color: '#2d3748',
     margin: '0 0 8px 0',
   },
   emptyStateSubtext: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     color: '#718096',
     margin: 0,
   },
   applicationsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-    gap: '20px',
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))',
   },
   applicationCard: {
-    border: '1px solid #e2e8f0',
+    border: '2px solid #e2e8f0',
     borderRadius: '12px',
-    padding: '20px',
-    background: '#fafafa',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    background: 'white',
     transition: 'all 0.3s ease',
   },
   cardHeader: {
@@ -374,27 +594,27 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: '16px',
-    paddingBottom: '16px',
-    borderBottom: '1px solid #e2e8f0',
+    gap: '12px',
   },
   applicantName: {
     margin: '0 0 4px 0',
-    fontSize: '18px',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
     color: '#1a202c',
     fontWeight: '600',
   },
   applicantEmail: {
     margin: 0,
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
     color: '#718096',
   },
   statusBadge: {
-    padding: '4px 12px',
     background: '#fef3c7',
     color: '#92400e',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '600',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '700',
+    whiteSpace: 'nowrap',
   },
   cardBody: {
     marginBottom: '16px',
@@ -403,22 +623,22 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '8px 0',
-    fontSize: '14px',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
   },
   infoLabel: {
-    color: '#718096',
-    fontWeight: '500',
+    color: '#4a5568',
+    fontWeight: '600',
   },
   infoValue: {
     color: '#2d3748',
-    fontWeight: '600',
+    textAlign: 'right',
   },
   expandedDetails: {
     marginTop: '16px',
     padding: '16px',
-    background: 'white',
+    background: '#f7fafc',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
   },
   detailsGrid: {
     display: 'grid',
@@ -430,97 +650,152 @@ const styles = {
     gap: '4px',
   },
   detailLabel: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
     color: '#718096',
-    fontWeight: '500',
+    fontWeight: '600',
     textTransform: 'uppercase',
   },
   detailValue: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     color: '#2d3748',
   },
   cardFooter: {
     display: 'flex',
     gap: '12px',
-    paddingTop: '16px',
-    borderTop: '1px solid #e2e8f0',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
   },
   detailsButton: {
-    flex: 1,
-    padding: '10px',
-    background: '#e2e8f0',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 16px)',
+    background: '#edf2f7',
     color: '#2d3748',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
   },
   approveButton: {
-    flex: 1,
-    padding: '10px',
-    background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 16px)',
+    background: '#48bb78',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
   },
-  // The rest of the styles are unchanged and included for completeness.
-  loginContainer: {
-    minHeight: '100vh',
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    zIndex: 1000,
     padding: '20px',
   },
-  loginCard: {
+  modal: {
     background: 'white',
     borderRadius: '12px',
-    padding: '40px',
-    maxWidth: '400px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    maxWidth: '600px',
     width: '100%',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+    maxHeight: '90vh',
+    overflowY: 'auto',
   },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
+  modalTitle: {
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.25rem, 3.5vw, 24px)',
+    color: '#1a202c',
+    fontWeight: '700',
   },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
+  modalSubtitle: {
+    margin: '0 0 20px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
+  },
+  modalSection: {
+    marginBottom: '20px',
   },
   label: {
-    fontSize: '14px',
+    display: 'block',
+    marginBottom: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     color: '#2d3748',
   },
+  select: {
+    width: '100%',
+    padding: 'clamp(0.65rem, 2vw, 12px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    cursor: 'pointer',
+  },
+  accountsConfig: {
+    marginBottom: '20px',
+  },
+  accountConfigItem: {
+    padding: '16px',
+    background: '#f7fafc',
+    borderRadius: '8px',
+    marginBottom: '12px',
+  },
+  accountTypeTitle: {
+    margin: '0 0 12px 0',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    color: '#2d3748',
+    fontWeight: '600',
+  },
+  field: {
+    marginBottom: '12px',
+  },
+  fieldLabel: {
+    display: 'block',
+    marginBottom: '6px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '600',
+    color: '#4a5568',
+  },
   input: {
-    padding: '12px',
-    border: '1px solid #e2e8f0',
+    width: '100%',
+    padding: 'clamp(0.65rem, 2vw, 10px)',
+    border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
   },
-  error: {
-    color: '#c53030',
-    fontSize: '14px',
-    textAlign: 'center',
+  modalFooter: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '24px',
   },
-  loginButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
+  cancelButton: {
+    padding: 'clamp(0.65rem, 2vw, 12px) clamp(1rem, 3vw, 24px)',
+    background: '#e2e8f0',
+    color: '#2d3748',
     border: 'none',
-    padding: '14px 24px',
     borderRadius: '8px',
-    fontSize: '16px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
+  },
+  confirmButton: {
+    padding: 'clamp(0.65rem, 2vw, 12px) clamp(1rem, 3vw, 24px)',
+    background: '#48bb78',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
 };

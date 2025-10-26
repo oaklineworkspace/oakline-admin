@@ -1,0 +1,24 @@
+I want to build an admin “approve application” system for my banking app. When an admin approves a user application, it must:
+	1.	Create the user in Supabase Auth with a temporary password, linked to the application ID.
+	2.	Create a user profile in the profiles table, linked to the Auth user ID.
+	3.	Create a default checking account and any other accounts requested by the user in the application.
+	•	Admin should have a dropdown or toggle: choose whether to generate account number automatically or enter it manually.
+	4.	Create debit/credit cards for each account. The card type should be determined by the admin or application.
+	5.	Generate unique account numbers and card numbers (unless entered manually).
+	6.	Update the application status to approved and set user_id in the application table.
+	7.	Send a welcome email with login credentials and account/card info.
+	8.	Ensure it works with existing SQL triggers that:
+	•	Automatically handle credit/debit transactions
+	•	Link transactions to the correct user_id and account_id
+	•	Update balances correctly without resetting current balances
+	9.	Prevent race conditions or duplicate errors. If part of the process fails, the operation should rollback so the user isn’t partially created.
+	10.	The UI should show success only if all critical steps succeed.
+	11.	Transaction table must handle all types: Deposit Adjust, Transfer In/Out, Refund, Interest, Bonus, Withdrawal, ATM Withdrawal, Debit Card Charge, Wire Transfer, ACH Transfer, Check Payment, Service Fee, Other.
+	12.	For credits, show +; for debits, show -. Some types can be either (unisex).
+	13.	Status of each transaction (completed, pending, failed) should be recorded and visible.
+	14.	Use colors in the UI to differentiate credit (+) vs debit (-) transactions.
+	15.	Manual account entry: If admin chooses manual, allow them to input the account number, and the system should validate uniqueness before creation.
+
+Make sure the new approval logic fully replaces the old logic, handles all account/card types, works with triggers, allows manual or automatic account numbers, and avoids email duplication errors if the admin clicks approve multiple times.
+
+The code should be atomic, safe, fully link everything to user_id, and compatible with existing triggers.
