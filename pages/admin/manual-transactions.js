@@ -141,7 +141,9 @@ export default function ManualTransactions() {
   };
 
   const getTransactionIcon = (transaction) => {
-    const typeObj = [...CREDIT_TYPES, ...DEBIT_TYPES].find(t => t.value === transaction.transaction_type);
+    // Use description or type to determine icon
+    const transactionType = transaction.transaction_type || transaction.description?.toLowerCase() || '';
+    const typeObj = [...CREDIT_TYPES, ...DEBIT_TYPES].find(t => t.value === transactionType);
     return typeObj?.icon || (transaction.type === 'credit' ? '💰' : '💸');
   };
 

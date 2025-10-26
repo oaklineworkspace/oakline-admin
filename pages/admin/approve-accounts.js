@@ -646,7 +646,9 @@ const styles = {
     maxWidth: '600px',
     width: '100%',
     maxHeight: '90vh',
-    overflow: 'auto'
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
   },
   successHeader: {
     textAlign: 'center',
@@ -673,7 +675,10 @@ const styles = {
     lineHeight: '1.4'
   },
   successDetails: {
-    padding: 'clamp(1.5rem, 4vw, 2rem)'
+    padding: 'clamp(1.5rem, 4vw, 2rem)',
+    overflowY: 'auto',
+    flex: '1',
+    minHeight: 0
   },
   successCard: {
     backgroundColor: '#f8fafc',
@@ -745,7 +750,8 @@ const styles = {
   successFooter: {
     padding: 'clamp(1rem, 3vw, 1.5rem) clamp(1.5rem, 4vw, 2rem) clamp(1.5rem, 4vw, 2rem)',
     borderTop: '1px solid #e2e8f0',
-    textAlign: 'center'
+    textAlign: 'center',
+    flexShrink: 0
   },
   successCloseButton: {
     background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
