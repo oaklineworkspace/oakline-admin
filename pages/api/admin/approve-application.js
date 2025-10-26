@@ -156,9 +156,22 @@ export default async function handler(req, res) {
     const { data: createdCards } = await supabaseAdmin
       .from('cards')
       .select('*')
-      .eq('user_id', application.user_id);
+      .in('account_id', (createdAccounts || []).map(acc => acc.id));
 
-    // Send enrollment email with login link
+    // Update accounts and cards with the user_id
+    if (createdAccounts && createdAccounts.length > 0) {
+      await supabaseAdmin
+        .from('accounts')
+        .update({ user_id: userId })
+        .eq('application_id', applicationId);
+
+      await supabaseAdmin
+        .from('cards')
+        .update({ user_id: userId })
+        .in('account_id', createdAccounts.map(acc => acc.id));
+    }
+
+    // Send welcome email with credentials
     try {
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'theoaklinebank.com';
@@ -167,7 +180,7 @@ export default async function handler(req, res) {
       const accountNumbers = (createdAccounts || []).map(acc => acc.account_number);
       const accountTypes = (createdAccounts || []).map(acc => acc.account_type);
 
-      const enrollmentResponse = await fetch(`${siteUrl}/api/send-welcome-email`, {
+      const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,6 +188,7 @@ export default async function handler(req, res) {
           first_name: application.first_name,
           middle_name: application.middle_name || '',
           last_name: application.last_name,
+          temp_password: tempPassword,
           account_numbers: accountNumbers,
           account_types: accountTypes,
           application_id: applicationId,
@@ -183,14 +197,14 @@ export default async function handler(req, res) {
         })
       });
 
-      if (enrollmentResponse.ok) {
-        console.log('Enrollment email sent successfully to:', application.email);
+      if (welcomeResponse.ok) {
+        console.log('Welcome email with credentials sent successfully to:', application.email);
       } else {
-        const errorData = await enrollmentResponse.json();
-        console.error('Failed to send enrollment email:', errorData);
+        const errorData = await welcomeResponse.json();
+        console.error('Failed to send welcome email:', errorData);
       }
     } catch (emailError) {
-      console.error('Error sending enrollment email:', emailError);
+      console.error('Error sending welcome email:', emailError);
       // Don't fail the whole approval if email fails
     }
 
