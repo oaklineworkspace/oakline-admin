@@ -857,8 +857,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1rem'
+    zIndex: 10000,
+    padding: '1rem',
+    overflowY: 'auto'
   },
   modal: {
     backgroundColor: 'white',
@@ -867,7 +868,9 @@ const styles = {
     maxWidth: '600px',
     width: '100%',
     maxHeight: '90vh',
-    overflowY: 'auto'
+    overflowY: 'auto',
+    margin: 'auto',
+    position: 'relative'
   },
   modalTitle: {
     fontSize: '1.5rem',
