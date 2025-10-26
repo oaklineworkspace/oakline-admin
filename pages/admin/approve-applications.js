@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
+import AdminButton from '../../components/AdminButton';
 
 // Note: This page uses API routes, not direct Supabase client
 
@@ -46,12 +47,12 @@ export default function ApproveApplications() {
   const openApprovalModal = (app) => {
     // Get all account types from the application
     let accountTypes = app.account_types || [];
-    
+
     // Ensure it's an array
     if (!Array.isArray(accountTypes)) {
       accountTypes = ['checking_account'];
     }
-    
+
     // If empty, default to checking
     if (accountTypes.length === 0) {
       accountTypes = ['checking_account'];
@@ -128,13 +129,13 @@ export default function ApproveApplications() {
 
       // Close the approval modal first
       setShowApprovalModal(null);
-      
+
       // Set approval result to show success modal
       setApprovalResult(result.data);
       setSuccessMessage(
         `✅ Application approved! Created ${result.data.accountsCreated} accounts and ${result.data.cardsCreated} cards.`
       );
-      
+
       // Refresh applications list
       await fetchApplications();
     } catch (error) {
@@ -152,17 +153,17 @@ export default function ApproveApplications() {
 
   const getAccountTypes = (app) => {
     let types = app.account_types || [];
-    
+
     // Ensure it's an array
     if (!Array.isArray(types)) {
       types = ['checking_account'];
     }
-    
+
     // If empty, default to checking
     if (types.length === 0) {
       types = ['checking_account'];
     }
-    
+
     return types;
   };
 
@@ -194,7 +195,7 @@ export default function ApproveApplications() {
               <p><strong>Email:</strong> {approvalResult.email}</p>
               <p><strong>Temporary Password:</strong> <code style={styles.code}>{approvalResult.tempPassword}</code></p>
               <p><strong>User ID:</strong> <code style={styles.code}>{approvalResult.userId}</code></p>
-              
+
               <h4 style={styles.sectionHeading}>📊 Accounts Created ({approvalResult.accountsCreated})</h4>
               {approvalResult.accounts.map((acc, idx) => (
                 <div key={idx} style={styles.accountDetail}>
@@ -339,13 +340,11 @@ export default function ApproveApplications() {
                     >
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
-                    <button
+                    <AdminButton
                       onClick={() => openApprovalModal(app)}
-                      style={styles.approveButton}
                       disabled={processing === app.id}
-                    >
-                      {processing === app.id ? '⏳ Approving...' : '✅ Approve'}
-                    </button>
+                      label={processing === app.id ? '⏳ Approving...' : '✅ Approve'}
+                    />
                   </div>
                 </div>
               ))}
@@ -380,7 +379,7 @@ export default function ApproveApplications() {
                     <h4 style={styles.accountTypeTitle}>
                       💳 {accountType.replace(/_/g, ' ').toUpperCase()}
                     </h4>
-                    
+
                     {approvalConfig.accountNumberMode === 'manual' && (
                       <div style={styles.field}>
                         <label style={styles.fieldLabel}>Account Number</label>
@@ -418,13 +417,11 @@ export default function ApproveApplications() {
                 >
                   Cancel
                 </button>
-                <button
+                <AdminButton
                   onClick={handleApprove}
-                  style={styles.confirmButton}
                   disabled={processing}
-                >
-                  {processing ? '⏳ Processing...' : '✅ Approve & Create'}
-                </button>
+                  label={processing ? '⏳ Processing...' : '✅ Approve & Create'}
+                />
               </div>
             </div>
           </div>
@@ -703,17 +700,6 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s ease',
   },
-  approveButton: {
-    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 16px)',
-    background: '#48bb78',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: 'clamp(0.8rem, 2vw, 14px)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  },
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -811,16 +797,6 @@ const styles = {
     padding: 'clamp(0.65rem, 2vw, 12px) clamp(1rem, 3vw, 24px)',
     background: '#e2e8f0',
     color: '#2d3748',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-  confirmButton: {
-    padding: 'clamp(0.65rem, 2vw, 12px) clamp(1rem, 3vw, 24px)',
-    background: '#48bb78',
-    color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',

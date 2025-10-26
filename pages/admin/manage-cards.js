@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
+import AdminButton from '../../components/AdminButton';
 
 export default function ManageCards() {
   const router = useRouter();
@@ -524,16 +525,23 @@ export default function ManageCards() {
                 </div>
 
                 <div style={styles.modalActions}>
-                  <button type="submit" disabled={processing} style={styles.submitButton}>
-                    {processing ? 'Issuing...' : '💳 Issue Card'}
-                  </button>
-                  <button
+                  <AdminButton 
+                    type="submit" 
+                    disabled={processing || !issueForm.userId || !issueForm.accountId}
+                    loading={processing}
+                    variant="primary"
+                    fullWidth={false}
+                  >
+                    {processing ? 'Issuing Card...' : '💳 Issue Card'}
+                  </AdminButton>
+                  <AdminButton
                     type="button"
                     onClick={() => setShowIssueModal(false)}
-                    style={styles.cancelButton}
+                    variant="secondary"
+                    fullWidth={false}
                   >
                     Cancel
-                  </button>
+                  </AdminButton>
                 </div>
               </form>
             </div>
@@ -587,16 +595,23 @@ export default function ManageCards() {
                 </div>
 
                 <div style={styles.modalActions}>
-                  <button type="submit" disabled={processing} style={styles.submitButton}>
-                    {processing ? 'Updating...' : '✅ Update Card'}
-                  </button>
-                  <button
+                  <AdminButton 
+                    type="submit" 
+                    disabled={processing}
+                    loading={processing}
+                    variant="primary"
+                    fullWidth={false}
+                  >
+                    {processing ? 'Updating Card...' : '✅ Update Card'}
+                  </AdminButton>
+                  <AdminButton
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    style={styles.cancelButton}
+                    variant="secondary"
+                    fullWidth={false}
                   >
                     Cancel
-                  </button>
+                  </AdminButton>
                 </div>
               </form>
             </div>
