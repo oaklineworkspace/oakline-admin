@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
+import AdminAuth from '../../components/AdminAuth'; // Import AdminAuth component
 
 export default function ApproveApplications() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Removed 'isAuthenticated' state as it's now managed by AdminAuth
   const [error, setError] = useState('');
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [expandedApp, setExpandedApp] = useState(null);
-  const router = useRouter();
+  // Removed 'router' import as it's no longer directly used for navigation
 
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-      fetchApplications();
-    } else {
-      router.push('/admin');
-    }
+    // Removed the localStorage check and router.push logic
+    fetchApplications();
   }, []);
 
   const fetchApplications = async () => {
@@ -85,200 +80,177 @@ export default function ApproveApplications() {
     setExpandedApp(expandedApp === appId ? null : appId);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.title}>Approve Applications</h1>
-          <p style={styles.subtitle}>Redirecting to admin login...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Approve Applications</h1>
-          <p style={styles.subtitle}>Review and approve pending user applications</p>
-        </div>
-        <div style={styles.headerActions}>
-          <button onClick={fetchApplications} style={styles.refreshButton} disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
-          <Link href="/admin" style={styles.backButton}>
-            Back to Admin
-          </Link>
-        </div>
-      </div>
-
-      {error && <div style={styles.errorBanner}>{error}</div>}
-      {successMessage && <div style={styles.successBanner}>{successMessage}</div>}
-
-      <div style={styles.content}>
-        {loading && <p style={styles.loadingText}>Loading applications...</p>}
-
-        {!loading && applications.length === 0 && (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyStateIcon}>✅</p>
-            <p style={styles.emptyStateText}>No pending applications</p>
-            <p style={styles.emptyStateSubtext}>All applications have been processed</p>
+    // Wrap the entire component content with AdminAuth for authentication
+    <AdminAuth>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <div>
+            <h1 style={styles.title}>Approve Applications</h1>
+            <p style={styles.subtitle}>Review and approve pending user applications</p>
           </div>
-        )}
+          <div style={styles.headerActions}>
+            <button onClick={fetchApplications} style={styles.refreshButton} disabled={loading}>
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+            {/* Updated Link href */}
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
 
-        {!loading && applications.length > 0 && (
-          <div style={styles.applicationsGrid}>
-            {applications.map((app) => (
-              <div key={app.id} style={styles.applicationCard}>
-                <div style={styles.cardHeader}>
-                  <div>
-                    <h3 style={styles.applicantName}>
-                      {app.first_name} {app.middle_name ? app.middle_name + ' ' : ''}{app.last_name}
-                    </h3>
-                    <p style={styles.applicantEmail}>{app.email}</p>
-                  </div>
-                  <span style={styles.statusBadge}>PENDING</span>
-                </div>
+        {error && <div style={styles.errorBanner}>{error}</div>}
+        {successMessage && <div style={styles.successBanner}>{successMessage}</div>}
 
-                <div style={styles.cardBody}>
-                  <div style={styles.infoRow}>
-                    <span style={styles.infoLabel}>Submitted:</span>
-                    <span style={styles.infoValue}>
-                      {new Date(app.submitted_at).toLocaleDateString()}
-                    </span>
-                  </div>
+        <div style={styles.content}>
+          {loading && <p style={styles.loadingText}>Loading applications...</p>}
 
-                  {app.phone && (
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Phone:</span>
-                      <span style={styles.infoValue}>{app.phone}</span>
+          {!loading && applications.length === 0 && (
+            <div style={styles.emptyState}>
+              <p style={styles.emptyStateIcon}>✅</p>
+              <p style={styles.emptyStateText}>No pending applications</p>
+              <p style={styles.emptyStateSubtext}>All applications have been processed</p>
+            </div>
+          )}
+
+          {!loading && applications.length > 0 && (
+            <div style={styles.applicationsGrid}>
+              {applications.map((app) => (
+                <div key={app.id} style={styles.applicationCard}>
+                  <div style={styles.cardHeader}>
+                    <div>
+                      <h3 style={styles.applicantName}>
+                        {app.first_name} {app.middle_name ? app.middle_name + ' ' : ''}{app.last_name}
+                      </h3>
+                      <p style={styles.applicantEmail}>{app.email}</p>
                     </div>
-                  )}
+                    <span style={styles.statusBadge}>PENDING</span>
+                  </div>
 
-                  {app.date_of_birth && (
+                  <div style={styles.cardBody}>
                     <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>DOB:</span>
+                      <span style={styles.infoLabel}>Submitted:</span>
                       <span style={styles.infoValue}>
-                        {new Date(app.date_of_birth).toLocaleDateString()}
+                        {new Date(app.submitted_at).toLocaleDateString()}
                       </span>
                     </div>
-                  )}
 
-                  <div style={styles.infoRow}>
-                    <span style={styles.infoLabel}>Country:</span>
-                    <span style={styles.infoValue}>{app.country || 'N/A'}</span>
-                  </div>
+                    {app.phone && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Phone:</span>
+                        <span style={styles.infoValue}>{app.phone}</span>
+                      </div>
+                    )}
 
-                  {app.ssn && (
+                    {app.date_of_birth && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>DOB:</span>
+                        <span style={styles.infoValue}>
+                          {new Date(app.date_of_birth).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+
                     <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>SSN:</span>
-                      <span style={styles.infoValue}>***-**-{app.ssn.slice(-4)}</span>
+                      <span style={styles.infoLabel}>Country:</span>
+                      <span style={styles.infoValue}>{app.country || 'N/A'}</span>
                     </div>
-                  )}
 
-                  {app.id_number && (
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>ID Number:</span>
-                      <span style={styles.infoValue}>***{app.id_number.slice(-4)}</span>
-                    </div>
-                  )}
+                    {app.ssn && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>SSN:</span>
+                        <span style={styles.infoValue}>***-**-{app.ssn.slice(-4)}</span>
+                      </div>
+                    )}
 
-                  {app.account_types && app.account_types.length > 0 && (
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Accounts:</span>
-                      <span style={styles.infoValue}>
-                        {app.account_types.join(', ')}
-                      </span>
-                    </div>
-                  )}
+                    {app.id_number && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>ID Number:</span>
+                        <span style={styles.infoValue}>***{app.id_number.slice(-4)}</span>
+                      </div>
+                    )}
 
-                  {expandedApp === app.id && (
-                    <div style={styles.expandedDetails}>
-                      <div style={styles.detailsGrid}>
-                        {app.address && (
+                    {app.account_types && app.account_types.length > 0 && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Accounts:</span>
+                        <span style={styles.infoValue}>
+                          {app.account_types.join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    {expandedApp === app.id && (
+                      <div style={styles.expandedDetails}>
+                        <div style={styles.detailsGrid}>
+                          {app.address && (
+                            <div style={styles.detailItem}>
+                              <span style={styles.detailLabel}>Full Address:</span>
+                              <span style={styles.detailValue}>
+                                {app.address}
+                                {app.city && `, ${app.city}`}
+                                {app.state && `, ${app.state}`}
+                                {app.zip_code && ` ${app.zip_code}`}
+                              </span>
+                            </div>
+                          )}
+                          {app.mothers_maiden_name && (
+                            <div style={styles.detailItem}>
+                              <span style={styles.detailLabel}>Mother's Maiden Name:</span>
+                              <span style={styles.detailValue}>{app.mothers_maiden_name}</span>
+                            </div>
+                          )}
+                          {app.employment_status && (
+                            <div style={styles.detailItem}>
+                              <span style={styles.detailLabel}>Employment Status:</span>
+                              <span style={styles.detailValue}>{app.employment_status}</span>
+                            </div>
+                          )}
+                          {app.annual_income && (
+                            <div style={styles.detailItem}>
+                              <span style={styles.detailLabel}>Annual Income:</span>
+                              <span style={styles.detailValue}>{app.annual_income}</span>
+                            </div>
+                          )}
                           <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Full Address:</span>
-                            <span style={styles.detailValue}>
-                              {app.address}
-                              {app.city && `, ${app.city}`}
-                              {app.state && `, ${app.state}`}
-                              {app.zip_code && ` ${app.zip_code}`}
-                            </span>
+                            <span style={styles.detailLabel}>Application ID:</span>
+                            <span style={styles.detailValue}>{app.id}</span>
                           </div>
-                        )}
-                        {app.mothers_maiden_name && (
                           <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Mother's Maiden Name:</span>
-                            <span style={styles.detailValue}>{app.mothers_maiden_name}</span>
+                            <span style={styles.detailLabel}>Agree to Terms:</span>
+                            <span style={styles.detailValue}>{app.agree_to_terms ? '✅ Yes' : '❌ No'}</span>
                           </div>
-                        )}
-                        {app.employment_status && (
-                          <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Employment Status:</span>
-                            <span style={styles.detailValue}>{app.employment_status}</span>
-                          </div>
-                        )}
-                        {app.annual_income && (
-                          <div style={styles.detailItem}>
-                            <span style={styles.detailLabel}>Annual Income:</span>
-                            <span style={styles.detailValue}>{app.annual_income}</span>
-                          </div>
-                        )}
-                        <div style={styles.detailItem}>
-                          <span style={styles.detailLabel}>Application ID:</span>
-                          <span style={styles.detailValue}>{app.id}</span>
-                        </div>
-                        <div style={styles.detailItem}>
-                          <span style={styles.detailLabel}>Agree to Terms:</span>
-                          <span style={styles.detailValue}>{app.agree_to_terms ? '✅ Yes' : '❌ No'}</span>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                <div style={styles.cardFooter}>
-                  <button
-                    onClick={() => toggleExpanded(app.id)}
-                    style={styles.detailsButton}
-                  >
-                    {expandedApp === app.id ? 'Hide Details' : 'Show Details'}
-                  </button>
-                  <button
-                    onClick={() => handleApprove(app.id)}
-                    style={styles.approveButton}
-                    disabled={processing === app.id}
-                  >
-                    {processing === app.id ? 'Approving...' : 'Approve'}
-                  </button>
+                  <div style={styles.cardFooter}>
+                    <button
+                      onClick={() => toggleExpanded(app.id)}
+                      style={styles.detailsButton}
+                    >
+                      {expandedApp === app.id ? 'Hide Details' : 'Show Details'}
+                    </button>
+                    <button
+                      onClick={() => handleApprove(app.id)}
+                      style={styles.approveButton}
+                      disabled={processing === app.id}
+                    >
+                      {processing === app.id ? 'Approving...' : 'Approve'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </AdminAuth>
   );
 }
 
 const styles = {
-  loginContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    padding: '20px',
-  },
-  loginCard: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '40px',
-    maxWidth: '400px',
-    width: '100%',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-  },
   container: {
     minHeight: '100vh',
     background: '#f5f7fa',
@@ -334,17 +306,6 @@ const styles = {
     cursor: 'pointer',
     textDecoration: 'none',
     display: 'inline-block',
-    transition: 'all 0.3s ease',
-  },
-  logoutButton: {
-    padding: '10px 20px',
-    background: '#f56565',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
     transition: 'all 0.3s ease',
   },
   errorBanner: {
@@ -507,6 +468,23 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+  },
+  // The rest of the styles are unchanged and included for completeness.
+  loginContainer: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    padding: '20px',
+  },
+  loginCard: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '40px',
+    maxWidth: '400px',
+    width: '100%',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
   },
   form: {
     display: 'flex',
