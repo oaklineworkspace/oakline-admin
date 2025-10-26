@@ -12,7 +12,6 @@ import Testimonials from '../components/Testimonials';
 import TestimonialsSection from '../components/TestimonialsSection';
 import LoanApprovalSection from '../components/LoanApprovalSection';
 import CTA from '../components/CTA';
-import AdminDropdown from '../components/AdminDropdown';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -1478,18 +1477,7 @@ export default function Home() {
       {/* Live Chat Component */}
       <LiveChat />
 
-      {/* Admin Dropdown */}
-      <AdminDropdown />
-
       <Footer />
-
-      {/* Sticky Bottom Admin Button */}
-      <div style={styles.stickyAdminButton}>
-        <Link href="/admin" style={styles.adminButtonLink}>
-          <span style={styles.adminButtonIcon}>🔐</span>
-          <span style={styles.adminButtonText}>Admin Panel</span>
-        </Link>
-      </div>
     </div>
   );
 }
@@ -5178,38 +5166,6 @@ const styles = {
     padding: 'clamp(4rem, 8vw, 6rem) 0',
     backgroundColor: '#f8fafc',
     width: '100%'
-  },
-
-  // Sticky Bottom Admin Button
-  stickyAdminButton: {
-    position: 'fixed',
-    bottom: '20px',
-    right: '20px',
-    zIndex: 9999,
-    animation: 'slideInUp 0.5s ease-out'
-  },
-  adminButtonLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '1rem 1.75rem',
-    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-    color: 'white',
-    textDecoration: 'none',
-    borderRadius: '50px',
-    fontSize: '1.1rem',
-    fontWeight: '700',
-    boxShadow: '0 8px 24px rgba(30, 64, 175, 0.4)',
-    transition: 'all 0.3s ease',
-    border: '2px solid rgba(255, 255, 255, 0.2)',
-    backdropFilter: 'blur(10px)'
-  },
-  adminButtonIcon: {
-    fontSize: '1.5rem'
-  },
-  adminButtonText: {
-    fontWeight: '700',
-    letterSpacing: '0.5px'
   }
 };
 
