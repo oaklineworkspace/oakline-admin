@@ -1,7 +1,8 @@
 
--- Drop existing trigger if it exists
-DROP TRIGGER IF EXISTS on_application_approved ON public.applications;
-DROP FUNCTION IF EXISTS handle_application_approval();
+-- Drop existing trigger if it exists (with CASCADE to handle dependencies)
+DROP TRIGGER IF EXISTS on_application_approved ON public.applications CASCADE;
+DROP TRIGGER IF EXISTS application_approved_trigger ON public.applications CASCADE;
+DROP FUNCTION IF EXISTS handle_application_approval() CASCADE;
 
 -- Function to generate a unique account number
 CREATE OR REPLACE FUNCTION generate_account_number()
