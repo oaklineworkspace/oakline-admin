@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     // Fetch applications
-    const { data: applicationsData, error: applicationsError } = await supabase
+    const { data: applicationsData, error: applicationsError } = await supabaseAdmin
       .from('applications')
       .select('*')
       .order('submitted_at', { ascending: false });
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch enrollments separately
-    const { data: enrollmentsData, error: enrollmentsError } = await supabase
+    const { data: enrollmentsData, error: enrollmentsError } = await supabaseAdmin
       .from('enrollments')
       .select('application_id, email, is_used');
 
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch auth users to check password_set
-    const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
+    const { data: authUsersData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
 
     if (authError) {
       console.error('Error fetching auth users:', authError);
