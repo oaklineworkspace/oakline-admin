@@ -190,7 +190,7 @@ export default function ApproveApplications() {
               <h4 style={styles.sectionHeading}>💳 Cards Issued ({approvalResult.cardsCreated})</h4>
               {approvalResult.cards.map((card, idx) => (
                 <div key={idx} style={styles.cardDetail}>
-                  <span>{card.type.toUpperCase()} Card</span>
+                  <span>{card.brand ? card.brand.toUpperCase() : 'DEBIT'} {card.category ? card.category.toUpperCase() : ''} Card</span>
                   <span>****-****-****-{card.lastFour}</span>
                   <span>Expires: {new Date(card.expiryDate).toLocaleDateString()}</span>
                 </div>

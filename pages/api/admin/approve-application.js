@@ -393,8 +393,8 @@ export default async function handler(req, res) {
         })),
         cards: createdCards.map(card => ({
           id: card.id,
-          brand: card.card_brand,
-          category: card.card_category,
+          brand: card.card_brand || 'visa',
+          category: card.card_category || 'debit',
           lastFour: card.card_number.slice(-4),
           expiryDate: card.expiry_date
         }))
