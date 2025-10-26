@@ -6,34 +6,111 @@ export default function AdminAuth({ children }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
+    checkAdminStatus();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await verifyAdminUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-    } else {
-      setError('Invalid password');
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        await verifyAdminUser(session.user);
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    router.push('/');
+  const verifyAdminUser = async (authUser) => {
+    try {
+      const { data: adminProfile, error: adminError } = await supabase
+        .from('admin_profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (adminError || !adminProfile) {
+        setError('Access denied. You are not authorized as an admin.');
+        setIsAuthenticated(false);
+        setUser(null);
+        await supabase.auth.signOut();
+        return;
+      }
+
+      setIsAuthenticated(true);
+      setUser({ ...authUser, role: adminProfile.role });
+      setError('');
+    } catch (err) {
+      console.error('Error verifying admin:', err);
+      setError('Error verifying admin access');
+      setIsAuthenticated(false);
+      setUser(null);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message || 'Invalid email or password');
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        await verifyAdminUser(data.user);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred during login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setUser(null);
+      setEmail('');
+      setPassword('');
+      router.push('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
   };
 
   if (isLoading) {
@@ -51,6 +128,23 @@ export default function AdminAuth({ children }) {
           <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Admin Login</h2>
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Email:</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.5rem', 
+                  border: '1px solid #ddd', 
+                  borderRadius: '4px',
+                  fontSize: '1rem'
+                }}
+                placeholder="Enter admin email"
+                required
+              />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Password:</label>
               <input
                 type="password"
@@ -63,26 +157,31 @@ export default function AdminAuth({ children }) {
                   borderRadius: '4px',
                   fontSize: '1rem'
                 }}
-                placeholder="Enter admin password"
+                placeholder="Enter password"
+                required
               />
             </div>
-            {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
+            {error && <p style={{ color: 'red', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
             <button 
               type="submit"
+              disabled={isLoading}
               style={{ 
                 width: '100%', 
                 padding: '0.75rem', 
-                backgroundColor: '#0070f3', 
+                backgroundColor: isLoading ? '#ccc' : '#0070f3', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '4px',
                 fontSize: '1rem',
-                cursor: 'pointer'
+                cursor: isLoading ? 'not-allowed' : 'pointer'
               }}
             >
-              Login
+              {isLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+          <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666', textAlign: 'center' }}>
+            Only authorized admin users can access this area
+          </p>
         </div>
       </div>
     );
@@ -91,7 +190,12 @@ export default function AdminAuth({ children }) {
   return (
     <div>
       <div style={{ backgroundColor: '#0070f3', color: 'white', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ margin: 0 }}>Admin Panel</h1>
+        <div>
+          <h1 style={{ margin: 0 }}>Admin Panel</h1>
+          {user && <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.9 }}>
+            Logged in as: {user.email} ({user.role})
+          </p>}
+        </div>
         <button 
           onClick={handleLogout}
           style={{ 

@@ -1,37 +1,116 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const router = useRouter();
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-    }
+    checkAdminStatus();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await verifyAdminUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-    } else {
-      setError('Invalid password');
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        await verifyAdminUser(session.user);
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    setPassword('');
+  const verifyAdminUser = async (authUser) => {
+    try {
+      const { data: adminProfile, error: adminError } = await supabase
+        .from('admin_profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (adminError || !adminProfile) {
+        setError('Access denied. You are not authorized as an admin.');
+        setIsAuthenticated(false);
+        setUser(null);
+        await supabase.auth.signOut();
+        return;
+      }
+
+      setIsAuthenticated(true);
+      setUser({ ...authUser, role: adminProfile.role });
+      setError('');
+    } catch (err) {
+      console.error('Error verifying admin:', err);
+      setError('Error verifying admin access');
+      setIsAuthenticated(false);
+      setUser(null);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message || 'Invalid email or password');
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        await verifyAdminUser(data.user);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred during login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setUser(null);
+      setEmail('');
+      setPassword('');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
   };
 
   const adminPages = [
@@ -100,6 +179,14 @@ export default function AdminNavigationHub() {
     }
   ];
 
+  if (isLoading) {
+    return (
+      <div style={styles.loginContainer}>
+        <div style={{ color: 'white', fontSize: '18px' }}>Loading...</div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div style={styles.loginContainer}>
@@ -108,21 +195,35 @@ export default function AdminNavigationHub() {
           <p style={styles.subtitle}>Access all admin pages</p>
           <form onSubmit={handleLogin} style={styles.form}>
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
+              <label style={styles.label}>Admin Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.input}
+                placeholder="Enter admin email"
+                required
+              />
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={styles.input}
-                placeholder="Enter admin password"
+                placeholder="Enter password"
                 required
               />
             </div>
             {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔓 Access Admin Panel
+            <button type="submit" style={styles.loginButton} disabled={isLoading}>
+              {isLoading ? 'Logging in...' : '🔓 Access Admin Panel'}
             </button>
           </form>
+          <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666', textAlign: 'center' }}>
+            Only authorized admin users can access this area
+          </p>
         </div>
       </div>
     );
@@ -134,6 +235,9 @@ export default function AdminNavigationHub() {
         <div>
           <h1 style={styles.title}>🏦 Admin Navigation Center</h1>
           <p style={styles.subtitle}>Quick access to all administrative pages</p>
+          {user && <p style={{ fontSize: '14px', color: '#666', margin: '5px 0 0 0' }}>
+            Logged in as: {user.email} ({user.role})
+          </p>}
         </div>
         <button onClick={handleLogout} style={styles.logoutButton}>
           🚪 Logout
@@ -220,7 +324,8 @@ const styles = {
     borderRadius: '8px',
     fontSize: '14px',
     fontWeight: '600',
-    transition: 'all 0.3s ease'
+    transition: 'all 0.3s ease',
+    cursor: 'pointer'
   },
   content: {
     display: 'flex',
@@ -259,11 +364,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-    ':hover': {
-      transform: 'translateY(-5px)',
-      boxShadow: '0 8px 25px rgba(0,0,0,0.3)'
-    }
+    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
   },
   cardIcon: {
     fontSize: '48px',
