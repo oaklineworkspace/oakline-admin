@@ -12,7 +12,7 @@ import Testimonials from '../components/Testimonials';
 import TestimonialsSection from '../components/TestimonialsSection';
 import LoanApprovalSection from '../components/LoanApprovalSection';
 import CTA from '../components/CTA';
-import AdminDropdown from '../components/AdminDropdown';
+import AdminNavDropdown from '../components/AdminNavDropdown';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -366,7 +366,7 @@ export default function Home() {
               </div>
             </div>
             {/* Comprehensive Admin Dropdown Button */}
-            {user && <AdminDropdown />}
+            {user && <AdminNavDropdown />}
           </div>
 
         </div>
