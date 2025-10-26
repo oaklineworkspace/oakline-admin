@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminUsers() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,13 +12,7 @@ export default function AdminUsers() {
   const router = useRouter();
 
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-      fetchUsers();
-    } else {
-      router.push('/admin/admin-dashboard');
-    }
+    fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
@@ -111,12 +105,9 @@ export default function AdminUsers() {
     }
   };
 
-  if (!isAuthenticated) {
-    return <div>Redirecting to admin login...</div>;
-  }
-
   return (
-    <div style={styles.container}>
+    <AdminAuth>
+      <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>👥 User Management</h1>
         <Link href="/admin/admin-dashboard" style={styles.backButton}>
@@ -181,6 +172,7 @@ export default function AdminUsers() {
         )}
       </div>
     </div>
+    </AdminAuth>
   );
 }
 

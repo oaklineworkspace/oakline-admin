@@ -125,9 +125,6 @@ export default function AdminUsersManagement() {
           <Link href="/admin/admin-dashboard" style={styles.backButton}>
             ← Dashboard
           </Link>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            🚪 Logout
-          </button>
         </div>
       </div>
 
