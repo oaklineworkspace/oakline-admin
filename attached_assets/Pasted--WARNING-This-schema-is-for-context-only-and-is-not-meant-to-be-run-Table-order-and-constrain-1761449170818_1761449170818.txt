@@ -1,0 +1,395 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.accounts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  application_id uuid,
+  account_number text NOT NULL UNIQUE,
+  routing_number text DEFAULT '075915826'::text,
+  account_type text NOT NULL,
+  balance numeric DEFAULT 0 CHECK (balance >= 0::numeric),
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'closed'::text, 'suspended'::text, 'rejected'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT accounts_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id)
+);
+CREATE TABLE public.admin_profiles (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  role text DEFAULT 'admin'::text CHECK (role = ANY (ARRAY['admin'::text, 'super_admin'::text, 'manager'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.applications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  middle_name text,
+  email text NOT NULL UNIQUE,
+  phone text,
+  date_of_birth date,
+  country text,
+  ssn text,
+  id_number text,
+  address text,
+  city text,
+  state text,
+  zip_code text,
+  employment_status text,
+  annual_income text,
+  account_types ARRAY,
+  mothers_maiden_name text,
+  agree_to_terms boolean DEFAULT false,
+  application_status text DEFAULT 'pending'::text CHECK (application_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'under_review'::text, 'completed'::text])),
+  created_by_admin boolean DEFAULT false,
+  submitted_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT applications_pkey PRIMARY KEY (id),
+  CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  action text,
+  table_name text,
+  old_data jsonb,
+  new_data jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.bank_details (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL DEFAULT 'Oakline Bank'::text,
+  branch_name text NOT NULL DEFAULT 'Oklahoma City Branch'::text,
+  address text NOT NULL DEFAULT '12201 N May Avenue, Oklahoma City, OK 73120, United States'::text,
+  phone text NOT NULL DEFAULT '+1 (636) 635-6122'::text,
+  email_info text NOT NULL DEFAULT 'info@theoaklinebank.com'::text,
+  email_contact text NOT NULL DEFAULT 'contact-us@theoaklinebank.com'::text,
+  email_notify text NOT NULL DEFAULT 'notify@theoaklinebank.com'::text,
+  email_updates text NOT NULL DEFAULT 'updates@theoaklinebank.com'::text,
+  email_welcome text NOT NULL DEFAULT 'welcome@theoaklinebank.com'::text,
+  routing_number text NOT NULL DEFAULT '075915826'::text,
+  swift_code text NOT NULL DEFAULT 'OAKLUS33'::text,
+  nmls_id text NOT NULL DEFAULT '574160'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT bank_details_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.beneficiaries (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  name text NOT NULL,
+  email text,
+  phone text,
+  account_number text,
+  bank_name text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT beneficiaries_pkey PRIMARY KEY (id),
+  CONSTRAINT beneficiaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.branches (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text,
+  address text,
+  city text,
+  state text,
+  zip_code text,
+  phone text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT branches_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.card_activity_log (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  card_id uuid,
+  user_id uuid,
+  old_card_number text,
+  new_card_number text,
+  action text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT card_activity_log_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.card_applications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  account_id uuid,
+  card_type text DEFAULT 'debit'::text,
+  application_status text DEFAULT 'pending'::text CHECK (application_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'under_review'::text])),
+  requested_at timestamp with time zone DEFAULT now(),
+  reviewed_at timestamp with time zone,
+  CONSTRAINT card_applications_pkey PRIMARY KEY (id),
+  CONSTRAINT card_applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT card_applications_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id)
+);
+CREATE TABLE public.card_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  card_id uuid,
+  transaction_type text,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  merchant text,
+  location text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT card_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT card_transactions_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id)
+);
+CREATE TABLE public.cards (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  account_id uuid,
+  card_number text NOT NULL UNIQUE,
+  card_type text DEFAULT 'debit'::text CHECK (card_type = ANY (ARRAY['visa'::text, 'mastercard'::text, 'amex'::text, 'debit'::text, 'credit'::text])),
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'blocked'::text, 'expired'::text, 'replaced'::text])),
+  expiry_date date,
+  daily_limit numeric DEFAULT 5000,
+  monthly_limit numeric DEFAULT 20000,
+  daily_spent numeric DEFAULT 0,
+  monthly_spent numeric DEFAULT 0,
+  pin_hash text,
+  is_locked boolean DEFAULT false,
+  cvc text CHECK (cvc ~ '^[0-9]{3,4}$'::text),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  activated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cards_pkey PRIMARY KEY (id),
+  CONSTRAINT cards_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT cards_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id)
+);
+CREATE TABLE public.email_queue (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  email text NOT NULL,
+  subject text NOT NULL,
+  body text NOT NULL,
+  sent boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT email_queue_pkey PRIMARY KEY (id),
+  CONSTRAINT email_queue_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.email_verifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  verification_token text NOT NULL,
+  verified_at timestamp with time zone,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  verification_code text,
+  CONSTRAINT email_verifications_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.enrollments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  token text NOT NULL,
+  is_used boolean DEFAULT false,
+  click_count integer DEFAULT 0,
+  application_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  completed_at timestamp with time zone,
+  CONSTRAINT enrollments_pkey PRIMARY KEY (id),
+  CONSTRAINT enrollments_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id)
+);
+CREATE TABLE public.loan_payments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  loan_id uuid,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  payment_date date DEFAULT now(),
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT loan_payments_pkey PRIMARY KEY (id),
+  CONSTRAINT loan_payments_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id)
+);
+CREATE TABLE public.loans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  account_id uuid,
+  loan_type text,
+  principal numeric NOT NULL CHECK (principal >= 0::numeric),
+  interest_rate numeric NOT NULL CHECK (interest_rate >= 0::numeric),
+  term_months integer NOT NULL CHECK (term_months > 0),
+  start_date date DEFAULT now(),
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'active'::text, 'closed'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT loans_pkey PRIMARY KEY (id),
+  CONSTRAINT loans_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT loans_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  type text,
+  title text,
+  message text,
+  read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.password_reset_otps (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  otp text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  used boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT password_reset_otps_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.plaid_accounts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  plaid_item_id uuid NOT NULL,
+  account_id text NOT NULL UNIQUE,
+  name text NOT NULL,
+  official_name text,
+  type text,
+  subtype text,
+  mask text,
+  available_balance numeric,
+  current_balance numeric,
+  iso_currency_code text DEFAULT 'USD'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT plaid_accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT plaid_accounts_plaid_item_id_fkey FOREIGN KEY (plaid_item_id) REFERENCES public.plaid_items(id)
+);
+CREATE TABLE public.plaid_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  item_id text NOT NULL UNIQUE,
+  access_token text NOT NULL,
+  institution_id text,
+  institution_name text,
+  cursor text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT plaid_items_pkey PRIMARY KEY (id),
+  CONSTRAINT plaid_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  email text UNIQUE,
+  first_name text,
+  middle_name text,
+  last_name text,
+  phone text,
+  date_of_birth date,
+  country text,
+  city text,
+  state text,
+  zip_code text,
+  address text,
+  ssn text,
+  id_number text,
+  employment_status text,
+  annual_income text,
+  mothers_maiden_name text,
+  account_types ARRAY,
+  enrollment_completed boolean DEFAULT false,
+  password_set boolean DEFAULT false,
+  application_status text DEFAULT 'pending'::text CHECK (application_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'completed'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  enrollment_completed_at timestamp with time zone,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.staff (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  first_name text,
+  last_name text,
+  email text UNIQUE,
+  role text DEFAULT 'teller'::text,
+  branch_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT staff_pkey PRIMARY KEY (id),
+  CONSTRAINT staff_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id)
+);
+CREATE TABLE public.system_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  level text CHECK (level = ANY (ARRAY['info'::text, 'warning'::text, 'error'::text])),
+  type text CHECK (type = ANY (ARRAY['auth'::text, 'transaction'::text, 'system'::text, 'card'::text, 'user'::text])),
+  message text NOT NULL,
+  details jsonb,
+  user_id uuid,
+  admin_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT system_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT system_logs_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  account_id uuid,
+  type text NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  description text,
+  reference text DEFAULT md5(((random())::text || (clock_timestamp())::text)) UNIQUE,
+  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT transactions_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id)
+);
+CREATE TABLE public.zelle_contacts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  name text NOT NULL,
+  email text,
+  phone text,
+  is_verified boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT zelle_contacts_pkey PRIMARY KEY (id),
+  CONSTRAINT zelle_contacts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.zelle_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid UNIQUE,
+  daily_limit numeric DEFAULT 2500 CHECK (daily_limit >= 0::numeric),
+  monthly_limit numeric DEFAULT 20000 CHECK (monthly_limit >= 0::numeric),
+  notifications_enabled boolean DEFAULT true,
+  sms_notifications boolean DEFAULT true,
+  email_notifications boolean DEFAULT true,
+  auto_accept_from_contacts boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT zelle_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT zelle_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.zelle_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  sender_id uuid,
+  sender_account_id uuid,
+  recipient_contact text,
+  recipient_user_id uuid,
+  amount numeric CHECK (amount > 0::numeric),
+  memo text,
+  transaction_type text CHECK (transaction_type = ANY (ARRAY['send'::text, 'request'::text])),
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text, 'expired'::text])),
+  reference_number text UNIQUE,
+  processed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT zelle_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT zelle_transactions_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES auth.users(id),
+  CONSTRAINT zelle_transactions_sender_account_id_fkey FOREIGN KEY (sender_account_id) REFERENCES public.accounts(id),
+  CONSTRAINT zelle_transactions_recipient_user_id_fkey FOREIGN KEY (recipient_user_id) REFERENCES auth.users(id)
+);
