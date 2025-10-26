@@ -1,7 +1,6 @@
 
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 
@@ -96,11 +95,17 @@ export default function ManageAllUsersPage() {
     setActionLoading({ ...actionLoading, [`reset_${user.id}`]: true });
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/reset-password`
+      const response = await fetch('/api/send-reset-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
       });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send reset link');
+      }
 
       alert(`✅ Password reset link sent to ${user.email}`);
     } catch (error) {

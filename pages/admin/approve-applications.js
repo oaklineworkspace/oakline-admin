@@ -26,14 +26,17 @@ export default function ApproveApplications() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-applications-with-status?status=pending');
+      const response = await fetch('/api/applications');
       const result = await response.json();
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to fetch applications');
       }
 
-      setApplications(result.applications || []);
+      const pendingApps = (result.applications || []).filter(
+        app => app.application_status === 'pending'
+      );
+      setApplications(pendingApps);
     } catch (error) {
       console.error('Error fetching applications:', error);
       setError('Failed to load applications: ' + error.message);
