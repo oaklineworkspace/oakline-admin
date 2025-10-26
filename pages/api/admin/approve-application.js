@@ -221,9 +221,15 @@ export default async function handler(req, res) {
       : (application.account_types || ['checking']);
 
     const createdAccounts = [];
+    const activeAccounts = [];
+    const pendingAccounts = [];
 
     for (let i = 0; i < accountTypesToCreate.length; i++) {
       const accountType = accountTypesToCreate[i];
+
+      // Determine account status based on type
+      // checking = active, savings/credit = pending
+      const accountStatus = accountType === 'checking' ? 'active' : 'pending';
 
       // Generate or use manual account number
       let accountNumber;
@@ -242,7 +248,7 @@ export default async function handler(req, res) {
         routing_number: bankDetails.routing_number || '075915826',
         account_type: accountType,
         balance: 0,
-        status: 'active',
+        status: accountStatus,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -259,12 +265,19 @@ export default async function handler(req, res) {
       }
 
       createdAccounts.push(newAccount);
+      
+      // Categorize accounts by status
+      if (accountStatus === 'active') {
+        activeAccounts.push(newAccount);
+      } else {
+        pendingAccounts.push(newAccount);
+      }
     }
 
-    // 6. Create cards for each account
+    // 6. Create cards only for active accounts
     const createdCards = [];
 
-    for (const account of createdAccounts) {
+    for (const account of activeAccounts) {
       const cardBrand = application.chosen_card_brand || 'visa';
       const cardCategory = application.chosen_card_category || 'debit';
 
@@ -325,8 +338,9 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'theoaklinebank.com';
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
 
-      const accountNumbers = createdAccounts.map(acc => acc.account_number);
-      const accountTypes = createdAccounts.map(acc => acc.account_type);
+      // Only send active accounts in welcome email
+      const accountNumbers = activeAccounts.map(acc => acc.account_number);
+      const accountTypes = activeAccounts.map(acc => acc.account_type);
 
       const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
@@ -339,6 +353,8 @@ export default async function handler(req, res) {
           temp_password: tempPassword,
           account_numbers: accountNumbers,
           account_types: accountTypes,
+          has_pending_accounts: pendingAccounts.length > 0,
+          pending_account_types: pendingAccounts.map(acc => acc.account_type),
           application_id: applicationId,
           country: application.country || 'US',
           site_url: siteUrl,
@@ -359,12 +375,14 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Application approved successfully. Welcome email sent with login credentials.',
+      message: `Application approved successfully. ${activeAccounts.length} active account(s) created. ${pendingAccounts.length > 0 ? `${pendingAccounts.length} account(s) pending admin approval.` : ''}`,
       data: {
         userId: userId,
         email: application.email,
         tempPassword: isNewUser ? tempPassword : null,
         accountsCreated: createdAccounts.length,
+        activeAccountsCount: activeAccounts.length,
+        pendingAccountsCount: pendingAccounts.length,
         cardsCreated: createdCards.length,
         accounts: createdAccounts.map(acc => ({
           id: acc.id,

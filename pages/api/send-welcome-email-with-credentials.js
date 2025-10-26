@@ -67,6 +67,8 @@ export default async function handler(req, res) {
       temp_password,
       account_numbers,
       account_types,
+      has_pending_accounts,
+      pending_account_types,
       application_id,
       country,
       site_url,
@@ -225,6 +227,22 @@ export default async function handler(req, res) {
                     <table role="presentation" style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
                       ${accountInfo}
                     </table>
+                    
+                    ${has_pending_accounts ? `
+                    <!-- Pending Accounts Notice -->
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #dbeafe; border-left: 4px solid #3b82f6; margin: 30px 0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="margin: 0 0 10px 0; color: #1e40af; font-size: 14px; line-height: 1.5; font-weight: bold;">
+                            📋 Additional Accounts Pending Approval
+                          </p>
+                          <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 1.5;">
+                            Your ${pending_account_types.map(t => t.replace('_', ' ').toUpperCase()).join(', ')} account${pending_account_types.length > 1 ? 's are' : ' is'} currently under review. You will receive a notification email once ${pending_account_types.length > 1 ? 'they are' : 'it is'} approved and ready to use.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                    ` : ''}
                     
                     <!-- Warning Box -->
                     <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #fef3c7; border-left: 4px solid #f59e0b; margin: 30px 0;">
