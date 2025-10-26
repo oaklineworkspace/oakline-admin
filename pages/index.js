@@ -365,12 +365,18 @@ export default function Home() {
                 Welcome to Oakline Bank - Your trusted financial partner since 1995 • Explore all 23 account types with detailed benefits • Join over 500,000+ satisfied customers • Award-winning mobile app • FDIC Insured up to $250,000 • Rated #1 Customer Service
               </div>
             </div>
-            {/* Admin Button */}
+            {/* Admin Buttons */}
             {user && (
-              <Link href="/admin/approve-applications" style={styles.stickyAdminButton}>
-                <span style={styles.buttonIcon}>🛡️</span>
-                Admin Approve Applications
-              </Link>
+              <div style={styles.stickyAdminButtonsContainer}>
+                <Link href="/admin/approve-applications" style={styles.stickyAdminButton}>
+                  <span style={styles.buttonIcon}>🛡️</span>
+                  Approve Applications
+                </Link>
+                <Link href="/admin/manual-transactions" style={{...styles.stickyAdminButton, background: 'linear-gradient(135deg, #059669 0%, #047857 100%)'}}>
+                  <span style={styles.buttonIcon}>💰</span>
+                  Manual Transactions
+                </Link>
+              </div>
             )}
           </div>
 
@@ -5177,6 +5183,15 @@ const styles = {
   },
 
   // Admin Button Styles
+  stickyAdminButtonsContainer: {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    zIndex: 1001
+  },
   stickyAdminButton: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -5190,10 +5205,6 @@ const styles = {
     fontWeight: '700',
     transition: 'all 0.3s ease',
     boxShadow: '0 6px 20px rgba(30, 64, 175, 0.4)',
-    position: 'fixed',
-    bottom: '20px',
-    right: '20px',
-    zIndex: 1001,
     animation: 'pulse 2s infinite ease-in-out'
   }
 };
