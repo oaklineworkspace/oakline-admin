@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function AdminCardsDashboard() {
   const [cards, setCards] = useState([]);
@@ -19,7 +19,7 @@ export default function AdminCardsDashboard() {
   const fetchCardsData = async () => {
     try {
       // Fetch all cards
-      const { data: cardsData, error: cardsError } = await supabase
+      const { data: cardsData, error: cardsError } = await supabaseAdmin
         .from('cards')
         .select(`
           *,
@@ -40,7 +40,7 @@ export default function AdminCardsDashboard() {
       }
 
       // Fetch all card applications
-      const { data: appsData, error: appsError } = await supabase
+      const { data: appsData, error: appsError } = await supabaseAdmin
         .from('card_applications')
         .select(`
           *,
@@ -89,7 +89,7 @@ export default function AdminCardsDashboard() {
           return;
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('cards')
         .update(updateData)
         .eq('id', cardId);
@@ -126,7 +126,7 @@ export default function AdminCardsDashboard() {
           setError(data.error || 'Failed to approve application');
         }
       } else if (action === 'reject') {
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('card_applications')
           .update({ 
             status: 'rejected',

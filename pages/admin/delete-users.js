@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function DeleteUsers() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function DeleteUsers() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('id, first_name, last_name, email')
         .order('created_at', { ascending: false });

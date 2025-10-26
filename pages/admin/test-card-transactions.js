@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function TestCardTransactions() {
@@ -22,7 +22,7 @@ export default function TestCardTransactions() {
 
   const fetchCards = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('cards')
         .select(`
           *,

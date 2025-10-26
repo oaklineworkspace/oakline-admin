@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function BulkTransactions() {
   const [accounts, setAccounts] = useState([]);
@@ -20,7 +20,7 @@ export default function BulkTransactions() {
 
   const fetchAccounts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('accounts')
         .select(`
           id,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function ApproveAccounts() {
@@ -22,9 +22,9 @@ export default function ApproveAccounts() {
   const fetchPendingAccounts = async () => {
     setLoading(true);
     setError('');
-    try {
+    try:
       // Fetch pending accounts with application data using proper join
-      const { data: accounts, error: accountsError } = await supabase
+      const { data: accounts, error: accountsError } = await supabaseAdmin
         .from('accounts')
         .select(`
           *,
@@ -104,7 +104,7 @@ export default function ApproveAccounts() {
     await updateAccountStatus(accountId, accountNumber, 'active', 'approved');
     // After approval, show the success modal
     // Fetch the account details again to populate the modal
-    const { data: approvedAcc, error: fetchError } = await supabase
+    const { data: approvedAcc, error: fetchError } = await supabaseAdmin
       .from('accounts')
       .select(`
         *,

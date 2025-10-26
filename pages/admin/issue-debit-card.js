@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function IssueDebitCard() {
@@ -25,7 +25,7 @@ export default function IssueDebitCard() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('id, first_name, last_name, email')
         .order('first_name');
@@ -40,7 +40,7 @@ export default function IssueDebitCard() {
 
   const fetchUserAccounts = async (userId) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('accounts')
         .select('id, account_number, account_type, balance, status')
         .eq('user_id', userId)
@@ -82,7 +82,7 @@ export default function IssueDebitCard() {
 
     try {
       // Call the PostgreSQL function to issue the card
-      const { data, error } = await supabase.rpc('issue_debit_card', {
+      const { data, error } = await supabaseAdmin.rpc('issue_debit_card', {
         p_user_id: selectedUser,
         p_account_id: selectedAccount,
         p_cardholder_name: cardholderName,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminBalance() {
@@ -24,7 +24,7 @@ export default function AdminBalance() {
     setError('');
     try {
       // Fetch applications with user data
-      const { data: applicationsData, error: appError } = await supabase
+      const { data: applicationsData, error: appError } = await supabaseAdmin
         .from('applications')
         .select('*')
         .order('submitted_at', { ascending: false });
@@ -37,7 +37,7 @@ export default function AdminBalance() {
       setUsers(applicationsData || []);
 
       // Fetch all accounts with application data
-      const { data: accountsData, error: accountsError } = await supabase
+      const { data: accountsData, error: accountsError } = await supabaseAdmin
         .from('accounts')
         .select(`
           *,
@@ -93,7 +93,7 @@ export default function AdminBalance() {
 
     try {
       // Get current account with user info
-      const { data: currentAccount, error: fetchError } = await supabase
+      const { data: currentAccount, error: fetchError } = await supabaseAdmin
         .from('accounts')
         .select('balance, account_number, account_type, application_id')
         .eq('id', selectedAccount)
@@ -120,7 +120,7 @@ export default function AdminBalance() {
       }
 
       // Update balance in accounts table
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseAdmin
         .from('accounts')
         .update({ 
           balance: newBalance.toFixed(2),
@@ -132,7 +132,7 @@ export default function AdminBalance() {
 
       // Create transaction record
       const transactionAmount = operation === 'set' ? newBalance : Math.abs(amount);
-      const { error: transactionError } = await supabase
+      const { error: transactionError } = await supabaseAdmin
         .from('transactions')
         .insert({
           account_id: selectedAccount,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function AdminUsers() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,7 +26,7 @@ export default function AdminUsers() {
       setLoading(true);
       setError('');
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('profiles')
         .select(`
           id,
@@ -53,7 +53,7 @@ export default function AdminUsers() {
       // Also fetch accounts for each user
       if (usersData.length > 0) {
         const userIds = usersData.map(user => user.id);
-        const { data: accountsData } = await supabase
+        const { data: accountsData } = await supabaseAdmin
           .from('accounts')
           .select('user_id, account_number, account_type, balance, status')
           .in('user_id', userIds);
@@ -80,7 +80,7 @@ export default function AdminUsers() {
       return;
     }
     try {
-      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      const { error } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
       if (error) throw error;
       setUsers(users.filter(user => user.id !== userId));
       setFilteredUsers(filteredUsers.filter(user => user.id !== userId));
@@ -93,7 +93,7 @@ export default function AdminUsers() {
 
   const handleStatusChange = async (userId, newStatus) => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('profiles')
         .update({ status: newStatus })
         .eq('id', userId);

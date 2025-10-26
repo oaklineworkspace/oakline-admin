@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function ResendEnrollmentPage() {
   const [applications, setApplications] = useState([]);
@@ -21,7 +21,7 @@ export default function ResendEnrollmentPage() {
       console.log('Fetching applications...');
       
       // Fetch applications directly from Supabase with better error handling
-      const { data: appsData, error: appsError } = await supabase
+      const { data: appsData, error: appsError } = await supabaseAdmin
         .from('applications')
         .select('*')
         .order('submitted_at', { ascending: false });
@@ -44,7 +44,7 @@ export default function ResendEnrollmentPage() {
       }
 
       // Fetch enrollments with error handling
-      const { data: enrollmentsData, error: enrollError } = await supabase
+      const { data: enrollmentsData, error: enrollError } = await supabaseAdmin
         .from('enrollments')
         .select('*');
 
@@ -54,7 +54,7 @@ export default function ResendEnrollmentPage() {
       }
 
       // Fetch profiles to check enrollment status with error handling
-      const { data: profilesData, error: profileError } = await supabase
+      const { data: profilesData, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('id, email, enrollment_completed');
 
