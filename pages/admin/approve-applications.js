@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminButton from '../../components/AdminButton';
 

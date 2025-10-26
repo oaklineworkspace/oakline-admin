@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
@@ -360,7 +359,7 @@ export default function ManageCards() {
                 >
                   ✏️ Edit
                 </button>
-                
+
                 {card.status === 'active' && (
                   <>
                     <button
@@ -920,11 +919,15 @@ const styles = {
     fontSize: '1rem'
   },
   select: {
+    width: '100%',
     padding: '0.75rem',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
     fontSize: '1rem',
-    backgroundColor: 'white'
+    backgroundColor: 'white',
+    maxHeight: '200px',
+    overflowY: 'auto',
+    cursor: 'pointer'
   },
   modalActions: {
     display: 'flex',
