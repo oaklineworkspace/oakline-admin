@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function ApproveAccounts() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [pendingAccounts, setPendingAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,43 +15,9 @@ export default function ApproveAccounts() {
   const [user, setUser] = useState(null); // To store logged-in admin user info
   const router = useRouter();
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    const adminUserData = localStorage.getItem('adminUser');
-    if (adminAuth === 'true' && adminUserData) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(adminUserData));
-      fetchPendingAccounts();
-    }
+    fetchPendingAccounts();
   }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      // In a real app, you'd fetch user data here after authentication
-      // For now, simulating admin user data
-      const adminUser = { id: 'admin_user_123', email: 'admin@example.com', full_name: 'Admin User' };
-      localStorage.setItem('adminAuthenticated', 'true');
-      localStorage.setItem('adminUser', JSON.stringify(adminUser));
-      setUser(adminUser);
-      setError('');
-      fetchPendingAccounts();
-    } else {
-      setError('Invalid password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    localStorage.removeItem('adminUser');
-    setUser(null);
-    setPassword('');
-    setPendingAccounts([]);
-  };
 
   const fetchPendingAccounts = async () => {
     setLoading(true);
@@ -176,34 +141,10 @@ export default function ApproveAccounts() {
     await updateAccountStatus(accountId, accountNumber, 'rejected', 'rejected');
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.title}>🏦 Account Approval</h1>
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-            {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔐 Access Account Approval
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
+    <AdminAuth>
     <div style={styles.container}>
       <div style={styles.header}>
         <div style={styles.headerTop}>
@@ -399,6 +340,8 @@ export default function ApproveAccounts() {
         </div>
       )}
     </div>
+  
+    </AdminAuth>
   );
 }
 

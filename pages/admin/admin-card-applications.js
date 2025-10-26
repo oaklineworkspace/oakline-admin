@@ -1,38 +1,18 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminCardApplications() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(null);
   const router = useRouter();
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-      fetchApplications();
-    }
+    fetchApplications();
   }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-      fetchApplications();
-    } else {
-      setError('Invalid password');
-    }
-  };
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -85,138 +65,97 @@ export default function AdminCardApplications() {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.title}>🏦 Card Applications Admin</h1>
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-            {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔐 Access Admin Panel
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>💳 Debit Card Applications</h1>
-        <div style={styles.headerActions}>
-          <button onClick={fetchApplications} style={styles.refreshButton}>
-            🔄 Refresh
-          </button>
-          <Link href="/admin/admin-dashboard" style={styles.backButton}>
-            ← Back to Dashboard
-          </Link>
+    <AdminAuth>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>💳 Debit Card Applications</h1>
+          <div style={styles.headerActions}>
+            <button onClick={fetchApplications} style={styles.refreshButton}>
+              🔄 Refresh
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              ← Back to Dashboard
+            </Link>
+          </div>
+        </div>
+
+        {loading && <div style={styles.loading}>Loading applications...</div>}
+        {error && <div style={styles.error}>{error}</div>}
+
+        <div style={styles.applicationsGrid}>
+          {applications.length === 0 && !loading ? (
+            <div style={styles.noApplications}>
+              <h3>No card applications found</h3>
+              <p>Applications will appear here when users apply for debit cards.</p>
+            </div>
+          ) : (
+            applications.map((app) => (
+              <div key={app.id} style={styles.applicationCard}>
+                <div style={styles.cardHeader}>
+                  <h3 style={styles.applicationTitle}>
+                    {app.card_type || 'Debit Card'} Application
+                  </h3>
+                  <span style={{
+                    ...styles.statusBadge,
+                    backgroundColor: app.status === 'pending' ? '#fbbf24' : 
+                                   app.status === 'approved' ? '#10b981' : '#ef4444'
+                  }}>
+                    {app.status}
+                  </span>
+                </div>
+
+                <div style={styles.applicationDetails}>
+                  <div style={styles.detailRow}>
+                    <span style={styles.label}>Applicant:</span>
+                    <span>{app.users?.name || 'Unknown'}</span>
+                  </div>
+                  <div style={styles.detailRow}>
+                    <span style={styles.label}>Email:</span>
+                    <span>{app.users?.email || 'N/A'}</span>
+                  </div>
+                  <div style={styles.detailRow}>
+                    <span style={styles.label}>Account:</span>
+                    <span>{app.accounts?.account_type} - ****{app.accounts?.account_number?.slice(-4)}</span>
+                  </div>
+                  <div style={styles.detailRow}>
+                    <span style={styles.label}>Balance:</span>
+                    <span>${parseFloat(app.accounts?.balance || 0).toFixed(2)}</span>
+                  </div>
+                  <div style={styles.detailRow}>
+                    <span style={styles.label}>Applied:</span>
+                    <span>{new Date(app.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                {app.status === 'pending' && (
+                  <div style={styles.actionButtons}>
+                    <button
+                      style={styles.approveButton}
+                      onClick={() => handleApplication(app.id, 'approve')}
+                      disabled={processing === app.id}
+                    >
+                      {processing === app.id ? '⏳ Processing...' : '✅ Approve'}
+                    </button>
+                    <button
+                      style={styles.rejectButton}
+                      onClick={() => handleApplication(app.id, 'reject')}
+                      disabled={processing === app.id}
+                    >
+                      {processing === app.id ? '⏳ Processing...' : '❌ Reject'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
-
-      {loading && <div style={styles.loading}>Loading applications...</div>}
-      {error && <div style={styles.error}>{error}</div>}
-
-      <div style={styles.applicationsGrid}>
-        {applications.length === 0 && !loading ? (
-          <div style={styles.noApplications}>
-            <h3>No card applications found</h3>
-            <p>Applications will appear here when users apply for debit cards.</p>
-          </div>
-        ) : (
-          applications.map((app) => (
-            <div key={app.id} style={styles.applicationCard}>
-              <div style={styles.cardHeader}>
-                <h3 style={styles.applicationTitle}>
-                  {app.card_type || 'Debit Card'} Application
-                </h3>
-                <span style={{
-                  ...styles.statusBadge,
-                  backgroundColor: app.status === 'pending' ? '#fbbf24' : 
-                                 app.status === 'approved' ? '#10b981' : '#ef4444'
-                }}>
-                  {app.status}
-                </span>
-              </div>
-
-              <div style={styles.applicationDetails}>
-                <div style={styles.detailRow}>
-                  <span style={styles.label}>Applicant:</span>
-                  <span>{app.users?.name || 'Unknown'}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.label}>Email:</span>
-                  <span>{app.users?.email || 'N/A'}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.label}>Account:</span>
-                  <span>{app.accounts?.account_type} - ****{app.accounts?.account_number?.slice(-4)}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.label}>Balance:</span>
-                  <span>${parseFloat(app.accounts?.balance || 0).toFixed(2)}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.label}>Applied:</span>
-                  <span>{new Date(app.created_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {app.status === 'pending' && (
-                <div style={styles.actionButtons}>
-                  <button
-                    style={styles.approveButton}
-                    onClick={() => handleApplication(app.id, 'approve')}
-                    disabled={processing === app.id}
-                  >
-                    {processing === app.id ? '⏳ Processing...' : '✅ Approve'}
-                  </button>
-                  <button
-                    style={styles.rejectButton}
-                    onClick={() => handleApplication(app.id, 'reject')}
-                    disabled={processing === app.id}
-                  >
-                    {processing === app.id ? '⏳ Processing...' : '❌ Reject'}
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    </AdminAuth>
   );
 }
 
 const styles = {
-  loginContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
-    padding: '20px'
-  },
-  loginCard: {
-    background: 'white',
-    padding: '40px',
-    borderRadius: '16px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-    width: '100%',
-    maxWidth: '400px'
-  },
   container: {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -348,31 +287,5 @@ const styles = {
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: '500'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px'
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-  input: {
-    padding: '12px',
-    border: '2px solid #e0e0e0',
-    borderRadius: '8px',
-    fontSize: '16px'
-  },
-  loginButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    padding: '12px 24px',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '500',
-    cursor: 'pointer'
   }
 };

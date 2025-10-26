@@ -1,10 +1,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function ManageUserEnrollmentPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,33 +12,9 @@ export default function ManageUserEnrollmentPage() {
   const [newPassword, setNewPassword] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-      fetchUsers();
-    }
+    fetchUsers();
   }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-      fetchUsers();
-    } else {
-      setError('Invalid password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    setPassword('');
-  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -168,35 +143,10 @@ export default function ManageUserEnrollmentPage() {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.title}>🔐 Admin Access Required</h1>
-          <p style={styles.subtitle}>Manage User Enrollment & Passwords</p>
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-            {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔓 Access Admin Panel
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
+    <AdminAuth>
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
@@ -320,6 +270,8 @@ export default function ManageUserEnrollmentPage() {
         </div>
       )}
     </div>
+  
+    </AdminAuth>
   );
 }
 

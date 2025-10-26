@@ -2,10 +2,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function TestCardTransactions() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
   const [cards, setCards] = useState([]);
   const [selectedCard, setSelectedCard] = useState('');
   const [amount, setAmount] = useState('');
@@ -17,27 +16,9 @@ export default function TestCardTransactions() {
   const [error, setError] = useState('');
   const [transactionResult, setTransactionResult] = useState(null);
 
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
   useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-      fetchCards();
-    }
+    fetchCards();
   }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-      fetchCards();
-    } else {
-      setError('Invalid password');
-    }
-  };
 
   const fetchCards = async () => {
     try {
@@ -118,34 +99,10 @@ export default function TestCardTransactions() {
     return `${maskedNumber} - ${ownerName} - ${accountInfo}`;
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.title}>🏦 Admin Transaction Testing</h1>
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-            {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔐 Access Admin Panel
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
+    <AdminAuth>
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>💳 Test Card Transactions</h1>
@@ -304,6 +261,8 @@ export default function TestCardTransactions() {
         </div>
       </div>
     </div>
+  
+    </AdminAuth>
   );
 }
 

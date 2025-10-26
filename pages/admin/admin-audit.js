@@ -1,74 +1,16 @@
 import { useState, useEffect } from 'react';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminAudit() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const ADMIN_PASSWORD = 'Chrismorgan23$';
-
-  useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      setError('');
-    } else {
-      setError('Invalid password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    setPassword('');
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.loginContainer}>
-        <div style={styles.loginCard}>
-          <h1 style={styles.title}>🔐 Admin Access Required</h1>
-          <p style={styles.subtitle}>Admin Audit</p>
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Admin Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-            {error && <div style={styles.error}>{error}</div>}
-            <button type="submit" style={styles.loginButton}>
-              🔓 Access Admin Panel
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1>Admin Audit</h1>
-        <button onClick={handleLogout} style={styles.logoutButton}>
-          🚪 Logout
-        </button>
+    <AdminAuth>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1>Admin Audit</h1>
+        </div>
+        <div>Placeholder for Admin Audit Page</div>
       </div>
-      <div>Placeholder for Admin Audit Page</div>
-    </div>
+    </AdminAuth>
   );
 }
 
