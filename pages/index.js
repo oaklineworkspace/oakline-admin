@@ -13,6 +13,7 @@ import TestimonialsSection from '../components/TestimonialsSection';
 import LoanApprovalSection from '../components/LoanApprovalSection';
 import CTA from '../components/CTA';
 import AdminNavDropdown from '../components/AdminNavDropdown';
+import AdminFooter from '../components/AdminFooter';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -366,7 +367,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-          
+
           {/* Comprehensive Admin Dropdown Button - Mobile Friendly Row */}
           {user && (
             <div style={styles.adminDropdownRow}>
@@ -1486,7 +1487,11 @@ export default function Home() {
       <LiveChat />
 
       <Footer />
-    </div>
+
+        {/* Admin Footer - Sticky Bottom Navigation */}
+        {user && <AdminFooter />}
+      </div>
+    </>
   );
 }
 
