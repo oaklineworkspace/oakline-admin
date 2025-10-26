@@ -29,16 +29,35 @@ export default async function handler(req, res) {
       account_types,
       application_id,
       country,
-      site_url
+      site_url,
+      bank_details
     } = req.body;
 
     if (!email || !first_name || !last_name || !temp_password) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Fetch bank details if not provided
+    let bankInfo = bank_details;
+    if (!bankInfo) {
+      const { data, error } = await supabaseAdmin
+        .from('bank_details')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Failed to fetch bank details:', error);
+        return res.status(500).json({ error: 'Failed to fetch bank details' });
+      }
+      bankInfo = data;
+    }
+
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const detectedSiteUrl = site_url || process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+    
+    console.log('Using site URL for login:', detectedSiteUrl);
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -50,29 +69,34 @@ export default async function handler(req, res) {
       },
     });
 
-    await transporter.verify();
+    // Test SMTP connection
+    console.log('Testing SMTP connection...');
+    try {
+      await transporter.verify();
+      console.log('SMTP connection verified successfully');
+    } catch (smtpError) {
+      console.error('SMTP connection failed:', smtpError.message);
+      return res.status(500).json({ 
+        error: 'Email service connection failed',
+        message: smtpError.message
+      });
+    }
 
-    const fullName = `${first_name} ${middle_name ? middle_name + ' ' : ''}${last_name}`;
+    const fullName = middle_name 
+      ? `${first_name} ${middle_name} ${last_name}`
+      : `${first_name} ${last_name}`;
+
     const loginUrl = `${detectedSiteUrl}/login`;
 
-    const populatedAccountNumbers = account_numbers ? account_numbers.filter(num => num && num.trim() !== '') : [];
-    const populatedAccountTypes = account_types ? account_types.filter(type => type && type.trim() !== '') : [];
-
-    let accountDetailsHtml = populatedAccountNumbers.length > 0 ? `
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
-        <h3 style="margin-top: 0; color: #1e40af; font-size: 18px;">📊 Your Account Numbers:</h3>
-        ${populatedAccountNumbers.map((num, index) => `
-          <p style="font-family: 'Courier New', monospace; font-size: 15px; margin: 8px 0; padding: 8px; background: white; border-radius: 4px;">
-            <strong style="color: #2d3748;">${populatedAccountTypes[index] ? populatedAccountTypes[index].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Account'}:</strong> 
-            <span style="color: #1e40af; font-weight: bold;">${num}</span>
-          </p>
-        `).join('')}
-        <p style="font-family: 'Courier New', monospace; font-size: 15px; margin: 8px 0; padding: 8px; background: white; border-radius: 4px;">
-          <strong style="color: #2d3748;">Routing Number:</strong> 
-          <span style="color: #1e40af; font-weight: bold;">075915826</span>
-        </p>
-      </div>
-    ` : '';
+    // Format account info
+    const accountInfo = account_numbers && account_numbers.length > 0
+      ? account_numbers.map((num, idx) => {
+          const type = account_types && account_types[idx] 
+            ? account_types[idx].replace('_', ' ').toUpperCase() 
+            : 'ACCOUNT';
+          return `<li><strong>${type}:</strong> ****${num.slice(-4)}</li>`;
+        }).join('')
+      : '<li>Your account has been created</li>';
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -80,84 +104,86 @@ export default async function handler(req, res) {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to Oakline Bank - Your Account is Ready!</title>
+        <style>
+          body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+          .header { background: linear-gradient(135deg, #0056b3 0%, #003d82 100%); padding: 32px 24px; text-align: center; }
+          .header h1 { color: #ffffff; font-size: 28px; font-weight: 700; margin: 0; }
+          .header p { color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0; }
+          .content { padding: 40px 32px; }
+          .content h2 { color: #0056b3; font-size: 24px; font-weight: 700; margin: 0 0 16px 0; }
+          .content p { color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0; }
+          .credentials-box { background-color: #f0f9ff; border-left: 4px solid #0056b3; padding: 20px; margin: 24px 0; }
+          .credentials-box h3 { color: #0056b3; margin-top: 0; }
+          .credentials-box p { margin: 8px 0; }
+          .credentials-box code { background-color: #e0f2fe; padding: 5px 10px; border-radius: 4px; font-family: monospace; }
+          .button { display: inline-block; background-color: #0056b3; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 20px 0; }
+          .warning-box { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; }
+          .warning-box p { margin: 0; color: #92400e; font-size: 14px; }
+          .footer { background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; }
+          .footer p { color: #718096; font-size: 12px; margin: 4px 0; }
+          .footer a { color: #0056b3; text-decoration: none; }
+          ul { padding-left: 20px; }
+          li { margin-bottom: 8px; color: #4a5568; }
+        </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f7fa;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-          <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 40px 30px; text-align: center;">
-            <h1 style="margin: 0; font-size: 28px;">🏦 Welcome to Oakline Bank!</h1>
-            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your account is now active</p>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🏦 ${bankInfo.name}</h1>
+            <p>Welcome to Your Financial Future</p>
           </div>
           
-          <div style="padding: 40px 30px;">
-            <h2 style="color: #1e40af; font-size: 22px; margin-top: 0;">Hello ${fullName},</h2>
+          <div class="content">
+            <h2>Welcome, ${fullName}!</h2>
             
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Congratulations! Your Oakline Bank application has been <strong style="color: #10b981;">approved</strong> and your accounts are now ready to use.
-            </p>
-
-            ${accountDetailsHtml}
-
-            <div style="background: #fff7ed; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px;">
-              <h3 style="margin-top: 0; color: #92400e; font-size: 18px;">🔐 Your Login Credentials</h3>
-              <p style="margin: 10px 0; font-size: 15px; color: #78350f;">
-                <strong>Email:</strong> <span style="font-family: 'Courier New', monospace;">${email}</span>
-              </p>
-              <p style="margin: 10px 0; font-size: 15px; color: #78350f;">
-                <strong>Temporary Password:</strong> 
-                <code style="background: #fef3c7; padding: 8px 12px; border-radius: 4px; font-size: 16px; color: #92400e; font-weight: bold; display: inline-block; margin-top: 5px;">${temp_password}</code>
-              </p>
-              <p style="margin: 15px 0 0 0; font-size: 14px; color: #92400e;">
-                ⚠️ <strong>Important:</strong> Please change this password immediately after your first login for security.
-              </p>
+            <p>Your application has been approved! Your ${bankInfo.name} account is now active and ready to use.</p>
+            
+            <div class="credentials-box">
+              <h3>Your Login Credentials</h3>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Temporary Password:</strong> <code>${temp_password}</code></p>
             </div>
 
-            <div style="text-align: center; margin: 35px 0;">
-              <a href="${loginUrl}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                Login to Your Account →
-              </a>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${loginUrl}" class="button">Sign In Now</a>
             </div>
 
-            <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0; border-radius: 4px;">
-              <h3 style="margin-top: 0; color: #065f46; font-size: 16px;">✅ What's Next?</h3>
-              <ul style="margin: 10px 0; padding-left: 20px; color: #047857;">
-                <li style="margin: 8px 0;">Log in using your email and temporary password</li>
-                <li style="margin: 8px 0;">Change your password to something secure and memorable</li>
-                <li style="margin: 8px 0;">Explore your dashboard and account features</li>
-                <li style="margin: 8px 0;">Set up additional security options (2FA recommended)</li>
-                <li style="margin: 8px 0;">Start managing your finances!</li>
-              </ul>
+            <h3>Your Account Information:</h3>
+            <ul>
+              ${accountInfo}
+            </ul>
+
+            <div class="warning-box">
+              <p><strong>⚠️ Important:</strong> Please change your password immediately after your first login for security purposes. You can do this in your account settings.</p>
             </div>
 
-            <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 25px 0;">
-              <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">💡 Need Help?</h3>
-              <p style="margin: 5px 0; color: #1e3a8a;">
-                Our customer support team is here to assist you 24/7. Contact us at:
-              </p>
-              <p style="margin: 10px 0; color: #1e3a8a;">
-                📧 Email: <a href="mailto:support@oaklinebank.com" style="color: #2563eb;">support@oaklinebank.com</a><br>
-                📞 Phone: 1-800-OAKLINE
-              </p>
-            </div>
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+              <li>Sign in using the credentials above</li>
+              <li>Change your temporary password</li>
+              <li>Set up security questions</li>
+              <li>Explore your dashboard and account features</li>
+            </ul>
 
-            <p style="font-size: 16px; line-height: 1.6; color: #333; margin-top: 30px;">
-              Thank you for choosing Oakline Bank. We're committed to providing you with exceptional banking services.
-            </p>
-
-            <p style="font-size: 16px; color: #1e40af; font-weight: bold; margin-top: 20px;">
-              Welcome aboard! 🎉<br>
-              The Oakline Bank Team
-            </p>
+            <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
+            
+            <p>Thank you for choosing ${bankInfo.name}!</p>
+            <p><strong>The ${bankInfo.name} Team</strong></p>
           </div>
           
-          <div style="background-color: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #718096; font-size: 12px; margin: 0;">
-              © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br>
-              Member FDIC | Equal Housing Lender
+          <div class="footer">
+            <p><strong>${bankInfo.name}</strong></p>
+            <p>${bankInfo.branch_name}</p>
+            <p>${bankInfo.address}</p>
+            <p>Phone: <a href="tel:${bankInfo.phone}">${bankInfo.phone}</a></p>
+            <p>Email: <a href="mailto:${bankInfo.email_info}">${bankInfo.email_info}</a></p>
+            <p style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+              Routing Number: ${bankInfo.routing_number} | SWIFT: ${bankInfo.swift_code}
             </p>
-            <p style="color: #a0aec0; font-size: 11px; margin: 10px 0 0 0;">
-              This email was sent to ${email}
-            </p>
+            <p>NMLS ID: ${bankInfo.nmls_id}</p>
+            <p style="margin-top: 16px;">© ${new Date().getFullYear()} ${bankInfo.name}. All rights reserved.</p>
+            <p>Member FDIC | Equal Housing Lender</p>
           </div>
         </div>
       </body>
@@ -165,25 +191,26 @@ export default async function handler(req, res) {
     `;
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: `"${bankInfo.name}" <${bankInfo.email_welcome || bankInfo.email_notify}>`,
       to: email,
-      subject: "Welcome to Oakline Bank - Your Login Credentials",
-      html: emailHtml,
+      subject: `Welcome to ${bankInfo.name} - Your Account is Active!`,
+      html: emailHtml
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`Welcome email with credentials sent to ${email}: ${info.response}`);
+    console.log('Welcome email sent successfully:', info.messageId);
 
-    res.status(200).json({
-      message: 'Welcome email with credentials sent successfully',
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Welcome email sent successfully',
       messageId: info.messageId
     });
 
   } catch (error) {
-    console.error('Error sending welcome email with credentials:', error);
-    res.status(500).json({ 
+    console.error('Error sending welcome email:', error);
+    return res.status(500).json({ 
       error: 'Failed to send welcome email',
-      message: error.message 
+      details: error.message 
     });
   }
 }

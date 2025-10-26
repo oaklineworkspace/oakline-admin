@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 // Generate password without special characters like !
@@ -21,6 +22,28 @@ function generateSecurePassword() {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
+// Generate random card number
+function generateCardNumber() {
+  const prefix = '4'; // Visa starts with 4, you can adjust for Mastercard (5) or Amex (34/37)
+  let cardNumber = prefix;
+  for (let i = 1; i < 16; i++) {
+    cardNumber += Math.floor(Math.random() * 10);
+  }
+  return cardNumber;
+}
+
+// Generate CVC
+function generateCVC() {
+  return Math.floor(100 + Math.random() * 900).toString();
+}
+
+// Generate expiry date (3 years from now)
+function generateExpiryDate() {
+  const today = new Date();
+  today.setFullYear(today.getFullYear() + 3);
+  return today.toISOString().split('T')[0];
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -37,7 +60,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch the application
+    // 1. Fetch the application
     const { data: application, error: appError } = await supabaseAdmin
       .from('applications')
       .select('*')
@@ -57,9 +80,22 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Application missing required fields' });
     }
 
-    // Create or get Supabase Auth user
+    // 2. Fetch bank details for email template
+    const { data: bankDetails, error: bankError } = await supabaseAdmin
+      .from('bank_details')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (bankError) {
+      console.error('Failed to fetch bank details:', bankError);
+      return res.status(500).json({ error: 'Failed to fetch bank details' });
+    }
+
+    // 3. Create or get Supabase Auth user
     let userId = application.user_id;
     let tempPassword = null;
+    let isNewUser = false;
 
     if (!userId) {
       // Generate temporary password
@@ -95,6 +131,7 @@ export default async function handler(req, res) {
         }
 
         userId = authUser.user.id;
+        isNewUser = true;
         console.log('Created new auth user:', userId);
       }
 
@@ -111,97 +148,171 @@ export default async function handler(req, res) {
 
     console.log(`Approving application ${applicationId} for user ${userId}`);
 
-    // Prepare update data
-    const updateData = {
+    // 4. Create or update profile
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    const profileData = {
+      id: userId,
+      email: application.email.toLowerCase(),
+      first_name: application.first_name,
+      middle_name: application.middle_name || null,
+      last_name: application.last_name,
+      phone: application.phone || null,
+      date_of_birth: application.date_of_birth || null,
+      country: application.country || 'US',
+      city: application.city || null,
+      state: application.state || null,
+      zip_code: application.zip_code || null,
+      address: application.address || null,
+      ssn: application.ssn || null,
+      id_number: application.id_number || null,
+      employment_status: application.employment_status || null,
+      annual_income: application.annual_income || null,
+      mothers_maiden_name: application.mothers_maiden_name || null,
+      account_types: application.account_types || [],
+      enrollment_completed: true,
+      password_set: true,
       application_status: 'approved',
-      processed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      enrollment_completed_at: new Date().toISOString()
     };
 
-    // Add manual account number if provided (only for first account)
-    if (accountNumberMode === 'manual' && manualAccountNumbers) {
-      const firstAccountType = (application.account_types && application.account_types[0]) || 'checking_account';
-      if (manualAccountNumbers[firstAccountType]) {
-        updateData.manual_account_number = manualAccountNumbers[firstAccountType];
+    if (existingProfile) {
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from('profiles')
+        .update(profileData)
+        .eq('id', userId);
+
+      if (profileUpdateError) {
+        console.error('Profile update error:', profileUpdateError);
+      }
+    } else {
+      profileData.created_at = new Date().toISOString();
+      const { error: profileInsertError } = await supabaseAdmin
+        .from('profiles')
+        .insert([profileData]);
+
+      if (profileInsertError) {
+        console.error('Profile insert error:', profileInsertError);
       }
     }
 
-    // Update application status to 'approved' - this triggers the Supabase function
-    const { data: updatedApp, error: updateError } = await supabaseAdmin
+    // 5. Create accounts based on chosen_account_type or account_types
+    const accountTypesToCreate = application.chosen_account_type 
+      ? [application.chosen_account_type] 
+      : (application.account_types || ['checking']);
+
+    const createdAccounts = [];
+
+    for (let i = 0; i < accountTypesToCreate.length; i++) {
+      const accountType = accountTypesToCreate[i];
+      
+      // Generate or use manual account number
+      let accountNumber;
+      if (accountNumberMode === 'manual' && i === 0 && manualAccountNumbers[accountType]) {
+        accountNumber = manualAccountNumbers[accountType];
+      } else if (application.manual_account_number && i === 0) {
+        accountNumber = application.manual_account_number;
+      } else {
+        accountNumber = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).join('');
+      }
+
+      const accountData = {
+        user_id: userId,
+        application_id: applicationId,
+        account_number: accountNumber,
+        routing_number: bankDetails.routing_number || '075915826',
+        account_type: accountType,
+        balance: 0,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: newAccount, error: accountError } = await supabaseAdmin
+        .from('accounts')
+        .insert([accountData])
+        .select()
+        .single();
+
+      if (accountError) {
+        console.error('Account creation error:', accountError);
+        throw new Error('Failed to create account: ' + accountError.message);
+      }
+
+      createdAccounts.push(newAccount);
+    }
+
+    // 6. Create cards for each account
+    const createdCards = [];
+
+    for (const account of createdAccounts) {
+      const cardBrand = application.chosen_card_brand || 'visa';
+      const cardCategory = application.chosen_card_category || 'debit';
+      
+      const cardData = {
+        user_id: userId,
+        account_id: account.id,
+        card_number: generateCardNumber(),
+        card_brand: cardBrand,
+        card_category: cardCategory,
+        card_type: cardBrand, // For backward compatibility
+        status: 'active',
+        expiry_date: generateExpiryDate(),
+        cvc: generateCVC(),
+        daily_limit: 5000,
+        monthly_limit: 20000,
+        daily_spent: 0,
+        monthly_spent: 0,
+        credit_limit: cardCategory === 'credit' ? 5000 : 0,
+        contactless: true,
+        requires_3d_secure: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        activated_at: new Date().toISOString()
+      };
+
+      const { data: newCard, error: cardError } = await supabaseAdmin
+        .from('cards')
+        .insert([cardData])
+        .select()
+        .single();
+
+      if (cardError) {
+        console.error('Card creation error:', cardError);
+        throw new Error('Failed to create card: ' + cardError.message);
+      }
+
+      createdCards.push(newCard);
+    }
+
+    // 7. Update application status to approved
+    const { error: updateError } = await supabaseAdmin
       .from('applications')
-      .update(updateData)
-      .eq('id', applicationId)
-      .select()
-      .single();
+      .update({
+        application_status: 'approved',
+        processed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', applicationId);
 
     if (updateError) {
       console.error('Application update error:', updateError);
-      return res.status(500).json({ 
-        error: 'Failed to approve application', 
-        details: updateError.message 
-      });
+      throw new Error('Failed to approve application: ' + updateError.message);
     }
 
-    console.log('Application status updated to approved - trigger will handle account/card creation');
-
-    // Wait a moment for trigger to complete
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Fetch created accounts and cards to return to admin
-    const { data: createdAccounts, error: accountsFetchError } = await supabaseAdmin
-      .from('accounts')
-      .select('*')
-      .eq('application_id', applicationId);
-
-    if (accountsFetchError) {
-      console.error('Error fetching created accounts:', accountsFetchError);
-    }
-
-    const accountIds = (createdAccounts || []).map(acc => acc.id);
-    let createdCards = [];
-
-    if (accountIds.length > 0) {
-      const { data: cardsData, error: cardsFetchError } = await supabaseAdmin
-        .from('cards')
-        .select('*')
-        .in('account_id', accountIds);
-
-      if (cardsFetchError) {
-        console.error('Error fetching created cards:', cardsFetchError);
-      } else {
-        createdCards = cardsData || [];
-      }
-
-      // Update accounts and cards with the user_id
-      const { error: accountsUpdateError } = await supabaseAdmin
-        .from('accounts')
-        .update({ user_id: userId })
-        .eq('application_id', applicationId);
-
-      if (accountsUpdateError) {
-        console.error('Error updating accounts with user_id:', accountsUpdateError);
-      }
-
-      if (createdCards.length > 0) {
-        const { error: cardsUpdateError } = await supabaseAdmin
-          .from('cards')
-          .update({ user_id: userId })
-          .in('account_id', accountIds);
-
-        if (cardsUpdateError) {
-          console.error('Error updating cards with user_id:', cardsUpdateError);
-        }
-      }
-    }
-
-    // Send welcome email with credentials
+    // 8. Send welcome email with credentials using dynamic bank details
     try {
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'theoaklinebank.com';
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
 
-      const accountNumbers = (createdAccounts || []).map(acc => acc.account_number);
-      const accountTypes = (createdAccounts || []).map(acc => acc.account_type);
+      const accountNumbers = createdAccounts.map(acc => acc.account_number);
+      const accountTypes = createdAccounts.map(acc => acc.account_type);
 
       const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
@@ -216,7 +327,8 @@ export default async function handler(req, res) {
           account_types: accountTypes,
           application_id: applicationId,
           country: application.country || 'US',
-          site_url: siteUrl
+          site_url: siteUrl,
+          bank_details: bankDetails
         })
       });
 
@@ -233,24 +345,24 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Application approved successfully. Enrollment email sent with login instructions.',
+      message: 'Application approved successfully. Welcome email sent with login credentials.',
       data: {
         userId: userId,
         email: application.email,
-        tempPassword: tempPassword,
-        accountsCreated: createdAccounts?.length || 0,
-        cardsCreated: createdCards?.length || 0,
-        accounts: (createdAccounts || []).map(acc => ({
+        tempPassword: isNewUser ? tempPassword : null,
+        accountsCreated: createdAccounts.length,
+        cardsCreated: createdCards.length,
+        accounts: createdAccounts.map(acc => ({
           id: acc.id,
           type: acc.account_type,
           number: acc.account_number,
           balance: acc.balance,
           status: acc.status
         })),
-        cards: (createdCards || []).map(card => ({
+        cards: createdCards.map(card => ({
           id: card.id,
-          type: card.card_category,
           brand: card.card_brand,
+          category: card.card_category,
           lastFour: card.card_number.slice(-4),
           expiryDate: card.expiry_date
         }))
