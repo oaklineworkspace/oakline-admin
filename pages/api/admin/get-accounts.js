@@ -6,7 +6,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: accounts, error } = await supabaseAdmin
+    const { status } = req.query;
+
+    let query = supabaseAdmin
       .from('accounts')
       .select(`
         *,
@@ -15,8 +17,13 @@ export default async function handler(req, res) {
           last_name,
           email
         )
-      `)
-      .order('created_at', { ascending: false });
+      `);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data: accounts, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching accounts:', error);

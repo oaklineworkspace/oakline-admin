@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     // 1. Fetch the pending account
     const { data: account, error: accountError } = await supabaseAdmin
       .from('accounts')
-      .select('*, profiles(*)')
+      .select('*')
       .eq('id', accountId)
       .single();
 
@@ -26,6 +26,36 @@ export default async function handler(req, res) {
 
     if (account.status !== 'pending') {
       return res.status(400).json({ error: 'Account is not in pending status' });
+    }
+
+    if (!account.application_id) {
+      console.error('Account missing application_id:', accountId);
+      return res.status(422).json({ 
+        error: 'Account is not linked to an application. Cannot send approval email.',
+        details: 'The account must have an application_id to retrieve applicant information.'
+      });
+    }
+
+    const { data: application, error: appError } = await supabaseAdmin
+      .from('applications')
+      .select('email, first_name, last_name')
+      .eq('id', account.application_id)
+      .single();
+
+    if (appError || !application) {
+      console.error('Application fetch error for account:', accountId, appError);
+      return res.status(422).json({ 
+        error: 'Unable to retrieve application details for this account.',
+        details: appError?.message || 'Application not found'
+      });
+    }
+
+    if (!application.email?.trim() || !application.first_name?.trim() || !application.last_name?.trim()) {
+      console.error('Application has incomplete data:', account.application_id);
+      return res.status(422).json({ 
+        error: 'Application is missing required contact information.',
+        details: 'Email, first name, and last name must all be provided.'
+      });
     }
 
     // 2. Update account status to active
@@ -65,9 +95,9 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: account.profiles.email,
-          first_name: account.profiles.first_name,
-          last_name: account.profiles.last_name,
+          email: application.email,
+          first_name: application.first_name,
+          last_name: application.last_name,
           account_type: account.account_type,
           account_number: account.account_number,
           routing_number: account.routing_number,
@@ -77,7 +107,7 @@ export default async function handler(req, res) {
       });
 
       if (emailResponse.ok) {
-        console.log('Account approval email sent successfully to:', account.profiles.email);
+        console.log('Account approval email sent successfully to:', application.email);
       } else {
         const errorData = await emailResponse.json();
         console.error('Failed to send account approval email:', errorData);
