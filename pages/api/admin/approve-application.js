@@ -215,30 +215,34 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Create accounts based on chosen_account_type or account_types
-    const accountTypesToCreate = application.chosen_account_type 
-      ? [application.chosen_account_type] 
-      : (application.account_types || ['checking']);
+    // 5. Create accounts based on account_types array
+    // Get all account types from the application (should be an array)
+    let accountTypesToCreate = application.account_types || [];
+    
+    // If account_types is empty or not an array, fall back to checking
+    if (!Array.isArray(accountTypesToCreate) || accountTypesToCreate.length === 0) {
+      accountTypesToCreate = ['checking_account'];
+    }
+
+    console.log('Creating accounts for types:', accountTypesToCreate);
 
     const createdAccounts = [];
     const activeAccounts = [];
     const pendingAccounts = [];
 
-    for (let i = 0; i < accountTypesToCreate.length; i++) {
-      const accountType = accountTypesToCreate[i];
-
+    // Create an account for EACH account type the user selected
+    for (const accountType of accountTypesToCreate) {
       // Determine account status based on type
-      // checking = active, savings/credit = pending
-      const accountStatus = accountType === 'checking' ? 'active' : 'pending';
+      // checking_account = active, all others = pending
+      const accountStatus = accountType === 'checking_account' ? 'active' : 'pending';
 
       // Generate or use manual account number
       let accountNumber;
-      if (accountNumberMode === 'manual' && i === 0 && manualAccountNumbers[accountType]) {
+      if (accountNumberMode === 'manual' && manualAccountNumbers[accountType]) {
         accountNumber = manualAccountNumbers[accountType];
-      } else if (application.manual_account_number && i === 0) {
-        accountNumber = application.manual_account_number;
       } else {
-        accountNumber = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).join('');
+        // Generate unique account number
+        accountNumber = Array.from({length: 12}, () => Math.floor(Math.random() * 10)).join('');
       }
 
       const accountData = {
@@ -260,10 +264,11 @@ export default async function handler(req, res) {
         .single();
 
       if (accountError) {
-        console.error('Account creation error:', accountError);
-        throw new Error('Failed to create account: ' + accountError.message);
+        console.error('Account creation error for type', accountType, ':', accountError);
+        throw new Error(`Failed to create ${accountType} account: ${accountError.message}`);
       }
 
+      console.log('Created account:', accountType, 'with number:', accountNumber, 'status:', accountStatus);
       createdAccounts.push(newAccount);
       
       // Categorize accounts by status

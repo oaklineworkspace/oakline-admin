@@ -44,10 +44,20 @@ export default function ApproveApplications() {
   };
 
   const openApprovalModal = (app) => {
-    const accountTypes = app.account_types || ['checking_account'];
-    if (!accountTypes.includes('checking_account')) {
-      accountTypes.unshift('checking_account');
+    // Get all account types from the application
+    let accountTypes = app.account_types || [];
+    
+    // Ensure it's an array
+    if (!Array.isArray(accountTypes)) {
+      accountTypes = ['checking_account'];
     }
+    
+    // If empty, default to checking
+    if (accountTypes.length === 0) {
+      accountTypes = ['checking_account'];
+    }
+
+    console.log('Opening approval modal for account types:', accountTypes);
 
     const initialManualNumbers = {};
     const initialCardTypes = {};
@@ -141,10 +151,18 @@ export default function ApproveApplications() {
   };
 
   const getAccountTypes = (app) => {
-    const types = app.account_types || ['checking_account'];
-    if (!types.includes('checking_account')) {
-      types.unshift('checking_account');
+    let types = app.account_types || [];
+    
+    // Ensure it's an array
+    if (!Array.isArray(types)) {
+      types = ['checking_account'];
     }
+    
+    // If empty, default to checking
+    if (types.length === 0) {
+      types = ['checking_account'];
+    }
+    
     return types;
   };
 
