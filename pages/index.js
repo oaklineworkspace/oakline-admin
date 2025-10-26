@@ -365,6 +365,13 @@ export default function Home() {
                 Welcome to Oakline Bank - Your trusted financial partner since 1995 • Explore all 23 account types with detailed benefits • Join over 500,000+ satisfied customers • Award-winning mobile app • FDIC Insured up to $250,000 • Rated #1 Customer Service
               </div>
             </div>
+            {/* Admin Button */}
+            {user && (
+              <Link href="/admin/approve-applications" style={styles.stickyAdminButton}>
+                <span style={styles.buttonIcon}>🛡️</span>
+                Admin Approve Applications
+              </Link>
+            )}
           </div>
 
         </div>
@@ -5167,6 +5174,27 @@ const styles = {
     padding: 'clamp(4rem, 8vw, 6rem) 0',
     backgroundColor: '#f8fafc',
     width: '100%'
+  },
+
+  // Admin Button Styles
+  stickyAdminButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.8rem',
+    padding: '1rem 2rem',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '700',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(30, 64, 175, 0.4)',
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    zIndex: 1001,
+    animation: 'pulse 2s infinite ease-in-out'
   }
 };
 
@@ -5214,6 +5242,17 @@ if (typeof window !== 'undefined') {
 if (typeof document !== 'undefined') {
   const styleSheet = document.createElement('style');
   styleSheet.textContent = `
+    /* Sticky Admin Button Hover */
+    a[style*="stickyAdminButton"]:hover {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 15px 35px rgba(30, 64, 175, 0.6) !important;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
     /* Dropdown positioning fix */
     .dropdown-container {
       position: relative;
