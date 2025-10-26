@@ -1,5 +1,26 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
+// Generate password without special characters like !
+function generateSecurePassword() {
+  const length = 12;
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*';
+  let password = '';
+  
+  // Ensure at least one uppercase, one lowercase, and one number
+  password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+  password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+  password += '0123456789'[Math.floor(Math.random() * 10)];
+  password += '@#$%&*'[Math.floor(Math.random() * 6)];
+  
+  // Fill the rest randomly
+  for (let i = password.length; i < length; i++) {
+    password += charset[Math.floor(Math.random() * charset.length)];
+  }
+  
+  // Shuffle the password
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -36,15 +57,59 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Application missing required fields' });
     }
 
-    // Check if user_id exists (should be set when auth user is created)
-    if (!application.user_id) {
-      return res.status(400).json({ 
-        error: 'No user_id found in application. Please ensure auth user is created first.',
-        details: 'The application must have a user_id before approval.'
-      });
+    // Create or get Supabase Auth user
+    let userId = application.user_id;
+    let tempPassword = null;
+
+    if (!userId) {
+      // Generate temporary password
+      tempPassword = generateSecurePassword();
+
+      // Check if user already exists
+      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const existingUser = existingUsers?.users?.find(u => u.email === application.email.toLowerCase());
+
+      if (existingUser) {
+        userId = existingUser.id;
+        console.log('Using existing auth user:', userId);
+      } else {
+        // Create new auth user
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: application.email.toLowerCase(),
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            first_name: application.first_name,
+            middle_name: application.middle_name || '',
+            last_name: application.last_name,
+            application_id: applicationId
+          }
+        });
+
+        if (authError) {
+          console.error('Auth user creation error:', authError);
+          return res.status(500).json({ 
+            error: 'Failed to create user account', 
+            details: authError.message 
+          });
+        }
+
+        userId = authUser.user.id;
+        console.log('Created new auth user:', userId);
+      }
+
+      // Update application with user_id
+      const { error: userIdUpdateError } = await supabaseAdmin
+        .from('applications')
+        .update({ user_id: userId })
+        .eq('id', applicationId);
+
+      if (userIdUpdateError) {
+        console.error('Failed to update application with user_id:', userIdUpdateError);
+      }
     }
 
-    console.log(`Approving application ${applicationId} for user ${application.user_id}`);
+    console.log(`Approving application ${applicationId} for user ${userId}`);
 
     // Prepare update data
     const updateData = {
@@ -133,8 +198,9 @@ export default async function handler(req, res) {
       success: true,
       message: 'Application approved successfully. Enrollment email sent with login instructions.',
       data: {
-        userId: application.user_id,
+        userId: userId,
         email: application.email,
+        tempPassword: tempPassword,
         accountsCreated: createdAccounts?.length || 0,
         cardsCreated: createdCards?.length || 0,
         accounts: (createdAccounts || []).map(acc => ({

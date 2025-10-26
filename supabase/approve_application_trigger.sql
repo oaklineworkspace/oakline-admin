@@ -77,6 +77,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to generate a secure temporary password
+CREATE OR REPLACE FUNCTION generate_temp_password()
+RETURNS TEXT AS $$
+DECLARE
+  chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  special_chars TEXT := '!@#$%&*';
+  password TEXT := 'Oak';
+  i INTEGER;
+BEGIN
+  -- Add 8 random alphanumeric characters
+  FOR i IN 1..8 LOOP
+    password := password || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+  END LOOP;
+  
+  -- Add a special character
+  password := password || substr(special_chars, floor(random() * length(special_chars) + 1)::int, 1);
+  
+  -- Add timestamp suffix for uniqueness
+  password := password || substr(floor(extract(epoch from now()))::text, -4);
+  
+  RETURN password;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Main function to handle application approval
 CREATE OR REPLACE FUNCTION handle_application_approval()
 RETURNS TRIGGER AS $$
@@ -93,8 +117,11 @@ DECLARE
   v_account_type TEXT;
   v_initial_balance NUMERIC;
   v_account_types TEXT[];
+  v_temp_password TEXT;
+  v_auth_user_id UUID;
   old_app_data JSONB;
   new_app_data JSONB;
+  v_enrollment_token TEXT;
 BEGIN
   -- Only proceed if status changed to 'approved'
   IF NEW.application_status = 'approved' AND 
@@ -103,6 +130,13 @@ BEGIN
     -- Prepare audit log data
     old_app_data := to_jsonb(OLD);
     new_app_data := to_jsonb(NEW);
+    
+    -- Generate temporary password
+    v_temp_password := generate_temp_password();
+    
+    -- NOTE: Supabase auth user creation must be done via API
+    -- We'll store the temp password in email_queue for the API to use
+    -- The API endpoint will read from email_queue and create the auth user
     
     -- Get card preferences from application
     v_card_brand := COALESCE(NEW.chosen_card_brand, 'visa');
@@ -115,6 +149,9 @@ BEGIN
     IF NOT ('checking_account' = ANY(v_account_types)) THEN
       v_account_types := array_prepend('checking_account', v_account_types);
     END IF;
+    
+    -- Generate a unique enrollment token for this approval
+    v_enrollment_token := encode(gen_random_bytes(32), 'hex');
     
     -- Loop through each account type to create
     FOREACH v_account_type IN ARRAY v_account_types LOOP
@@ -147,7 +184,7 @@ BEGIN
         v_account_number := generate_account_number();
       END IF;
       
-      -- Create account
+      -- Create account (user_id will be updated later by API)
       INSERT INTO public.accounts (
         user_id,
         application_id,
@@ -159,7 +196,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        NEW.user_id,
+        NULL, -- Will be set by API after auth user creation
         NEW.id,
         v_account_number,
         '075915826',
@@ -191,7 +228,7 @@ BEGIN
       v_cvc := generate_cvc(v_card_brand);
       v_expiry_date := generate_expiry_date();
       
-      -- Create card for the account
+      -- Create card for the account (user_id will be updated later by API)
       INSERT INTO public.cards (
         user_id,
         account_id,
@@ -213,7 +250,7 @@ BEGIN
         updated_at,
         activated_at
       ) VALUES (
-        NEW.user_id,
+        NULL, -- Will be set by API after auth user creation
         v_account_id,
         v_card_number,
         v_card_category,
@@ -236,9 +273,8 @@ BEGIN
       
     END LOOP;
     
-    -- Queue welcome email with enrollment link
-    -- Note: The actual enrollment email with login link will be sent by the application
-    -- This is just a notification that accounts are ready
+    -- Queue email with auth user creation instructions
+    -- The API will pick this up and create the auth user + send welcome email
     INSERT INTO public.email_queue (
       user_id,
       email,
@@ -248,37 +284,18 @@ BEGIN
       created_at,
       updated_at
     ) VALUES (
-      NEW.user_id,
+      NULL, -- Will be set after auth user creation
       NEW.email,
-      'Welcome to Oakline Bank - Complete Your Enrollment',
-      format(
-        '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #1e40af 0%%, #3b82f6 100%%); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0;">🏦 Welcome to Oakline Bank!</h1>
-          </div>
-          <div style="padding: 30px; background-color: #ffffff;">
-            <h2 style="color: #1e40af;">Hello %s %s,</h2>
-            <p style="font-size: 16px; line-height: 1.6;">Your application has been approved! Your Oakline Bank accounts are ready.</p>
-            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0;">
-              <h3 style="color: #1e40af; margin-top: 0;">📧 Next Steps</h3>
-              <p><strong>Email:</strong> %s</p>
-              <p>You will receive a separate email with your enrollment link to set up your account password and access your dashboard.</p>
-            </div>
-            <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0;">
-              <h3 style="color: #059669; margin-top: 0;">💳 Your Accounts & Cards</h3>
-              <p>Your accounts and debit/credit cards have been created and activated.</p>
-              <p>Once you complete enrollment, you can access all your account details.</p>
-            </div>
-          </div>
-          <div style="background-color: #f7fafc; padding: 20px; text-align: center;">
-            <p style="color: #718096; margin: 0;">© %s Oakline Bank. All rights reserved. | Member FDIC | Routing: 075915826</p>
-          </div>
-        </div>',
-        NEW.first_name,
-        NEW.last_name,
-        NEW.email,
-        EXTRACT(YEAR FROM NOW())
-      ),
+      'PENDING_AUTH_USER_CREATION',
+      jsonb_build_object(
+        'temp_password', v_temp_password,
+        'application_id', NEW.id,
+        'enrollment_token', v_enrollment_token,
+        'first_name', NEW.first_name,
+        'last_name', NEW.last_name,
+        'middle_name', COALESCE(NEW.middle_name, ''),
+        'email', NEW.email
+      )::text,
       FALSE,
       NOW(),
       NOW()
@@ -294,7 +311,7 @@ BEGIN
       created_at,
       updated_at
     ) VALUES (
-      NEW.user_id,
+      NULL, -- Will be set after auth user creation
       'APPLICATION_APPROVED',
       'applications',
       old_app_data,
@@ -320,4 +337,5 @@ GRANT EXECUTE ON FUNCTION generate_account_number() TO authenticated, service_ro
 GRANT EXECUTE ON FUNCTION generate_card_number(TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION generate_cvc(TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION generate_expiry_date() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION generate_temp_password() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION handle_application_approval() TO authenticated, service_role;
