@@ -76,9 +76,8 @@ export default async function handler(req, res) {
         user_id: userId,
         account_id: accountId,
         type: isCredit ? 'credit' : 'debit',
-        transaction_type: transactionType,
         amount: parsedAmount,
-        description: description || `${transactionType} - Manual transaction by admin`,
+        description: description || `${transactionType.replace(/_/g, ' ')} - Manual transaction by admin`,
         status: status,
         created_at: new Date().toISOString()
       })
