@@ -90,6 +90,7 @@ export default function ApproveApplications() {
     setProcessing(showApprovalModal.id);
     setError('');
     setSuccessMessage('');
+    setApprovalResult(null);
 
     try {
       const response = await fetch('/api/admin/approve-application', {
@@ -115,15 +116,21 @@ export default function ApproveApplications() {
         throw new Error(errorMessage);
       }
 
+      // Close the approval modal first
+      setShowApprovalModal(null);
+      
+      // Set approval result to show success modal
       setApprovalResult(result.data);
       setSuccessMessage(
         `✅ Application approved! Created ${result.data.accountsCreated} accounts and ${result.data.cardsCreated} cards.`
       );
-      setShowApprovalModal(null);
-      fetchApplications();
+      
+      // Refresh applications list
+      await fetchApplications();
     } catch (error) {
       console.error('Error approving application:', error);
       setError('Failed to approve application: ' + error.message);
+      setShowApprovalModal(null);
     } finally {
       setProcessing(null);
     }

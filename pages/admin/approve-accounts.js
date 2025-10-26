@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function ApproveAccounts() {
@@ -11,8 +10,7 @@ export default function ApproveAccounts() {
   const [processing, setProcessing] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [approvedAccount, setApprovedAccount] = useState(null);
-  const [message, setMessage] = useState(''); // For success messages
-  const [user, setUser] = useState(null); // To store logged-in admin user info
+  const [message, setMessage] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -23,37 +21,16 @@ export default function ApproveAccounts() {
     setLoading(true);
     setError('');
     try {
-      // Fetch pending accounts with application data using proper join
-      const { data: accounts, error: accountsError } = await supabaseAdmin
-        .from('accounts')
-        .select(`
-          *,
-          applications!accounts_application_id_fkey(
-            id,
-            first_name,
-            last_name,
-            middle_name,
-            email,
-            phone,
-            address,
-            city,
-            state,
-            zip_code,
-            date_of_birth,
-            user_id
-          )
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+      const response = await fetch('/api/admin/get-accounts?status=pending');
+      const result = await response.json();
 
-      if (accountsError) {
-        console.error('Error fetching pending accounts:', accountsError);
-        throw new Error(`Failed to load pending accounts: ${accountsError.message}`);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch pending accounts');
       }
 
-      setPendingAccounts(accounts || []);
+      setPendingAccounts(result.accounts || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching pending accounts:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -89,7 +66,6 @@ export default function ApproveAccounts() {
       setMessage(`${statusEmojis[newStatus]} Account ${accountNumber} has been ${actionName} successfully!`);
       setTimeout(() => setMessage(''), 5000);
 
-      // Refresh the pending accounts list
       await fetchPendingAccounts();
     } catch (error) {
       console.error(`Error ${actionName} account:`, error);
@@ -101,32 +77,35 @@ export default function ApproveAccounts() {
   };
 
   const approveAccount = async (accountId, accountNumber) => {
-    await updateAccountStatus(accountId, accountNumber, 'active', 'approved');
-    // After approval, show the success modal
-    // Fetch the account details again to populate the modal
-    const { data: approvedAcc, error: fetchError } = await supabaseAdmin
-      .from('accounts')
-      .select(`
-        *,
-        applications!accounts_application_id_fkey(
-          id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          user_id
-        )
-      `)
-      .eq('id', accountId)
-      .single();
+    setProcessing(accountId);
+    setError('');
 
-    if (fetchError) {
-      console.error('Error fetching approved account details:', fetchError);
-      setError('Failed to fetch details for success modal.');
-      return;
+    try {
+      const response = await fetch('/api/admin/approve-pending-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to approve account');
+      }
+
+      setApprovedAccount(result.data);
+      setShowSuccessModal(true);
+      setMessage('✅ Account approved and debit card created successfully!');
+      setTimeout(() => setMessage(''), 5000);
+
+      await fetchPendingAccounts();
+    } catch (error) {
+      console.error('Error approving account:', error);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setProcessing(null);
     }
-    setApprovedAccount(approvedAcc);
-    setShowSuccessModal(true);
   };
 
   const suspendAccount = async (accountId, accountNumber) => {
@@ -151,227 +130,225 @@ export default function ApproveAccounts() {
     }
   };
 
-  
-
   return (
     <AdminAuth>
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.headerTop}>
-          <div style={styles.headerContent}>
-            <h1 style={styles.title}>✅ Account Approval</h1>
-            <p style={styles.subtitle}>Approve or reject pending account applications</p>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <div style={styles.headerTop}>
+            <div style={styles.headerContent}>
+              <h1 style={styles.title}>✅ Account Approval</h1>
+              <p style={styles.subtitle}>Approve or reject pending account applications</p>
+            </div>
+          </div>
+          <div style={styles.headerActions}>
+            <button onClick={fetchPendingAccounts} style={styles.refreshButton}>
+              🔄 Refresh
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              ← Dashboard
+            </Link>
+            <button onClick={handleLogout} style={styles.logoutButton}>
+              🚪 Logout
+            </button>
           </div>
         </div>
-        <div style={styles.headerActions}>
-          <button onClick={fetchPendingAccounts} style={styles.refreshButton}>
-            🔄 Refresh
-          </button>
-          <Link href="/admin/admin-dashboard" style={styles.backButton}>
-            ← Dashboard
-          </Link>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            🚪 Logout
-          </button>
-        </div>
-      </div>
 
-      {message && (
-        <div style={styles.successMessage}>{message}</div>
-      )}
-      {error && (
-        <div style={styles.errorMessage}>{error}</div>
-      )}
+        {message && (
+          <div style={styles.successMessage}>{message}</div>
+        )}
+        {error && (
+          <div style={styles.errorMessage}>{error}</div>
+        )}
 
-      <div style={styles.accountsSection}>
-        <h2 style={styles.sectionTitle}>
-          Pending Accounts ({pendingAccounts.length})
-        </h2>
+        <div style={styles.accountsSection}>
+          <h2 style={styles.sectionTitle}>
+            Pending Accounts ({pendingAccounts.length})
+          </h2>
 
-        {loading ? (
-          <div style={styles.loading}>Loading pending accounts...</div>
-        ) : pendingAccounts.length === 0 ? (
-          <div style={styles.emptyState}>
-            <h3>No Pending Accounts</h3>
-            <p>All accounts have been processed or no applications have been submitted yet.</p>
-          </div>
-        ) : (
-          <div style={styles.accountsGrid}>
-            {pendingAccounts.map(account => (
-              <div key={account.id} style={styles.accountCard}>
-                <div style={styles.accountHeader}>
-                  <div style={styles.accountInfo}>
-                    <h3 style={styles.accountNumber}>Account: {account.account_number}</h3>
-                    <span style={styles.accountType}>{account.account_type?.replace('_', ' ').toUpperCase()}</span>
+          {loading ? (
+            <div style={styles.loading}>Loading pending accounts...</div>
+          ) : pendingAccounts.length === 0 ? (
+            <div style={styles.emptyState}>
+              <h3>No Pending Accounts</h3>
+              <p>All accounts have been processed or no applications have been submitted yet.</p>
+            </div>
+          ) : (
+            <div style={styles.accountsGrid}>
+              {pendingAccounts.map(account => (
+                <div key={account.id} style={styles.accountCard}>
+                  <div style={styles.accountHeader}>
+                    <div style={styles.accountInfo}>
+                      <h3 style={styles.accountNumber}>Account: {account.account_number}</h3>
+                      <span style={styles.accountType}>{account.account_type?.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    <div style={styles.statusBadge}>
+                      PENDING
+                    </div>
                   </div>
-                  <div style={styles.statusBadge}>
-                    PENDING
+
+                  <div style={styles.accountDetails}>
+                    {account.applications && (
+                      <>
+                        <div style={styles.detail}>
+                          <span style={styles.detailLabel}>Name:</span>
+                          <span style={styles.detailValue}>{account.applications.first_name} {account.applications.last_name}</span>
+                        </div>
+                        <div style={styles.detail}>
+                          <span style={styles.detailLabel}>Email:</span>
+                          <span style={styles.detailValue}>{account.applications.email}</span>
+                        </div>
+                        <div style={styles.detail}>
+                          <span style={styles.detailLabel}>Phone:</span>
+                          <span style={styles.detailValue}>{account.applications.phone || 'Not provided'}</span>
+                        </div>
+                        <div style={styles.detail}>
+                          <span style={styles.detailLabel}>Address:</span>
+                          <span style={styles.detailValue}>{account.applications.address || 'Not provided'}</span>
+                        </div>
+                      </>
+                    )}
+                    <div style={styles.detail}>
+                      <span style={styles.detailLabel}>Initial Balance:</span>
+                      <span style={styles.detailValue}>${parseFloat(account.balance || 0).toFixed(2)}</span>
+                    </div>
+                    <div style={styles.detail}>
+                      <span style={styles.detailLabel}>Applied:</span>
+                      <span style={styles.detailValue}>{new Date(account.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.actionButtons}>
+                    <button
+                      onClick={() => approveAccount(account.id, account.account_number)}
+                      disabled={processing === account.id}
+                      style={styles.approveButton}
+                    >
+                      {processing === account.id ? '⏳' : '✅'} Approve
+                    </button>
+                    <button
+                      onClick={() => suspendAccount(account.id, account.account_number)}
+                      disabled={processing === account.id}
+                      style={styles.suspendButton}
+                    >
+                      {processing === account.id ? '⏳' : '⏸️'} Suspend
+                    </button>
+                    <button
+                      onClick={() => closeAccount(account.id, account.account_number)}
+                      disabled={processing === account.id}
+                      style={styles.closeButton}
+                    >
+                      {processing === account.id ? '⏳' : '🔒'} Close
+                    </button>
+                    <button
+                      onClick={() => rejectAccount(account.id, account.account_number)}
+                      disabled={processing === account.id}
+                      style={styles.rejectButton}
+                    >
+                      {processing === account.id ? '⏳' : '❌'} Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showSuccessModal && approvedAccount && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.successModal}>
+              <div style={styles.successHeader}>
+                <div style={styles.successIcon}>✅</div>
+                <h2 style={styles.successTitle}>Account Approved Successfully!</h2>
+                <p style={styles.successSubtitle}>
+                  The customer has been notified and can now access their account
+                </p>
+              </div>
+
+              <div style={styles.successDetails}>
+                <div style={styles.successCard}>
+                  <h3 style={styles.successCardTitle}>Account Information</h3>
+                  <div style={styles.successInfo}>
+                    <div style={styles.successInfoRow}>
+                      <span style={styles.successLabel}>Account Number:</span>
+                      <span style={styles.successValue}>{approvedAccount.account?.account_number}</span>
+                    </div>
+                    <div style={styles.successInfoRow}>
+                      <span style={styles.successLabel}>Account Type:</span>
+                      <span style={styles.successValue}>
+                        {approvedAccount.account?.account_type?.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={styles.successInfoRow}>
+                      <span style={styles.successLabel}>Status:</span>
+                      <span style={styles.successStatusActive}>ACTIVE</span>
+                    </div>
+                    <div style={styles.successInfoRow}>
+                      <span style={styles.successLabel}>Balance:</span>
+                      <span style={styles.successValue}>${parseFloat(approvedAccount.account?.balance || 0).toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div style={styles.accountDetails}>
-                  {account.applications && (
-                    <>
-                      <div style={styles.detail}>
-                        <span style={styles.detailLabel}>Name:</span>
-                        <span style={styles.detailValue}>{account.applications.first_name} {account.applications.last_name}</span>
+                {approvedAccount.card && (
+                  <div style={styles.successCard}>
+                    <h3 style={styles.successCardTitle}>Card Information</h3>
+                    <div style={styles.successInfo}>
+                      <div style={styles.successInfoRow}>
+                        <span style={styles.successLabel}>Card Number:</span>
+                        <span style={styles.successValue}>{approvedAccount.card.card_number}</span>
                       </div>
-                      <div style={styles.detail}>
-                        <span style={styles.detailLabel}>Email:</span>
-                        <span style={styles.detailValue}>{account.applications.email}</span>
+                      <div style={styles.successInfoRow}>
+                        <span style={styles.successLabel}>Card Type:</span>
+                        <span style={styles.successValue}>{approvedAccount.card.card_type?.toUpperCase()}</span>
                       </div>
-                      <div style={styles.detail}>
-                        <span style={styles.detailLabel}>Phone:</span>
-                        <span style={styles.detailValue}>{account.applications.phone || 'Not provided'}</span>
+                      <div style={styles.successInfoRow}>
+                        <span style={styles.successLabel}>Expiry Date:</span>
+                        <span style={styles.successValue}>{new Date(approvedAccount.card.expiry_date).toLocaleDateString()}</span>
                       </div>
-                      <div style={styles.detail}>
-                        <span style={styles.detailLabel}>Address:</span>
-                        <span style={styles.detailValue}>{account.applications.address || 'Not provided'}</span>
+                      <div style={styles.successInfoRow}>
+                        <span style={styles.successLabel}>Status:</span>
+                        <span style={styles.successStatusActive}>{approvedAccount.card.status?.toUpperCase()}</span>
                       </div>
-                    </>
-                  )}
-                  <div style={styles.detail}>
-                    <span style={styles.detailLabel}>Initial Balance:</span>
-                    <span style={styles.detailValue}>${parseFloat(account.balance || 0).toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div style={styles.detail}>
-                    <span style={styles.detailLabel}>Applied:</span>
-                    <span style={styles.detailValue}>{new Date(account.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
+                )}
 
-                <div style={styles.actionButtons}>
-                  <button
-                    onClick={() => approveAccount(account.id, account.account_number)}
-                    disabled={processing === account.id}
-                    style={styles.approveButton}
-                  >
-                    {processing === account.id ? '⏳' : '✅'} Approve
-                  </button>
-                  <button
-                    onClick={() => suspendAccount(account.id, account.account_number)}
-                    disabled={processing === account.id}
-                    style={styles.suspendButton}
-                  >
-                    {processing === account.id ? '⏳' : '⏸️'} Suspend
-                  </button>
-                  <button
-                    onClick={() => closeAccount(account.id, account.account_number)}
-                    disabled={processing === account.id}
-                    style={styles.closeButton}
-                  >
-                    {processing === account.id ? '⏳' : '🔒'} Close
-                  </button>
-                  <button
-                    onClick={() => rejectAccount(account.id, account.account_number)}
-                    disabled={processing === account.id}
-                    style={styles.rejectButton}
-                  >
-                    {processing === account.id ? '⏳' : '❌'} Reject
-                  </button>
+                <div style={styles.successActions}>
+                  <div style={styles.successActionItem}>
+                    <span style={styles.successActionIcon}>📧</span>
+                    <span style={styles.successActionText}>Welcome email sent automatically</span>
+                  </div>
+                  <div style={styles.successActionItem}>
+                    <span style={styles.successActionIcon}>🔐</span>
+                    <span style={styles.successActionText}>Online banking access enabled</span>
+                  </div>
+                  <div style={styles.successActionItem}>
+                    <span style={styles.successActionIcon}>💳</span>
+                    <span style={styles.successActionText}>Debit card issued successfully</span>
+                  </div>
                 </div>
               </div>
-            ))}
+
+              <div style={styles.successFooter}>
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setApprovedAccount(null);
+                  }}
+                  style={styles.successCloseButton}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Professional Success Modal */}
-      {showSuccessModal && approvedAccount && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.successModal}>
-            <div style={styles.successHeader}>
-              <div style={styles.successIcon}>✅</div>
-              <h2 style={styles.successTitle}>Account Approved Successfully!</h2>
-              <p style={styles.successSubtitle}>
-                The customer has been notified and can now access their account
-              </p>
-            </div>
-
-            <div style={styles.successDetails}>
-              <div style={styles.successCard}>
-                <h3 style={styles.successCardTitle}>Account Information</h3>
-                <div style={styles.successInfo}>
-                  <div style={styles.successInfoRow}>
-                    <span style={styles.successLabel}>Account Number:</span>
-                    <span style={styles.successValue}>{approvedAccount.account_number}</span>
-                  </div>
-                  <div style={styles.successInfoRow}>
-                    <span style={styles.successLabel}>Account Type:</span>
-                    <span style={styles.successValue}>
-                      {approvedAccount.account_type?.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </div>
-                  <div style={styles.successInfoRow}>
-                    <span style={styles.successLabel}>Customer Name:</span>
-                    <span style={styles.successValue}>
-                      {approvedAccount.applications?.first_name} {approvedAccount.applications?.last_name}
-                    </span>
-                  </div>
-                  <div style={styles.successInfoRow}>
-                    <span style={styles.successLabel}>Email:</span>
-                    <span style={styles.successValue}>{approvedAccount.applications?.email}</span>
-                  </div>
-                  <div style={styles.successInfoRow}>
-                    <span style={styles.successLabel}>Status:</span>
-                    <span style={styles.successStatusActive}>ACTIVE</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style={styles.successActions}>
-                <div style={styles.successActionItem}>
-                  <span style={styles.successActionIcon}>📧</span>
-                  <span style={styles.successActionText}>Welcome email sent automatically</span>
-                </div>
-                <div style={styles.successActionItem}>
-                  <span style={styles.successActionIcon}>🔐</span>
-                  <span style={styles.successActionText}>Online banking access enabled</span>
-                </div>
-                <div style={styles.successActionItem}>
-                  <span style={styles.successActionIcon}>💳</span>
-                  <span style={styles.successActionText}>Debit card can now be issued</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={styles.successFooter}>
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  setApprovedAccount(null);
-                }}
-                style={styles.successCloseButton}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  
     </AdminAuth>
   );
 }
 
 const styles = {
-  loginContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
-    padding: '1rem'
-  },
-  loginCard: {
-    background: 'white',
-    padding: 'clamp(1.5rem, 5vw, 2.5rem)',
-    borderRadius: '16px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-    width: '100%',
-    maxWidth: '400px'
-  },
   container: {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
@@ -455,48 +432,6 @@ const styles = {
     fontWeight: '600',
     transition: 'all 0.2s ease',
     boxShadow: '0 4px 12px rgba(220, 53, 69, 0.3)'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem'
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
-  },
-  label: {
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-    fontWeight: '600',
-    color: '#374151'
-  },
-  input: {
-    padding: 'clamp(0.75rem, 3vw, 1rem)',
-    border: '2px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-    outline: 'none',
-    transition: 'border-color 0.2s ease',
-    fontFamily: 'inherit'
-  },
-  loginButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    padding: 'clamp(0.75rem, 3vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
-    borderRadius: '12px',
-    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)'
-  },
-  error: {
-    color: '#dc2626',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-    textAlign: 'center',
-    fontWeight: '500'
   },
   errorMessage: {
     background: '#fef2f2',
@@ -691,7 +626,6 @@ const styles = {
     justifyContent: 'center',
     gap: '0.5rem'
   },
-  // Success Modal Styles
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -712,8 +646,7 @@ const styles = {
     maxWidth: '600px',
     width: '100%',
     maxHeight: '90vh',
-    overflow: 'auto',
-    animation: 'slideIn 0.3s ease-out'
+    overflow: 'auto'
   },
   successHeader: {
     textAlign: 'center',
@@ -826,26 +759,5 @@ const styles = {
     transition: 'all 0.2s ease',
     boxShadow: '0 8px 20px rgba(30, 60, 114, 0.3)',
     minWidth: '120px'
-  },
-  '@media (max-width: 768px)': {
-    headerActions: {
-      width: '100%',
-      justifyContent: 'space-between'
-    },
-    accountsGrid: {
-      gridTemplateColumns: '1fr'
-    },
-    actionButtons: {
-      gridTemplateColumns: '1fr',
-      gap: '0.5rem'
-    },
-    successInfoRow: {
-      flexDirection: 'column',
-      alignItems: 'flex-start',
-      gap: '0.25rem'
-    },
-    successValue: {
-      textAlign: 'left'
-    }
   }
 };
