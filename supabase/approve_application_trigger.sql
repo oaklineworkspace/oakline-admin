@@ -236,7 +236,9 @@ BEGIN
       
     END LOOP;
     
-    -- Queue welcome email with account and card details
+    -- Queue welcome email with enrollment link
+    -- Note: The actual enrollment email with login link will be sent by the application
+    -- This is just a notification that accounts are ready
     INSERT INTO public.email_queue (
       user_id,
       email,
@@ -248,7 +250,7 @@ BEGIN
     ) VALUES (
       NEW.user_id,
       NEW.email,
-      'Welcome to Oakline Bank - Your Account is Ready!',
+      'Welcome to Oakline Bank - Complete Your Enrollment',
       format(
         '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #1e40af 0%%, #3b82f6 100%%); padding: 30px; text-align: center;">
@@ -256,16 +258,16 @@ BEGIN
           </div>
           <div style="padding: 30px; background-color: #ffffff;">
             <h2 style="color: #1e40af;">Hello %s %s,</h2>
-            <p style="font-size: 16px; line-height: 1.6;">Your application has been approved! Your Oakline Bank account is now active.</p>
+            <p style="font-size: 16px; line-height: 1.6;">Your application has been approved! Your Oakline Bank accounts are ready.</p>
             <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0;">
-              <h3 style="color: #1e40af; margin-top: 0;">📧 Login Information</h3>
+              <h3 style="color: #1e40af; margin-top: 0;">📧 Next Steps</h3>
               <p><strong>Email:</strong> %s</p>
-              <p><strong>Note:</strong> Please check your email for login credentials.</p>
+              <p>You will receive a separate email with your enrollment link to set up your account password and access your dashboard.</p>
             </div>
             <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0;">
               <h3 style="color: #059669; margin-top: 0;">💳 Your Accounts & Cards</h3>
               <p>Your accounts and debit/credit cards have been created and activated.</p>
-              <p>Log in to your dashboard to view complete details.</p>
+              <p>Once you complete enrollment, you can access all your account details.</p>
             </div>
           </div>
           <div style="background-color: #f7fafc; padding: 20px; text-align: center;">
