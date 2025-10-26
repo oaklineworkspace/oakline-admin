@@ -251,7 +251,16 @@ export default async function handler(req, res) {
         city: application.city || null,
         state: application.state || null,
         zip_code: application.zip_code || null,
+        ssn: application.ssn || null,
+        id_number: application.id_number || null,
+        employment_status: application.employment_status || null,
+        annual_income: application.annual_income || null,
+        mothers_maiden_name: application.mothers_maiden_name || null,
+        account_types: application.account_types || ['checking_account'],
         enrollment_completed: true,
+        password_set: true,
+        application_status: 'approved',
+        enrollment_completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
 
@@ -385,6 +394,8 @@ export default async function handler(req, res) {
         details: updateError.message 
       });
     }
+
+    console.log('Application status updated to approved');
 
     console.log('Application status updated to approved');
 
