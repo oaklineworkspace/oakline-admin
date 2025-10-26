@@ -8,7 +8,18 @@ export default async function handler(req, res) {
   try {
     const { data: accounts, error } = await supabaseAdmin
       .from('accounts')
-      .select('*')
+      .select(`
+        id,
+        account_number,
+        account_type,
+        balance,
+        user_id,
+        applications (
+          first_name,
+          last_name,
+          email
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {

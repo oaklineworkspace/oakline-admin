@@ -9,7 +9,16 @@ export default async function handler(req, res) {
     // Fetch all transactions
     const { data: transactions, error } = await supabaseAdmin
       .from('transactions')
-      .select('*')
+      .select(`
+        *,
+        accounts (
+          account_number,
+          applications (
+            first_name,
+            last_name
+          )
+        )
+      `)
       .order('created_at', { ascending: false })
       .limit(100); // Limit to last 100 transactions
 

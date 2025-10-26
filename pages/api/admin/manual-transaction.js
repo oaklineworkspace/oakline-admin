@@ -1,48 +1,62 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
+const CREDIT_TYPES = ['deposit', 'deposit_adjust', 'transfer_in', 'refund', 'interest', 'bonus', 'check_deposit'];
+const DEBIT_TYPES = ['withdrawal', 'atm_withdrawal', 'debit_card', 'transfer_out', 'wire_transfer', 'ach_transfer', 'check_payment', 'service_fee', 'other'];
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { accountId, amount, type, description } = req.body;
+    const { accountId, userId, transactionType, amount, description, status, creditDebitOverride } = req.body;
 
-    if (!accountId || amount === undefined || !type) {
+    if (!accountId || !userId || !transactionType || amount === undefined || !status) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount)) {
-      return res.status(400).json({ error: 'Invalid amount' });
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount (must be positive)' });
     }
 
-    // Get current account balance
-    const { data: accountData, error: fetchError } = await supabaseAdmin
+    const { data: account, error: accountError } = await supabaseAdmin
       .from('accounts')
-      .select('balance, account_number')
+      .select('balance, account_number, user_id')
       .eq('id', accountId)
       .single();
 
-    if (fetchError || !accountData) {
-      console.error('Fetch error:', fetchError);
+    if (accountError || !account) {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    // Calculate new balance based on transaction type
-    let newBalance;
-    if (type === 'balance_update') {
-      newBalance = parsedAmount;
-    } else if (type === 'credit' || type === 'deposit') {
-      newBalance = parseFloat(accountData.balance) + parsedAmount;
-    } else if (type === 'debit' || type === 'withdrawal') {
-      newBalance = parseFloat(accountData.balance) - parsedAmount;
-    } else {
-      // Defaulting to parsedAmount if type is unknown, could be 'balance_update' or similar
-      newBalance = parsedAmount;
+    if (account.user_id !== userId) {
+      return res.status(403).json({ error: 'Account does not belong to the specified user' });
     }
 
-    // Update account balance
+    let isCredit;
+    if (creditDebitOverride) {
+      isCredit = creditDebitOverride === 'credit';
+    } else {
+      isCredit = CREDIT_TYPES.includes(transactionType);
+    }
+
+    const currentBalance = parseFloat(account.balance || 0);
+    let newBalance;
+
+    if (status === 'completed') {
+      newBalance = isCredit ? currentBalance + parsedAmount : currentBalance - parsedAmount;
+      
+      if (newBalance < 0) {
+        return res.status(400).json({ 
+          error: 'Insufficient funds',
+          details: `Transaction would result in negative balance: $${newBalance.toFixed(2)}`
+        });
+      }
+    } else {
+      newBalance = currentBalance;
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from('accounts')
       .update({
@@ -52,34 +66,44 @@ export default async function handler(req, res) {
       .eq('id', accountId);
 
     if (updateError) {
-      console.error('Update error:', updateError);
+      console.error('Balance update error:', updateError);
       throw updateError;
     }
 
-    // Create transaction record
-    const { error: transactionError } = await supabaseAdmin
+    const { data: transaction, error: transactionError } = await supabaseAdmin
       .from('transactions')
       .insert({
+        user_id: userId,
         account_id: accountId,
-        type: type === 'balance_update' ? 'credit' : type, // Map 'balance_update' to 'credit' for transaction log
-        amount: type === 'balance_update' ? parsedAmount : Math.abs(parsedAmount), // Store absolute amount for transactions
-        description: description || 'Manual transaction by admin',
-        status: 'completed',
+        type: isCredit ? 'credit' : 'debit',
+        transaction_type: transactionType,
+        amount: parsedAmount,
+        description: description || `${transactionType} - Manual transaction by admin`,
+        status: status,
         created_at: new Date().toISOString()
-      });
+      })
+      .select()
+      .single();
 
     if (transactionError) {
-      console.error('Transaction error:', transactionError);
-      // Consider a more robust error handling here, e.g., attempting to revert the balance update
+      console.error('Transaction insert error:', transactionError);
+      await supabaseAdmin
+        .from('accounts')
+        .update({ balance: currentBalance })
+        .eq('id', accountId);
+      throw transactionError;
     }
 
     res.status(200).json({
-      message: 'Transaction completed successfully',
+      success: true,
+      message: 'Transaction processed successfully',
+      transaction: transaction,
+      previousBalance: currentBalance,
       newBalance: newBalance,
-      accountNumber: accountData.account_number
+      accountNumber: account.account_number
     });
   } catch (error) {
     console.error('Error processing manual transaction:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
