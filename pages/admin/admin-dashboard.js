@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
+import AdminNavDropdown from '../../components/AdminNavDropdown';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -44,7 +45,10 @@ export default function AdminDashboard() {
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
-          <h1 style={styles.title}>📊 Admin Dashboard</h1>
+          <div>
+            <h1 style={styles.title}>📊 Admin Dashboard</h1>
+          </div>
+          <AdminNavDropdown />
         </div>
 
         {loading ? (
@@ -188,7 +192,12 @@ const styles = {
     padding: '25px',
     borderRadius: '12px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    marginBottom: '30px'
+    marginBottom: '30px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '1rem'
   },
   title: {
     fontSize: '28px',
