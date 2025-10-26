@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
 - React Context API for global authentication state
 - Local component state with useState hooks
 - Session storage for enrollment flow persistence
-- LocalStorage for admin authentication and preferences
+- Supabase session management for admin authentication
 
 ### Backend Architecture
 
@@ -53,8 +53,9 @@ Preferred communication style: Simple, everyday language.
 **Authentication & Authorization:**
 - Supabase Auth for user authentication with email/password
 - Magic link authentication for enrollment flows
-- Role-based access control (admin, super_admin, manager, auditor)
-- Admin password protection for sensitive routes
+- Role-based access control via admin_profiles table (admin, super_admin, manager)
+- AdminAuth component wrapper for admin route protection
+- Supabase-backed admin authentication via admin_profiles table
 - Session-based authentication with timeout management
 - Multi-factor authentication support for admin accounts
 
@@ -159,9 +160,26 @@ Preferred communication style: Simple, everyday language.
 - **eslint-config-next** (v14.2.3) - Next.js specific rules
 
 **Infrastructure:**
-- Designed for Replit deployment (0.0.0.0 host binding, port 5000)
-- Vercel deployment configuration available
+- Deployed on Replit (0.0.0.0 host binding, port 5000)
+- Next.js configured with cache control headers for proper client updates
+- Production deployment ready with autoscale configuration
 - SIEM integration support (Splunk, Datadog, Elasticsearch)
+
+## Recent Changes (October 26, 2025)
+
+### Replit Migration Completed
+- **Platform Migration**: Successfully migrated from Vercel to Replit
+- **Port Configuration**: Configured Next.js to run on port 5000 with 0.0.0.0 host binding
+- **Cache Control**: Added proper cache-control headers to prevent heuristic caching issues
+- **Admin Authentication Refactor**: 
+  - Removed all hardcoded admin passwords (previously "Chrismorgan23$")
+  - Implemented Supabase admin_profiles table authentication
+  - Created AdminAuth component wrapper for consistent admin route protection
+  - All admin pages now verify user sessions against admin_profiles table
+- **Security Improvements**: 
+  - Eliminated password-based admin access in favor of database-verified authentication
+  - Admin access now requires both Supabase authentication AND admin_profiles table entry
+- **Deployment**: Configured production deployment with autoscale and proper build commands
 
 **Configuration:**
 - Environment-based feature flags (crypto, investments, loans, notifications)
