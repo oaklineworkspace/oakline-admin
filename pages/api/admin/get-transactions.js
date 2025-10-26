@@ -6,7 +6,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch all transactions
     const { data: transactions, error } = await supabaseAdmin
       .from('transactions')
       .select(`
@@ -15,24 +14,22 @@ export default async function handler(req, res) {
           account_number,
           applications (
             first_name,
-            last_name
+            last_name,
+            email
           )
         )
       `)
       .order('created_at', { ascending: false })
-      .limit(100); // Limit to last 100 transactions
+      .limit(100);
 
     if (error) {
       console.error('Error fetching transactions:', error);
-      return res.status(500).json({ error: 'Failed to fetch transactions' });
+      return res.status(500).json({ error: error.message });
     }
 
-    return res.status(200).json({
-      success: true,
-      transactions: transactions || []
-    });
+    return res.status(200).json({ transactions });
   } catch (error) {
-    console.error('Error in get-transactions:', error);
+    console.error('Unexpected error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

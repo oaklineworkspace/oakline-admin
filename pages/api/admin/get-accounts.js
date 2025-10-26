@@ -9,11 +9,7 @@ export default async function handler(req, res) {
     const { data: accounts, error } = await supabaseAdmin
       .from('accounts')
       .select(`
-        id,
-        account_number,
-        account_type,
-        balance,
-        user_id,
+        *,
         applications (
           first_name,
           last_name,
@@ -24,15 +20,12 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error('Error fetching accounts:', error);
-      return res.status(500).json({ error: 'Failed to fetch accounts' });
+      return res.status(500).json({ error: error.message });
     }
 
-    return res.status(200).json({ 
-      success: true,
-      accounts: accounts || [] 
-    });
+    return res.status(200).json({ accounts });
   } catch (error) {
-    console.error('Error in get-accounts:', error);
+    console.error('Unexpected error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

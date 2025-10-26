@@ -2,6 +2,32 @@
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import nodemailer from 'nodemailer';
 
+function generateSecurePassword() {
+  const capitalLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const specialChars = '#$';
+  
+  const randomCapital = capitalLetters[Math.floor(Math.random() * capitalLetters.length)];
+  const randomSpecial = specialChars[Math.floor(Math.random() * specialChars.length)];
+  
+  let password = randomCapital;
+  
+  const wordLength = 6 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < wordLength; i++) {
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  }
+  
+  const numberLength = 2 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < numberLength; i++) {
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+  }
+  
+  password += randomSpecial;
+  
+  return password;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -94,9 +120,18 @@ export default async function handler(req, res) {
           const type = account_types && account_types[idx] 
             ? account_types[idx].replace('_', ' ').toUpperCase() 
             : 'ACCOUNT';
-          return `<li><strong>${type}:</strong> ****${num.slice(-4)}</li>`;
+          return `
+            <tr>
+              <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
+                <strong style="color: #1f2937;">${type}</strong>
+              </td>
+              <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; font-family: 'Courier New', monospace; color: #4b5563;">
+                ****${num.slice(-4)}
+              </td>
+            </tr>
+          `;
         }).join('')
-      : '<li>Your account has been created</li>';
+      : '<tr><td colspan="2" style="padding: 12px; text-align: center; color: #6b7280;">Your account has been created</td></tr>';
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -104,96 +139,150 @@ export default async function handler(req, res) {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; }
-          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
-          .header { background: linear-gradient(135deg, #0056b3 0%, #003d82 100%); padding: 32px 24px; text-align: center; }
-          .header h1 { color: #ffffff; font-size: 28px; font-weight: 700; margin: 0; }
-          .header p { color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0; }
-          .content { padding: 40px 32px; }
-          .content h2 { color: #0056b3; font-size: 24px; font-weight: 700; margin: 0 0 16px 0; }
-          .content p { color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0; }
-          .credentials-box { background-color: #f0f9ff; border-left: 4px solid #0056b3; padding: 20px; margin: 24px 0; }
-          .credentials-box h3 { color: #0056b3; margin-top: 0; }
-          .credentials-box p { margin: 8px 0; }
-          .credentials-box code { background-color: #e0f2fe; padding: 5px 10px; border-radius: 4px; font-family: monospace; }
-          .button { display: inline-block; background-color: #0056b3; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 20px 0; }
-          .warning-box { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; }
-          .warning-box p { margin: 0; color: #92400e; font-size: 14px; }
-          .footer { background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; }
-          .footer p { color: #718096; font-size: 12px; margin: 4px 0; }
-          .footer a { color: #0056b3; text-decoration: none; }
-          ul { padding-left: 20px; }
-          li { margin-bottom: 8px; color: #4a5568; }
-        </style>
+        <title>Welcome to Oakline Bank</title>
       </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🏦 ${bankInfo.name}</h1>
-            <p>Welcome to Your Financial Future</p>
-          </div>
-          
-          <div class="content">
-            <h2>Welcome, ${fullName}!</h2>
-            
-            <p>Your application has been approved! Your ${bankInfo.name} account is now active and ready to use.</p>
-            
-            <div class="credentials-box">
-              <h3>Your Login Credentials</h3>
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary Password:</strong> <code>${temp_password}</code></p>
-            </div>
-
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${loginUrl}" class="button">Sign In Now</a>
-            </div>
-
-            <h3>Your Account Information:</h3>
-            <ul>
-              ${accountInfo}
-            </ul>
-
-            <div class="warning-box">
-              <p><strong>⚠️ Important:</strong> Please change your password immediately after your first login for security purposes. You can do this in your account settings.</p>
-            </div>
-
-            <p><strong>Next Steps:</strong></p>
-            <ul>
-              <li>Sign in using the credentials above</li>
-              <li>Change your temporary password</li>
-              <li>Set up security questions</li>
-              <li>Explore your dashboard and account features</li>
-            </ul>
-
-            <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-            
-            <p>Thank you for choosing ${bankInfo.name}!</p>
-            <p><strong>The ${bankInfo.name} Team</strong></p>
-          </div>
-          
-          <div class="footer">
-            <p><strong>${bankInfo.name}</strong></p>
-            <p>${bankInfo.branch_name}</p>
-            <p>${bankInfo.address}</p>
-            <p>Phone: <a href="tel:${bankInfo.phone}">${bankInfo.phone}</a></p>
-            <p>Email: <a href="mailto:${bankInfo.email_info}">${bankInfo.email_info}</a></p>
-            <p style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-              Routing Number: ${bankInfo.routing_number} | SWIFT: ${bankInfo.swift_code}
-            </p>
-            <p>NMLS ID: ${bankInfo.nmls_id}</p>
-            <p style="margin-top: 16px;">© ${new Date().getFullYear()} ${bankInfo.name}. All rights reserved.</p>
-            <p>Member FDIC | Equal Housing Lender</p>
-          </div>
-        </div>
+      <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #ffffff;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td align="center" style="padding: 40px 0;">
+              <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff;">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #004aad; padding: 40px 30px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">${bankInfo.name}</h1>
+                    <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;">Your Account Has Been Approved</p>
+                  </td>
+                </tr>
+                
+                <!-- Main Content -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px; font-weight: bold;">
+                      Welcome, ${first_name} ${last_name}!
+                    </h2>
+                    
+                    <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                      Welcome to ${bankInfo.name}! Your account is now active and ready to use. We're excited to have you on board and provide you with secure, convenient banking services.
+                    </p>
+                    
+                    <!-- Login Credentials Box -->
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f3f4f6; border-radius: 8px; margin: 30px 0;">
+                      <tr>
+                        <td style="padding: 25px;">
+                          <h3 style="margin: 0 0 15px 0; color: #004aad; font-size: 18px; font-weight: bold;">
+                            Your Login Credentials
+                          </h3>
+                          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
+                                <strong>Email:</strong>
+                              </td>
+                              <td style="padding: 8px 0; color: #1f2937; font-size: 15px;">
+                                ${email}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
+                                <strong>Temporary Password:</strong>
+                              </td>
+                              <td style="padding: 8px 0;">
+                                <code style="background-color: #e5e7eb; padding: 6px 12px; border-radius: 4px; font-family: 'Courier New', monospace; color: #1f2937; font-size: 15px; font-weight: bold;">${temp_password}</code>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <!-- Sign In Button -->
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
+                      <tr>
+                        <td align="center">
+                          <a href="${loginUrl}" style="display: inline-block; background-color: #004aad; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Sign In Now</a>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <!-- Account Information -->
+                    <h3 style="margin: 30px 0 15px 0; color: #1f2937; font-size: 18px; font-weight: bold;">
+                      Your Account Information
+                    </h3>
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                      ${accountInfo}
+                    </table>
+                    
+                    <!-- Warning Box -->
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #fef3c7; border-left: 4px solid #f59e0b; margin: 30px 0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.5;">
+                            <strong>⚠️ Important Security Notice:</strong> Please change your temporary password immediately after your first login for security purposes. You can do this in your account settings.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <!-- Next Steps -->
+                    <h3 style="margin: 30px 0 15px 0; color: #1f2937; font-size: 18px; font-weight: bold;">
+                      Next Steps
+                    </h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 1.8;">
+                      <li>Sign in using the credentials above</li>
+                      <li>Change your temporary password immediately</li>
+                      <li>Set up security questions</li>
+                      <li>Explore your dashboard and account features</li>
+                    </ul>
+                    
+                    <p style="margin: 30px 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                      If you have any questions or need assistance, please don't hesitate to contact us.
+                    </p>
+                    
+                    <p style="margin: 0; color: #374151; font-size: 16px;">
+                      Thank you for choosing ${bankInfo.name}!
+                    </p>
+                    <p style="margin: 5px 0 0 0; color: #374151; font-size: 16px; font-weight: bold;">
+                      The ${bankInfo.name} Team
+                    </p>
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                    <p style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px; font-weight: bold;">
+                      ${bankInfo.name}
+                    </p>
+                    <p style="margin: 0 0 15px 0; color: #6b7280; font-size: 14px;">
+                      ${bankInfo.branch_name}
+                    </p>
+                    <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 14px;">
+                      ${bankInfo.address}
+                    </p>
+                    <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 14px;">
+                      Phone: <a href="tel:${bankInfo.phone}" style="color: #004aad; text-decoration: none;">${bankInfo.phone}</a>
+                    </p>
+                    <p style="margin: 0 0 20px 0; color: #6b7280; font-size: 14px;">
+                      Support: <a href="mailto:${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}" style="color: #004aad; text-decoration: none;">${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}</a>
+                    </p>
+                    <p style="margin: 20px 0 0 0; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 12px;">
+                      © ${new Date().getFullYear()} ${bankInfo.name}. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+                
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
 
     const mailOptions = {
-      from: `"${bankInfo.name}" <${bankInfo.email_welcome || bankInfo.email_notify}>`,
+      from: `"${bankInfo.name}" <${bankInfo.email_welcome || 'welcome@theoaklinebank.com'}>`,
       to: email,
-      subject: `Welcome to ${bankInfo.name} - Your Account is Active!`,
+      subject: `Welcome to ${bankInfo.name} — Your Account Has Been Approved`,
       html: emailHtml
     };
 
