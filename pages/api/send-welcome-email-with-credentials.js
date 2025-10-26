@@ -2,30 +2,44 @@
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import nodemailer from 'nodemailer';
 
+// Generate a 10-character temp password meeting rules:
+// - First char uppercase A-Z
+// - At least 3 lowercase letters
+// - At least 3 digits
+// - Exactly 1 special char: either '#' or '$'
+// - Total length 10
 function generateSecurePassword() {
-  const capitalLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-  const numbers = '0123456789';
-  const specialChars = '#$';
-  
-  const randomCapital = capitalLetters[Math.floor(Math.random() * capitalLetters.length)];
-  const randomSpecial = specialChars[Math.floor(Math.random() * specialChars.length)];
-  
-  let password = randomCapital;
-  
-  const wordLength = 6 + Math.floor(Math.random() * 4);
-  for (let i = 0; i < wordLength; i++) {
-    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const specials = ['#', '$'];
+
+  // pick 1 uppercase for first char
+  const first = upper[Math.floor(Math.random() * upper.length)];
+
+  // generate remaining 9 chars ensuring counts
+  const pick = (str, n) => {
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      out += str[Math.floor(Math.random() * str.length)];
+    }
+    return out;
+  };
+
+  const lowerPart = pick(lower, 3);
+  const digitPart = pick(digits, 3);
+  const specialPart = specials[Math.floor(Math.random() * specials.length)];
+  // remaining chars (9 - 7 = 2)
+  const remaining = pick(lower + digits, 2);
+
+  // combine (excluding first char) and shuffle the 9 chars
+  const arr = (lowerPart + digitPart + specialPart + remaining).split('');
+  for (let i = arr.length - 1; i > 0; i--) { // Fisher-Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  
-  const numberLength = 2 + Math.floor(Math.random() * 2);
-  for (let i = 0; i < numberLength; i++) {
-    password += numbers[Math.floor(Math.random() * numbers.length)];
-  }
-  
-  password += randomSpecial;
-  
-  return password;
+  const rest = arr.join('');
+  return first + rest;
 }
 
 export default async function handler(req, res) {

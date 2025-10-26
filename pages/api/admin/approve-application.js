@@ -1,25 +1,39 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
-// Generate password without special characters like !
-function generateSecurePassword() {
-  const length = 12;
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*';
-  let password = '';
-  
-  // Ensure at least one uppercase, one lowercase, and one number
-  password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
-  password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
-  password += '0123456789'[Math.floor(Math.random() * 10)];
-  password += '@#$%&*'[Math.floor(Math.random() * 6)];
-  
-  // Fill the rest randomly
-  for (let i = password.length; i < length; i++) {
-    password += charset[Math.floor(Math.random() * charset.length)];
+// Generate a 10-character temp password meeting rules:
+// - First char uppercase A-Z
+// - At least 3 lowercase letters
+// - At least 3 digits
+// - Exactly 1 special char: either '#' or '$'
+// - Total length 10
+function generateTempPassword() {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const specials = ['#', '$'];
+
+  const first = upper[Math.floor(Math.random() * upper.length)];
+
+  const pick = (str, n) => {
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      out += str[Math.floor(Math.random() * str.length)];
+    }
+    return out;
+  };
+
+  const lowerPart = pick(lower, 3);
+  const digitPart = pick(digits, 3);
+  const specialPart = specials[Math.floor(Math.random() * specials.length)];
+  const remaining = pick(lower + digits, 2);
+
+  const arr = (lowerPart + digitPart + specialPart + remaining).split('');
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  
-  // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+  const rest = arr.join('');
+  return first + rest;
 }
 
 // Generate random card number
@@ -99,7 +113,7 @@ export default async function handler(req, res) {
 
     if (!userId) {
       // Generate temporary password
-      tempPassword = generateSecurePassword();
+      tempPassword = generateTempPassword();
 
       // Check if user already exists
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
@@ -210,7 +224,7 @@ export default async function handler(req, res) {
 
     for (let i = 0; i < accountTypesToCreate.length; i++) {
       const accountType = accountTypesToCreate[i];
-      
+
       // Generate or use manual account number
       let accountNumber;
       if (accountNumberMode === 'manual' && i === 0 && manualAccountNumbers[accountType]) {
@@ -253,7 +267,7 @@ export default async function handler(req, res) {
     for (const account of createdAccounts) {
       const cardBrand = application.chosen_card_brand || 'visa';
       const cardCategory = application.chosen_card_category || 'debit';
-      
+
       const cardData = {
         user_id: userId,
         account_id: account.id,
