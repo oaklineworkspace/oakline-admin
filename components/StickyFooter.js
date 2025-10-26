@@ -7,22 +7,12 @@ export default function StickyFooter() {
   const { user, loading } = useAuth();
   const [isVisible, setIsVisible] = useState(true);
   const [showFeatures, setShowFeatures] = useState(false);
-  const [showAdminHub, setShowAdminHub] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    const adminAuth = localStorage.getItem('adminAuthenticated');
-    setIsAuthenticated(adminAuth === 'true');
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.features-dropdown-container')) {
         setShowFeatures(false);
-      }
-      if (!e.target.closest('.admin-hub-dropdown-container')) {
-        setShowAdminHub(false);
       }
     };
 
@@ -73,53 +63,6 @@ export default function StickyFooter() {
     { name: 'Applications', href: '/admin/approve-applications', icon: '✅', gradient: 'from-orange-500 to-orange-600' },
     { name: 'Cards', href: '/admin/admin-card-applications', icon: '💳', gradient: 'from-indigo-500 to-indigo-600' },
     { name: 'Transactions', href: '/admin/admin-transactions', icon: '💸', gradient: 'from-red-500 to-red-600' }
-  ];
-
-  // Admin pages organized by category for dropdown
-  const adminPages = [
-    {
-      category: '📊 Dashboard',
-      links: [
-        { name: 'Admin Dashboard', href: '/admin/admin-dashboard', icon: '🏠' },
-        { name: 'Admin Reports', href: '/admin/admin-reports', icon: '📈' },
-      ]
-    },
-    {
-      category: '👥 Users',
-      links: [
-        { name: 'Manage Users', href: '/admin/manage-all-users', icon: '👥' },
-        { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '📝' },
-        { name: 'Create User', href: '/admin/create-user', icon: '➕' },
-      ]
-    },
-    {
-      category: '📋 Applications',
-      links: [
-        { name: 'Approve Applications', href: '/admin/approve-applications', icon: '✅' },
-        { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '💳' },
-      ]
-    },
-    {
-      category: '🏦 Accounts',
-      links: [
-        { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️' },
-        { name: 'Manage Accounts', href: '/admin/manage-accounts', icon: '🏦' },
-      ]
-    },
-    {
-      category: '💳 Cards',
-      links: [
-        { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' },
-        { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
-      ]
-    },
-    {
-      category: '💸 Transactions',
-      links: [
-        { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✏️' },
-        { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
-      ]
-    },
   ];
 
   // Premium features data for dropdown
@@ -232,75 +175,6 @@ export default function StickyFooter() {
             ))}
           </div>
         </div>
-        {/* Bottom navigation for mobile */}
-        <nav style={styles.footerNav}>
-          <Link href="/dashboard" style={styles.footerButton}>
-            <span style={styles.footerIcon}>🏠</span>
-            <span style={styles.footerLabel}>Home</span>
-          </Link>
-          <Link href="/admin/manual-transactions" style={styles.footerButton}>
-            <span style={styles.footerIcon}>✏️</span>
-            <span style={styles.footerLabel}>Transaction</span>
-          </Link>
-          <Link href="/transfer" style={styles.footerButton}>
-            <span style={styles.footerIcon}>💸</span>
-            <span style={styles.footerLabel}>Transfer</span>
-          </Link>
-          {isAuthenticated && (
-            <div className="admin-hub-dropdown-container" style={{ position: 'relative' }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAdminHub(!showAdminHub);
-                }}
-                style={styles.footerButton}
-              >
-                <span style={styles.footerIcon}>🔐</span>
-                <span style={styles.footerLabel}>Admin Hub</span>
-              </button>
-
-              {showAdminHub && (
-                <>
-                  <div 
-                    style={styles.adminHubBackdrop} 
-                    onClick={() => setShowAdminHub(false)}
-                  ></div>
-                  <div style={styles.adminHubDropdown}>
-                    <div style={styles.adminDropdownHeader}>
-                      <h4 style={styles.adminDropdownTitle}>Admin Navigation</h4>
-                      <button 
-                        onClick={() => setShowAdminHub(false)}
-                        style={styles.closeButton}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div style={styles.adminDropdownContent}>
-                      {adminPages.map((section, index) => (
-                        <div key={index} style={styles.adminSection}>
-                          <h5 style={styles.adminSectionTitle}>{section.category}</h5>
-                          <div style={styles.adminLinkList}>
-                            {section.links.map((link, linkIndex) => (
-                              <Link
-                                key={linkIndex}
-                                href={link.href}
-                                style={styles.adminLink}
-                                onClick={() => setShowAdminHub(false)}
-                              >
-                                <span style={styles.adminLinkIcon}>{link.icon}</span>
-                                <span style={styles.adminLinkText}>{link.name}</span>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </nav>
       </div>
     </div>
   );
@@ -651,21 +525,4 @@ const styles = {
     flex: 1,
     fontWeight: '500',
   },
-  navLink: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.5rem 0.75rem',
-    color: '#64748b',
-    textDecoration: 'none',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    transition: 'color 0.3s ease',
-    cursor: 'pointer',
-    flex: 1,
-    textAlign: 'center',
-    minWidth: '50px',
-    height: '60px'
-  }
-};
+  };
