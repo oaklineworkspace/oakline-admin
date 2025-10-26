@@ -1482,6 +1482,14 @@ export default function Home() {
       <AdminDropdown />
 
       <Footer />
+
+      {/* Sticky Bottom Admin Button */}
+      <div style={styles.stickyAdminButton}>
+        <Link href="/admin" style={styles.adminButtonLink}>
+          <span style={styles.adminButtonIcon}>🔐</span>
+          <span style={styles.adminButtonText}>Admin Panel</span>
+        </Link>
+      </div>
     </div>
   );
 }
@@ -5172,19 +5180,37 @@ const styles = {
     width: '100%'
   },
 
-  // Add CSS animations to the document
-  // These should be defined in the global scope or loaded via a CSS file.
-  // For example, using styled-components:
-  // const SpinKeyframes = keyframes`
-  //   0% { transform: rotate(0deg); }
-  //   100% { transform: rotate(360deg); }
-  // `;
-  //
-  // const ProgressBarKeyframes = keyframes`
-  //   0% { transform: translateX(-100%); }
-  //   50% { transform: translateX(0%); }
-  //   100% { transform: translateX(100%); }
-  // `;
+  // Sticky Bottom Admin Button
+  stickyAdminButton: {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    zIndex: 9999,
+    animation: 'slideInUp 0.5s ease-out'
+  },
+  adminButtonLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '1rem 1.75rem',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '50px',
+    fontSize: '1.1rem',
+    fontWeight: '700',
+    boxShadow: '0 8px 24px rgba(30, 64, 175, 0.4)',
+    transition: 'all 0.3s ease',
+    border: '2px solid rgba(255, 255, 255, 0.2)',
+    backdropFilter: 'blur(10px)'
+  },
+  adminButtonIcon: {
+    fontSize: '1.5rem'
+  },
+  adminButtonText: {
+    fontWeight: '700',
+    letterSpacing: '0.5px'
+  }
 };
 
 // Add hover effects for dropdown items  
@@ -5507,6 +5533,17 @@ if (typeof document !== 'undefined') {
     .facilityButtonSecondary:hover, .executiveButtonSecondary:hover {
       background-color: rgba(5, 150, 105, 0.1);
       transform: translateY(-3px);
+    }
+
+    @keyframes slideInUp {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
   `;
   document.head.appendChild(styleSheet);
