@@ -36,8 +36,11 @@ export default function AdminDropdown() {
       links: [
         { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥' },
         { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '📝' },
+        { name: 'Admin Users Management', path: '/admin/admin-users-management', icon: '👨‍💼' },
+        { name: 'Admin Users', path: '/admin/admin-users', icon: '👤' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕' },
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️' },
       ]
     },
     {
@@ -165,7 +168,7 @@ export default function AdminDropdown() {
 const styles = {
   container: {
     position: 'fixed',
-    bottom: '20px',
+    top: '20px',
     right: '20px',
     zIndex: 9999
   },

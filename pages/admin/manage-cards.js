@@ -937,13 +937,15 @@ const styles = {
   submitButton: {
     flex: 1,
     padding: '0.875rem',
-    backgroundColor: '#0f766e',
+    backgroundColor: '#2563eb',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '1rem',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+    transition: 'all 0.2s'
   },
   cancelButton: {
     flex: 1,
