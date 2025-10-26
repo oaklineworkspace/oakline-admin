@@ -706,7 +706,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
+    zIndex: 10000,
     padding: '20px',
   },
   modal: {
@@ -717,6 +717,8 @@ const styles = {
     width: '100%',
     maxHeight: '90vh',
     overflowY: 'auto',
+    zIndex: 10001,
+    position: 'relative',
   },
   modalTitle: {
     margin: '0 0 8px 0',
