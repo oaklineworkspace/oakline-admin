@@ -43,30 +43,26 @@ export default function StickyFooter() {
 
   if (!isVisible || loading) return null;
 
-  // Define navigation links based on user authentication status
-  const navigation = user ? [
-    { name: 'Home', href: '/', icon: '🏠', gradient: 'from-blue-500 to-blue-600' },
-    { name: 'Dashboard', href: '/dashboard', icon: '📊', gradient: 'from-green-500 to-green-600' },
-    { name: 'Transfer', href: '/transfer', icon: '💸', gradient: 'from-purple-500 to-purple-600' },
-    { name: 'Menu', href: '/main-menu', icon: '☰', gradient: 'from-gray-500 to-gray-600' }
-  ] : [
-    { name: 'Home', href: '/', icon: '🏠', gradient: 'from-blue-500 to-blue-600' },
-    { name: 'Apply', href: '/apply', icon: '📝', gradient: 'from-green-500 to-green-600' },
-    { name: 'Sign In', href: '/sign-in', icon: '🔑', gradient: 'from-indigo-500 to-indigo-600' },
-    { name: 'Admin', href: '/admin', icon: '🔐', gradient: 'from-red-500 to-red-600' },
-    { name: 'Manage Users', href: '/admin/manage-all-users', icon: '👥', gradient: 'from-orange-500 to-orange-600' }
+  // Define navigation links - Admin-focused navigation
+  const navigation = [
+    { name: 'Admin Hub', href: '/admin', icon: '🏦', gradient: 'from-blue-500 to-blue-600' },
+    { name: 'Dashboard', href: '/admin/admin-dashboard', icon: '📊', gradient: 'from-green-500 to-green-600' },
+    { name: 'Users', href: '/admin/manage-all-users', icon: '👥', gradient: 'from-purple-500 to-purple-600' },
+    { name: 'Applications', href: '/admin/approve-applications', icon: '✅', gradient: 'from-orange-500 to-orange-600' },
+    { name: 'Cards', href: '/admin/admin-card-applications', icon: '💳', gradient: 'from-indigo-500 to-indigo-600' },
+    { name: 'Transactions', href: '/admin/admin-transactions', icon: '💸', gradient: 'from-red-500 to-red-600' }
   ];
 
-  // Premium income-generating features for dropdown
+  // Admin tools and management features for dropdown
   const premiumFeatures = [
-    { name: 'Investment Portfolio', href: '/investments', icon: '📈', desc: 'High-yield investments', color: '#10B981' },
-    { name: 'Premium Loans', href: '/loans', icon: '🏠', desc: 'Competitive rates', color: '#3B82F6' },
-    { name: 'Crypto Trading', href: '/crypto', icon: '₿', desc: 'Digital asset trading', color: '#F59E0B' },
-    { name: 'Wealth Management', href: '/investments', icon: '💎', desc: 'Private banking', color: '#8B5CF6' },
-    { name: 'Business Banking', href: '/account-types', icon: '🏢', desc: 'Commercial services', color: '#EF4444' },
-    { name: 'Financial Advisory', href: '/financial-advisory', icon: '🎯', desc: 'Expert consultation', color: '#06B6D4' },
-    { name: 'International Banking', href: '/internationalization', icon: '🌍', desc: 'Global services', color: '#84CC16' },
-    { name: 'Trust Services', href: '/about', icon: '🛡️', desc: 'Estate planning', color: '#F97316' }
+    { name: 'Create User', href: '/admin/create-user', icon: '➕', desc: 'Add new accounts', color: '#10B981' },
+    { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️', desc: 'Account approvals', color: '#3B82F6' },
+    { name: 'Issue Cards', href: '/admin/issue-debit-card', icon: '🎫', desc: 'Issue debit cards', color: '#F59E0B' },
+    { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✍️', desc: 'Create transactions', color: '#8B5CF6' },
+    { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦', desc: 'Batch processing', color: '#EF4444' },
+    { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '🔑', desc: 'Enrollment setup', color: '#06B6D4' },
+    { name: 'Delete Users', href: '/admin/delete-user-by-id', icon: '🗑️', desc: 'Remove accounts', color: '#DC2626' },
+    { name: 'System Logs', href: '/admin/admin-logs', icon: '📜', desc: 'View system logs', color: '#F97316' }
   ];
 
   return (
@@ -96,8 +92,8 @@ export default function StickyFooter() {
                 onClick={handleFeatureClick}
                 style={styles.featuresButton}
               >
-                <span style={styles.navIcon}>💰</span>
-                <span style={styles.navText}>Banking+</span>
+                <span style={styles.navIcon}>🔧</span>
+                <span style={styles.navText}>Tools+</span>
               </button>
 
               {showFeatures && (
@@ -105,8 +101,8 @@ export default function StickyFooter() {
                   <div style={styles.backdrop} onClick={() => setShowFeatures(false)}></div>
                   <div style={styles.featuresDropdown}>
                     <div style={styles.dropdownHeader}>
-                      <h4 style={styles.dropdownTitle}>Premium Banking Services</h4>
-                      <p style={styles.dropdownSubtitle}>High-income generating banking solutions</p>
+                      <h4 style={styles.dropdownTitle}>Admin Management Tools</h4>
+                      <p style={styles.dropdownSubtitle}>Quick access to administrative functions</p>
                     </div>
 
                     <div style={styles.featuresGrid}>
@@ -139,11 +135,11 @@ export default function StickyFooter() {
                       <button 
                         onClick={() => {
                           setShowFeatures(false);
-                          router.push("/account-types");
+                          router.push("/admin");
                         }}
                         style={styles.viewAllButton}
                       >
-                        Explore All Premium Services
+                        View All Admin Pages
                       </button>
                     </div>
                   </div>
@@ -165,21 +161,6 @@ export default function StickyFooter() {
                 <span style={styles.navText}>{navItem.name}</span>
               </Link>
             ))}
-
-            {/* Sign Out Button for Authenticated Users */}
-            {user && (
-              <button
-                onClick={handleSignOut}
-                style={{
-                  ...styles.navButton,
-                  background: '#ffffff',
-                  border: '1px solid #e5e7eb'
-                }}
-              >
-                <span style={styles.navIcon}>🔐</span>
-                <span style={styles.navText}>Sign Out</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
