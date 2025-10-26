@@ -1,0 +1,582 @@
+09:06:16.709 Running build in Washington, D.C., USA (East) – iad1
+09:06:16.709 Build machine configuration: 2 cores, 8 GB
+09:06:16.900 Cloning github.com/oaklineworkspace/oakline-admin (Branch: main, Commit: 01dae7b)
+09:06:17.841 Cloning completed: 941.000ms
+09:06:17.945 Restored build cache from previous deployment (uN2MmxycQWTVYx9yeZm1A6XpdysX)
+09:06:18.360 Running "vercel build"
+09:06:18.758 Vercel CLI 48.6.0
+09:06:19.128 Running "install" command: `npm install`...
+09:06:21.934 
+09:06:21.935 up to date, audited 361 packages in 3s
+09:06:21.936 
+09:06:21.936 141 packages are looking for funding
+09:06:21.936   run `npm fund` for details
+09:06:22.005 
+09:06:22.005 3 vulnerabilities (2 moderate, 1 critical)
+09:06:22.005 
+09:06:22.006 To address issues that do not require attention, run:
+09:06:22.006   npm audit fix
+09:06:22.006 
+09:06:22.006 To address all issues (including breaking changes), run:
+09:06:22.007   npm audit fix --force
+09:06:22.007 
+09:06:22.007 Run `npm audit` for details.
+09:06:22.050 Detected Next.js version: 14.2.3
+09:06:22.051 Running "npm run build"
+09:06:22.165 
+09:06:22.166 > oakline-bank@1.0.0 build
+09:06:22.166 > next build
+09:06:22.166 
+09:06:22.864   ▲ Next.js 14.2.3
+09:06:22.865 
+09:06:22.865    Linting and checking validity of types ...
+09:06:23.045    Creating an optimized production build ...
+09:06:31.447 Failed to compile.
+09:06:31.448 
+09:06:31.448 ./pages/api/admin/approve-pending-account.js
+09:06:31.448 Error: 
+09:06:31.449   [31mx[0m the name `supabaseAdmin` is defined multiple times
+09:06:31.449      ,-[[36;1;4m/vercel/path0/pages/api/admin/approve-pending-account.js[0m:1:1]
+09:06:31.449  [2m  1[0m | 
+09:06:31.449  [2m  2[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+09:06:31.449      : [31;1m         ^^^^^^|^^^^^^[0m
+09:06:31.449      :                [31;1m`-- [31;1mprevious definition of `supabaseAdmin` here[0m[0m
+09:06:31.449  [2m  3[0m | 
+09:06:31.449  [2m  4[0m | function generateCardNumber() {
+09:06:31.449  [2m  5[0m |   const prefix = '4532';
+09:06:31.450  [2m  6[0m |   const part1 = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+09:06:31.450  [2m  7[0m |   const part2 = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+09:06:31.450  [2m  8[0m |   const part3 = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+09:06:31.450  [2m  9[0m |   return `${prefix}${part1}${part2}${part3}`;
+09:06:31.450  [2m 10[0m | }
+09:06:31.450  [2m 11[0m | 
+09:06:31.450  [2m 12[0m | function generateCVC() {
+09:06:31.451  [2m 13[0m |   return Math.floor(Math.random() * 900 + 100).toString();
+09:06:31.451  [2m 14[0m | }
+09:06:31.451  [2m 15[0m | 
+09:06:31.451  [2m 16[0m | function generateExpiryDate() {
+09:06:31.451  [2m 17[0m |   const today = new Date();
+09:06:31.451  [2m 18[0m |   const expiryDate = new Date(today.getFullYear() + 4, today.getMonth(), 1);
+09:06:31.451  [2m 19[0m |   return expiryDate.toISOString().split('T')[0];
+09:06:31.451  [2m 20[0m | }
+09:06:31.451  [2m 21[0m | 
+09:06:31.452  [2m 22[0m | export default async function handler(req, res) {
+09:06:31.452  [2m 23[0m |   if (req.method !== 'POST') {
+09:06:31.452  [2m 24[0m |     return res.status(405).json({ error: 'Method not allowed' });
+09:06:31.452  [2m 25[0m |   }
+09:06:31.452  [2m 26[0m | 
+09:06:31.452  [2m 27[0m |   const { accountId } = req.body;
+09:06:31.452  [2m 28[0m | 
+09:06:31.452  [2m 29[0m |   if (!accountId) {
+09:06:31.453  [2m 30[0m |     return res.status(400).json({ error: 'Account ID is required' });
+09:06:31.453  [2m 31[0m |   }
+09:06:31.456  [2m 32[0m | 
+09:06:31.456  [2m 33[0m |   try {
+09:06:31.456  [2m 34[0m |     // 1. Get account details
+09:06:31.456  [2m 35[0m |     const { data: account, error: accountError } = await supabaseAdmin
+09:06:31.456  [2m 36[0m |       .from('accounts')
+09:06:31.456  [2m 37[0m |       .select('*')
+09:06:31.456  [2m 38[0m |       .eq('id', accountId)
+09:06:31.456  [2m 39[0m |       .single();
+09:06:31.457  [2m 40[0m | 
+09:06:31.457  [2m 41[0m |     if (accountError || !account) {
+09:06:31.457  [2m 42[0m |       return res.status(404).json({ error: 'Account not found' });
+09:06:31.457  [2m 43[0m |     }
+09:06:31.457  [2m 44[0m | 
+09:06:31.457  [2m 45[0m |     if (account.status === 'active') {
+09:06:31.457  [2m 46[0m |       return res.status(400).json({ error: 'Account is already active' });
+09:06:31.457  [2m 47[0m |     }
+09:06:31.457  [2m 48[0m | 
+09:06:31.458  [2m 49[0m |     if (account.status !== 'pending') {
+09:06:31.458  [2m 50[0m |       return res.status(400).json({ error: 'Only pending accounts can be approved' });
+09:06:31.458  [2m 51[0m |     }
+09:06:31.458  [2m 52[0m | 
+09:06:31.458  [2m 53[0m |     // 2. Update account status to active
+09:06:31.458  [2m 54[0m |     const { error: updateError } = await supabaseAdmin
+09:06:31.458  [2m 55[0m |       .from('accounts')
+09:06:31.459  [2m 56[0m |       .update({
+09:06:31.459  [2m 57[0m |         status: 'active',
+09:06:31.459  [2m 58[0m |         updated_at: new Date().toISOString()
+09:06:31.460  [2m 59[0m |       })
+09:06:31.460  [2m 60[0m |       .eq('id', accountId);
+09:06:31.460  [2m 61[0m | 
+09:06:31.460  [2m 62[0m |     if (updateError) {
+09:06:31.460  [2m 63[0m |       console.error('Account update error:', updateError);
+09:06:31.460  [2m 64[0m |       return res.status(500).json({ error: 'Failed to update account status' });
+09:06:31.462  [2m 65[0m |     }
+09:06:31.463  [2m 66[0m | 
+09:06:31.463  [2m 67[0m |     // 3. Create debit card for the account
+09:06:31.463  [2m 68[0m |     let cardNumber;
+09:06:31.463  [2m 69[0m |     let isUnique = false;
+09:06:31.463  [2m 70[0m |     let attempts = 0;
+09:06:31.463  [2m 71[0m | 
+09:06:31.463  [2m 72[0m |     while (!isUnique && attempts < 10) {
+09:06:31.463  [2m 73[0m |       cardNumber = generateCardNumber();
+09:06:31.464  [2m 74[0m |       const { data: existing } = await supabaseAdmin
+09:06:31.464  [2m 75[0m |         .from('cards')
+09:06:31.464  [2m 76[0m |         .select('id')
+09:06:31.464  [2m 77[0m |         .eq('card_number', cardNumber)
+09:06:31.464  [2m 78[0m |         .maybeSingle();
+09:06:31.464  [2m 79[0m | 
+09:06:31.464  [2m 80[0m |       if (!existing) {
+09:06:31.464  [2m 81[0m |         isUnique = true;
+09:06:31.464  [2m 82[0m |       }
+09:06:31.464  [2m 83[0m |       attempts++;
+09:06:31.464  [2m 84[0m |     }
+09:06:31.465  [2m 85[0m | 
+09:06:31.465  [2m 86[0m |     if (!isUnique) {
+09:06:31.465  [2m 87[0m |       return res.status(500).json({ error: 'Failed to generate unique card number' });
+09:06:31.465  [2m 88[0m |     }
+09:06:31.465  [2m 89[0m | 
+09:06:31.465  [2m 90[0m |     const { data: newCard, error: cardError } = await supabaseAdmin
+09:06:31.465  [2m 91[0m |       .from('cards')
+09:06:31.465  [2m 92[0m |       .insert({
+09:06:31.465  [2m 93[0m |         user_id: account.user_id,
+09:06:31.466  [2m 94[0m |         account_id: accountId,
+09:06:31.466  [2m 95[0m |         card_number: cardNumber,
+09:06:31.466  [2m 96[0m |         card_type: 'debit',
+09:06:31.466  [2m 97[0m |         status: 'active',
+09:06:31.466  [2m 98[0m |         expiry_date: generateExpiryDate(),
+09:06:31.466  [2m 99[0m |         cvc: generateCVC(),
+09:06:31.466  [2m100[0m |         daily_limit: 5000,
+09:06:31.466  [2m101[0m |         monthly_limit: 20000,
+09:06:31.467  [2m102[0m |         daily_spent: 0,
+09:06:31.467  [2m103[0m |         monthly_spent: 0,
+09:06:31.467  [2m104[0m |         is_locked: false,
+09:06:31.467  [2m105[0m |       })
+09:06:31.467  [2m106[0m |       .select()
+09:06:31.467  [2m107[0m |       .single();
+09:06:31.467  [2m108[0m | 
+09:06:31.467  [2m109[0m |     if (cardError) {
+09:06:31.467  [2m110[0m |       console.error('Card creation error:', cardError);
+09:06:31.468  [2m111[0m |       return res.status(500).json({ error: 'Account approved but card creation failed' });
+09:06:31.468  [2m112[0m |     }
+09:06:31.468  [2m113[0m | 
+09:06:31.468  [2m114[0m |     return res.status(200).json({
+09:06:31.468  [2m115[0m |       success: true,
+09:06:31.468  [2m116[0m |       message: 'Account approved and debit card created successfully',
+09:06:31.468  [2m117[0m |       data: {
+09:06:31.468  [2m118[0m |         account: {
+09:06:31.468  [2m119[0m |           id: account.id,
+09:06:31.468  [2m120[0m |           account_number: account.account_number,
+09:06:31.469  [2m121[0m |           account_type: account.account_type,
+09:06:31.469  [2m122[0m |           account_name: account.account_name,
+09:06:31.469  [2m123[0m |           status: 'active',
+09:06:31.469  [2m124[0m |           balance: account.balance,
+09:06:31.469  [2m125[0m |         },
+09:06:31.469  [2m126[0m |         card: {
+09:06:31.469  [2m127[0m |           id: newCard.id,
+09:06:31.470  [2m128[0m |           card_number: `****${newCard.card_number.slice(-4)}`,
+09:06:31.470  [2m129[0m |           card_type: newCard.card_type,
+09:06:31.470  [2m130[0m |           expiry_date: newCard.expiry_date,
+09:06:31.470  [2m131[0m |           status: newCard.status,
+09:06:31.470  [2m132[0m |         }
+09:06:31.470  [2m133[0m |       }
+09:06:31.470  [2m134[0m |     });
+09:06:31.470  [2m135[0m | 
+09:06:31.476  [2m136[0m |   } catch (error) {
+09:06:31.476  [2m137[0m |     console.error('Error approving pending account:', error);
+09:06:31.476  [2m138[0m |     return res.status(500).json({
+09:06:31.477  [2m139[0m |       error: 'Failed to approve account',
+09:06:31.477  [2m140[0m |       details: error.message || 'Unknown error occurred',
+09:06:31.477  [2m141[0m |     });
+09:06:31.477  [2m142[0m |   }
+09:06:31.477  [2m143[0m | }
+09:06:31.477  [2m144[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+09:06:31.477      : [33;1m         ^^^^^^|^^^^^^[0m
+09:06:31.477      :                [33;1m`-- [33;1m`supabaseAdmin` redefined here[0m[0m
+09:06:31.477  [2m145[0m | 
+09:06:31.477  [2m146[0m | export default async function handler(req, res) {
+09:06:31.477  [2m147[0m |   if (req.method !== 'POST') {
+09:06:31.477      `----
+09:06:31.477 
+09:06:31.478   [31mx[0m the name `handler` is defined multiple times
+09:06:31.478      ,-[[36;1;4m/vercel/path0/pages/api/admin/approve-pending-account.js[0m:19:1]
+09:06:31.478  [2m 19[0m |   return expiryDate.toISOString().split('T')[0];
+09:06:31.478  [2m 20[0m | }
+09:06:31.478  [2m 21[0m | 
+09:06:31.478  [2m 22[0m | export default async function handler(req, res) {
+09:06:31.478      : [31;1m                              ^^^|^^^[0m
+09:06:31.478      :                                  [31;1m`-- [31;1mprevious definition of `handler` here[0m[0m
+09:06:31.478  [2m 23[0m |   if (req.method !== 'POST') {
+09:06:31.479  [2m 24[0m |     return res.status(405).json({ error: 'Method not allowed' });
+09:06:31.479  [2m 25[0m |   }
+09:06:31.479  [2m 26[0m | 
+09:06:31.479  [2m 27[0m |   const { accountId } = req.body;
+09:06:31.479  [2m 28[0m | 
+09:06:31.479  [2m 29[0m |   if (!accountId) {
+09:06:31.479  [2m 30[0m |     return res.status(400).json({ error: 'Account ID is required' });
+09:06:31.479  [2m 31[0m |   }
+09:06:31.479  [2m 32[0m | 
+09:06:31.479  [2m 33[0m |   try {
+09:06:31.479  [2m 34[0m |     // 1. Get account details
+09:06:31.479  [2m 35[0m |     const { data: account, error: accountError } = await supabaseAdmin
+09:06:31.480  [2m 36[0m |       .from('accounts')
+09:06:31.480  [2m 37[0m |       .select('*')
+09:06:31.480  [2m 38[0m |       .eq('id', accountId)
+09:06:31.480  [2m 39[0m |       .single();
+09:06:31.480  [2m 40[0m | 
+09:06:31.480  [2m 41[0m |     if (accountError || !account) {
+09:06:31.480  [2m 42[0m |       return res.status(404).json({ error: 'Account not found' });
+09:06:31.480  [2m 43[0m |     }
+09:06:31.480  [2m 44[0m | 
+09:06:31.480  [2m 45[0m |     if (account.status === 'active') {
+09:06:31.480  [2m 46[0m |       return res.status(400).json({ error: 'Account is already active' });
+09:06:31.480  [2m 47[0m |     }
+09:06:31.480  [2m 48[0m | 
+09:06:31.480  [2m 49[0m |     if (account.status !== 'pending') {
+09:06:31.480  [2m 50[0m |       return res.status(400).json({ error: 'Only pending accounts can be approved' });
+09:06:31.480  [2m 51[0m |     }
+09:06:31.480  [2m 52[0m | 
+09:06:31.480  [2m 53[0m |     // 2. Update account status to active
+09:06:31.480  [2m 54[0m |     const { error: updateError } = await supabaseAdmin
+09:06:31.481  [2m 55[0m |       .from('accounts')
+09:06:31.481  [2m 56[0m |       .update({
+09:06:31.481  [2m 57[0m |         status: 'active',
+09:06:31.481  [2m 58[0m |         updated_at: new Date().toISOString()
+09:06:31.481  [2m 59[0m |       })
+09:06:31.481  [2m 60[0m |       .eq('id', accountId);
+09:06:31.481  [2m 61[0m | 
+09:06:31.481  [2m 62[0m |     if (updateError) {
+09:06:31.481  [2m 63[0m |       console.error('Account update error:', updateError);
+09:06:31.481  [2m 64[0m |       return res.status(500).json({ error: 'Failed to update account status' });
+09:06:31.481  [2m 65[0m |     }
+09:06:31.481  [2m 66[0m | 
+09:06:31.481  [2m 67[0m |     // 3. Create debit card for the account
+09:06:31.481  [2m 68[0m |     let cardNumber;
+09:06:31.481  [2m 69[0m |     let isUnique = false;
+09:06:31.481  [2m 70[0m |     let attempts = 0;
+09:06:31.482  [2m 71[0m | 
+09:06:31.482  [2m 72[0m |     while (!isUnique && attempts < 10) {
+09:06:31.482  [2m 73[0m |       cardNumber = generateCardNumber();
+09:06:31.482  [2m 74[0m |       const { data: existing } = await supabaseAdmin
+09:06:31.482  [2m 75[0m |         .from('cards')
+09:06:31.482  [2m 76[0m |         .select('id')
+09:06:31.482  [2m 77[0m |         .eq('card_number', cardNumber)
+09:06:31.482  [2m 78[0m |         .maybeSingle();
+09:06:31.482  [2m 79[0m | 
+09:06:31.482  [2m 80[0m |       if (!existing) {
+09:06:31.483  [2m 81[0m |         isUnique = true;
+09:06:31.483  [2m 82[0m |       }
+09:06:31.483  [2m 83[0m |       attempts++;
+09:06:31.483  [2m 84[0m |     }
+09:06:31.483  [2m 85[0m | 
+09:06:31.483  [2m 86[0m |     if (!isUnique) {
+09:06:31.483  [2m 87[0m |       return res.status(500).json({ error: 'Failed to generate unique card number' });
+09:06:31.483  [2m 88[0m |     }
+09:06:31.483  [2m 89[0m | 
+09:06:31.483  [2m 90[0m |     const { data: newCard, error: cardError } = await supabaseAdmin
+09:06:31.483  [2m 91[0m |       .from('cards')
+09:06:31.483  [2m 92[0m |       .insert({
+09:06:31.483  [2m 93[0m |         user_id: account.user_id,
+09:06:31.483  [2m 94[0m |         account_id: accountId,
+09:06:31.483  [2m 95[0m |         card_number: cardNumber,
+09:06:31.484  [2m 96[0m |         card_type: 'debit',
+09:06:31.484  [2m 97[0m |         status: 'active',
+09:06:31.484  [2m 98[0m |         expiry_date: generateExpiryDate(),
+09:06:31.484  [2m 99[0m |         cvc: generateCVC(),
+09:06:31.484  [2m100[0m |         daily_limit: 5000,
+09:06:31.484  [2m101[0m |         monthly_limit: 20000,
+09:06:31.484  [2m102[0m |         daily_spent: 0,
+09:06:31.484  [2m103[0m |         monthly_spent: 0,
+09:06:31.484  [2m104[0m |         is_locked: false,
+09:06:31.484  [2m105[0m |       })
+09:06:31.484  [2m106[0m |       .select()
+09:06:31.484  [2m107[0m |       .single();
+09:06:31.484  [2m108[0m | 
+09:06:31.484  [2m109[0m |     if (cardError) {
+09:06:31.484  [2m110[0m |       console.error('Card creation error:', cardError);
+09:06:31.484  [2m111[0m |       return res.status(500).json({ error: 'Account approved but card creation failed' });
+09:06:31.484  [2m112[0m |     }
+09:06:31.484  [2m113[0m | 
+09:06:31.485  [2m114[0m |     return res.status(200).json({
+09:06:31.485  [2m115[0m |       success: true,
+09:06:31.485  [2m116[0m |       message: 'Account approved and debit card created successfully',
+09:06:31.485  [2m117[0m |       data: {
+09:06:31.485  [2m118[0m |         account: {
+09:06:31.485  [2m119[0m |           id: account.id,
+09:06:31.485  [2m120[0m |           account_number: account.account_number,
+09:06:31.485  [2m121[0m |           account_type: account.account_type,
+09:06:31.485  [2m122[0m |           account_name: account.account_name,
+09:06:31.485  [2m123[0m |           status: 'active',
+09:06:31.485  [2m124[0m |           balance: account.balance,
+09:06:31.485  [2m125[0m |         },
+09:06:31.485  [2m126[0m |         card: {
+09:06:31.485  [2m127[0m |           id: newCard.id,
+09:06:31.485  [2m128[0m |           card_number: `****${newCard.card_number.slice(-4)}`,
+09:06:31.485  [2m129[0m |           card_type: newCard.card_type,
+09:06:31.485  [2m130[0m |           expiry_date: newCard.expiry_date,
+09:06:31.486  [2m131[0m |           status: newCard.status,
+09:06:31.486  [2m132[0m |         }
+09:06:31.486  [2m133[0m |       }
+09:06:31.486  [2m134[0m |     });
+09:06:31.486  [2m135[0m | 
+09:06:31.486  [2m136[0m |   } catch (error) {
+09:06:31.486  [2m137[0m |     console.error('Error approving pending account:', error);
+09:06:31.486  [2m138[0m |     return res.status(500).json({
+09:06:31.486  [2m139[0m |       error: 'Failed to approve account',
+09:06:31.486  [2m140[0m |       details: error.message || 'Unknown error occurred',
+09:06:31.486  [2m141[0m |     });
+09:06:31.486  [2m142[0m |   }
+09:06:31.486  [2m143[0m | }
+09:06:31.486  [2m144[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+09:06:31.486  [2m145[0m | 
+09:06:31.486  [2m146[0m | export default async function handler(req, res) {
+09:06:31.486      : [33;1m                              ^^^|^^^[0m
+09:06:31.486      :                                  [33;1m`-- [33;1m`handler` redefined here[0m[0m
+09:06:31.486  [2m147[0m |   if (req.method !== 'POST') {
+09:06:31.487  [2m148[0m |     return res.status(405).json({ error: 'Method not allowed' });
+09:06:31.487  [2m149[0m |   }
+09:06:31.487      `----
+09:06:31.487 
+09:06:31.487   [31mx[0m the name `default` is exported multiple times
+09:06:31.487      ,-[[36;1;4m/vercel/path0/pages/api/admin/approve-pending-account.js[0m:19:1]
+09:06:31.487  [2m 19[0m |       return expiryDate.toISOString().split('T')[0];
+09:06:31.487  [2m 20[0m |     }
+09:06:31.487  [2m 21[0m |     
+09:06:31.487  [2m 22[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m export default async function handler(req, res) {
+09:06:31.487  [2m 23[0m | [31;1m|[0m     if (req.method !== 'POST') {
+09:06:31.487  [2m 24[0m | [31;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+09:06:31.487  [2m 25[0m | [31;1m|[0m     }
+09:06:31.487  [2m 26[0m | [31;1m|[0m   
+09:06:31.487  [2m 27[0m | [31;1m|[0m     const { accountId } = req.body;
+09:06:31.487  [2m 28[0m | [31;1m|[0m   
+09:06:31.487  [2m 29[0m | [31;1m|[0m     if (!accountId) {
+09:06:31.487  [2m 30[0m | [31;1m|[0m       return res.status(400).json({ error: 'Account ID is required' });
+09:06:31.488  [2m 31[0m | [31;1m|[0m     }
+09:06:31.488  [2m 32[0m | [31;1m|[0m   
+09:06:31.488  [2m 33[0m | [31;1m|[0m     try {
+09:06:31.488  [2m 34[0m | [31;1m|[0m       // 1. Get account details
+09:06:31.488  [2m 35[0m | [31;1m|[0m       const { data: account, error: accountError } = await supabaseAdmin
+09:06:31.488  [2m 36[0m | [31;1m|[0m         .from('accounts')
+09:06:31.488  [2m 37[0m | [31;1m|[0m         .select('*')
+09:06:31.488  [2m 38[0m | [31;1m|[0m         .eq('id', accountId)
+09:06:31.488  [2m 39[0m | [31;1m|[0m         .single();
+09:06:31.488  [2m 40[0m | [31;1m|[0m   
+09:06:31.488  [2m 41[0m | [31;1m|[0m       if (accountError || !account) {
+09:06:31.488  [2m 42[0m | [31;1m|[0m         return res.status(404).json({ error: 'Account not found' });
+09:06:31.488  [2m 43[0m | [31;1m|[0m       }
+09:06:31.488  [2m 44[0m | [31;1m|[0m   
+09:06:31.488  [2m 45[0m | [31;1m|[0m       if (account.status === 'active') {
+09:06:31.488  [2m 46[0m | [31;1m|[0m         return res.status(400).json({ error: 'Account is already active' });
+09:06:31.488  [2m 47[0m | [31;1m|[0m       }
+09:06:31.488  [2m 48[0m | [31;1m|[0m   
+09:06:31.488  [2m 49[0m | [31;1m|[0m       if (account.status !== 'pending') {
+09:06:31.488  [2m 50[0m | [31;1m|[0m         return res.status(400).json({ error: 'Only pending accounts can be approved' });
+09:06:31.489  [2m 51[0m | [31;1m|[0m       }
+09:06:31.489  [2m 52[0m | [31;1m|[0m   
+09:06:31.489  [2m 53[0m | [31;1m|[0m       // 2. Update account status to active
+09:06:31.489  [2m 54[0m | [31;1m|[0m       const { error: updateError } = await supabaseAdmin
+09:06:31.489  [2m 55[0m | [31;1m|[0m         .from('accounts')
+09:06:31.489  [2m 56[0m | [31;1m|[0m         .update({
+09:06:31.489  [2m 57[0m | [31;1m|[0m           status: 'active',
+09:06:31.489  [2m 58[0m | [31;1m|[0m           updated_at: new Date().toISOString()
+09:06:31.489  [2m 59[0m | [31;1m|[0m         })
+09:06:31.489  [2m 60[0m | [31;1m|[0m         .eq('id', accountId);
+09:06:31.489  [2m 61[0m | [31;1m|[0m   
+09:06:31.489  [2m 62[0m | [31;1m|[0m       if (updateError) {
+09:06:31.489  [2m 63[0m | [31;1m|[0m         console.error('Account update error:', updateError);
+09:06:31.489  [2m 64[0m | [31;1m|[0m         return res.status(500).json({ error: 'Failed to update account status' });
+09:06:31.489  [2m 65[0m | [31;1m|[0m       }
+09:06:31.489  [2m 66[0m | [31;1m|[0m   
+09:06:31.489  [2m 67[0m | [31;1m|[0m       // 3. Create debit card for the account
+09:06:31.489  [2m 68[0m | [31;1m|[0m       let cardNumber;
+09:06:31.489  [2m 69[0m | [31;1m|[0m       let isUnique = false;
+09:06:31.490  [2m 70[0m | [31;1m|[0m       let attempts = 0;
+09:06:31.490  [2m 71[0m | [31;1m|[0m   
+09:06:31.490  [2m 72[0m | [31;1m|[0m       while (!isUnique && attempts < 10) {
+09:06:31.490  [2m 73[0m | [31;1m|[0m         cardNumber = generateCardNumber();
+09:06:31.490  [2m 74[0m | [31;1m|[0m         const { data: existing } = await supabaseAdmin
+09:06:31.490  [2m 75[0m | [31;1m|[0m           .from('cards')
+09:06:31.490  [2m 76[0m | [31;1m|[0m           .select('id')
+09:06:31.490  [2m 77[0m | [31;1m|[0m           .eq('card_number', cardNumber)
+09:06:31.490  [2m 78[0m | [31;1m|[0m           .maybeSingle();
+09:06:31.490  [2m 79[0m | [31;1m|[0m   
+09:06:31.490  [2m 80[0m | [31;1m|[0m         if (!existing) {
+09:06:31.490  [2m 81[0m | [31;1m|[0m           isUnique = true;
+09:06:31.490  [2m 82[0m | [31;1m|[0m         }
+09:06:31.490  [2m 83[0m | [31;1m|[0m         attempts++;
+09:06:31.490  [2m 84[0m | [31;1m|[0m       }
+09:06:31.490  [2m 85[0m | [31;1m|[0m   
+09:06:31.491  [2m 86[0m | [31;1m|[0m       if (!isUnique) {
+09:06:31.491  [2m 87[0m | [31;1m|[0m         return res.status(500).json({ error: 'Failed to generate unique card number' });
+09:06:31.491  [2m 88[0m | [31;1m|[0m       }
+09:06:31.491  [2m 89[0m | [31;1m|[0m   
+09:06:31.491  [2m 90[0m | [31;1m|[0m       const { data: newCard, error: cardError } = await supabaseAdmin
+09:06:31.491  [2m 91[0m | [31;1m|[0m         .from('cards')
+09:06:31.491  [2m 92[0m | [31;1m|[0m         .insert({
+09:06:31.491  [2m 93[0m | [31;1m|[0m           user_id: account.user_id,
+09:06:31.491  [2m 94[0m | [31;1m|[0m           account_id: accountId,
+09:06:31.491  [2m 95[0m | [31;1m|[0m           card_number: cardNumber,
+09:06:31.491  [2m 96[0m | [31;1m|[0m           card_type: 'debit',
+09:06:31.491  [2m 97[0m | [31;1m|[0m           status: 'active',
+09:06:31.491  [2m 98[0m | [31;1m|[0m           expiry_date: generateExpiryDate(),
+09:06:31.492  [2m 99[0m | [31;1m|[0m           cvc: generateCVC(),
+09:06:31.492  [2m100[0m | [31;1m|[0m           daily_limit: 5000,
+09:06:31.492  [2m101[0m | [31;1m|[0m           monthly_limit: 20000,
+09:06:31.492  [2m102[0m | [31;1m|[0m           daily_spent: 0,
+09:06:31.492  [2m103[0m | [31;1m|[0m           monthly_spent: 0,
+09:06:31.492  [2m104[0m | [31;1m|[0m           is_locked: false,
+09:06:31.492  [2m105[0m | [31;1m|[0m         })
+09:06:31.492  [2m106[0m | [31;1m|[0m         .select()
+09:06:31.492  [2m107[0m | [31;1m|[0m         .single();
+09:06:31.492  [2m108[0m | [31;1m|[0m   
+09:06:31.492  [2m109[0m | [31;1m|[0m       if (cardError) {
+09:06:31.492  [2m110[0m | [31;1m|[0m         console.error('Card creation error:', cardError);
+09:06:31.492  [2m111[0m | [31;1m|[0m         return res.status(500).json({ error: 'Account approved but card creation failed' });
+09:06:31.492  [2m112[0m | [31;1m|[0m       }
+09:06:31.492  [2m113[0m | [31;1m|[0m   
+09:06:31.493  [2m114[0m | [31;1m|[0m       return res.status(200).json({
+09:06:31.493  [2m115[0m | [31;1m|[0m         success: true,
+09:06:31.493  [2m116[0m | [31;1m|[0m         message: 'Account approved and debit card created successfully',
+09:06:31.493  [2m117[0m | [31;1m|[0m         data: {
+09:06:31.493  [2m118[0m | [31;1m|[0m           account: {
+09:06:31.493  [2m119[0m | [31;1m|[0m             id: account.id,
+09:06:31.493  [2m120[0m | [31;1m|[0m             account_number: account.account_number,
+09:06:31.493  [2m121[0m | [31;1m|[0m             account_type: account.account_type,
+09:06:31.493  [2m122[0m | [31;1m|[0m             account_name: account.account_name,
+09:06:31.493  [2m123[0m | [31;1m|[0m             status: 'active',
+09:06:31.493  [2m124[0m | [31;1m|[0m             balance: account.balance,
+09:06:31.493  [2m125[0m | [31;1m|[0m           },
+09:06:31.493  [2m126[0m | [31;1m|[0m           card: {
+09:06:31.493  [2m127[0m | [31;1m|[0m             id: newCard.id,
+09:06:31.494  [2m128[0m | [31;1m|[0m             card_number: `****${newCard.card_number.slice(-4)}`,
+09:06:31.502  [2m129[0m | [31;1m|[0m             card_type: newCard.card_type,
+09:06:31.502  [2m130[0m | [31;1m|[0m             expiry_date: newCard.expiry_date,
+09:06:31.503  [2m131[0m | [31;1m|[0m             status: newCard.status,
+09:06:31.503  [2m132[0m | [31;1m|[0m           }
+09:06:31.503  [2m133[0m | [31;1m|[0m         }
+09:06:31.503  [2m134[0m | [31;1m|[0m       });
+09:06:31.503  [2m135[0m | [31;1m|[0m   
+09:06:31.503  [2m136[0m | [31;1m|[0m     } catch (error) {
+09:06:31.503  [2m137[0m | [31;1m|[0m       console.error('Error approving pending account:', error);
+09:06:31.503  [2m138[0m | [31;1m|[0m       return res.status(500).json({
+09:06:31.503  [2m139[0m | [31;1m|[0m         error: 'Failed to approve account',
+09:06:31.504  [2m140[0m | [31;1m|[0m         details: error.message || 'Unknown error occurred',
+09:06:31.504  [2m141[0m | [31;1m|[0m       });
+09:06:31.504  [2m142[0m | [31;1m|[0m     }
+09:06:31.504  [2m143[0m | [31;1m|[0m[31;1m-[0m[31;1m>[0m }
+09:06:31.504      : [31;1m`[0m[31;1m---[0m[31;1m-[0m [31;1mprevious exported here[0m
+09:06:31.504  [2m144[0m |     import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+09:06:31.504  [2m145[0m |     
+09:06:31.504  [2m146[0m | [33;1m,[0m[33;1m-[0m[33;1m>[0m export default async function handler(req, res) {
+09:06:31.504  [2m147[0m | [33;1m|[0m     if (req.method !== 'POST') {
+09:06:31.504  [2m148[0m | [33;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+09:06:31.505  [2m149[0m | [33;1m|[0m     }
+09:06:31.505  [2m150[0m | [33;1m|[0m   
+09:06:31.505  [2m151[0m | [33;1m|[0m     const { accountId } = req.body;
+09:06:31.505  [2m152[0m | [33;1m|[0m   
+09:06:31.505  [2m153[0m | [33;1m|[0m     if (!accountId) {
+09:06:31.505  [2m154[0m | [33;1m|[0m       return res.status(400).json({ error: 'Account ID is required' });
+09:06:31.505  [2m155[0m | [33;1m|[0m     }
+09:06:31.505  [2m156[0m | [33;1m|[0m   
+09:06:31.506  [2m157[0m | [33;1m|[0m     try {
+09:06:31.506  [2m158[0m | [33;1m|[0m       // 1. Fetch the pending account
+09:06:31.506  [2m159[0m | [33;1m|[0m       const { data: account, error: accountError } = await supabaseAdmin
+09:06:31.506  [2m160[0m | [33;1m|[0m         .from('accounts')
+09:06:31.506  [2m161[0m | [33;1m|[0m         .select('*, profiles(*)')
+09:06:31.506  [2m162[0m | [33;1m|[0m         .eq('id', accountId)
+09:06:31.506  [2m163[0m | [33;1m|[0m         .single();
+09:06:31.506  [2m164[0m | [33;1m|[0m   
+09:06:31.506  [2m165[0m | [33;1m|[0m       if (accountError || !account) {
+09:06:31.507  [2m166[0m | [33;1m|[0m         console.error('Account fetch error:', accountError);
+09:06:31.507  [2m167[0m | [33;1m|[0m         return res.status(404).json({ error: 'Account not found', details: accountError?.message });
+09:06:31.507  [2m168[0m | [33;1m|[0m       }
+09:06:31.507  [2m169[0m | [33;1m|[0m   
+09:06:31.507  [2m170[0m | [33;1m|[0m       if (account.status !== 'pending') {
+09:06:31.507  [2m171[0m | [33;1m|[0m         return res.status(400).json({ error: 'Account is not in pending status' });
+09:06:31.507  [2m172[0m | [33;1m|[0m       }
+09:06:31.507  [2m173[0m | [33;1m|[0m   
+09:06:31.507  [2m174[0m | [33;1m|[0m       // 2. Update account status to active
+09:06:31.507  [2m175[0m | [33;1m|[0m       const { data: updatedAccount, error: updateError } = await supabaseAdmin
+09:06:31.508  [2m176[0m | [33;1m|[0m         .from('accounts')
+09:06:31.508  [2m177[0m | [33;1m|[0m         .update({
+09:06:31.508  [2m178[0m | [33;1m|[0m           status: 'active',
+09:06:31.508  [2m179[0m | [33;1m|[0m           updated_at: new Date().toISOString()
+09:06:31.508  [2m180[0m | [33;1m|[0m         })
+09:06:31.508  [2m181[0m | [33;1m|[0m         .eq('id', accountId)
+09:06:31.508  [2m182[0m | [33;1m|[0m         .select()
+09:06:31.508  [2m183[0m | [33;1m|[0m         .single();
+09:06:31.508  [2m184[0m | [33;1m|[0m   
+09:06:31.508  [2m185[0m | [33;1m|[0m       if (updateError) {
+09:06:31.509  [2m186[0m | [33;1m|[0m         console.error('Account update error:', updateError);
+09:06:31.509  [2m187[0m | [33;1m|[0m         return res.status(500).json({ error: 'Failed to approve account', details: updateError.message });
+09:06:31.509  [2m188[0m | [33;1m|[0m       }
+09:06:31.509  [2m189[0m | [33;1m|[0m   
+09:06:31.509  [2m190[0m | [33;1m|[0m       // 3. Fetch bank details for email
+09:06:31.509  [2m191[0m | [33;1m|[0m       const { data: bankDetails, error: bankError } = await supabaseAdmin
+09:06:31.509  [2m192[0m | [33;1m|[0m         .from('bank_details')
+09:06:31.509  [2m193[0m | [33;1m|[0m         .select('*')
+09:06:31.509  [2m194[0m | [33;1m|[0m         .limit(1)
+09:06:31.509  [2m195[0m | [33;1m|[0m         .single();
+09:06:31.510  [2m196[0m | [33;1m|[0m   
+09:06:31.510  [2m197[0m | [33;1m|[0m       if (bankError) {
+09:06:31.510  [2m198[0m | [33;1m|[0m         console.error('Failed to fetch bank details:', bankError);
+09:06:31.510  [2m199[0m | [33;1m|[0m       }
+09:06:31.510  [2m200[0m | [33;1m|[0m   
+09:06:31.510  [2m201[0m | [33;1m|[0m       // 4. Send account approval notification email
+09:06:31.510  [2m202[0m | [33;1m|[0m       try {
+09:06:31.510  [2m203[0m | [33;1m|[0m         const protocol = req.headers['x-forwarded-proto'] || 'https';
+09:06:31.510  [2m204[0m | [33;1m|[0m         const host = req.headers['x-forwarded-host'] || req.headers.host;
+09:06:31.510  [2m205[0m | [33;1m|[0m         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+09:06:31.511  [2m206[0m | [33;1m|[0m   
+09:06:31.511  [2m207[0m | [33;1m|[0m         const emailResponse = await fetch(`${siteUrl}/api/send-account-approval-email`, {
+09:06:31.511  [2m208[0m | [33;1m|[0m           method: 'POST',
+09:06:31.511  [2m209[0m | [33;1m|[0m           headers: { 'Content-Type': 'application/json' },
+09:06:31.511  [2m210[0m | [33;1m|[0m           body: JSON.stringify({
+09:06:31.511  [2m211[0m | [33;1m|[0m             email: account.profiles.email,
+09:06:31.511  [2m212[0m | [33;1m|[0m             first_name: account.profiles.first_name,
+09:06:31.511  [2m213[0m | [33;1m|[0m             last_name: account.profiles.last_name,
+09:06:31.511  [2m214[0m | [33;1m|[0m             account_type: account.account_type,
+09:06:31.512  [2m215[0m | [33;1m|[0m             account_number: account.account_number,
+09:06:31.512  [2m216[0m | [33;1m|[0m             routing_number: account.routing_number,
+09:06:31.512  [2m217[0m | [33;1m|[0m             site_url: siteUrl,
+09:06:31.512  [2m218[0m | [33;1m|[0m             bank_details: bankDetails
+09:06:31.512  [2m219[0m | [33;1m|[0m           })
+09:06:31.512  [2m220[0m | [33;1m|[0m         });
+09:06:31.512  [2m221[0m | [33;1m|[0m   
+09:06:31.512  [2m222[0m | [33;1m|[0m         if (emailResponse.ok) {
+09:06:31.512  [2m223[0m | [33;1m|[0m           console.log('Account approval email sent successfully to:', account.profiles.email);
+09:06:31.512  [2m224[0m | [33;1m|[0m         } else {
+09:06:31.512  [2m225[0m | [33;1m|[0m           const errorData = await emailResponse.json();
+09:06:31.512  [2m226[0m | [33;1m|[0m           console.error('Failed to send account approval email:', errorData);
+09:06:31.513  [2m227[0m | [33;1m|[0m         }
+09:06:31.513  [2m228[0m | [33;1m|[0m       } catch (emailError) {
+09:06:31.513  [2m229[0m | [33;1m|[0m         console.error('Error sending account approval email:', emailError);
+09:06:31.513  [2m230[0m | [33;1m|[0m         // Don't fail the whole approval if email fails
+09:06:31.513  [2m231[0m | [33;1m|[0m       }
+09:06:31.513  [2m232[0m | [33;1m|[0m   
+09:06:31.513  [2m233[0m | [33;1m|[0m       return res.status(200).json({
+09:06:31.513  [2m234[0m | [33;1m|[0m         success: true,
+09:06:31.513  [2m235[0m | [33;1m|[0m         message: 'Account approved successfully. Notification email sent.',
+09:06:31.513  [2m236[0m | [33;1m|[0m         data: {
+09:06:31.514  [2m237[0m | [33;1m|[0m           accountId: updatedAccount.id,
+09:06:31.514  [2m238[0m | [33;1m|[0m           accountType: updatedAccount.account_type,
+09:06:31.514  [2m239[0m | [33;1m|[0m           accountNumber: updatedAccount.account_number,
+09:06:31.514  [2m240[0m | [33;1m|[0m           status: updatedAccount.status
+09:06:31.515  [2m241[0m | [33;1m|[0m         }
+09:06:31.515  [2m242[0m | [33;1m|[0m       });
+09:06:31.515  [2m243[0m | [33;1m|[0m   
+09:06:31.515  [2m244[0m | [33;1m|[0m     } catch (error) {
+09:06:31.515  [2m245[0m | [33;1m|[0m       console.error('Unexpected error during account approval:', error);
+09:06:31.515  [2m246[0m | [33;1m|[0m       return res.status(500).json({ 
+09:06:31.515  [2m247[0m | [33;1m|[0m         error: 'Internal server error during account approval',
+09:06:31.515  [2m248[0m | [33;1m|[0m         details: error.message 
+09:06:31.515  [2m249[0m | [33;1m|[0m       });
+09:06:31.515  [2m250[0m | [33;1m|[0m     }
+09:06:31.515  [2m251[0m | [33;1m|[0m[33;1m-[0m[33;1m>[0m }
+09:06:31.516      : [33;1m`[0m[33;1m---[0m[33;1m-[0m [33;1mexported more than once[0m
+09:06:31.516      `----
+09:06:31.516 
+09:06:31.516 Error: 
+09:06:31.516   [36m>[0m Exported identifiers must be unique
+09:06:31.516 
+09:06:31.516 Import trace for requested module:
+09:06:31.516 ./pages/api/admin/approve-pending-account.js
+09:06:31.516 
+09:06:31.538 
+09:06:31.539 > Build failed because of webpack errors
+09:06:31.539 Error: Command "npm run build" exited with 1
+
+
+My Vercel deployment failed 
