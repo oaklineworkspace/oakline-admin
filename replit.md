@@ -165,9 +165,24 @@ Preferred communication style: Simple, everyday language.
 - Production deployment ready with autoscale configuration
 - SIEM integration support (Splunk, Datadog, Elasticsearch)
 
-## Recent Changes (October 26, 2025)
+## Recent Changes
 
-### Replit Migration Completed - Latest Updates
+### October 27, 2025 - Admin Approval Email Fix & Security Cleanup
+- **Critical Email Fix**: Resolved issue where admin approval emails weren't sending login credentials to users
+  - Root cause: SUPABASE_SERVICE_KEY environment variable was missing
+  - User confirmed secret is now configured in Replit as SUPABASE_SERVICE_KEY
+  - Approval flow now successfully sends welcome emails with temporary passwords
+- **Security Cleanup**: Removed insecure duplicate admin page
+  - Deleted `pages/admin/admin-users-management.js` - contained hardcoded fake data and imported supabaseAdmin on client (security risk)
+  - Updated all navigation links in AdminNavDropdown, admin index, and admin-dashboard to remove broken references
+  - Consolidated to single `admin-users.js` page that properly fetches real data from API endpoints
+- **Dependencies & Server Setup**:
+  - Installed all npm dependencies (360 packages)
+  - Configured and started Next.js dev server on port 5000
+  - Server running successfully with no errors
+  - Ready for admin approval testing
+
+### October 26, 2025 - Replit Migration Completed
 - **Platform Migration**: Successfully migrated from Vercel to Replit
 - **Port Configuration**: Configured Next.js to run on port 5000 with 0.0.0.0 host binding
 - **Cache Control**: Added proper cache-control headers to prevent heuristic caching issues
