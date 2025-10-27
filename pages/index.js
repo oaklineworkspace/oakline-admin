@@ -1488,10 +1488,9 @@ export default function Home() {
 
       <Footer />
 
-        {/* Admin Footer - Sticky Bottom Navigation */}
-        {user && <AdminFooter />}
-      </div>
-    </>
+      {/* Admin Footer - Sticky Bottom Navigation */}
+      {user && <AdminFooter />}
+    </div>
   );
 }
 
