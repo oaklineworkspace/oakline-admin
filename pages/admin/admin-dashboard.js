@@ -98,14 +98,8 @@ export default function AdminDashboard() {
 
               <Link href="/admin/admin-users" style={styles.adminPageCard}>
                 <div style={styles.cardIcon}>👤</div>
-                <h3 style={styles.cardTitle}>User Management</h3>
-                <p style={styles.cardDescription}>Manage individual users</p>
-              </Link>
-
-              <Link href="/admin/admin-users-management" style={styles.adminPageCard}>
-                <div style={styles.cardIcon}>👨‍💼</div>
-                <h3 style={styles.cardTitle}>Admin Users</h3>
-                <p style={styles.cardDescription}>Manage admin accounts</p>
+                <h3 style={styles.cardTitle}>Customer Users</h3>
+                <p style={styles.cardDescription}>View and manage customer accounts</p>
               </Link>
 
               <Link href="/admin/approve-applications" style={styles.adminPageCard}>

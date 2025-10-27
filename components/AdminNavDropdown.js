@@ -30,7 +30,7 @@ export default function AdminNavDropdown() {
       links: [
         { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥' },
         { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '📝' },
-        { name: 'Admin Users', path: '/admin/admin-users-management', icon: '👨‍💼' },
+        { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕' },
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
       ]

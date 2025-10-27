@@ -126,7 +126,6 @@ export default function AdminNavigationHub() {
       category: '👤 User Management',
       pages: [
         { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼', description: 'View and manage customer accounts' },
-        { name: 'Admin Users', path: '/admin/admin-users-management', icon: '🔐', description: 'Manage admin roles and permissions' },
         { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '🔑', description: 'Complete user enrollment and password setup' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕', description: 'Add new user accounts' },
         { name: 'Delete User By ID', path: '/admin/delete-user-by-id', icon: '🗑️', description: 'Remove user accounts and all dependencies' },
