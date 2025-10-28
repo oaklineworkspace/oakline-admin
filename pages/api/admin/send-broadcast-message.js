@@ -39,14 +39,15 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Verify admin role
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
+    // Verify admin role - check admin_profiles table
+    const { data: adminProfile, error: adminError } = await supabaseAdmin
+      .from('admin_profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profileError || profile?.role !== 'admin') {
+    if (adminError || !adminProfile) {
+      console.error('Admin verification failed:', adminError);
       return res.status(403).json({ error: 'Admin access required' });
     }
 

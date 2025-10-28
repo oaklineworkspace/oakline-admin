@@ -5,19 +5,12 @@ import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import { supabase } from '../../lib/supabaseClient';
 import dynamic from 'next/dynamic';
+import 'react-quill/dist/quill.snow.css';
 
-const ReactQuill = dynamic(
-  async () => {
-    const { default: RQ } = await import('react-quill');
-    // Ensure Quill styles are loaded
-    await import('react-quill/dist/quill.snow.css');
-    return RQ;
-  },
-  { 
-    ssr: false,
-    loading: () => <p>Loading editor...</p>
-  }
-);
+const ReactQuill = dynamic(() => import('react-quill'), { 
+  ssr: false,
+  loading: () => <p>Loading editor...</p>
+});
 
 export default function BroadcastMessages() {
   const router = useRouter();

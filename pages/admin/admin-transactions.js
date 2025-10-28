@@ -128,53 +128,33 @@ export default function AdminTransactions() {
 
     setActionLoading(true);
     try {
-      // Get current account balance
-      const { data: account, error: accountError } = await supabase
-        .from('accounts')
-        .select('balance')
-        .eq('id', transaction.account_id)
-        .single();
-
-      if (accountError) throw accountError;
-
-      const currentBalance = parseFloat(account.balance || 0);
-      const reversalAmount = parseFloat(transaction.amount);
-      
-      // Calculate new balance (reverse the transaction effect)
-      const newBalance = transaction.type === 'credit' 
-        ? currentBalance - reversalAmount 
-        : currentBalance + reversalAmount;
-
-      if (newBalance < 0) {
-        alert('Cannot reverse: Would result in negative balance');
+      // Use supabaseAdmin for admin operations
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in');
         return;
       }
 
-      // Update account balance
-      const { error: updateError } = await supabase
-        .from('accounts')
-        .update({ balance: newBalance })
-        .eq('id', transaction.account_id);
+      // Call API endpoint to handle the reversal
+      const response = await fetch('/api/admin/reverse-transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionId: transaction.id,
+          accountId: transaction.account_id,
+          userId: transaction.user_id,
+          amount: transaction.amount,
+          type: transaction.type
+        })
+      });
 
-      if (updateError) throw updateError;
+      const result = await response.json();
 
-      // Create reversal transaction
-      const { error: reversalError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: transaction.user_id,
-          account_id: transaction.account_id,
-          type: transaction.type === 'credit' ? 'debit' : 'credit',
-          amount: reversalAmount,
-          description: `REVERSAL: ${transaction.description || 'Transaction reversed by admin'}`,
-          status: 'completed',
-          metadata: {
-            original_transaction_id: transaction.id,
-            reversal_reason: 'Admin initiated reversal'
-          }
-        });
-
-      if (reversalError) throw reversalError;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reverse transaction');
+      }
 
       alert('Transaction reversed successfully');
       fetchTransactions();
