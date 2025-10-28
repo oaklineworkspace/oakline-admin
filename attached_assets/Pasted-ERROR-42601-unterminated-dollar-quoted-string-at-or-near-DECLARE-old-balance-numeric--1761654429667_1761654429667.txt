@@ -1,0 +1,100 @@
+ERROR:  42601: unterminated dollar-quoted string at or near "$$
+DECLARE
+  old_balance numeric;
+  new_balance numeric;
+  amount_diff numeric;
+  old_direction text;
+  new_direction text;
+  affected_account uuid;
+  revert_account uuid;
+BEGIN
+  -- Map transaction types to direction (credit adds, debit subtracts)
+  old_direction := CASE
+    WHEN OLD IS NULL THEN NULL
+    WHEN lower(OLD.type) = 'credit' THEN 'credit'
+    ELSE 'debit'
+  END;
+
+  new_direction := CASE
+    WHEN NEW IS NULL THEN NULL
+    WHEN lower(NEW.type) = 'credit' THEN 'credit'
+    ELSE 'debit'
+  END;
+
+  -- ---------- HANDLE INSERT ----------
+  IF (TG_OP = 'INSERT') THEN
+    IF NEW.status IS NOT NULL AND lower(NEW.status) = 'completed' THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when applying inserted transaction', affected_account;
+      END IF;
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+      END IF;
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- ---------- HANDLE UPDATE ----------
+  IF (TG_OP = 'UPDATE') THEN
+    -- Case 1: Status changed from non-completed to completed => apply NEW effect
+    IF (COALESCE(lower(OLD.status),'') NOT IN ('completed') AND lower(COALESCE(NEW.status,'')) = 'completed') THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found applying completion', affected_account;
+      END IF;
+
+      old_balance := new_balance;
+
+      IF new_direction = 'credit' THEN
+        new_balance := new_balance + COALESCE(NEW.amount,0);
+      ELSE
+        new_balance := new_balance - COALESCE(NEW.amount,0);
+      END IF;
+
+      UPDATE public.accounts SET balance = new_balance, updated_at = now() WHERE id = affected_account;
+      
+      -- Update transaction with balance info
+      UPDATE public.transactions 
+      SET balance_before = old_balance, 
+          balance_after = new_balance,
+          metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+            'balance_applied', true,
+            'balance_before', old_balance,
+            'balance_after', new_balance,
+            'applied_at', now()
+          )
+      WHERE id = NEW.id;
+
+      RETURN NEW;
+    END IF;
+
+    -- Case 2: Status changed from completed to cancelled/reversed/failed => revert OLD effect
+    IF (lower(COALESCE(OLD.status,'')) = 'completed' AND lower(COALESCE(NEW.status,'')) IN ('cancelled','canceled','reversed','reversal','hold','failed')) THEN
+      revert_account := OLD.account_id;
+      SELECT balance INTO old_balance FROM public.accounts WHERE id = revert_account FOR UPDATE;
+      IF old_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when reverting completed transaction', revert_account;
+      END IF;
+
+      IF old_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = old_balance - COALESCE(OLD.amount,0), updated_at = now() WHERE id = revert_account;
+      ELSE
+        UPDATE public.accounts SET balance = old_balance + COALESCE(OLD.amount,0), updated_at = now() WHERE id = revert_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+-- source: dashboard
+-- user: eed299df-3c09-45d0-a8e8-baa01864f624
+-- date: 2025-10-28T12:26:33.611Z"
+LINE 137: RETURNS trigger AS $$
+                             ^
