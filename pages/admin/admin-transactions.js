@@ -128,10 +128,11 @@ export default function AdminTransactions() {
 
     setActionLoading(true);
     try {
-      // Use supabaseAdmin for admin operations
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         alert('You must be logged in');
+        setActionLoading(false);
         return;
       }
 
@@ -140,6 +141,7 @@ export default function AdminTransactions() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           transactionId: transaction.id,

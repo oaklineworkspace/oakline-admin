@@ -267,7 +267,39 @@ export default function BroadcastMessages() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Recipients ({selectedUsers.length} selected)</label>
+              <label style={styles.label}>Custom Email Recipients (Optional)</label>
+              <div style={styles.customEmailSection}>
+                <input
+                  type="text"
+                  placeholder="Enter email addresses separated by commas (e.g., john@example.com, jane@example.com)"
+                  style={styles.customEmailInput}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      const emails = e.target.value.split(',').map(email => email.trim()).filter(email => email);
+                      const validEmails = emails.filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+                      if (validEmails.length > 0) {
+                        const customRecipients = validEmails.map(email => ({
+                          id: `custom_${Date.now()}_${Math.random()}`,
+                          email: email,
+                          first_name: email.split('@')[0],
+                          last_name: '(Guest)',
+                          isCustom: true
+                        }));
+                        setAllUsers([...allUsers, ...customRecipients]);
+                        setSelectedUsers([...selectedUsers, ...customRecipients.map(r => r.id)]);
+                        e.target.value = '';
+                      } else {
+                        alert('Please enter valid email addresses');
+                      }
+                    }
+                  }}
+                />
+                <p style={styles.helperText}>Press Enter to add custom email addresses (for non-registered recipients)</p>
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Registered Users ({selectedUsers.length} selected)</label>
               <div style={styles.recipientControls}>
                 <input
                   type="text"
@@ -491,6 +523,23 @@ const styles = {
     borderRadius: '8px',
     overflow: 'hidden',
     marginBottom: '60px'
+  },
+  customEmailSection: {
+    marginBottom: '1rem'
+  },
+  customEmailInput: {
+    width: '100%',
+    padding: '12px 16px',
+    fontSize: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    outline: 'none',
+    marginBottom: '0.5rem'
+  },
+  helperText: {
+    fontSize: '14px',
+    color: '#6b7280',
+    margin: '0.5rem 0 0 0'
   },
   recipientControls: {
     display: 'flex',

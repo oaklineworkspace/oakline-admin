@@ -7,6 +7,31 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Verify admin authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Unauthorized - No token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !user) {
+      return res.status(401).json({ error: 'Unauthorized - Invalid token' });
+    }
+
+    // Verify admin role
+    const { data: adminProfile, error: adminError } = await supabaseAdmin
+      .from('admin_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (adminError || !adminProfile) {
+      console.error('Admin verification failed:', adminError);
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     const { transactionId, accountId, userId, amount, type } = req.body;
 
     if (!transactionId || !accountId || !userId || !amount || !type) {
