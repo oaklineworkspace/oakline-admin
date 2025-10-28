@@ -28,7 +28,6 @@ export default function SignInPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Check if user is an admin
         const { data: adminProfile } = await supabase
           .from('admin_profiles')
           .select('*')
