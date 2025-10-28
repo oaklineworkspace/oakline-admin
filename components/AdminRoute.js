@@ -18,12 +18,18 @@ export default function AdminRoute({ children }) {
     try {
       setLoading(true);
       
-      if (authLoading) return;
+      if (authLoading) {
+        console.log('Auth still loading...');
+        return;
+      }
       
       if (!user) {
+        console.log('No user found, redirecting to login');
         router.push('/login');
         return;
       }
+
+      console.log('Checking admin access for user:', user.id);
 
       // Check if user has admin role in admin_profiles table
       const { data: profile, error: profileError } = await supabase
@@ -34,18 +40,31 @@ export default function AdminRoute({ children }) {
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
-        setError('Unable to verify admin access. Please contact support.');
+        console.error('User ID:', user.id);
+        setError(`Unable to verify admin access. Error: ${profileError.message}`);
         setLoading(false);
         return;
       }
 
-      if (!profile || !['admin', 'superadmin', 'auditor'].includes(profile.role)) {
+      console.log('Admin profile found:', profile);
+
+      if (!profile) {
+        console.error('No admin profile found for user:', user.id);
+        setError('No admin profile found. Please contact support.');
+        setTimeout(() => router.push('/login'), 2000);
+        setLoading(false);
+        return;
+      }
+
+      if (!['admin', 'superadmin', 'auditor'].includes(profile.role)) {
+        console.error('Invalid role:', profile.role);
         setError('Access denied. Admin privileges required.');
         setTimeout(() => router.push('/login'), 2000);
         setLoading(false);
         return;
       }
 
+      console.log('Admin access granted with role:', profile.role);
       setIsAdmin(true);
       setError('');
     } catch (error) {
