@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { createCardForAccount } from '../../../lib/cardGenerator';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -74,61 +75,43 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to approve account', details: updateError.message });
     }
 
-    // 2.5. Generate debit card for the approved account
-    const generateCardNumber = () => {
-      const prefix = '4'; // Visa
-      let cardNumber = prefix;
-      for (let i = 1; i < 16; i++) {
-        cardNumber += Math.floor(Math.random() * 10);
-      }
-      return cardNumber;
-    };
-
-    const generateCVC = () => {
-      return Math.floor(100 + Math.random() * 900).toString();
-    };
-
-    const generateExpiryDate = () => {
-      const today = new Date();
-      today.setFullYear(today.getFullYear() + 3);
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const year = String(today.getFullYear()).slice(-2);
-      return `${month}/${year}`;
-    };
-
-    const cardData = {
-      user_id: account.user_id,
-      account_id: accountId,
-      card_number: generateCardNumber(),
-      card_brand: 'visa',
-      card_category: 'debit',
-      card_type: 'debit',
-      status: 'active',
-      expiry_date: generateExpiryDate(),
-      cvc: generateCVC(),
-      daily_limit: 5000,
-      monthly_limit: 20000,
-      daily_spent: 0,
-      monthly_spent: 0,
-      contactless: true,
-      requires_3d_secure: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      activated_at: new Date().toISOString()
-    };
-
-    const { data: newCard, error: cardError } = await supabaseAdmin
-      .from('cards')
-      .insert([cardData])
-      .select()
-      .single();
-
-    if (cardError) {
+    // 2.5. Automatically generate debit card for the approved account using secure card generator
+    let cardResult = null;
+    let cardCreationFailed = false;
+    
+    try {
+      // Get admin ID from authorization header or session if available
+      const adminId = req.headers['x-admin-id'] || null;
+      
+      cardResult = await createCardForAccount(accountId, adminId);
+      console.log('Card creation result:', {
+        accountId,
+        cardId: cardResult.cardId,
+        lastFour: cardResult.lastFour,
+        existing: cardResult.existing
+      });
+    } catch (cardError) {
       console.error('Card creation error:', cardError);
-      // Don't fail the approval if card creation fails
-      console.log('Account approved but card creation failed');
-    } else {
-      console.log('Debit card created successfully for account:', accountId);
+      cardCreationFailed = true;
+      
+      // Log the error but don't fail the approval
+      try {
+        await supabaseAdmin
+          .from('system_logs')
+          .insert({
+            level: 'error',
+            category: 'card_issuance',
+            message: 'Failed to create card during account approval',
+            details: {
+              account_id: accountId,
+              error: cardError.message,
+              stack: cardError.stack
+            },
+            created_at: new Date().toISOString()
+          });
+      } catch (logError) {
+        console.error('Failed to log card creation error:', logError);
+      }
     }
 
     // 3. Fetch bank details for email
@@ -149,8 +132,8 @@ export default async function handler(req, res) {
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
 
       console.log('Sending account approval email to:', application.email);
-      if (newCard) {
-        console.log('Including card details - Last 4:', newCard.card_number.slice(-4));
+      if (cardResult && cardResult.success) {
+        console.log('Including card details - Last 4:', cardResult.lastFour);
       }
 
       const emailResponse = await fetch(`${siteUrl}/api/send-account-approval-email`, {
@@ -163,11 +146,12 @@ export default async function handler(req, res) {
           account_type: account.account_type,
           account_number: account.account_number,
           routing_number: account.routing_number,
-          card_issued: newCard ? true : false,
-          card_last_four: newCard ? newCard.card_number.slice(-4) : null,
-          card_brand: newCard ? newCard.card_brand : null,
-          card_category: newCard ? newCard.card_category : null,
-          card_expiry: newCard ? newCard.expiry_date : null,
+          card_issued: cardResult && cardResult.success ? true : false,
+          card_last_four: cardResult ? cardResult.lastFour : null,
+          card_brand: cardResult ? cardResult.brand : null,
+          card_category: cardResult ? cardResult.category : null,
+          card_expiry: cardResult ? cardResult.expiryDate : null,
+          card_creation_failed: cardCreationFailed,
           site_url: siteUrl,
           bank_details: bankDetails
         })
@@ -190,14 +174,21 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Account approved successfully. Debit card issued and notification email sent.',
+      message: cardResult && cardResult.success 
+        ? 'Account approved successfully. Debit card issued and notification email sent.'
+        : 'Account approved successfully. Card issuance pending.',
       data: {
         accountId: updatedAccount.id,
         accountType: updatedAccount.account_type,
         accountNumber: updatedAccount.account_number,
         status: updatedAccount.status,
-        cardIssued: newCard ? true : false,
-        cardLastFour: newCard ? newCard.card_number.slice(-4) : null
+        cardIssued: cardResult && cardResult.success ? true : false,
+        cardLastFour: cardResult ? cardResult.lastFour : null,
+        cardMaskedNumber: cardResult ? cardResult.maskedNumber : null,
+        cardBrand: cardResult ? cardResult.brand : null,
+        cardCategory: cardResult ? cardResult.category : null,
+        cardExpiryDate: cardResult ? cardResult.expiryDate : null,
+        cardCreationFailed: cardCreationFailed
       }
     });
 

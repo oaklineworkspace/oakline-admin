@@ -26,6 +26,12 @@ export default async function handler(req, res) {
       account_type,
       account_number,
       routing_number,
+      card_issued,
+      card_last_four,
+      card_brand,
+      card_category,
+      card_expiry,
+      card_creation_failed,
       site_url,
       bank_details
     } = req.body;
@@ -149,14 +155,44 @@ export default async function handler(req, res) {
                     </div>
 
                     <!-- Debit Card Notification -->
+                    ${card_issued && !card_creation_failed ? `
                     <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 8px;">
                       <h4 style="margin: 0 0 10px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
                         💳 Debit Card Issued
                       </h4>
-                      <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.6;">
-                        A <strong>debit card</strong> has been automatically issued for this account. You can view and manage your card through your online banking dashboard.
+                      <p style="margin: 0 0 10px 0; color: #475569; font-size: 14px; line-height: 1.6;">
+                        A <strong>${card_brand?.toUpperCase() || 'Visa'} ${card_category?.toUpperCase() || 'Debit'}</strong> card has been automatically issued for this account.
+                      </p>
+                      <table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <tr>
+                          <td style="padding: 5px 0; color: #64748b; font-size: 13px;">Card Number:</td>
+                          <td style="padding: 5px 0; text-align: right;">
+                            <code style="background-color: rgba(30, 64, 175, 0.1); color: #1e40af; padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px;">**** **** **** ${card_last_four || '****'}</code>
+                          </td>
+                        </tr>
+                        ${card_expiry ? `
+                        <tr>
+                          <td style="padding: 5px 0; color: #64748b; font-size: 13px;">Expires:</td>
+                          <td style="padding: 5px 0; text-align: right;">
+                            <code style="background-color: rgba(30, 64, 175, 0.1); color: #1e40af; padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px;">${card_expiry}</code>
+                          </td>
+                        </tr>
+                        ` : ''}
+                      </table>
+                      <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px; font-style: italic;">
+                        You can view full card details and manage your card through your online banking dashboard.
                       </p>
                     </div>
+                    ` : card_creation_failed ? `
+                    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 8px;">
+                      <h4 style="margin: 0 0 10px 0; color: #92400e; font-size: 16px; font-weight: 700;">
+                        ⚠️ Card Issuance Pending
+                      </h4>
+                      <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6;">
+                        Your account is active, but there was a temporary issue issuing your debit card. Our team has been notified and will issue your card shortly. You'll receive another email once your card is ready.
+                      </p>
+                    </div>
+                    ` : ''}
                     
                     <!-- Access Account Button -->
                     <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
