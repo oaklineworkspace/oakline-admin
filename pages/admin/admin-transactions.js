@@ -1010,18 +1010,19 @@ const styles = {
     gap: '0.5rem'
   },
   actionBtn: {
-    padding: '0.5rem',
+    padding: '0.5rem 0.75rem',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '1rem',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    fontWeight: '500'
   },
   editBtn: {
-    backgroundColor: '#f0f9ff',
-    ':hover': {
-      backgroundColor: '#dbeafe'
-    }
+    backgroundColor: '#3b82f6',
+    color: 'white'
   },
   modalOverlay: {
     position: 'fixed',

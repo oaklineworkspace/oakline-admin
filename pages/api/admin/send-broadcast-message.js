@@ -99,26 +99,28 @@ export default async function handler(req, res) {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${subject}</title>
         </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', Roboto, Helvetica, Arial, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh;">
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; min-height: 100vh;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
             <tr>
               <td align="center" style="padding: 40px 20px;">
                 <!-- Main Container -->
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 650px; border-collapse: collapse; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 650px; border-collapse: collapse; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);">
                   
                   <!-- Header -->
                   <tr>
-                    <td style="background: linear-gradient(135deg, #0a1a2f 0%, #1e3a5f 100%); padding: 45px 40px; text-align: center; position: relative;">
+                    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 45px 40px; text-align: center; position: relative;">
                       ${bankInfo.logo_url ? `
-                        <div style="background-color: rgba(255, 255, 255, 0.95); display: inline-block; padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <div style="background-color: #ffffff; display: inline-block; padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                           <img src="${bankInfo.logo_url}" alt="${bankInfo.name}" style="height: 55px; width: auto; display: block;">
                         </div>
-                      ` : ''}
-                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                      ` : `
+                        <div style="color: #ffffff; font-size: 32px; margin-bottom: 8px;">🏦</div>
+                      `}
+                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
                         ${bankInfo.name || 'Oakline Bank'}
                       </h1>
-                      <div style="margin-top: 12px; padding: 8px 20px; background-color: #d4af37; border-radius: 20px; display: inline-block;">
-                        <p style="margin: 0; color: #0a1a2f; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                      <div style="margin-top: 12px; padding: 8px 20px; background-color: #ffffff; border-radius: 20px; display: inline-block;">
+                        <p style="margin: 0; color: #3b82f6; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
                           Important Notification
                         </p>
                       </div>
