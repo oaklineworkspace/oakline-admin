@@ -339,6 +339,14 @@ export default function ApproveApplications() {
                     <button
                       onClick={() => toggleExpanded(app.id)}
                       style={styles.detailsButton}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.5)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+                      }}
                     >
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
@@ -434,12 +442,16 @@ export default function ApproveApplications() {
                 >
                   Cancel
                 </button>
-                <AdminButton
+                <button
                   onClick={handleApprove}
                   disabled={processing}
+                  style={{
+                    ...styles.approveModalButton,
+                    ...(processing ? styles.buttonDisabled : {})
+                  }}
                 >
                   {processing ? '⏳ Processing...' : '✅ Approve & Create'}
-                </AdminButton>
+                </button>
               </div>
             </div>
           </div>
@@ -711,15 +723,16 @@ const styles = {
     flexWrap: 'wrap',
   },
   detailsButton: {
-    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 16px)',
-    background: '#edf2f7',
-    color: '#2d3748',
+    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    color: 'white',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: 'clamp(0.8rem, 2vw, 14px)',
-    fontWeight: '600',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '700',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
   },
   approveButton: {
     padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
@@ -844,5 +857,18 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
+  },
+  approveModalButton: {
+    flex: 1,
+    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
   },
 };
