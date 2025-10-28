@@ -83,15 +83,23 @@ export default async function handler(req, res) {
       // Get admin ID from authorization header or session if available
       const adminId = req.headers['x-admin-id'] || null;
       
+      console.log('🔄 Starting card generation for account:', accountId);
       cardResult = await createCardForAccount(accountId, adminId);
-      console.log('Card creation result:', {
+      console.log('✅ Card creation successful:', {
         accountId,
         cardId: cardResult.cardId,
         lastFour: cardResult.lastFour,
+        brand: cardResult.brand,
+        category: cardResult.category,
         existing: cardResult.existing
       });
     } catch (cardError) {
-      console.error('Card creation error:', cardError);
+      console.error('❌ Card creation error:', cardError);
+      console.error('Card error details:', {
+        message: cardError.message,
+        code: cardError.code,
+        details: cardError.details
+      });
       cardCreationFailed = true;
       
       // Log the error but don't fail the approval
@@ -105,6 +113,7 @@ export default async function handler(req, res) {
             details: {
               account_id: accountId,
               error: cardError.message,
+              code: cardError.code,
               stack: cardError.stack
             },
             created_at: new Date().toISOString()
