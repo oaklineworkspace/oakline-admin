@@ -50,7 +50,7 @@ export default function AdminCardApplications() {
         setApplications(apps => 
           apps.map(app => 
             app.id === applicationId 
-              ? { ...app, status: action === 'approve' ? 'approved' : 'rejected' }
+              ? { ...app, application_status: action === 'approve' ? 'approved' : 'rejected' }
               : app
           )
         );
@@ -98,10 +98,10 @@ export default function AdminCardApplications() {
                   </h3>
                   <span style={{
                     ...styles.statusBadge,
-                    backgroundColor: app.status === 'pending' ? '#fbbf24' : 
-                                   app.status === 'approved' ? '#10b981' : '#ef4444'
+                    backgroundColor: app.application_status === 'pending' ? '#fbbf24' : 
+                                   app.application_status === 'approved' ? '#10b981' : '#ef4444'
                   }}>
-                    {app.status}
+                    {app.application_status}
                   </span>
                 </div>
 
@@ -128,7 +128,7 @@ export default function AdminCardApplications() {
                   </div>
                 </div>
 
-                {app.status === 'pending' && (
+                {app.application_status === 'pending' && (
                   <div style={styles.actionButtons}>
                     <button
                       style={styles.approveButton}
