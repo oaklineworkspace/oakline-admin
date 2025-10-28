@@ -91,8 +91,8 @@ export default async function handler(req, res) {
         account_id: accountId,
         type: type === 'credit' ? 'debit' : 'credit',
         amount: reversalAmount,
-        description: `REVERSAL: Original transaction reversed by admin`,
-        status: 'completed',
+        description: `REVERSAL: Original transaction reversed by admin (Ref: ${transactionId.substring(0, 8)})`,
+        status: 'reversal',
         metadata: {
           original_transaction_id: transactionId,
           reversal_reason: 'Admin initiated reversal',

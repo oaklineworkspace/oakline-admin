@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   amount numeric NOT NULL CHECK (amount > 0::numeric),
   description text,
   reference text DEFAULT md5(((random())::text || (clock_timestamp())::text)) UNIQUE,
-  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text])),
+  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text, 'reversal'::text])),
   metadata jsonb,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),

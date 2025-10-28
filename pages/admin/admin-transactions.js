@@ -57,23 +57,20 @@ export default function AdminTransactions() {
 
       if (txError) throw txError;
 
-      // Then get user profiles for additional info
-      const userIds = [...new Set(txData.map(tx => tx.accounts?.user_id).filter(Boolean))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email')
-        .in('id', userIds);
-
       // Get applications data
       const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
-      const { data: applications } = await supabase
-        .from('applications')
-        .select('id, first_name, last_name, email')
-        .in('id', appIds);
+      let applications = [];
+      
+      if (appIds.length > 0) {
+        const { data: appsData } = await supabase
+          .from('applications')
+          .select('id, first_name, last_name, email')
+          .in('id', appIds);
+        applications = appsData || [];
+      }
 
       // Merge the data
       const enrichedData = txData.map(tx => {
-        const profile = profiles?.find(p => p.id === tx.accounts?.user_id);
         const application = applications?.find(a => a.id === tx.accounts?.application_id);
         
         return {
@@ -81,9 +78,9 @@ export default function AdminTransactions() {
           accounts: {
             ...tx.accounts,
             applications: application || {
-              first_name: profile?.first_name || 'Unknown',
-              last_name: profile?.last_name || 'User',
-              email: profile?.email || tx.accounts?.user_id
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'N/A'
             }
           }
         };
