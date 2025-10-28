@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import AdminFooter from '../../components/AdminFooter';
+import AdminNavDropdown from '../../components/AdminNavDropdown';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -120,6 +121,8 @@ export default function AdminNavigationHub() {
       pages: [
         { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏦', description: 'Main admin dashboard with analytics and stats' },
         { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥', description: 'Comprehensive user management with full details' },
+        { name: 'Admin Reports', path: '/admin/admin-reports', icon: '📊', description: 'Generate financial and system reports' },
+        { name: 'Admin Audit', path: '/admin/admin-audit', icon: '🔍', description: 'Review system audit trails' },
       ]
     },
     {
@@ -129,6 +132,7 @@ export default function AdminNavigationHub() {
         { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '🔑', description: 'Complete user enrollment and password setup' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕', description: 'Add new user accounts' },
         { name: 'Delete User By ID', path: '/admin/delete-user-by-id', icon: '🗑️', description: 'Remove user accounts and all dependencies' },
+        { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️', description: 'Bulk delete user accounts' },
       ]
     },
     {
@@ -136,6 +140,7 @@ export default function AdminNavigationHub() {
       pages: [
         { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝', description: 'Review and process card applications' },
         { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '💳', description: 'Manage all issued cards' },
+        { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳', description: 'View and manage all cards' },
         { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫', description: 'Issue new debit cards to users' },
         { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗', description: 'Link cards to user accounts' },
         { name: 'Test Transactions', path: '/admin/test-card-transactions', icon: '🧪', description: 'Test card payment processing' },
@@ -156,6 +161,7 @@ export default function AdminNavigationHub() {
       pages: [
         { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅', description: 'Review and approve user applications' },
         { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️', description: 'Approve pending account requests' },
+        { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦', description: 'Manage all bank accounts' },
         { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧', description: 'Resend enrollment emails to users' },
       ]
     },
@@ -170,9 +176,7 @@ export default function AdminNavigationHub() {
     {
       category: '🔧 System & Security',
       pages: [
-        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍', description: 'Review system audit trails' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜', description: 'View detailed system logs' },
-        { name: 'Reports', path: '/admin/admin-reports', icon: '📊', description: 'Generate financial and system reports' },
         { name: 'Settings', path: '/admin/admin-settings', icon: '⚙️', description: 'Configure system settings' },
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭', description: 'Manage access control and roles' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔', description: 'System-wide notifications' },
@@ -241,9 +245,12 @@ export default function AdminNavigationHub() {
             Logged in as: {user.email} ({user.role})
           </p>}
         </div>
-        <button onClick={handleLogout} style={styles.logoutButton}>
-          🚪 Logout
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <AdminNavDropdown />
+          <button onClick={handleLogout} style={styles.logoutButton}>
+            🚪 Logout
+          </button>
+        </div>
       </div>
 
       <div style={styles.content}>

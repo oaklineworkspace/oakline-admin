@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -27,11 +28,24 @@ export default function SignInPage() {
       if (error) throw error;
 
       if (data.user) {
-        setMessage('Sign in successful! Redirecting to dashboard...');
-        // Force navigation to dashboard in same tab
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1000);
+        // Check if user is an admin
+        const { data: adminProfile } = await supabase
+          .from('admin_profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (adminProfile) {
+          setMessage('Sign in successful! Redirecting to admin hub...');
+          setTimeout(() => {
+            window.location.href = '/admin';
+          }, 1000);
+        } else {
+          setMessage('Sign in successful! Redirecting to dashboard...');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1000);
+        }
       }
 
     } catch (error) {
