@@ -99,7 +99,6 @@ export default async function handler(req, res) {
     const cardData = {
       user_id: account.user_id,
       account_id: accountId,
-      cardholder_name: `${application.first_name} ${application.last_name}`.toUpperCase(),
       card_number: generateCardNumber(),
       card_brand: 'visa',
       card_category: 'debit',

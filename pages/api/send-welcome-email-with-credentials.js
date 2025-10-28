@@ -227,21 +227,24 @@ export default async function handler(req, res) {
                     ` : ''}
 
                     <!-- Login Credentials Box -->
-                    <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.2);">
-                      <h4 style="margin: 0 0 15px 0; color: #ffffff; font-size: 18px; font-weight: 700;">
-                        🔐 Your Login Credentials
+                    <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 30px; margin: 30px 0; box-shadow: 0 8px 24px rgba(30, 64, 175, 0.4); border: 3px solid #ffffff;">
+                      <h4 style="margin: 0 0 20px 0; color: #ffffff; font-size: 22px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
+                        🔐 YOUR LOGIN CREDENTIALS
                       </h4>
-                      <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: rgba(255,255,255,0.15); border-radius: 8px; padding: 15px;">
                         <tr>
-                          <td style="padding: 8px 0; color: #e0e7ff; font-size: 14px; font-weight: 600;">Email:</td>
-                          <td style="padding: 8px 0; text-align: right;">
-                            <code style="background-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-family: 'Courier New', monospace;">${email}</code>
+                          <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Email:</td>
+                          <td style="padding: 12px; text-align: right;">
+                            <code style="background-color: #ffffff; color: #1e40af; padding: 8px 16px; border-radius: 6px; font-size: 15px; font-family: 'Courier New', monospace; font-weight: 700;">${email}</code>
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 8px 0; color: #e0e7ff; font-size: 14px; font-weight: 600;">Temporary Password:</td>
-                          <td style="padding: 8px 0; text-align: right;">
-                            <code style="background-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 1px;">${temp_password}</code>
+                          <td colspan="2" style="height: 10px;"></td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Temporary Password:</td>
+                          <td style="padding: 12px; text-align: right;">
+                            <code style="background-color: #ffffff; color: #1e40af; padding: 10px 18px; border-radius: 6px; font-size: 16px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 2px; border: 2px solid #fbbf24;">${temp_password}</code>
                           </td>
                         </tr>
                       </table>

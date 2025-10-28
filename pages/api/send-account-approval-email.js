@@ -83,12 +83,12 @@ export default async function handler(req, res) {
                 
                 <!-- Professional Header with Logo -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 0; text-align: center;">
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="padding: 30px 20px 20px 20px; text-align: center;">
                           <div style="background-color: white; display: inline-block; padding: 15px 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                            <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #10b981; letter-spacing: -0.5px;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #1e40af; letter-spacing: -0.5px;">
                               🏦 ${bankInfo.name}
                             </h1>
                           </div>
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
                       <tr>
                         <td style="padding: 20px 20px 30px 20px; text-align: center;">
                           <h2 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700;">✅ Account Approved!</h2>
-                          <p style="margin: 10px 0 0 0; color: #d1fae5; font-size: 16px;">Your Account is Now Active</p>
+                          <p style="margin: 10px 0 0 0; color: #dbeafe; font-size: 16px;">Your Account is Now Active</p>
                         </td>
                       </tr>
                     </table>
@@ -116,31 +116,31 @@ export default async function handler(req, res) {
                     </p>
                     
                     <!-- Account Details Box -->
-                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+                    <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.2);">
                       <h4 style="margin: 0 0 15px 0; color: #ffffff; font-size: 18px; font-weight: 700;">
                         💳 Your Account Details
                       </h4>
                       <table role="presentation" style="width: 100%; border-collapse: collapse;">
                         <tr>
-                          <td style="padding: 8px 0; color: #d1fae5; font-size: 14px; font-weight: 600;">Account Type:</td>
+                          <td style="padding: 8px 0; color: #dbeafe; font-size: 14px; font-weight: 600;">Account Type:</td>
                           <td style="padding: 8px 0; text-align: right; color: #ffffff; font-size: 15px; font-weight: 700;">
                             ${accountTypeFormatted}
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 8px 0; color: #d1fae5; font-size: 14px; font-weight: 600;">Account Number:</td>
+                          <td style="padding: 8px 0; color: #dbeafe; font-size: 14px; font-weight: 600;">Account Number:</td>
                           <td style="padding: 8px 0; text-align: right;">
                             <code style="background-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700;">****${account_number.slice(-4)}</code>
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 8px 0; color: #d1fae5; font-size: 14px; font-weight: 600;">Routing Number:</td>
+                          <td style="padding: 8px 0; color: #dbeafe; font-size: 14px; font-weight: 600;">Routing Number:</td>
                           <td style="padding: 8px 0; text-align: right;">
                             <code style="background-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700;">${routing_number}</code>
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 8px 0; color: #d1fae5; font-size: 14px; font-weight: 600;">Status:</td>
+                          <td style="padding: 8px 0; color: #dbeafe; font-size: 14px; font-weight: 600;">Status:</td>
                           <td style="padding: 8px 0; text-align: right;">
                             <span style="background-color: #ffffff; color: #10b981; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; display: inline-block;">✅ ACTIVE</span>
                           </td>
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
                     <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
                       <tr>
                         <td align="center">
-                          <a href="${loginUrl}" style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Access Your Account</a>
+                          <a href="${loginUrl}" style="display: inline-block; background-color: #1e40af; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Access Your Account</a>
                         </td>
                       </tr>
                     </table>
@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     `;
 
     const mailOptions = {
-      from: `"${bankInfo.name}" <${bankInfo.email_welcome || 'welcome@theoaklinebank.com'}>`,
+      from: `"${bankInfo.name}" <${bankInfo.email_notify || 'notify@theoaklinebank.com'}>`,
       to: email,
       subject: `✅ Your ${accountTypeFormatted} Account Has Been Approved!`,
       html: emailHtml
