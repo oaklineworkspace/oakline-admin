@@ -1,0 +1,24 @@
+When an admin approves an account (including a user’s second account), the system should automatically create a debit card linked to that specific account. If a user already has a card for a different account, issuing a 2nd card for the new account must be supported (one card per account). The card-generation logic should reuse the same safe rules already used for generating debit cards and must be idempotent (no duplicate cards for the same account). After card creation, return only safe, masked details to the front-end and send an email notification (masked number — never include full card number or CVC in async emails).
+
+Requirements (summary)
+	1.	Hook into the existing admin approval endpoint / workflow so that when an account status becomes active the server:
+	•	Calls createCardForAccount(accountId) (server-side) to generate and persist a card.
+	2.	createCardForAccount(accountId) behavior:
+	•	Use accounts.account_id and accounts.user_id.
+	•	Respect applications.chosen_card_brand and chosen_card_category if available; otherwise default to visa + debit.
+	•	Generate a unique card_number appropriate for brand (Visa => starts with 4, Mastercard => 5, AMEX => 34/37 with Amex length rules), ensure uniqueness in public.cards (retry loop up to 20 attempts).
+	•	Generate CVC (3 digits for Visa/Mastercard, 4 digits for Amex) and expiry date (4 years from now).
+	•	Insert into public.cards with status active, link to user_id and account_id.
+	•	Return masked number (e.g. **** **** **** 1234), expiry month/year, and card id only.
+	•	Do not log or email the full card number / CVC. If you need to present CVC to admin or user, show it only once in a secure admin UI (or generate PIN via secure channel).
+	•	If a card already exists for that account_id and status not in replaced/deactivated, skip insertion and return the existing card.
+	•	Create an audit_logs row describing card issuance (admin id or system service id).
+	3.	Admin approval flow:
+	•	Update the existing /pages/api/admin/approve-pending-account.js (or equivalent) to call createCardForAccount(accountId) after the account row is updated to status active and after any DB updates have succeeded.
+	•	Ensure the API is executed with the Supabase service role (supabaseAdmin) server-side key (do not expose it to the client).
+	4.	Front-end:
+	•	When the admin approves an account, show a short success message and the masked card details returned by the API.
+	•	On the user dashboard, display cards grouped by account_number and ensure each card shows which account it belongs to.
+	5.	Tests & safety:
+	•	Add server-side unit tests (or simple manual checks) to verify unique card generation, linking to correct account, and idempotency.
+	•	Add error handling: if card generation fails, rollback or mark account approved but mark card_issuance_status = 'failed' and create system_logs with the error.
