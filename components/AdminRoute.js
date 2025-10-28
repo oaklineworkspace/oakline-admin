@@ -28,7 +28,7 @@ export default function AdminRoute({ children }) {
       // Check if user has admin role in admin_profiles table
       const { data: profile, error: profileError } = await supabase
         .from('admin_profiles')
-        .select('role, is_active')
+        .select('role')
         .eq('id', user.id)
         .single();
 
@@ -39,7 +39,7 @@ export default function AdminRoute({ children }) {
         return;
       }
 
-      if (!profile || !profile.is_active || !['admin', 'superadmin', 'auditor'].includes(profile.role)) {
+      if (!profile || !['admin', 'superadmin', 'auditor'].includes(profile.role)) {
         setError('Access denied. Admin privileges required.');
         setTimeout(() => router.push('/login'), 2000);
         setLoading(false);
