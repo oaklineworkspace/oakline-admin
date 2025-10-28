@@ -124,7 +124,7 @@ export default function AdminCardApplications() {
                   </div>
                   <div style={styles.detailRow}>
                     <span style={styles.label}>Applied:</span>
-                    <span>{new Date(app.created_at).toLocaleDateString()}</span>
+                    <span>{new Date(app.requested_at).toLocaleDateString()}</span>
                   </div>
                 </div>
 
