@@ -12,12 +12,14 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
   account_id uuid,
-  type text NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['credit'::text, 'debit'::text])),
   amount numeric NOT NULL CHECK (amount > 0::numeric),
   description text,
   reference text DEFAULT md5(((random())::text || (clock_timestamp())::text)) UNIQUE,
-  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text, 'reversal'::text])),
+  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text, 'reversal'::text, 'hold'::text, 'reversed'::text])),
   metadata jsonb,
+  balance_before numeric,
+  balance_after numeric,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT transactions_pkey PRIMARY KEY (id),
@@ -146,13 +148,13 @@ BEGIN
   -- Map transaction types to direction (credit adds, debit subtracts)
   old_direction := CASE
     WHEN OLD IS NULL THEN NULL
-    WHEN lower(OLD.type) IN ('credit', 'deposit', 'interest', 'transfer_in', 'refund', 'bonus', 'deposit_adjust') THEN 'credit'
+    WHEN lower(OLD.type) = 'credit' THEN 'credit'
     ELSE 'debit'
   END;
 
   new_direction := CASE
     WHEN NEW IS NULL THEN NULL
-    WHEN lower(NEW.type) IN ('credit', 'deposit', 'interest', 'transfer_in', 'refund', 'bonus', 'deposit_adjust') THEN 'credit'
+    WHEN lower(NEW.type) = 'credit' THEN 'credit'
     ELSE 'debit'
   END;
 
@@ -186,11 +188,27 @@ BEGIN
         RAISE EXCEPTION 'Account % not found applying completion', affected_account;
       END IF;
 
+      old_balance := new_balance;
+
       IF new_direction = 'credit' THEN
-        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+        new_balance := new_balance + COALESCE(NEW.amount,0);
       ELSE
-        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+        new_balance := new_balance - COALESCE(NEW.amount,0);
       END IF;
+
+      UPDATE public.accounts SET balance = new_balance, updated_at = now() WHERE id = affected_account;
+      
+      -- Update transaction with balance info
+      UPDATE public.transactions 
+      SET balance_before = old_balance, 
+          balance_after = new_balance,
+          metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+            'balance_applied', true,
+            'balance_before', old_balance,
+            'balance_after', new_balance,
+            'applied_at', now()
+          )
+      WHERE id = NEW.id;
 
       RETURN NEW;
     END IF;
