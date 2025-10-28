@@ -5,9 +5,19 @@ import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import { supabase } from '../../lib/supabaseClient';
 import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
 
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import('react-quill');
+    // Ensure Quill styles are loaded
+    await import('react-quill/dist/quill.snow.css');
+    return RQ;
+  },
+  { 
+    ssr: false,
+    loading: () => <p>Loading editor...</p>
+  }
+);
 
 export default function BroadcastMessages() {
   const router = useRouter();
@@ -129,7 +139,9 @@ export default function BroadcastMessages() {
     setSending(true);
 
     try {
+      console.log('Starting to send broadcast message...');
       const recipients = allUsers.filter(u => selectedUsers.includes(u.id));
+      console.log('Recipients:', recipients.length);
       
       // Get the current session token
       const { data: { session } } = await supabase.auth.getSession();
@@ -140,6 +152,7 @@ export default function BroadcastMessages() {
         return;
       }
       
+      console.log('Sending request to API...');
       const response = await fetch('/api/admin/send-broadcast-message', {
         method: 'POST',
         headers: { 
@@ -154,10 +167,12 @@ export default function BroadcastMessages() {
         })
       });
 
+      console.log('Response status:', response.status);
       const result = await response.json();
+      console.log('Response data:', result);
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to send messages');
+        throw new Error(result.error || result.message || 'Failed to send messages');
       }
 
       setSentCount(selectedUsers.length);
