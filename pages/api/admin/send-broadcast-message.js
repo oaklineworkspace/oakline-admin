@@ -171,16 +171,18 @@ export default async function handler(req, res) {
     // Wait for all emails to be sent
     await Promise.all(emailPromises);
 
-    // Store notification in database
+    // Store notification in database for each recipient
+    const notificationInserts = recipients.map(recipient => ({
+      user_id: recipient.id,
+      type: 'broadcast',
+      title: subject,
+      message: message,
+      read: false
+    }));
+
     const { error: dbError } = await supabaseAdmin
-      .from('user_notifications')
-      .insert({
-        subject,
-        message,
-        sent_by: user.id,
-        recipient_ids: recipients.map(r => r.id),
-        recipient_count: recipients.length
-      });
+      .from('notifications')
+      .insert(notificationInserts);
 
     if (dbError) {
       console.error('Failed to store notification:', dbError);

@@ -79,10 +79,10 @@ export default function BroadcastMessages() {
       const { data: { user } } = await supabase.auth.getUser();
 
       const { data, error } = await supabase
-        .from('user_notifications')
+        .from('notifications')
         .select('*')
-        .eq('sent_by', user.id)
-        .order('sent_at', { ascending: false });
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -131,9 +131,21 @@ export default function BroadcastMessages() {
     try {
       const recipients = allUsers.filter(u => selectedUsers.includes(u.id));
       
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        alert('You must be logged in to send messages');
+        setSending(false);
+        return;
+      }
+      
       const response = await fetch('/api/admin/send-broadcast-message', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           subject,
           message,
