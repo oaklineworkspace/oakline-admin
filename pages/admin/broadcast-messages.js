@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import AdminBackButton from '../../components/AdminBackButton';
 import { supabase } from '../../lib/supabaseClient';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';

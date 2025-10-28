@@ -1,7 +1,8 @@
-
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
+import AdminBackButton from '../../components/AdminBackButton';
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -17,7 +18,7 @@ export default function AdminTransactions() {
 
   useEffect(() => {
     fetchTransactions();
-    
+
     // Set up real-time subscription
     const subscription = supabase
       .channel('transactions_changes')
@@ -41,7 +42,7 @@ export default function AdminTransactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      
+
       // First get transactions with accounts
       const { data: txData, error: txError } = await supabase
         .from('transactions')
@@ -60,7 +61,7 @@ export default function AdminTransactions() {
       // Get applications data
       const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
       let applications = [];
-      
+
       if (appIds.length > 0) {
         const { data: appsData } = await supabase
           .from('applications')
@@ -72,7 +73,7 @@ export default function AdminTransactions() {
       // Merge the data
       const enrichedData = txData.map(tx => {
         const application = applications?.find(a => a.id === tx.accounts?.application_id);
-        
+
         return {
           ...tx,
           accounts: {
@@ -107,7 +108,7 @@ export default function AdminTransactions() {
         const email = tx.accounts?.applications?.email?.toLowerCase() || '';
         const accountNumber = tx.accounts?.account_number?.toLowerCase() || '';
         const description = tx.description?.toLowerCase() || '';
-        
+
         return firstName.includes(search) || 
                lastName.includes(search) || 
                email.includes(search) || 
@@ -130,7 +131,7 @@ export default function AdminTransactions() {
     if (dateFilter !== 'all') {
       const now = new Date();
       const startDate = new Date();
-      
+
       switch (dateFilter) {
         case 'today':
           startDate.setHours(0, 0, 0, 0);
@@ -142,7 +143,7 @@ export default function AdminTransactions() {
           startDate.setMonth(now.getMonth() - 1);
           break;
       }
-      
+
       filtered = filtered.filter(tx => new Date(tx.created_at) >= startDate);
     }
 
@@ -238,7 +239,7 @@ export default function AdminTransactions() {
 
       const currentBalance = parseFloat(account.balance || 0);
       const transactionAmount = parseFloat(transaction.amount);
-      
+
       // Calculate new balance
       const newBalance = transaction.type === 'credit' 
         ? currentBalance + transactionAmount 
@@ -326,6 +327,7 @@ export default function AdminTransactions() {
 
   return (
     <AdminAuth>
+      <AdminBackButton />
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.title}>💸 Transactions Management</h1>

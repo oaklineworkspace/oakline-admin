@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
+import AdminBackButton from '../../components/AdminBackButton';
 
 export default function AdminCardsDashboard() {
   const [cards, setCards] = useState([]);
@@ -18,46 +18,26 @@ export default function AdminCardsDashboard() {
 
   const fetchCardsData = async () => {
     try {
-      // Fetch all cards
-      const { data: cardsData, error: cardsError } = await supabaseAdmin
-        .from('cards')
-        .select(`
-          *,
-          accounts (
-            id,
-            account_number,
-            account_type,
-            balance
-          )
-        `)
-        .order('created_at', { ascending: false });
+      // Fetch all cards via API
+      const cardsRes = await fetch('/api/admin/get-user-cards');
+      const cardsData = await cardsRes.json();
 
-      if (cardsError) {
-        console.error('Error fetching cards:', cardsError);
+      if (!cardsRes.ok) {
+        console.error('Error fetching cards:', cardsData.error);
         setError('Failed to fetch cards');
       } else {
-        setCards(cardsData || []);
+        setCards(cardsData.cards || []);
       }
 
-      // Fetch all card applications
-      const { data: appsData, error: appsError } = await supabaseAdmin
-        .from('card_applications')
-        .select(`
-          *,
-          accounts (
-            id,
-            account_number,
-            account_type,
-            balance
-          )
-        `)
-        .order('created_at', { ascending: false });
+      // Fetch all card applications via API
+      const appsRes = await fetch('/api/admin/get-card-applications');
+      const appsData = await appsRes.json();
 
-      if (appsError) {
-        console.error('Error fetching applications:', appsError);
+      if (!appsRes.ok) {
+        console.error('Error fetching applications:', appsData.error);
         setError('Failed to fetch applications');
       } else {
-        setApplications(appsData || []);
+        setApplications(appsData.applications || []);
       }
 
     } catch (error) {
@@ -172,12 +152,7 @@ export default function AdminCardsDashboard() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>💳 Cards Management Dashboard</h1>
-        <button 
-          onClick={() => router.push('/admin/admin-dashboard')}
-          style={styles.backButton}
-        >
-          ← Back to Admin Dashboard
-        </button>
+        <AdminBackButton />
       </div>
 
       {error && <div style={styles.error}>{error}</div>}
