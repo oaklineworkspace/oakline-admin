@@ -348,3 +348,213 @@ export default async function handler(req, res) {
     });
   }
 }
+import nodemailer from 'nodemailer';
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT, 10),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const {
+    email,
+    first_name,
+    middle_name,
+    last_name,
+    temp_password,
+    account_numbers,
+    account_types,
+    has_pending_accounts,
+    pending_account_types,
+    site_url,
+    bank_details
+  } = req.body;
+
+  if (!email || !first_name || !last_name || !temp_password) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const fullName = middle_name 
+      ? `${first_name} ${middle_name} ${last_name}`
+      : `${first_name} ${last_name}`;
+
+    const bankName = bank_details?.name || 'Oakline Bank';
+    const bankEmail = bank_details?.email_info || 'info@theoaklinebank.com';
+    const supportEmail = bank_details?.email_support || 'support@theoaklinebank.com';
+    const routingNumber = bank_details?.routing_number || '075915826';
+
+    const activeAccountsHtml = account_numbers && account_numbers.length > 0
+      ? account_numbers.map((num, idx) => {
+          const type = account_types[idx] || 'checking_account';
+          const typeFormatted = type.replace(/_/g, ' ').toUpperCase();
+          return `
+            <div style="margin-bottom: 12px; padding: 16px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <div style="color: #1a365d; font-weight: 600; margin-bottom: 4px;">${typeFormatted}</div>
+              <div style="color: #4a5568; font-family: 'Courier New', monospace; font-size: 16px;">Account: ${num}</div>
+              <div style="color: #718096; font-size: 14px;">Routing: ${routingNumber}</div>
+            </div>
+          `;
+        }).join('')
+      : '<p style="color: #718096;">No active accounts yet.</p>';
+
+    const pendingAccountsHtml = has_pending_accounts && pending_account_types && pending_account_types.length > 0
+      ? `
+        <div style="background-color: #fef5e7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 8px;">
+          <h4 style="color: #92400e; font-size: 16px; margin: 0 0 12px 0;">⏳ Pending Account Approval</h4>
+          <p style="color: #92400e; margin: 0 0 8px 0; font-size: 14px;">
+            The following accounts are pending admin approval:
+          </p>
+          <ul style="color: #92400e; margin: 0; padding-left: 20px;">
+            ${pending_account_types.map(type => {
+              const typeFormatted = type.replace(/_/g, ' ').toUpperCase();
+              return `<li style="margin-bottom: 4px;">${typeFormatted}</li>`;
+            }).join('')}
+          </ul>
+          <p style="color: #92400e; margin: 8px 0 0 0; font-size: 13px;">
+            You will receive a notification email once these accounts are approved.
+          </p>
+        </div>
+      `
+      : '';
+
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5aa0 100%); padding: 32px 24px; text-align: center;">
+            <div style="color: #ffffff; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
+              🏦 ${bankName}
+            </div>
+            <div style="color: #ffffff; opacity: 0.9; font-size: 16px;">
+              Welcome to Your Financial Future
+            </div>
+          </div>
+          
+          <!-- Main Content -->
+          <div style="padding: 40px 32px;">
+            <h1 style="color: #1a365d; font-size: 28px; font-weight: 700; margin: 0 0 16px 0;">
+              Welcome, ${fullName}! 🎉
+            </h1>
+            
+            <p style="color: #4a5568; font-size: 18px; line-height: 1.6; margin: 0 0 32px 0;">
+              Your application has been approved! Your ${bankName} account is now active.
+            </p>
+            
+            <!-- Login Credentials -->
+            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <h3 style="color: #1a365d; font-size: 18px; margin: 0 0 16px 0;">
+                🔐 Your Login Credentials
+              </h3>
+              <p style="margin: 0 0 8px 0; color: #4a5568;">
+                <strong>Email:</strong> ${email}
+              </p>
+              <p style="margin: 0 0 16px 0; color: #4a5568;">
+                <strong>Temporary Password:</strong> 
+                <code style="background-color: #e0f2fe; padding: 8px 12px; border-radius: 4px; font-size: 16px; font-weight: 600; display: inline-block; margin-top: 4px;">${temp_password}</code>
+              </p>
+              <div style="background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 12px;">
+                <p style="margin: 0; color: #92400e; font-size: 14px;">
+                  ⚠️ <strong>Important:</strong> Please change your password immediately after your first login for security purposes.
+                </p>
+              </div>
+            </div>
+
+            <!-- Active Account Information -->
+            <div style="background-color: #f7fafc; border-radius: 12px; padding: 24px; margin: 32px 0;">
+              <h3 style="color: #1a365d; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+                💳 Your Active Account${account_numbers && account_numbers.length > 1 ? 's' : ''}:
+              </h3>
+              ${activeAccountsHtml}
+            </div>
+
+            ${pendingAccountsHtml}
+            
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${site_url}/login" 
+                 style="display: inline-block; background: linear-gradient(135deg, #0066cc 0%, #2c5aa0 100%); 
+                        color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
+                        font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);">
+                Access Your Account Now
+              </a>
+            </div>
+            
+            <!-- Next Steps -->
+            <div style="background-color: #ecfdf5; border-radius: 12px; padding: 24px; margin: 32px 0;">
+              <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+                🚀 What's Next:
+              </h3>
+              <ul style="color: #047857; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 8px;">Log in to your online banking dashboard</li>
+                <li style="margin-bottom: 8px;">Change your temporary password</li>
+                <li style="margin-bottom: 8px;">Set up mobile banking and notifications</li>
+                <li style="margin-bottom: 8px;">Explore our services and features</li>
+                ${has_pending_accounts ? '<li style="margin-bottom: 8px;">Wait for pending accounts to be approved</li>' : ''}
+              </ul>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f7fafc; padding: 32px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #718096; font-size: 14px; margin: 0 0 16px 0;">
+              Need help? Contact our support team:
+            </p>
+            <p style="color: #4a5568; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+              📧 ${supportEmail}
+            </p>
+            <p style="color: #718096; font-size: 14px; margin: 0 0 24px 0;">
+              Available 24/7 for your assistance
+            </p>
+            
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 24px;">
+              <p style="color: #718096; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br>
+                Member FDIC | Routing: ${routingNumber}
+              </p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const mailOptions = {
+      from: `"${bankName}" <${bankEmail}>`,
+      to: email,
+      subject: `🎉 Welcome to ${bankName} - Your Account is Ready!`,
+      html: emailHtml
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Welcome email with credentials sent successfully:', info.messageId);
+
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Welcome email sent successfully',
+      messageId: info.messageId
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending welcome email with credentials:', error);
+    return res.status(500).json({ 
+      error: 'Failed to send welcome email',
+      details: error.message
+    });
+  }
+}
