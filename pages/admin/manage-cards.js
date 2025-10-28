@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
 import AdminButton from '../../components/AdminButton';
+import AdminBackButton from '../../components/AdminBackButton';
 
 export default function ManageCards() {
   const router = useRouter();
@@ -258,16 +259,16 @@ export default function ManageCards() {
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
-          <div>
-            <h1 style={styles.title}>💳 Card Management</h1>
-            <p style={styles.subtitle}>Issue, edit, and manage all debit cards</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <AdminBackButton />
+            <div>
+              <h1 style={styles.title}>💳 Card Management</h1>
+              <p style={styles.subtitle}>Issue, edit, and manage all debit cards</p>
+            </div>
           </div>
           <div style={styles.headerActions}>
             <button onClick={() => setShowIssueModal(true)} style={styles.issueButton}>
               ➕ Issue New Card
-            </button>
-            <button onClick={() => router.push('/admin/admin-dashboard')} style={styles.backButton}>
-              ← Dashboard
             </button>
           </div>
         </div>
@@ -867,7 +868,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -876,7 +877,7 @@ const styles = {
     overflowY: 'auto'
   },
   modal: {
-    backgroundColor: 'white',
+    backgroundColor: '#f8fafc',
     padding: '2rem',
     borderRadius: '16px',
     maxWidth: '600px',
@@ -884,13 +885,15 @@ const styles = {
     maxHeight: '90vh',
     overflowY: 'auto',
     margin: 'auto',
-    position: 'relative'
+    position: 'relative',
+    border: '2px solid #0f766e'
   },
   modalTitle: {
     fontSize: '1.5rem',
     fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: '1.5rem'
+    color: '#0f766e',
+    marginBottom: '1.5rem',
+    textAlign: 'center'
   },
   form: {
     display: 'flex',
@@ -914,17 +917,20 @@ const styles = {
   },
   input: {
     padding: '0.75rem',
-    border: '2px solid #e2e8f0',
+    border: '2px solid #cbd5e1',
     borderRadius: '8px',
-    fontSize: '1rem'
+    fontSize: '1rem',
+    backgroundColor: 'white',
+    color: '#1e293b'
   },
   select: {
     width: '100%',
     padding: '0.75rem',
-    border: '2px solid #e2e8f0',
+    border: '2px solid #cbd5e1',
     borderRadius: '8px',
     fontSize: '1rem',
     backgroundColor: 'white',
+    color: '#1e293b',
     maxHeight: '200px',
     overflowY: 'auto',
     cursor: 'pointer'
