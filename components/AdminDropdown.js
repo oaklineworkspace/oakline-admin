@@ -91,10 +91,9 @@ export default function AdminDropdown() {
       category: '⚙️ Settings & Security',
       links: [
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
-        { name: 'Admin Roles', path: '/admin/admin-roles', icon: '👑' },
-        { name: 'Admin Logs', path: '/admin/admin-logs', icon: '📝' },
+        { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
-        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧' },
+        { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
       ]
     }
   ];

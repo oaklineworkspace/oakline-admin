@@ -175,6 +175,7 @@ export default function AdminNavigationHub() {
         { name: 'Settings', path: '/admin/admin-settings', icon: '⚙️', description: 'Configure system settings' },
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭', description: 'Manage access control and roles' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔', description: 'System-wide notifications' },
+        { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢', description: 'Send messages to all users' },
       ]
     }
   ];
