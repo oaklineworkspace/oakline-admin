@@ -34,12 +34,11 @@ export default function AdminDropdown() {
       category: '👥 User Management',
       links: [
         { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥' },
-        { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '📝' },
-        { name: 'Admin Users Management', path: '/admin/admin-users-management', icon: '👨‍💼' },
-        { name: 'Admin Users', path: '/admin/admin-users', icon: '👤' },
+        { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼' },
+        { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '🔑' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕' },
+        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧' },
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
-        { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️' },
       ]
     },
     {
@@ -65,6 +64,7 @@ export default function AdminDropdown() {
       links: [
         { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
         { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
+        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝' },
         { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
         { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗' },
@@ -73,24 +73,28 @@ export default function AdminDropdown() {
     {
       category: '💸 Transactions',
       links: [
+        { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
-        { name: 'Admin Transactions', path: '/admin/admin-transactions', icon: '💸' },
         { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' },
+        { name: 'Account Balances', path: '/admin/admin-balance', icon: '💵' },
       ]
     },
     {
       category: '💼 Financial Services',
       links: [
-        { name: 'Admin Loans', path: '/admin/admin-loans', icon: '💼' },
-        { name: 'Admin Investments', path: '/admin/admin-investments', icon: '📈' },
-        { name: 'Admin Crypto', path: '/admin/admin-crypto', icon: '₿' },
+        { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
+        { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿' },
       ]
     },
     {
       category: '⚙️ Settings & Security',
       links: [
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
+        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
+        { name: 'Reports', path: '/admin/admin-reports', icon: '📊' },
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
         { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
