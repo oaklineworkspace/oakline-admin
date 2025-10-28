@@ -345,8 +345,9 @@ export default function ApproveApplications() {
                     <AdminButton
                       onClick={() => openApprovalModal(app)}
                       disabled={processing === app.id}
-                      label={processing === app.id ? '⏳ Approving...' : '✅ Approve'}
-                    />
+                    >
+                      {processing === app.id ? '⏳ Approving...' : '✅ Approve'}
+                    </AdminButton>
                   </div>
                 </div>
               ))}
@@ -422,8 +423,9 @@ export default function ApproveApplications() {
                 <AdminButton
                   onClick={handleApprove}
                   disabled={processing}
-                  label={processing ? '⏳ Processing...' : '✅ Approve & Create'}
-                />
+                >
+                  {processing ? '⏳ Processing...' : '✅ Approve & Create'}
+                </AdminButton>
               </div>
             </div>
           </div>
