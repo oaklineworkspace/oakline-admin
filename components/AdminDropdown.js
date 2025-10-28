@@ -53,6 +53,7 @@ export default function AdminDropdown() {
       category: '📋 Applications',
       links: [
         { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅' },
+        { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
         { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
       ]
     },
@@ -77,6 +78,7 @@ export default function AdminDropdown() {
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
         { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' },
+        { name: 'Transaction Reports', path: '/admin/admin-reports', icon: '📊' },
         { name: 'Account Balances', path: '/admin/admin-balance', icon: '💵' },
       ]
     },
