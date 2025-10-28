@@ -145,6 +145,7 @@ export default function AdminNavigationHub() {
       category: '💰 Financial Operations',
       pages: [
         { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸', description: 'View and monitor all transactions' },
+        { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱', description: 'Review and approve mobile check deposits' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✍️', description: 'Create manual transactions' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦', description: 'Process multiple transactions at once' },
         { name: 'Account Balances', path: '/admin/admin-balance', icon: '💵', description: 'Manage and adjust account balances' },
