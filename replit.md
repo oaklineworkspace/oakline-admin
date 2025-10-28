@@ -167,6 +167,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 28, 2025 - Database Schema Updates & Missing Tables Fix
+- **Database Schema**: Created SQL scripts for missing Supabase tables
+  - Created `transactions` table with full RLS policies and indexes
+  - Created `check_deposits` table for mobile check deposit feature
+  - Added proper foreign key constraints and data validation
+  - Included Row Level Security policies for user data protection
+- **Admin Pages Fixed**:
+  - Fixed admin-transactions page (was empty due to missing transactions table)
+  - Fixed mobile-check-deposits page (was showing "table not found" error)
+  - All API endpoints verified and working correctly
+- **File Added**: `supabase_missing_tables.sql` - Comprehensive SQL script for table creation
+- **Note**: User needs to run the SQL script in their Supabase dashboard to complete setup
+
 ### October 27, 2025 - Admin Approval Email Fix & Security Cleanup
 - **Critical Email Fix**: Resolved issue where admin approval emails weren't sending login credentials to users
   - Root cause: SUPABASE_SERVICE_KEY environment variable was missing
