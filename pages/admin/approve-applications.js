@@ -342,12 +342,26 @@ export default function ApproveApplications() {
                     >
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
-                    <AdminButton
+                    <button
                       onClick={() => openApprovalModal(app)}
                       disabled={processing === app.id}
+                      style={{
+                        ...styles.approveButton,
+                        ...(processing === app.id ? styles.buttonDisabled : {})
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!processing) {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.5)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
+                      }}
                     >
-                      {processing === app.id ? '⏳ Approving...' : '✅ Approve'}
-                    </AdminButton>
+                      {processing === app.id ? '⏳ Approving...' : '✅ Approve Application'}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -706,6 +720,27 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+  },
+  approveButton: {
+    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  buttonDisabled: {
+    background: '#9ca3af',
+    cursor: 'not-allowed',
+    boxShadow: 'none',
+    opacity: 0.6,
   },
   modalOverlay: {
     position: 'fixed',
