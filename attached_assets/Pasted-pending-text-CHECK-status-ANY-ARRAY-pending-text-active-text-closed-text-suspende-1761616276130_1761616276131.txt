@@ -1,0 +1,72 @@
+pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'closed'::text, 'suspended'::text, 'rejected'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT accounts_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id)
+);
+CREATE TABLE public.admin_profiles (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  role text DEFAULT 'admin'::text CHECK (role = ANY (ARRAY['admin'::text, 'super_admin'::text, 'manager'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.applications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  middle_name text,
+  email text NOT NULL UNIQUE,
+  phone text,
+  date_of_birth date,
+  country text,
+  ssn text,
+  id_number text,
+  address text,
+  city text,
+  state text,
+  zip_code text,
+  employment_status text,
+  annual_income text,
+  account_types ARRAY,
+  mothers_maiden_name text,
+  agree_to_terms boolean DEFAULT false,
+  application_status text DEFAULT 'pending'::text CHECK (application_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'under_review'::text, 'completed'::text])),
+  created_by_admin boolean DEFAULT false,
+  submitted_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
+  updated_at timestamp with time zone DEFAULT now(),
+  manual_account_number text,
+  chosen_account_type text DEFAULT 'checking'::text CHECK (chosen_account_type = ANY (ARRAY['checking'::text, 'savings'::text, 'credit'::text])),
+  chosen_card_brand text DEFAULT 'visa'::text CHECK (chosen_card_brand = ANY (ARRAY['visa'::text, 'mastercard'::text, 'amex'::text])),
+  chosen_card_category text DEFAULT 'debit'::text CHECK (chosen_card_category = ANY (ARRAY['debit'::text, 'credit'::text])),
+  CONSTRAINT applications_pkey PRIMARY KEY (id),
+  CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  action text,
+  table_name text,
+  old_data jsonb,
+  new_data jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.bank_details (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL DEFAULT 'Oakline Bank'::text,
+  branch_name text NOT NULL DEFAULT 'Oklahoma City Branch'::text,
+  address text NOT NULL DEFAULT '12201 N May Avenue, Oklahoma City, OK 73120, United States'::text,
+  phone text NOT NULL DEFAULT '+1 (636) 635-6122'::text,
+  email_info text NOT NULL DEFAULT 'info@theoaklinebank.com'::text,
+  email_contact text NOT NULL DEFAULT 'contact-us@theoaklinebank.com'::text,
+  email_notify text NOT NULL DEFAULT 'notify@theoaklinebank.com'::text,
+  email_updates text NOT NULL DEFAULT 'updates@theoaklinebank.com'::text,
+  

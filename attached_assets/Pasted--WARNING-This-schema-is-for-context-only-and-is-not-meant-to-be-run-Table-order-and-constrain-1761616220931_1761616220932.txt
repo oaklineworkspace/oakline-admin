@@ -1,0 +1,64 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.accounts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  application_id uuid,
+  account_number text NOT NULL UNIQUE,
+  routing_number text DEFAULT '075915826'::text,
+  account_type text NOT NULL,
+  balance numeric DEFAULT 0 CHECK (balance >= 0::numeric),
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'closed'::text, 'suspended'::text, 'rejected'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT accounts_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id)
+);
+CREATE TABLE public.admin_profiles (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  role text DEFAULT 'admin'::text CHECK (role = ANY (ARRAY['admin'::text, 'super_admin'::text, 'manager'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.applications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  middle_name text,
+  email text NOT NULL UNIQUE,
+  phone text,
+  date_of_birth date,
+  country text,
+  ssn text,
+  id_number text,
+  address text,
+  city text,
+  state text,
+  zip_code text,
+  employment_status text,
+  annual_income text,
+  account_types ARRAY,
+  mothers_maiden_name text,
+  agree_to_terms boolean DEFAULT false,
+  application_status text DEFAULT 'pending'::text CHECK (application_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'under_review'::text, 'completed'::text])),
+  created_by_admin boolean DEFAULT false,
+  submitted_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
+  updated_at timestamp with time zone DEFAULT now(),
+  manual_account_number text,
+  chosen_account_type text DEFAULT 'checking'::text CHECK (chosen_account_type = ANY (ARRAY['checking'::text, 'savings'::text, 'credit'::text])),
+  chosen_card_brand text DEFAULT 'visa'::text CHECK (chosen_card_brand = ANY (ARRAY['visa'::text, 'mastercard'::text, 'amex'::text])),
+  chosen_card_category text DEFAULT 'debit'::text CHECK (chosen_card_category = ANY (ARRAY['debit'::text, 'credit'::text])),
+  CONSTRAINT applications_pkey PRIMARY KEY (id),
+  CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  

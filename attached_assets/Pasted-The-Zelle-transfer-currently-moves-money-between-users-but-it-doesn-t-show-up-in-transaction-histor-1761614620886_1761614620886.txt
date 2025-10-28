@@ -1,0 +1,92 @@
+The Zelle transfer currently moves money between users, but it doesn’t show up in transaction history on the dashboard or account-details page.
+Please update the Zelle transfer logic to record transaction history in both:
+	•	zelle_transactions (already exists)
+	•	transactions (main history table used by dashboard)
+
+⸻
+
+✅ Requirements
+
+1️⃣ When a Zelle transfer is successful:
+	•	Update balances in accounts (subtract sender, add receiver)
+	•	Update zelle_transactions.status to 'completed' and processed_at = now()
+	•	Insert a record for both users into transactions:
+
+Sender transaction:
+
+INSERT INTO transactions (user_id, account_id, type, amount, description, status)
+VALUES (
+  sender_id,
+  sender_account_id,
+  'ZELLE_TRANSFER_SENT',
+  amount,
+  'Zelle transfer to ' || recipient_name,
+  'completed'
+);
+
+INSERT INTO transactions (user_id, account_id, type, amount, description, status)
+VALUES (
+  recipient_user_id,
+  recipient_account_id,
+  'ZELLE_TRANSFER_RECEIVED',
+  amount,
+  'Zelle transfer from ' || sender_name,
+  'completed'
+);
+
+
+2️⃣ Add Zelle History Page
+	•	Create /zelle-history under user dashboard.
+	•	Fetch data from zelle_transactions joined with profiles:
+
+SELECT z.*, p.first_name, p.last_name
+FROM zelle_transactions z
+LEFT JOIN profiles p ON z.recipient_user_id = p.id
+WHERE z.sender_id = current_user_id OR ze z.recipient_user_id = current_user_id
+ORDER BY z.created_at DESC;
+
+•	Display:
+	•	Recipient/Sender Name
+	•	Amount
+	•	Status
+	•	Date
+	•	Memo
+
+⸻
+
+3️⃣ Enhance Zelle Flow
+	•	When the user types a recipient email, auto-fetch name from profiles where email = input_email.
+	•	Before confirming transfer, send a verification code (OTP) to the sender’s email using Supabase email_queue.
+	•	Require the user to enter the OTP to finalize the transaction.
+
+⸻
+
+4️⃣ Add Barcode Scan Option (Optional)
+	•	Add “Scan QR / Barcode” button.
+	•	Use the recipient’s encoded account info or email for quick pay.
+	•	Example payload in QR: { "email": "recipient@email.com", "name": "John Doe" }.
+
+⸻
+
+5️⃣ UI Improvements
+	•	Color legend:
+	•	Credit (received): green (#28a745)
+	•	Debit (sent): red (#dc3545)
+	•	Pending: orange (#fd7e14)
+	•	Cancelled: gray (#6c757d)
+	•	Reversal: purple (#6f42c1)
+	•	Other: gold (#d4af37)
+	•	Recent transactions and dashboard must display Zelle transfers as well (based on transactions.type LIKE '%ZELLE%').
+
+
+Use the service role key for secure inserts into transactions.
+	•	Make sure transactions and zelle_transactions both include UTC timestamps.
+
+⸻
+
+🧩 Bonus:
+
+Add a small label on dashboard:
+“Zelle transfer to [recipient_name] — Completed”
+or
+“Zelle transfer from [sender_name] — Completed”
