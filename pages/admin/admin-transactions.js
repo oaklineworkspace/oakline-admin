@@ -41,27 +41,58 @@ export default function AdminTransactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First get transactions with accounts
+      const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select(`
           *,
           accounts!inner (
             account_number,
             user_id,
-            applications (
-              first_name,
-              last_name,
-              email
-            )
+            application_id
           )
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setTransactions(data || []);
+      if (txError) throw txError;
+
+      // Then get user profiles for additional info
+      const userIds = [...new Set(txData.map(tx => tx.accounts?.user_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+
+      // Get applications data
+      const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
+      const { data: applications } = await supabase
+        .from('applications')
+        .select('id, first_name, last_name, email')
+        .in('id', appIds);
+
+      // Merge the data
+      const enrichedData = txData.map(tx => {
+        const profile = profiles?.find(p => p.id === tx.accounts?.user_id);
+        const application = applications?.find(a => a.id === tx.accounts?.application_id);
+        
+        return {
+          ...tx,
+          accounts: {
+            ...tx.accounts,
+            applications: application || {
+              first_name: profile?.first_name || 'Unknown',
+              last_name: profile?.last_name || 'User',
+              email: profile?.email || tx.accounts?.user_id
+            }
+          }
+        };
+      });
+
+      setTransactions(enrichedData || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      alert('Failed to fetch transactions');
+      alert('Failed to fetch transactions: ' + error.message);
     } finally {
       setLoading(false);
     }

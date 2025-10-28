@@ -81,15 +81,35 @@ export default function BroadcastMessages() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Fetch broadcast messages - these are messages where type = 'broadcast'
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('type', 'broadcast')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setSentMessages(data || []);
+      // Group by subject and created_at to get unique messages
+      const uniqueMessages = [];
+      const seen = new Set();
+      
+      (data || []).forEach(msg => {
+        const key = `${msg.title}_${new Date(msg.created_at).toISOString().split('T')[0]}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueMessages.push({
+            id: msg.id,
+            subject: msg.title,
+            message: msg.message,
+            sent_at: msg.created_at,
+            recipient_count: data.filter(m => m.title === msg.title && 
+              new Date(m.created_at).toISOString().split('T')[0] === new Date(msg.created_at).toISOString().split('T')[0]).length
+          });
+        }
+      });
+
+      setSentMessages(uniqueMessages);
     } catch (err) {
       console.error('Error fetching sent messages:', err);
     } finally {
@@ -439,13 +459,14 @@ export default function BroadcastMessages() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: '#f5f7fa',
+    background: '#f8fafc',
     paddingBottom: '100px'
   },
   header: {
-    background: 'linear-gradient(135deg, #0a1a2f 0%, #1e3a5f 100%)',
+    background: 'white',
     padding: 'clamp(1.5rem, 4vw, 30px)',
-    borderBottom: '4px solid #d4af37'
+    borderBottom: '3px solid #e5e7eb',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
   },
   headerContent: {
     display: 'flex',
@@ -458,18 +479,18 @@ const styles = {
     height: '60px',
     width: 'auto',
     borderRadius: '8px',
-    background: 'white',
+    border: '2px solid #e5e7eb',
     padding: '8px'
   },
   title: {
     margin: 0,
     fontSize: 'clamp(1.5rem, 4vw, 28px)',
-    color: 'white',
+    color: '#1f2937',
     fontWeight: '700'
   },
   subtitle: {
     margin: '5px 0 0 0',
-    color: '#d4af37',
+    color: '#6b7280',
     fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
   tabs: {
@@ -477,7 +498,8 @@ const styles = {
     background: 'white',
     borderBottom: '2px solid #e5e7eb',
     padding: '0 clamp(1rem, 3vw, 20px)',
-    gap: '1rem'
+    gap: '1rem',
+    marginBottom: '2rem'
   },
   tab: {
     padding: '1rem 2rem',
@@ -491,8 +513,8 @@ const styles = {
     transition: 'all 0.3s ease'
   },
   activeTab: {
-    color: '#0a1a2f',
-    borderBottomColor: '#d4af37'
+    color: '#1f2937',
+    borderBottomColor: '#3b82f6'
   },
   content: {
     maxWidth: '1200px',
@@ -557,13 +579,14 @@ const styles = {
   },
   selectAllButton: {
     padding: '12px 24px',
-    background: '#0a1a2f',
+    background: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '14px',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background 0.3s ease'
   },
   userList: {
     maxHeight: '400px',
@@ -604,14 +627,14 @@ const styles = {
   sendButton: {
     width: '100%',
     padding: '16px 32px',
-    background: 'linear-gradient(135deg, #0a1a2f 0%, #1e3a5f 100%)',
+    background: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '12px',
     fontSize: '18px',
     fontWeight: '700',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(10, 26, 47, 0.3)',
+    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.3)',
     transition: 'all 0.3s ease'
   },
   buttonDisabled: {
@@ -667,13 +690,14 @@ const styles = {
   },
   viewButton: {
     padding: '8px 16px',
-    background: '#0a1a2f',
+    background: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
     fontSize: '14px',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background 0.3s ease'
   },
   loadingText: {
     textAlign: 'center',
@@ -733,13 +757,14 @@ const styles = {
   },
   modalButton: {
     padding: '12px 32px',
-    background: '#0a1a2f',
+    background: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '16px',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background 0.3s ease'
   },
   messageModal: {
     background: 'white',

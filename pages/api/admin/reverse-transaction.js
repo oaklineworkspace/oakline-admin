@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
@@ -7,20 +6,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Verify admin authentication
+    // Verify admin access
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res.status(401).json({ error: 'Unauthorized - No token provided' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
-      return res.status(401).json({ error: 'Unauthorized - Invalid token' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Verify admin role
+    // Check admin role
     const { data: adminProfile, error: adminError } = await supabaseAdmin
       .from('admin_profiles')
       .select('role')
@@ -28,13 +27,12 @@ export default async function handler(req, res) {
       .single();
 
     if (adminError || !adminProfile) {
-      console.error('Admin verification failed:', adminError);
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     const { transactionId, accountId, userId, amount, type } = req.body;
 
-    if (!transactionId || !accountId || !userId || !amount || !type) {
+    if (!transactionId || !accountId || !amount || !type) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -56,7 +54,7 @@ export default async function handler(req, res) {
     }
 
     const currentBalance = parseFloat(account.balance || 0);
-    
+
     // Calculate new balance (reverse the transaction effect)
     // If original was credit (+), reverse is debit (-)
     // If original was debit (-), reverse is credit (+)
