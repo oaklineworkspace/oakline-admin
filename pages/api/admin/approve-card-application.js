@@ -61,6 +61,25 @@ export default async function handler(req, res) {
       });
     }
 
+    // Verify the account exists and is active
+    const { data: account, error: accountError } = await supabaseAdmin
+      .from('accounts')
+      .select('id, status')
+      .eq('id', application.account_id)
+      .single();
+
+    if (accountError || !account) {
+      return res.status(404).json({ 
+        error: 'Account not found for this card application' 
+      });
+    }
+
+    if (account.status !== 'active') {
+      return res.status(400).json({ 
+        error: 'Account must be active to issue a card. Please activate the account first.' 
+      });
+    }
+
     let cardResult = null;
     try {
       // Get admin ID from authorization header or session if available
