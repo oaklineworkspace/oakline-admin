@@ -1,0 +1,47 @@
+
+2025-10-28T14:34:23.754242643Z stdout F         run `npm fund` for details
+2025-10-28T14:34:23.754241532Z stdout F       144 packages are looking for funding
+2025-10-28T14:34:23.754239047Z stdout F 
+2025-10-28T14:34:23.754236947Z stdout F       added 382 packages, and audited 383 packages in 11s
+2025-10-28T14:34:23.754207009Z stdout F 
+2025-10-28T14:34:17.854673899Z stdout F       npm warn deprecated eslint@8.57.0: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+2025-10-28T14:34:16.51915079Z stdout F       npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2025-10-28T14:34:16.340646471Z stdout F       npm warn deprecated @humanwhocodes/config-array@0.11.14: Use @eslint/config-array instead
+2025-10-28T14:34:16.339709712Z stdout F       npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+2025-10-28T14:34:15.296851783Z stdout F       npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2025-10-28T14:34:15.136000881Z stdout F       npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+2025-10-28T14:34:14.748517979Z stdout F       npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2025-10-28T14:34:12.886369848Z stdout F 
+2025-10-28T14:34:12.886350656Z stdout F   - Running `npm ci`
+2025-10-28T14:34:12.425558331Z stdout F   - Configuring npm cache directory
+2025-10-28T14:34:12.425556902Z stdout F   - Creating npm cache
+2025-10-28T14:34:12.425554536Z stdout F   - Using npm version `10.9.4`
+2025-10-28T14:34:12.425539908Z stdout F - Installing node modules
+2025-10-28T14:34:12.179992374Z stdout F   - Installing Node.js `22.21.0 (linux-amd64)` ... (< 0.1s)
+2025-10-28T14:34:12.17958996Z stdout F   - Extracting Node.js `22.21.0 (linux-amd64)`
+2025-10-28T14:34:12.179587624Z stdout F   - Verifying checksum
+2025-10-28T14:34:12.179562394Z stdout F   - Downloading ......... (6.4s)
+2025-10-28T14:34:05.737745203Z stdout F   - GET https://nodejs.org/download/release/v22.21.0/node-v22.21.0-linux-x64.tar.gz ... (OK)
+2025-10-28T14:34:05.655414735Z stdout F - Installing Node.js distribution
+2025-10-28T14:34:05.655412294Z stdout F   - Resolved Node.js version: `22.21.0`
+2025-10-28T14:34:05.655411035Z stdout F   - Node.js version not specified, using `22.x`
+2025-10-28T14:34:05.655409634Z stdout F - Checking Node.js version
+2025-10-28T14:34:05.655407852Z stdout F 
+2025-10-28T14:34:05.655404227Z stdout F ## Heroku Node.js
+2025-10-28T14:34:05.655036968Z stdout F 
+2025-10-28T14:34:05.607303724Z stdout F target distro name/version labels not found, reading /etc/os-release file
+2025-10-28T14:34:05.575085887Z stdout F [info] BuildService - Starting BUILD Phase
+2025-10-28T14:34:05.32215561Z stdout F Layer cache not found
+2025-10-28T14:34:04.822650057Z stdout F [info] BuildService - Starting RESTORE Phase
+2025-10-28T14:34:04.287146215Z stdout F Image with name "remote-registry/68f637c82edb26e521a2fdb2:6900d43d122ba4e1ba82a906" not found
+2025-10-28T14:33:43.784749652Z stdout F [info] BuildService - Starting ANALYZE Phase
+2025-10-28T14:33:43.782219677Z stdout F heroku/nodejs 5.2.0
+2025-10-28T14:33:43.782203319Z stdout F 1 of 3 buildpacks participating
+2025-10-28T14:33:43.468064273Z stdout F target distro name/version labels not found, reading /etc/os-release file
+2025-10-28T14:33:43.449599403Z stdout F Warning: No analyzed metadata found at path "/layers/analyzed.toml"
+2025-10-28T14:33:43.175953528Z stdout F [info] BuildService - Starting DETECT Phase
+2025-10-28T14:33:42.945832786Z stderr F  * branch            0d17db8ff2c3017f2f846dc82b2d9d7537d1ed9c -> FETCH_HEAD
+2025-10-28T14:33:42.945813615Z stderr F From https://github.com/oaklineworkspace/oakline-admin
+2025-10-28T14:33:41.764992827Z stderr F POST git-upload-pack (179 bytes)
+2025-10-28T14:33:40.81239376Z stdout F Initialized empty Git repository in /workspace/.git/
+2025-10-28T14:33:39.668359826Z stdout F [2025-10-28T14:33:39Z INFO ] Starting container entrypoint...
