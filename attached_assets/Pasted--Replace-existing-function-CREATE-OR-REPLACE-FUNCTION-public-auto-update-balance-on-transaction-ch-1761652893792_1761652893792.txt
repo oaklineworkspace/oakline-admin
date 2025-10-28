@@ -1,0 +1,147 @@
+-- Replace existing function
+CREATE OR REPLACE FUNCTION public.auto_update_balance_on_transaction_change()
+RETURNS trigger AS $$
+DECLARE
+  old_balance numeric;
+  new_balance numeric;
+  amount_diff numeric;
+  -- helper: direction 'credit' or 'debit'
+  old_direction text;
+  new_direction text;
+  -- helper accounts
+  affected_account uuid;
+  revert_account uuid;
+BEGIN
+  -- Helper to map transaction types to direction.
+  -- Extend this CASE with any custom types you use.
+  old_direction := CASE
+    WHEN OLD IS NULL THEN NULL
+    WHEN lower(OLD.type) IN (
+      'zelle_transfer_received', 'deposit', 'interest', 'incoming', 'credit', 'transfer_in'
+    ) THEN 'credit'
+    ELSE 'debit'
+  END;
+
+  new_direction := CASE
+    WHEN NEW IS NULL THEN NULL
+    WHEN lower(NEW.type) IN (
+      'zelle_transfer_received', 'deposit', 'interest', 'incoming', 'credit', 'transfer_in'
+    ) THEN 'credit'
+    ELSE 'debit'
+  END;
+
+  -- ---------- HANDLE INSERT ----------
+  IF (TG_OP = 'INSERT') THEN
+    IF NEW.status IS NOT NULL AND lower(NEW.status) = 'completed' THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when applying inserted transaction', affected_account;
+      END IF;
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0) WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0) WHERE id = affected_account;
+      END IF;
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- ---------- HANDLE UPDATE ----------
+  IF (TG_OP = 'UPDATE') THEN
+    -- If status moved from non-completed to completed => apply NEW effect
+    IF (COALESCE(lower(OLD.status),'') NOT IN ('completed') AND lower(COALESCE(NEW.status,'')) = 'completed') THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found applying completion', affected_account;
+      END IF;
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0) WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0) WHERE id = affected_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- If status moved from completed to a non-completed cancellation/reversal/hold => revert OLD effect
+    IF (lower(COALESCE(OLD.status,'')) = 'completed' AND lower(COALESCE(NEW.status,'')) IN ('cancelled','canceled','reversed','reversal','hold','failed')) THEN
+      revert_account := OLD.account_id;
+      SELECT balance INTO old_balance FROM public.accounts WHERE id = revert_account FOR UPDATE;
+      IF old_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when reverting completed transaction', revert_account;
+      END IF;
+
+      IF old_direction = 'credit' THEN
+        -- credit was applied earlier; now subtract it
+        UPDATE public.accounts SET balance = old_balance - COALESCE(OLD.amount,0) WHERE id = revert_account;
+      ELSE
+        -- debit was applied earlier; now add it back
+        UPDATE public.accounts SET balance = old_balance + COALESCE(OLD.amount,0) WHERE id = revert_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- If amount changed while status is completed -> apply difference
+    IF (NEW.status IS NOT NULL AND lower(NEW.status) = 'completed' AND (OLD.amount IS DISTINCT FROM NEW.amount)) THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when applying amount diff', affected_account;
+      END IF;
+
+      amount_diff := COALESCE(NEW.amount,0) - COALESCE(OLD.amount,0);
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + amount_diff WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - amount_diff WHERE id = affected_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- If account_id changed while status=completed -> revert OLD on OLD.account_id and apply NEW on NEW.account_id
+    IF (OLD.account_id IS DISTINCT FROM NEW.account_id AND lower(COALESCE(NEW.status,'')) = 'completed') THEN
+      -- revert on old account
+      revert_account := OLD.account_id;
+      SELECT balance INTO old_balance FROM public.accounts WHERE id = revert_account FOR UPDATE;
+      IF old_balance IS NULL THEN
+        RAISE EXCEPTION 'Old account % not found when account_id changed', revert_account;
+      END IF;
+
+      IF old_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = old_balance - COALESCE(OLD.amount,0) WHERE id = revert_account;
+      ELSE
+        UPDATE public.accounts SET balance = old_balance + COALESCE(OLD.amount,0) WHERE id = revert_account;
+      END IF;
+
+      -- apply on new account
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'New account % not found when account_id changed', affected_account;
+      END IF;
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0) WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0) WHERE id = affected_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- No other handled case: no-op
+    RETURN NEW;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
