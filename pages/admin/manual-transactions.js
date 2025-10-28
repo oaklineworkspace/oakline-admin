@@ -200,6 +200,10 @@ export default function ManualTransactions() {
     return transaction.type === 'credit' ? '#059669' : '#dc2626';
   };
 
+  const getTransactionBgColor = (transaction) => {
+    return transaction.type === 'credit' ? '#d1fae5' : '#fee2e2';
+  };
+
   const getTransactionIcon = (transaction) => {
     // Match icon based on description keywords since transactions table doesn't have transaction_type
     const description = (transaction.description || '').toLowerCase();
@@ -446,8 +450,8 @@ export default function ManualTransactions() {
                   <div key={tx.id} style={styles.transactionItem}>
                     <div style={{
                       ...styles.transactionIcon,
-                      backgroundColor: isCredit ? '#d1fae5' : '#fee2e2',
-                      color: isCredit ? '#059669' : '#dc2626'
+                      backgroundColor: getTransactionBgColor(tx),
+                      color: getTransactionColor(tx)
                     }}>
                       {getTransactionIcon(tx)}
                     </div>

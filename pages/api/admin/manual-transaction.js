@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
-const CREDIT_TYPES = ['deposit', 'deposit_adjust', 'transfer_in', 'refund', 'interest', 'bonus', 'check_deposit'];
-const DEBIT_TYPES = ['withdrawal', 'atm_withdrawal', 'debit_card', 'transfer_out', 'wire_transfer', 'ach_transfer', 'check_payment', 'service_fee', 'other'];
+const CREDIT_TYPES = ['deposit_adjust', 'transfer_in', 'refund', 'interest', 'bonus'];
+const DEBIT_TYPES = ['withdrawal', 'atm_withdrawal', 'debit_card', 'transfer_out', 'ach_transfer', 'check_payment', 'service_fee', 'other'];
+const FLEXIBLE_TYPES = ['check_deposit', 'wire_transfer']; // Can be either credit or debit
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -70,6 +71,7 @@ export default async function handler(req, res) {
       throw updateError;
     }
 
+    const transactionTypeName = transactionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     const { data: transaction, error: transactionError } = await supabaseAdmin
       .from('transactions')
       .insert({
@@ -77,7 +79,7 @@ export default async function handler(req, res) {
         account_id: accountId,
         type: isCredit ? 'credit' : 'debit',
         amount: parsedAmount,
-        description: description || `${transactionType.replace(/_/g, ' ')} - Manual transaction by admin`,
+        description: description || `${transactionTypeName} - Manual transaction by admin`,
         status: status,
         created_at: new Date().toISOString()
       })
