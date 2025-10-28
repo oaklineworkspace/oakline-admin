@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import AdminRoute from '../../components/AdminRoute';
+import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -315,7 +315,7 @@ export default function AdminTransactions() {
   };
 
   return (
-    <AdminRoute>
+    <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.title}>💸 Transactions Management</h1>
@@ -589,7 +589,7 @@ export default function AdminTransactions() {
           </div>
         )}
       </div>
-    </AdminRoute>
+    </AdminAuth>
   );
 }
 

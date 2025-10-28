@@ -56,7 +56,7 @@ export default function AdminRoute({ children }) {
         return;
       }
 
-      if (!['admin', 'superadmin', 'auditor'].includes(profile.role)) {
+      if (!['admin', 'super_admin', 'manager'].includes(profile.role)) {
         console.error('Invalid role:', profile.role);
         setError('Access denied. Admin privileges required.');
         setTimeout(() => router.push('/login'), 2000);

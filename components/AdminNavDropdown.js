@@ -63,9 +63,10 @@ export default function AdminNavDropdown() {
     {
       category: '💸 Transactions',
       links: [
+        { name: 'Admin Transactions', path: '/admin/admin-transactions', icon: '💸' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
-        { name: 'Admin Transactions', path: '/admin/admin-transactions', icon: '💸' },
+        { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' },
       ]
     },
     {
@@ -83,7 +84,15 @@ export default function AdminNavDropdown() {
         { name: 'Admin Roles', path: '/admin/admin-roles', icon: '👑' },
         { name: 'Admin Logs', path: '/admin/admin-logs', icon: '📝' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
+        { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
         { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧' },
+      ]
+    },
+    {
+      category: '🗑️ User Deletion',
+      links: [
+        { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️' },
+        { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🔍' },
       ]
     }
   ];
