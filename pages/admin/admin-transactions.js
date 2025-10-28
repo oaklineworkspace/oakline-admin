@@ -4,22 +4,46 @@ import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
 import AdminBackButton from '../../components/AdminBackButton';
 
+const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
+const VALID_TYPES = ['credit', 'debit'];
+
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    type: '',
+    amount: '',
+    description: '',
+    status: '',
+    created_at: '',
+    updated_at: ''
+  });
+  const [manuallyEditUpdatedAt, setManuallyEditUpdatedAt] = useState(false);
+  const [originalUpdatedAt, setOriginalUpdatedAt] = useState('');
+  const [createForm, setCreateForm] = useState({
+    account_id: '',
+    type: 'debit',
+    amount: '',
+    description: '',
+    status: 'pending'
+  });
 
   useEffect(() => {
     fetchTransactions();
+    fetchUsers();
 
-    // Set up real-time subscription
     const subscription = supabase
       .channel('transactions_changes')
       .on('postgres_changes', 
@@ -37,13 +61,27 @@ export default function AdminTransactions() {
 
   useEffect(() => {
     filterTransactions();
-  }, [transactions, searchTerm, statusFilter, typeFilter, dateFilter]);
+  }, [transactions, searchTerm, statusFilter, typeFilter, userFilter, dateFilter, dateRange]);
+
+  const fetchUsers = async () => {
+    try {
+      const { data: appsData } = await supabase
+        .from('applications')
+        .select('id, first_name, last_name, email, user_id')
+        .order('first_name');
+      
+      if (appsData) {
+        setUsers(appsData);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
 
-      // First get transactions with accounts
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select(`
@@ -58,7 +96,6 @@ export default function AdminTransactions() {
 
       if (txError) throw txError;
 
-      // Get applications data
       const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
       let applications = [];
 
@@ -70,7 +107,6 @@ export default function AdminTransactions() {
         applications = appsData || [];
       }
 
-      // Merge the data
       const enrichedData = txData.map(tx => {
         const application = applications?.find(a => a.id === tx.accounts?.application_id);
 
@@ -99,7 +135,6 @@ export default function AdminTransactions() {
   const filterTransactions = () => {
     let filtered = [...transactions];
 
-    // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(tx => {
@@ -117,18 +152,30 @@ export default function AdminTransactions() {
       });
     }
 
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(tx => tx.status === statusFilter);
     }
 
-    // Type filter
     if (typeFilter !== 'all') {
       filtered = filtered.filter(tx => tx.type === typeFilter);
     }
 
-    // Date filter
-    if (dateFilter !== 'all') {
+    if (userFilter !== 'all') {
+      filtered = filtered.filter(tx => tx.user_id === userFilter);
+    }
+
+    if (dateFilter === 'custom' && (dateRange.start || dateRange.end)) {
+      filtered = filtered.filter(tx => {
+        const txDate = new Date(tx.created_at);
+        const start = dateRange.start ? new Date(dateRange.start) : null;
+        const end = dateRange.end ? new Date(dateRange.end + 'T23:59:59') : null;
+        
+        if (start && end) return txDate >= start && txDate <= end;
+        if (start) return txDate >= start;
+        if (end) return txDate <= end;
+        return true;
+      });
+    } else if (dateFilter !== 'all') {
       const now = new Date();
       const startDate = new Date();
 
@@ -150,127 +197,113 @@ export default function AdminTransactions() {
     setFilteredTransactions(filtered);
   };
 
-  const handleReverseTransaction = async (transaction) => {
-    if (!confirm('Are you sure you want to reverse this transaction? This will create a reversal entry and update the account balance.')) {
-      return;
-    }
+  const handleEditTransaction = (transaction) => {
+    setSelectedTransaction(transaction);
+    const updatedAtValue = new Date(transaction.updated_at).toISOString().slice(0, 16);
+    setEditForm({
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description || '',
+      status: transaction.status,
+      created_at: new Date(transaction.created_at).toISOString().slice(0, 16),
+      updated_at: updatedAtValue
+    });
+    setOriginalUpdatedAt(updatedAtValue);
+    setManuallyEditUpdatedAt(false);
+    setShowEditModal(true);
+  };
 
+  const handleUpdateTransaction = async (e) => {
+    e.preventDefault();
     setActionLoading(true);
+
     try {
-      // Get current session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('You must be logged in');
-        setActionLoading(false);
         return;
       }
 
-      // Call API endpoint to handle the reversal
-      const response = await fetch('/api/admin/reverse-transaction', {
+      const response = await fetch('/api/admin/update-transaction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          transactionId: transaction.id,
-          accountId: transaction.account_id,
-          userId: transaction.user_id,
-          amount: transaction.amount,
-          type: transaction.type
+          transactionId: selectedTransaction.id,
+          type: editForm.type,
+          amount: parseFloat(editForm.amount),
+          description: editForm.description,
+          status: editForm.status,
+          created_at: new Date(editForm.created_at).toISOString(),
+          updated_at: new Date(editForm.updated_at).toISOString(),
+          manuallyEditUpdatedAt: manuallyEditUpdatedAt
         })
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to reverse transaction');
+        throw new Error(result.error || 'Failed to update transaction');
       }
 
-      alert('Transaction reversed successfully');
+      alert('Transaction updated successfully');
+      setShowEditModal(false);
       fetchTransactions();
     } catch (error) {
-      console.error('Error reversing transaction:', error);
-      alert('Failed to reverse transaction: ' + error.message);
+      console.error('Error updating transaction:', error);
+      alert('Failed to update transaction: ' + error.message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleCancelTransaction = async (transaction) => {
-    if (!confirm('Are you sure you want to cancel this transaction? This will mark it as cancelled without changing the balance.')) {
-      return;
-    }
-
+  const handleCreateTransaction = async (e) => {
+    e.preventDefault();
     setActionLoading(true);
+
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ status: 'cancelled' })
-        .eq('id', transaction.id);
-
-      if (error) throw error;
-
-      alert('Transaction cancelled successfully');
-      fetchTransactions();
-    } catch (error) {
-      console.error('Error cancelling transaction:', error);
-      alert('Failed to cancel transaction: ' + error.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleApproveTransaction = async (transaction) => {
-    if (!confirm('Are you sure you want to approve this pending transaction? This will update the account balance.')) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      // Get current account balance
-      const { data: account, error: accountError } = await supabase
-        .from('accounts')
-        .select('balance')
-        .eq('id', transaction.account_id)
-        .single();
-
-      if (accountError) throw accountError;
-
-      const currentBalance = parseFloat(account.balance || 0);
-      const transactionAmount = parseFloat(transaction.amount);
-
-      // Calculate new balance
-      const newBalance = transaction.type === 'credit' 
-        ? currentBalance + transactionAmount 
-        : currentBalance - transactionAmount;
-
-      if (newBalance < 0) {
-        alert('Cannot approve: Would result in negative balance');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('You must be logged in');
         return;
       }
 
-      // Update account balance
-      const { error: updateError } = await supabase
-        .from('accounts')
-        .update({ balance: newBalance })
-        .eq('id', transaction.account_id);
+      const response = await fetch('/api/admin/create-transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          account_id: createForm.account_id,
+          type: createForm.type,
+          amount: parseFloat(createForm.amount),
+          description: createForm.description,
+          status: createForm.status
+        })
+      });
 
-      if (updateError) throw updateError;
+      const result = await response.json();
 
-      // Update transaction status
-      const { error: statusError } = await supabase
-        .from('transactions')
-        .update({ status: 'completed' })
-        .eq('id', transaction.id);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create transaction');
+      }
 
-      if (statusError) throw statusError;
-
-      alert('Transaction approved successfully');
+      alert('Transaction created successfully');
+      setShowCreateModal(false);
+      setCreateForm({
+        account_id: '',
+        type: 'debit',
+        amount: '',
+        description: '',
+        status: 'pending'
+      });
       fetchTransactions();
     } catch (error) {
-      console.error('Error approving transaction:', error);
-      alert('Failed to approve transaction: ' + error.message);
+      console.error('Error creating transaction:', error);
+      alert('Failed to create transaction: ' + error.message);
     } finally {
       setActionLoading(false);
     }
@@ -287,8 +320,9 @@ export default function AdminTransactions() {
       completed: { bg: '#2ECC71', color: 'white' },
       pending: { bg: '#F1C40F', color: '#333' },
       cancelled: { bg: '#7F8C8D', color: 'white' },
-      reversal: { bg: '#3498DB', color: 'white' },
-      failed: { bg: '#E74C3C', color: 'white' }
+      reversed: { bg: '#3498DB', color: 'white' },
+      failed: { bg: '#E74C3C', color: 'white' },
+      hold: { bg: '#E67E22', color: 'white' }
     };
 
     const style = styles[status?.toLowerCase()] || styles.pending;
@@ -330,11 +364,18 @@ export default function AdminTransactions() {
       <AdminBackButton />
       <div style={styles.container}>
         <div style={styles.header}>
-          <h1 style={styles.title}>💸 Transactions Management</h1>
-          <p style={styles.subtitle}>View and manage all user transactions</p>
+          <div>
+            <h1 style={styles.title}>💸 Transactions Management</h1>
+            <p style={styles.subtitle}>View and manage all user transactions</p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={styles.createButton}
+          >
+            ➕ Create Transaction
+          </button>
         </div>
 
-        {/* Filters Section */}
         <div style={styles.filtersCard}>
           <div style={styles.filtersGrid}>
             <div style={styles.filterGroup}>
@@ -349,6 +390,22 @@ export default function AdminTransactions() {
             </div>
 
             <div style={styles.filterGroup}>
+              <label style={styles.label}>👤 User</label>
+              <select
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                style={styles.select}
+              >
+                <option value="all">All Users</option>
+                {users.map(user => (
+                  <option key={user.user_id} value={user.user_id}>
+                    {user.first_name} {user.last_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
               <label style={styles.label}>📊 Status</label>
               <select
                 value={statusFilter}
@@ -356,10 +413,9 @@ export default function AdminTransactions() {
                 style={styles.select}
               >
                 <option value="all">All Statuses</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="failed">Failed</option>
+                {VALID_STATUSES.map(status => (
+                  <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
+                ))}
               </select>
             </div>
 
@@ -387,8 +443,32 @@ export default function AdminTransactions() {
                 <option value="today">Today</option>
                 <option value="week">Last 7 Days</option>
                 <option value="month">Last 30 Days</option>
+                <option value="custom">Custom Range</option>
               </select>
             </div>
+
+            {dateFilter === 'custom' && (
+              <>
+                <div style={styles.filterGroup}>
+                  <label style={styles.label}>From</label>
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                    style={styles.input}
+                  />
+                </div>
+                <div style={styles.filterGroup}>
+                  <label style={styles.label}>To</label>
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                    style={styles.input}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div style={styles.statsRow}>
@@ -405,7 +485,6 @@ export default function AdminTransactions() {
           </div>
         </div>
 
-        {/* Transactions Table */}
         <div style={styles.tableCard}>
           {loading ? (
             <div style={styles.loadingContainer}>
@@ -486,45 +565,12 @@ export default function AdminTransactions() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.actionButtons}>
-                          {tx.status === 'pending' && (
-                            <button
-                              onClick={() => handleApproveTransaction(tx)}
-                              style={{ ...styles.actionBtn, ...styles.approveBtn }}
-                              disabled={actionLoading}
-                              title="Approve Transaction"
-                            >
-                              ✅
-                            </button>
-                          )}
-                          {tx.status === 'completed' && (
-                            <button
-                              onClick={() => handleReverseTransaction(tx)}
-                              style={{ ...styles.actionBtn, ...styles.reverseBtn }}
-                              disabled={actionLoading}
-                              title="Reverse Transaction"
-                            >
-                              🗘
-                            </button>
-                          )}
-                          {tx.status !== 'cancelled' && (
-                            <button
-                              onClick={() => handleCancelTransaction(tx)}
-                              style={{ ...styles.actionBtn, ...styles.cancelBtn }}
-                              disabled={actionLoading}
-                              title="Cancel Transaction"
-                            >
-                              ✖
-                            </button>
-                          )}
                           <button
-                            onClick={() => {
-                              setSelectedTransaction(tx);
-                              setShowDetailsModal(true);
-                            }}
-                            style={{ ...styles.actionBtn, ...styles.viewBtn }}
-                            title="View Details"
+                            onClick={() => handleEditTransaction(tx)}
+                            style={{ ...styles.actionBtn, ...styles.editBtn }}
+                            title="Edit Transaction"
                           >
-                            🔍
+                            ✏️
                           </button>
                         </div>
                       </td>
@@ -536,67 +582,224 @@ export default function AdminTransactions() {
           )}
         </div>
 
-        {/* Details Modal */}
-        {showDetailsModal && selectedTransaction && (
-          <div style={styles.modalOverlay} onClick={() => setShowDetailsModal(false)}>
+        {showEditModal && selectedTransaction && (
+          <div style={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Transaction Details</h2>
+                <h2 style={styles.modalTitle}>Edit Transaction</h2>
                 <button
-                  onClick={() => setShowDetailsModal(false)}
+                  onClick={() => setShowEditModal(false)}
                   style={styles.closeBtn}
                 >
                   ✕
                 </button>
               </div>
-              <div style={styles.modalBody}>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Transaction ID:</span>
-                  <span style={styles.detailValue}>{selectedTransaction.id}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>User:</span>
-                  <span style={styles.detailValue}>
-                    {selectedTransaction.accounts?.applications?.first_name} {selectedTransaction.accounts?.applications?.last_name}
-                  </span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Email:</span>
-                  <span style={styles.detailValue}>{selectedTransaction.accounts?.applications?.email}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Account Number:</span>
-                  <span style={styles.detailValue}>{selectedTransaction.accounts?.account_number}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Type:</span>
-                  <span style={styles.detailValue}>{selectedTransaction.type}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Amount:</span>
-                  <span style={styles.detailValue}>{formatCurrency(selectedTransaction.amount)}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Status:</span>
-                  <span>{getStatusBadge(selectedTransaction.status)}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Description:</span>
-                  <span style={styles.detailValue}>{selectedTransaction.description || 'N/A'}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Created At:</span>
-                  <span style={styles.detailValue}>{formatDateTime(selectedTransaction.created_at)}</span>
-                </div>
-                {selectedTransaction.metadata && (
-                  <div style={styles.detailRow}>
-                    <span style={styles.detailLabel}>Metadata:</span>
-                    <pre style={styles.metadataBox}>
-                      {JSON.stringify(selectedTransaction.metadata, null, 2)}
-                    </pre>
+              <form onSubmit={handleUpdateTransaction}>
+                <div style={styles.modalBody}>
+                  <div style={styles.formGrid}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Type *</label>
+                      <select
+                        value={editForm.type}
+                        onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      >
+                        <option value="credit">Credit</option>
+                        <option value="debit">Debit</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Amount *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Status *</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      >
+                        {VALID_STATUSES.map(status => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Description</label>
+                      <textarea
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        style={{ ...styles.formInput, minHeight: '80px', resize: 'vertical' }}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Created At</label>
+                      <input
+                        type="datetime-local"
+                        value={editForm.created_at}
+                        onChange={(e) => setEditForm({ ...editForm, created_at: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Updated At</label>
+                      <input
+                        type="datetime-local"
+                        value={editForm.updated_at}
+                        onChange={(e) => {
+                          setEditForm({ ...editForm, updated_at: e.target.value });
+                          setManuallyEditUpdatedAt(e.target.value !== originalUpdatedAt);
+                        }}
+                        style={styles.formInput}
+                      />
+                      <small style={styles.helpText}>Leave unchanged to auto-update to current time</small>
+                    </div>
                   </div>
-                )}
+
+                  <div style={styles.infoBox}>
+                    <strong>Transaction ID:</strong> {selectedTransaction.id}<br />
+                    <strong>User:</strong> {selectedTransaction.accounts?.applications?.first_name} {selectedTransaction.accounts?.applications?.last_name}<br />
+                    <strong>Account:</strong> {selectedTransaction.accounts?.account_number}
+                  </div>
+                </div>
+                <div style={styles.modalFooter}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    style={styles.cancelButton}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={styles.saveButton}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showCreateModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Create New Transaction</h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  style={styles.closeBtn}
+                >
+                  ✕
+                </button>
               </div>
+              <form onSubmit={handleCreateTransaction}>
+                <div style={styles.modalBody}>
+                  <div style={styles.formGrid}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Account ID *</label>
+                      <input
+                        type="text"
+                        value={createForm.account_id}
+                        onChange={(e) => setCreateForm({ ...createForm, account_id: e.target.value })}
+                        style={styles.formInput}
+                        placeholder="Enter account UUID"
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Type *</label>
+                      <select
+                        value={createForm.type}
+                        onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      >
+                        <option value="credit">Credit</option>
+                        <option value="debit">Debit</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Amount *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={createForm.amount}
+                        onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Status</label>
+                      <select
+                        value={createForm.status}
+                        onChange={(e) => setCreateForm({ ...createForm, status: e.target.value })}
+                        style={styles.formInput}
+                      >
+                        {VALID_STATUSES.map(status => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Description</label>
+                      <textarea
+                        value={createForm.description}
+                        onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                        style={{ ...styles.formInput, minHeight: '80px', resize: 'vertical' }}
+                        rows={3}
+                        placeholder="Optional description"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div style={styles.modalFooter}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    style={styles.cancelButton}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={styles.saveButton}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Creating...' : 'Create Transaction'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -612,7 +815,12 @@ const styles = {
     padding: '2rem'
   },
   header: {
-    marginBottom: '2rem'
+    marginBottom: '2rem',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '1rem'
   },
   title: {
     fontSize: '2rem',
@@ -623,6 +831,17 @@ const styles = {
   subtitle: {
     fontSize: '1rem',
     color: '#64748b'
+  },
+  createButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
   filtersCard: {
     backgroundColor: 'white',
@@ -650,19 +869,17 @@ const styles = {
   input: {
     padding: '0.625rem',
     border: '1px solid #e2e8f0',
-    borderRadius: '8px',
+    borderRadius: '6px',
     fontSize: '0.875rem',
-    outline: 'none',
     transition: 'all 0.2s'
   },
   select: {
     padding: '0.625rem',
     border: '1px solid #e2e8f0',
-    borderRadius: '8px',
+    borderRadius: '6px',
     fontSize: '0.875rem',
-    outline: 'none',
-    cursor: 'pointer',
-    backgroundColor: 'white'
+    backgroundColor: 'white',
+    cursor: 'pointer'
   },
   statsRow: {
     display: 'flex',
@@ -677,137 +894,25 @@ const styles = {
   },
   statLabel: {
     fontSize: '0.875rem',
-    color: '#64748b',
-    fontWeight: '500'
+    color: '#64748b'
   },
   statValue: {
-    fontSize: '1rem',
+    fontSize: '1.125rem',
     fontWeight: '700',
     color: '#1e293b'
   },
   tableCard: {
     backgroundColor: 'white',
     borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'hidden'
-  },
-  tableWrapper: {
-    overflowX: 'auto'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
-  },
-  tableHead: {
-    backgroundColor: '#f8fafc',
-    position: 'sticky',
-    top: 0,
-    zIndex: 10
-  },
-  th: {
-    padding: '1rem',
-    textAlign: 'left',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    borderBottom: '2px solid #e2e8f0'
-  },
-  tr: {
-    borderBottom: '1px solid #f1f5f9',
-    transition: 'background-color 0.2s'
-  },
-  td: {
-    padding: '1rem',
-    fontSize: '0.875rem',
-    color: '#334155'
-  },
-  userCell: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  userIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '700',
-    fontSize: '1rem'
-  },
-  userName: {
-    fontWeight: '600',
-    color: '#1e293b'
-  },
-  userEmail: {
-    fontSize: '0.75rem',
-    color: '#64748b'
-  },
-  accountNumber: {
-    fontFamily: 'monospace',
-    fontWeight: '600',
-    color: '#475569'
-  },
-  typeBadge: {
-    padding: '0.25rem 0.625rem',
-    borderRadius: '12px',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    display: 'inline-block'
-  },
-  description: {
-    maxWidth: '200px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
-  },
-  dateTime: {
-    fontSize: '0.75rem',
-    color: '#64748b'
-  },
-  actionButtons: {
-    display: 'flex',
-    gap: '0.5rem'
-  },
-  actionBtn: {
-    width: '32px',
-    height: '32px',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  approveBtn: {
-    backgroundColor: '#dcfce7',
-    color: '#16a34a'
-  },
-  reverseBtn: {
-    backgroundColor: '#dbeafe',
-    color: '#2563eb'
-  },
-  cancelBtn: {
-    backgroundColor: '#fee2e2',
-    color: '#dc2626'
-  },
-  viewBtn: {
-    backgroundColor: '#f3f4f6',
-    color: '#374151'
+    padding: '1.5rem',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
   },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '4rem',
+    padding: '3rem',
     gap: '1rem'
   },
   spinner: {
@@ -819,12 +924,104 @@ const styles = {
     animation: 'spin 1s linear infinite'
   },
   emptyState: {
-    padding: '4rem',
+    padding: '3rem',
     textAlign: 'center'
   },
   emptyText: {
-    color: '#94a3b8',
-    fontSize: '1.125rem'
+    fontSize: '1rem',
+    color: '#94a3b8'
+  },
+  tableWrapper: {
+    overflowX: 'auto'
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse'
+  },
+  tableHead: {
+    backgroundColor: '#f8fafc',
+    borderBottom: '2px solid #e2e8f0'
+  },
+  th: {
+    padding: '0.75rem',
+    textAlign: 'left',
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  tr: {
+    borderBottom: '1px solid #e2e8f0',
+    transition: 'background-color 0.2s'
+  },
+  td: {
+    padding: '1rem 0.75rem',
+    fontSize: '0.875rem'
+  },
+  userCell: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem'
+  },
+  userIcon: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '700',
+    fontSize: '0.875rem'
+  },
+  userName: {
+    fontWeight: '600',
+    color: '#1e293b'
+  },
+  userEmail: {
+    fontSize: '0.75rem',
+    color: '#64748b'
+  },
+  accountNumber: {
+    fontFamily: 'monospace',
+    fontSize: '0.875rem',
+    color: '#475569'
+  },
+  typeBadge: {
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    fontWeight: '600'
+  },
+  description: {
+    maxWidth: '200px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  dateTime: {
+    fontSize: '0.8125rem',
+    color: '#64748b'
+  },
+  actionButtons: {
+    display: 'flex',
+    gap: '0.5rem'
+  },
+  actionBtn: {
+    padding: '0.5rem',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    transition: 'all 0.2s'
+  },
+  editBtn: {
+    backgroundColor: '#f0f9ff',
+    ':hover': {
+      backgroundColor: '#dbeafe'
+    }
   },
   modalOverlay: {
     position: 'fixed',
@@ -836,23 +1033,28 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    padding: '1rem'
   },
   modal: {
     backgroundColor: 'white',
-    borderRadius: '16px',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '80vh',
+    borderRadius: '12px',
+    maxWidth: '800px',
+    width: '100%',
+    maxHeight: '90vh',
     overflow: 'auto',
     boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
   },
   modalHeader: {
+    padding: '1.5rem',
+    borderBottom: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '1.5rem',
-    borderBottom: '1px solid #e2e8f0'
+    position: 'sticky',
+    top: 0,
+    backgroundColor: 'white',
+    zIndex: 1
   },
   modalTitle: {
     fontSize: '1.5rem',
@@ -863,46 +1065,84 @@ const styles = {
     width: '32px',
     height: '32px',
     border: 'none',
-    background: 'none',
-    fontSize: '1.5rem',
+    borderRadius: '6px',
+    backgroundColor: '#f1f5f9',
     cursor: 'pointer',
-    color: '#64748b',
+    fontSize: '1.25rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: '6px',
     transition: 'all 0.2s'
   },
   modalBody: {
-    padding: '1.5rem',
+    padding: '1.5rem'
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '1.25rem',
+    marginBottom: '1.5rem'
+  },
+  formGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem'
+    gap: '0.5rem'
   },
-  detailRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingBottom: '0.75rem',
-    borderBottom: '1px solid #f1f5f9'
-  },
-  detailLabel: {
-    fontWeight: '600',
-    color: '#475569',
-    fontSize: '0.875rem'
-  },
-  detailValue: {
-    color: '#1e293b',
+  formLabel: {
     fontSize: '0.875rem',
-    textAlign: 'right'
+    fontWeight: '600',
+    color: '#475569'
   },
-  metadataBox: {
-    backgroundColor: '#f8fafc',
+  formInput: {
     padding: '0.75rem',
+    border: '1px solid #e2e8f0',
     borderRadius: '6px',
+    fontSize: '0.9375rem',
+    transition: 'all 0.2s'
+  },
+  helpText: {
     fontSize: '0.75rem',
-    fontFamily: 'monospace',
-    overflow: 'auto',
-    maxWidth: '300px'
+    color: '#64748b',
+    marginTop: '-0.25rem'
+  },
+  infoBox: {
+    padding: '1rem',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    fontSize: '0.875rem',
+    lineHeight: '1.6',
+    color: '#475569'
+  },
+  modalFooter: {
+    padding: '1.5rem',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '1rem',
+    position: 'sticky',
+    bottom: 0,
+    backgroundColor: 'white'
+  },
+  cancelButton: {
+    padding: '0.75rem 1.5rem',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    color: '#475569',
+    fontSize: '0.9375rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  saveButton: {
+    padding: '0.75rem 1.5rem',
+    border: 'none',
+    borderRadius: '8px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    fontSize: '0.9375rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   }
 };
