@@ -92,7 +92,12 @@ export default async function handler(req, res) {
       .eq('id', applicationId);
 
     if (updateError) {
-      console.error('Error updating application:', updateError);
+      console.error('Error updating application status:', updateError);
+      return res.status(500).json({ 
+        error: 'Card was created but failed to update application status',
+        details: updateError.message,
+        cardId: cardResult.cardId
+      });
     }
 
     res.status(200).json({
