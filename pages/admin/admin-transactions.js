@@ -224,6 +224,13 @@ export default function AdminTransactions() {
         return;
       }
 
+      // Get account balance before update
+      const { data: accountBefore } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('id', selectedTransaction.account_id)
+        .single();
+
       const response = await fetch('/api/admin/update-transaction', {
         method: 'POST',
         headers: {
@@ -248,12 +255,36 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to update transaction');
       }
 
-      alert('Transaction updated successfully');
+      // Get account balance after update
+      const { data: accountAfter } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('id', selectedTransaction.account_id)
+        .single();
+
+      // Check if status changed to/from completed
+      const statusChanged = selectedTransaction.status !== editForm.status;
+      const balanceChanged = accountBefore?.balance !== accountAfter?.balance;
+
+      let successMessage = '✅ Transaction updated successfully!';
+      
+      if (statusChanged && balanceChanged) {
+        const oldBalance = parseFloat(accountBefore?.balance || 0);
+        const newBalance = parseFloat(accountAfter?.balance || 0);
+        const balanceDiff = newBalance - oldBalance;
+        
+        successMessage += `\n\n💰 Account Balance Updated:`;
+        successMessage += `\nPrevious: $${oldBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        successMessage += `\nNew: $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        successMessage += `\nChange: ${balanceDiff >= 0 ? '+' : ''}$${Math.abs(balanceDiff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+
+      alert(successMessage);
       setShowEditModal(false);
       fetchTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
-      alert('Failed to update transaction: ' + error.message);
+      alert('❌ Failed to update transaction: ' + error.message);
     } finally {
       setActionLoading(false);
     }
@@ -561,7 +592,14 @@ export default function AdminTransactions() {
                         </span>
                       </td>
                       <td style={styles.td}>
-                        {getStatusBadge(tx.status)}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {getStatusBadge(tx.status)}
+                          {tx.status === 'completed' && (
+                            <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '500' }}>
+                              ✓ Balance Applied
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.actionButtons}>

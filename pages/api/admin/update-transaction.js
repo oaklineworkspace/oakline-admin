@@ -130,10 +130,19 @@ export default async function handler(req, res) {
       console.error('Error creating audit log:', auditError);
     }
 
+    // Fetch updated account balance
+    const { data: updatedAccount } = await supabaseAdmin
+      .from('accounts')
+      .select('balance, account_number')
+      .eq('id', updatedTransaction.account_id)
+      .single();
+
     return res.status(200).json({ 
       success: true, 
       transaction: updatedTransaction,
-      message: 'Transaction updated successfully'
+      message: 'Transaction updated successfully',
+      accountBalance: updatedAccount?.balance,
+      accountNumber: updatedAccount?.account_number
     });
 
   } catch (error) {

@@ -1,3 +1,4 @@
+
 -- ============================================================================
 -- OAKLINE BANK - MISSING TABLES SETUP
 -- Run this SQL in your Supabase SQL Editor to create the missing tables
@@ -128,14 +129,150 @@ CREATE POLICY "Admins can update check deposits"
     )
   );
 
-
 -- ============================================================================
--- SAMPLE DATA (Optional - for testing)
+-- TRIGGER: Auto-update balance on transaction changes
 -- ============================================================================
+CREATE OR REPLACE FUNCTION public.auto_update_balance_on_transaction_change()
+RETURNS trigger AS $$
+DECLARE
+  old_balance numeric;
+  new_balance numeric;
+  amount_diff numeric;
+  old_direction text;
+  new_direction text;
+  affected_account uuid;
+  revert_account uuid;
+BEGIN
+  -- Map transaction types to direction (credit adds, debit subtracts)
+  old_direction := CASE
+    WHEN OLD IS NULL THEN NULL
+    WHEN lower(OLD.type) IN ('credit', 'deposit', 'interest', 'transfer_in', 'refund', 'bonus', 'deposit_adjust') THEN 'credit'
+    ELSE 'debit'
+  END;
 
--- Add a comment to indicate setup is complete
-COMMENT ON TABLE public.transactions IS 'Stores all financial transactions for the banking system';
-COMMENT ON TABLE public.check_deposits IS 'Stores mobile check deposit requests pending admin approval';
+  new_direction := CASE
+    WHEN NEW IS NULL THEN NULL
+    WHEN lower(NEW.type) IN ('credit', 'deposit', 'interest', 'transfer_in', 'refund', 'bonus', 'deposit_adjust') THEN 'credit'
+    ELSE 'debit'
+  END;
+
+  -- ---------- HANDLE INSERT ----------
+  IF (TG_OP = 'INSERT') THEN
+    IF NEW.status IS NOT NULL AND lower(NEW.status) = 'completed' THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when applying inserted transaction', affected_account;
+      END IF;
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+      END IF;
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- ---------- HANDLE UPDATE ----------
+  IF (TG_OP = 'UPDATE') THEN
+    -- Case 1: Status changed from non-completed to completed => apply NEW effect
+    IF (COALESCE(lower(OLD.status),'') NOT IN ('completed') AND lower(COALESCE(NEW.status,'')) = 'completed') THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found applying completion', affected_account;
+      END IF;
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - COALESCE(NEW.amount,0), updated_at = now() WHERE id = affected_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- Case 2: Status changed from completed to cancelled/reversed/failed => revert OLD effect
+    IF (lower(COALESCE(OLD.status,'')) = 'completed' AND lower(COALESCE(NEW.status,'')) IN ('cancelled','canceled','reversed','reversal','hold','failed')) THEN
+      revert_account := OLD.account_id;
+      SELECT balance INTO old_balance FROM public.accounts WHERE id = revert_account FOR UPDATE;
+      IF old_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when reverting completed transaction', revert_account;
+      END IF;
+
+      IF old_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = old_balance - COALESCE(OLD.amount,0), updated_at = now() WHERE id = revert_account;
+      ELSE
+        UPDATE public.accounts SET balance = old_balance + COALESCE(OLD.amount,0), updated_at = now() WHERE id = revert_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- Case 3: Amount changed while status is completed => apply difference
+    IF (NEW.status IS NOT NULL AND lower(NEW.status) = 'completed' AND (OLD.amount IS DISTINCT FROM NEW.amount)) THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when applying amount diff', affected_account;
+      END IF;
+
+      amount_diff := COALESCE(NEW.amount,0) - COALESCE(OLD.amount,0);
+
+      IF new_direction = 'credit' THEN
+        UPDATE public.accounts SET balance = new_balance + amount_diff, updated_at = now() WHERE id = affected_account;
+      ELSE
+        UPDATE public.accounts SET balance = new_balance - amount_diff, updated_at = now() WHERE id = affected_account;
+      END IF;
+
+      RETURN NEW;
+    END IF;
+
+    -- Case 4: Type changed while status is completed => revert old, apply new
+    IF (lower(COALESCE(OLD.status,'')) = 'completed' AND lower(COALESCE(NEW.status,'')) = 'completed' AND (OLD.type IS DISTINCT FROM NEW.type)) THEN
+      affected_account := NEW.account_id;
+      SELECT balance INTO new_balance FROM public.accounts WHERE id = affected_account FOR UPDATE;
+      IF new_balance IS NULL THEN
+        RAISE EXCEPTION 'Account % not found when type changed', affected_account;
+      END IF;
+
+      -- Revert old type effect
+      IF old_direction = 'credit' THEN
+        new_balance := new_balance - COALESCE(OLD.amount,0);
+      ELSE
+        new_balance := new_balance + COALESCE(OLD.amount,0);
+      END IF;
+
+      -- Apply new type effect
+      IF new_direction = 'credit' THEN
+        new_balance := new_balance + COALESCE(NEW.amount,0);
+      ELSE
+        new_balance := new_balance - COALESCE(NEW.amount,0);
+      END IF;
+
+      UPDATE public.accounts SET balance = new_balance, updated_at = now() WHERE id = affected_account;
+
+      RETURN NEW;
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop existing trigger if exists
+DROP TRIGGER IF EXISTS trigger_auto_update_balance ON public.transactions;
+
+-- Create trigger
+CREATE TRIGGER trigger_auto_update_balance
+  AFTER INSERT OR UPDATE ON public.transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_update_balance_on_transaction_change();
 
 -- ============================================================================
 -- SETUP COMPLETE!
