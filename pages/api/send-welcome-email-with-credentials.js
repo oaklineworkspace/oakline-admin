@@ -45,8 +45,14 @@ export default async function handler(req, res) {
   const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
+  console.log('🔍 Checking SMTP configuration...');
+  console.log('SMTP_HOST:', process.env.SMTP_HOST ? '✅ Set' : '❌ Missing');
+  console.log('SMTP_PORT:', process.env.SMTP_PORT ? '✅ Set' : '❌ Missing');
+  console.log('SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
+  console.log('SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
+
   if (missingVars.length > 0) {
-    console.error('Missing SMTP environment variables:', missingVars);
+    console.error('❌ Missing SMTP environment variables:', missingVars);
     return res.status(500).json({
       error: 'Email service not configured',
       message: `Missing environment variables: ${missingVars.join(', ')}`

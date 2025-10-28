@@ -143,11 +143,16 @@ export default async function handler(req, res) {
       console.error('Failed to fetch bank details:', bankError);
     }
 
-    // 4. Send account approval notification email
+    // 4. Send account approval notification email with card details
     try {
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+
+      console.log('Sending account approval email to:', application.email);
+      if (newCard) {
+        console.log('Including card details - Last 4:', newCard.card_number.slice(-4));
+      }
 
       const emailResponse = await fetch(`${siteUrl}/api/send-account-approval-email`, {
         method: 'POST',
@@ -159,19 +164,28 @@ export default async function handler(req, res) {
           account_type: account.account_type,
           account_number: account.account_number,
           routing_number: account.routing_number,
+          card_issued: newCard ? true : false,
+          card_last_four: newCard ? newCard.card_number.slice(-4) : null,
+          card_brand: newCard ? newCard.card_brand : null,
+          card_category: newCard ? newCard.card_category : null,
+          card_expiry: newCard ? newCard.expiry_date : null,
           site_url: siteUrl,
           bank_details: bankDetails
         })
       });
 
       if (emailResponse.ok) {
-        console.log('Account approval email sent successfully to:', application.email);
+        const emailResult = await emailResponse.json();
+        console.log('✅ Account approval email sent successfully to:', application.email);
+        console.log('Email result:', emailResult);
       } else {
         const errorData = await emailResponse.json();
-        console.error('Failed to send account approval email:', errorData);
+        console.error('❌ Failed to send account approval email:', errorData);
+        console.error('Email API status:', emailResponse.status);
       }
     } catch (emailError) {
-      console.error('Error sending account approval email:', emailError);
+      console.error('❌ Error sending account approval email:', emailError);
+      console.error('Email error stack:', emailError.stack);
       // Don't fail the whole approval if email fails
     }
 

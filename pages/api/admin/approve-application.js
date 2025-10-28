@@ -347,6 +347,10 @@ export default async function handler(req, res) {
       const accountNumbers = activeAccounts.map(acc => acc.account_number);
       const accountTypes = activeAccounts.map(acc => acc.account_type);
 
+      console.log('Sending welcome email with credentials to:', application.email);
+      console.log('Temporary password:', tempPassword);
+      console.log('Active accounts:', accountNumbers);
+
       const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -368,13 +372,17 @@ export default async function handler(req, res) {
       });
 
       if (welcomeResponse.ok) {
-        console.log('Welcome email with credentials sent successfully to:', application.email);
+        const emailResult = await welcomeResponse.json();
+        console.log('✅ Welcome email with credentials sent successfully to:', application.email);
+        console.log('Email result:', emailResult);
       } else {
         const errorData = await welcomeResponse.json();
-        console.error('Failed to send welcome email:', errorData);
+        console.error('❌ Failed to send welcome email:', errorData);
+        console.error('Email API status:', welcomeResponse.status);
       }
     } catch (emailError) {
-      console.error('Error sending welcome email:', emailError);
+      console.error('❌ Error sending welcome email:', emailError);
+      console.error('Email error stack:', emailError.stack);
       // Don't fail the whole approval if email fails
     }
 
