@@ -75,7 +75,6 @@ export default function AdminRegister() {
     }
 
     try {
-      // Create user in Supabase Auth using admin client
       const response = await fetch('/api/admin/create-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,114 +102,123 @@ export default function AdminRegister() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Checking permissions...</div>
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner}></div>
+        <p style={styles.loadingText}>Verifying permissions...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-full mb-4">
-              <span className="text-3xl">👥</span>
+    <div style={styles.pageContainer}>
+      <div style={styles.contentWrapper}>
+        <div style={styles.registerCard}>
+          <div style={styles.headerSection}>
+            <div style={styles.iconWrapper}>
+              <span style={styles.icon}>👥</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Register Admin</h1>
-            <p className="text-gray-600 mt-2">Create a new admin account</p>
-            <div className="mt-2 inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold">
-              Super Admin Only
+            <h1 style={styles.title}>Create Admin Account</h1>
+            <p style={styles.subtitle}>Add new administrator to Oakline Bank</p>
+            <div style={styles.badge}>
+              <span style={styles.badgeIcon}>👑</span>
+              <span style={styles.badgeText}>Super Admin Only</span>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address
-              </label>
+          <form onSubmit={handleSubmit} style={styles.form}>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Email Address</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
-                placeholder="admin@example.com"
+                style={styles.input}
+                placeholder="admin@oaklinebank.com"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Password
-              </label>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Password</label>
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
-                placeholder="Min. 6 characters"
+                style={styles.input}
+                placeholder="Minimum 6 characters"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Confirm Password
-              </label>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Confirm Password</label>
               <input
                 type="password"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+                style={styles.input}
                 placeholder="Re-enter password"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Role
-              </label>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Role & Permissions</label>
               <select
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+                style={styles.select}
               >
-                <option value="admin">Admin - View transactions & users</option>
-                <option value="manager">Manager - Approve users</option>
-                <option value="super_admin">Super Admin - Full access</option>
+                <option value="admin">👤 Admin - View transactions & users</option>
+                <option value="manager">📊 Manager - Approve users & applications</option>
+                <option value="super_admin">👑 Super Admin - Full system access</option>
               </select>
             </div>
 
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                <p className="text-red-700 text-sm font-medium">{error}</p>
+              <div style={styles.errorBox}>
+                <span style={styles.errorIcon}>⚠️</span>
+                <p style={styles.errorText}>{error}</p>
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                <p className="text-green-700 text-sm font-medium">{success}</p>
+              <div style={styles.successBox}>
+                <span style={styles.successIcon}>✅</span>
+                <p style={styles.successText}>{success}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition duration-200 shadow-lg hover:shadow-xl"
+              style={{
+                ...styles.submitButton,
+                ...(loading ? styles.submitButtonDisabled : {})
+              }}
             >
-              {loading ? 'Creating Admin...' : 'Create Admin Account'}
+              {loading ? (
+                <>
+                  <span style={styles.buttonSpinner}></span>
+                  Creating Admin...
+                </>
+              ) : (
+                <>
+                  <span>➕</span>
+                  Create Admin Account
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div style={styles.footer}>
             <button
               onClick={() => router.push('/admin/dashboard')}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              style={styles.backButton}
             >
               ← Back to Dashboard
             </button>
@@ -220,3 +228,219 @@ export default function AdminRegister() {
     </div>
   );
 }
+
+const styles = {
+  pageContainer: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #1A3E6F 0%, #2A5490 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2rem'
+  },
+  loadingContainer: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #1A3E6F 0%, #2A5490 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '1.5rem'
+  },
+  spinner: {
+    width: '50px',
+    height: '50px',
+    border: '4px solid rgba(255, 255, 255, 0.3)',
+    borderTop: '4px solid #FFC857',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite'
+  },
+  loadingText: {
+    color: '#ffffff',
+    fontSize: '1.25rem',
+    fontWeight: '600'
+  },
+  contentWrapper: {
+    width: '100%',
+    maxWidth: '520px',
+    zIndex: 1
+  },
+  registerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: '20px',
+    padding: '3rem',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    border: '1px solid rgba(255, 200, 87, 0.2)'
+  },
+  headerSection: {
+    textAlign: 'center',
+    marginBottom: '2.5rem'
+  },
+  iconWrapper: {
+    width: '80px',
+    height: '80px',
+    margin: '0 auto 1.5rem',
+    background: 'linear-gradient(135deg, #FFC857 0%, #FFD687 100%)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 8px 20px rgba(255, 200, 87, 0.4)'
+  },
+  icon: {
+    fontSize: '2.5rem'
+  },
+  title: {
+    fontSize: '2rem',
+    fontWeight: '700',
+    color: '#1A3E6F',
+    marginBottom: '0.5rem',
+    letterSpacing: '-0.02em'
+  },
+  subtitle: {
+    fontSize: '1rem',
+    color: '#64748b',
+    fontWeight: '500',
+    marginBottom: '1rem'
+  },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.5rem 1rem',
+    background: 'linear-gradient(135deg, #FFC857 0%, #FFD687 100%)',
+    borderRadius: '20px',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    color: '#1A3E6F',
+    boxShadow: '0 4px 12px rgba(255, 200, 87, 0.3)'
+  },
+  badgeIcon: {
+    fontSize: '1rem'
+  },
+  badgeText: {},
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem'
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem'
+  },
+  label: {
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    color: '#1A3E6F',
+    marginBottom: '0.25rem'
+  },
+  input: {
+    width: '100%',
+    padding: '1rem 1.25rem',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '500',
+    color: '#1e293b',
+    transition: 'all 0.3s ease',
+    outline: 'none',
+    boxSizing: 'border-box'
+  },
+  select: {
+    width: '100%',
+    padding: '1rem 1.25rem',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '500',
+    color: '#1e293b',
+    transition: 'all 0.3s ease',
+    outline: 'none',
+    boxSizing: 'border-box',
+    cursor: 'pointer',
+    backgroundColor: '#ffffff'
+  },
+  submitButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    padding: '1.25rem',
+    background: 'linear-gradient(135deg, #FFC857 0%, #FFD687 100%)',
+    color: '#1A3E6F',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '1.1rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(255, 200, 87, 0.4)',
+    marginTop: '1rem'
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed'
+  },
+  buttonSpinner: {
+    width: '18px',
+    height: '18px',
+    border: '3px solid rgba(26, 62, 111, 0.3)',
+    borderTop: '3px solid #1A3E6F',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite'
+  },
+  errorBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '1rem 1.25rem',
+    backgroundColor: '#fef2f2',
+    border: '2px solid #fca5a5',
+    borderRadius: '12px'
+  },
+  errorIcon: {
+    fontSize: '1.25rem',
+    flexShrink: 0
+  },
+  errorText: {
+    fontSize: '0.95rem',
+    color: '#dc2626',
+    fontWeight: '600',
+    margin: 0
+  },
+  successBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '1rem 1.25rem',
+    backgroundColor: '#f0fdf4',
+    border: '2px solid #86efac',
+    borderRadius: '12px'
+  },
+  successIcon: {
+    fontSize: '1.25rem',
+    flexShrink: 0
+  },
+  successText: {
+    fontSize: '0.95rem',
+    color: '#059669',
+    fontWeight: '600',
+    margin: 0
+  },
+  footer: {
+    marginTop: '2rem',
+    textAlign: 'center'
+  },
+  backButton: {
+    background: 'none',
+    border: 'none',
+    color: '#1A3E6F',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '0.75rem 1.5rem',
+    borderRadius: '8px',
+    transition: 'all 0.2s ease'
+  }
+};

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
+import AdminStickyDropdown from './AdminStickyDropdown';
 
 export default function StickyFooter() {
   const { user, loading } = useAuth();
@@ -158,6 +159,9 @@ export default function StickyFooter() {
                 </>
               )}
             </div>
+
+            {/* Admin Tools Dropdown */}
+            <AdminStickyDropdown />
 
             {navigation.slice(2).map((navItem) => (
               <Link

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import AdminFooter from '../../components/AdminFooter';
 import AdminNavDropdown from '../../components/AdminNavDropdown';
+import AdminPageDropdown from '../../components/AdminPageDropdown'; // Assuming this component is created
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -34,7 +35,7 @@ export default function AdminNavigationHub() {
   const checkAdminStatus = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
         await verifyAdminUser(session.user);
       } else {
@@ -246,6 +247,7 @@ export default function AdminNavigationHub() {
           </p>}
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <AdminPageDropdown /> {/* New Admin Page Dropdown */}
           <AdminNavDropdown />
           <button onClick={handleLogout} style={styles.logoutButton}>
             🚪 Logout
