@@ -20,6 +20,16 @@ export default function AdminPageDropdown() {
 
   const adminSections = [
     {
+      title: 'Admin Control',
+      icon: '🛡️',
+      color: '#8B5CF6',
+      items: [
+        { name: 'Admin Dashboard', href: '/admin/dashboard', icon: '📊' },
+        { name: 'Create Admin', href: '/admin/register', icon: '➕' },
+        { name: 'Admin Login', href: '/admin/login', icon: '🔐' }
+      ]
+    },
+    {
       title: 'User Management',
       icon: '👥',
       color: '#1A3E6F',
