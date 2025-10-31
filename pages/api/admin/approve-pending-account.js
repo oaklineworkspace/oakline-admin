@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to approve account', details: updateError.message });
     }
 
-    // 2.5. Automatically generate debit card for the approved account using secure card generator
+    // 2.5. Automatically generate debit card for the approved account
     let cardResult = null;
     let cardCreationFailed = false;
     
@@ -156,24 +156,52 @@ export default async function handler(req, res) {
         console.log('Including card details - Last 4:', cardResult.lastFour);
       }
 
-      // If user needs enrollment, send welcome email with credentials
+      // If user needs enrollment, send credentials
       if (needsEnrollment) {
-        console.log('Sending welcome email with enrollment link');
+        console.log('Generating temporary password for new user');
         
-        // Generate enrollment link
-        const { data: magicLinkData, error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
-          email: application.email,
-          options: {
-            redirectTo: `${siteUrl}/complete-enrollment`
+        // Generate temporary password
+        const generateTempPassword = () => {
+          const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          const lower = 'abcdefghijklmnopqrstuvwxyz';
+          const digits = '0123456789';
+          const specials = ['#', '$'];
+
+          const first = upper[Math.floor(Math.random() * upper.length)];
+
+          const pick = (str, n) => {
+            let out = '';
+            for (let i = 0; i < n; i++) {
+              out += str[Math.floor(Math.random() * str.length)];
+            }
+            return out;
+          };
+
+          const lowerPart = pick(lower, 3);
+          const digitPart = pick(digits, 3);
+          const specialPart = specials[Math.floor(Math.random() * specials.length)];
+          const remaining = pick(lower + digits, 2);
+
+          const arr = (lowerPart + digitPart + specialPart + remaining).split('');
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
           }
-        });
+          const rest = arr.join('');
+          return first + rest;
+        };
 
-        if (magicLinkError) {
-          console.error('Error generating magic link:', magicLinkError);
+        const tempPassword = generateTempPassword();
+
+        // Update user's password
+        const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+          account.user_id,
+          { password: tempPassword }
+        );
+
+        if (passwordError) {
+          console.error('Error setting temporary password:', passwordError);
         }
-
-        const enrollmentLink = magicLinkData?.properties?.action_link || null;
 
         const welcomeEmailResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
           method: 'POST',
@@ -189,7 +217,7 @@ export default async function handler(req, res) {
             cardExpiry: cardResult ? cardResult.expiryDate : null,
             cardBrand: cardResult ? cardResult.brand : null,
             cardCategory: cardResult ? cardResult.category : null,
-            enrollmentLink: enrollmentLink,
+            tempPassword: tempPassword,
             bankDetails: bankDetails
           })
         });

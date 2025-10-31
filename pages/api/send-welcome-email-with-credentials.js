@@ -251,9 +251,9 @@ export default async function handler(req, res) {
                     </div>
 
                     <!-- Security Warning -->
-                    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px 20px; margin: 25px 0; border-radius: 8px;">
-                      <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">
-                        ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login.
+                    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0; border-radius: 8px;">
+                      <p style="color: #92400e; font-size: 14px; font-weight: 500; margin: 0;">
+                        ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login for security purposes. This temporary password will expire in 24 hours.
                       </p>
                     </div>
 
