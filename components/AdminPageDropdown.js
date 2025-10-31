@@ -61,6 +61,17 @@ export default function AdminPageDropdown() {
         { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' }
       ]
+    },
+    {
+      title: 'System & Settings',
+      icon: '⚙️',
+      color: '#8B5CF6',
+      items: [
+        { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
+        { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
+        { name: 'Audit Trail', href: '/admin/admin-audit', icon: '🔍' }
+      ]
     }
   ];
 

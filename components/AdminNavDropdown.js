@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
@@ -17,6 +16,15 @@ export default function AdminNavDropdown() {
   }, []);
 
   const adminPages = [
+    {
+      category: '🏦 Admin Control',
+      links: [
+        { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '📊' },
+        { name: 'Create Admin', path: '/admin/register', icon: '➕' },
+        { name: 'Admin Login', path: '/admin/login', icon: '🔐' },
+        { name: 'Bank Details', path: '/admin/manage-bank-details', icon: '🏦' },
+      ]
+    },
     {
       category: '📊 Dashboard & Overview',
       links: [
@@ -299,14 +307,14 @@ if (typeof document !== 'undefined') {
         justify-content: center !important;
         width: 100% !important;
       }
-      
+
       .admin-nav-dropdown-container button {
         font-size: 0.85rem !important;
         padding: 0.65rem 1rem !important;
         min-width: 120px !important;
       }
     }
-    
+
     @media (max-width: 480px) {
       .admin-nav-dropdown-container button {
         font-size: 0.8rem !important;
@@ -315,7 +323,7 @@ if (typeof document !== 'undefined') {
       }
     }
   `;
-  
+
   if (!document.getElementById('admin-nav-dropdown-styles')) {
     styleSheet.id = 'admin-nav-dropdown-styles';
     document.head.appendChild(styleSheet);
