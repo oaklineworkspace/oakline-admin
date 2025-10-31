@@ -101,6 +101,13 @@ export default function AdminNavDropdown() {
       ]
     },
     {
+      category: '₿ Crypto Management',
+      links: [
+        { name: 'Assign Crypto Wallets', path: '/admin/assign-crypto-wallets', icon: '🔑' },
+        { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
+      ]
+    },
+    {
       category: '⚙️ Settings & Security',
       links: [
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },

@@ -91,6 +91,15 @@ export default function AdminPageDropdown() {
       items: [
         { name: 'Test Card Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
       ]
+    },
+    {
+      title: 'Crypto Management',
+      icon: '₿',
+      color: '#F59E0B',
+      items: [
+        { name: 'Assign Crypto Wallets', href: '/admin/assign-crypto-wallets', icon: '🔑' },
+        { name: 'Manage Crypto Deposits', href: '/admin/manage-crypto-deposits', icon: '💰' }
+      ]
     }
   ];
 
