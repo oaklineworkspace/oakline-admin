@@ -250,36 +250,25 @@ export default async function handler(req, res) {
                       </table>
                     </div>
 
-                    <!-- Security Warning -->
+                    <!-- Security Notice -->
                     <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0; border-radius: 8px;">
-                      <p style="color: #92400e; font-size: 14px; font-weight: 500; margin: 0;">
-                        ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login for security purposes. This temporary password will expire in 24 hours.
+                      <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0;">
+                        ⚠️ <strong>Important Security Notice:</strong> Please use the button below to securely log in and set your permanent password. This temporary password will expire in 24 hours.
                       </p>
                     </div>
 
-                    <!-- CTA Button -->
-                    <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
-                      <tr>
-                        <td align="center">
-                          <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.3);">
-                            Login to Your Account
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
+                    <!-- Login Button -->
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="https://www.theoaklinebank.com/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                        🔐 LOGIN & SET PASSWORD
+                      </a>
+                    </div>
 
-                    <!-- What's Next Section -->
-                    <div style="background-color: #f8fafc; border-radius: 12px; padding: 25px; margin: 30px 0;">
-                      <h4 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 700;">
-                        🚀 What's Next?
-                      </h4>
-                      <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
-                        <li>Login with your credentials above</li>
-                        <li>Set up a secure password</li>
-                        <li>Explore your account dashboard</li>
-                        <li>Set up direct deposits and bill payments</li>
-                        <li>Download our mobile app for banking on the go</li>
-                      </ul>
+                    <!-- Next Steps Info -->
+                    <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 8px;">
+                      <p style="color: #1e40af; font-size: 14px; font-weight: 600; margin: 0;">
+                        💡 <strong>Next Steps:</strong> After logging in with your temporary password, you'll be prompted to create a new secure password. Once set, you'll be redirected to your dashboard.
+                      </p>
                     </div>
 
                     <p style="margin: 30px 0 10px 0; color: #475569; font-size: 15px; line-height: 1.6;">

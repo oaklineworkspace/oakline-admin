@@ -74,34 +74,23 @@ export default async function handler(req, res) {
             
             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0; border-radius: 8px;">
               <p style="color: #92400e; font-size: 14px; font-weight: 500; margin: 0;">
-                ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login for security purposes. This temporary password will expire in 24 hours.
+                ⚠️ <strong>Important Security Notice:</strong> Please use the button below to securely log in and set your permanent password. This temporary password will expire in 24 hours.
               </p>
-            </div>
-
-            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0; border-radius: 8px;">
-              <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0 0 12px 0;">
-                🔑 <strong>Set Your Password:</strong>
-              </p>
-              <p style="color: #92400e; font-size: 14px; margin: 0 0 12px 0;">
-                Please use this link to set up your permanent password:
-              </p>
-              <div style="text-align: center; margin: 16px 0;">
-                <a href="https://www.theoaklinebank.com/reset-password" 
-                   style="display: inline-block; background: #f59e0b; 
-                          color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; 
-                          font-weight: 600; font-size: 14px;">
-                  Set Your Password
-                </a>
-              </div>
             </div>
 
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
+              <a href="https://www.theoaklinebank.com/security" 
                  style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
                         color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
                         font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);">
-                Login to Your Account
+                🔐 Login & Set Password
               </a>
+            </div>
+
+            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 8px;">
+              <p style="color: #1e40af; font-size: 14px; font-weight: 500; margin: 0;">
+                💡 <strong>Next Steps:</strong> After logging in with your temporary password, you'll be prompted to create a new secure password. Once set, you'll be redirected to your dashboard.
+              </p>
             </div>
 
             <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 32px;">
