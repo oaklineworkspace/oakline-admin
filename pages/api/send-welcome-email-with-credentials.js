@@ -254,17 +254,22 @@ export default async function handler(req, res) {
                       </p>
                     </div>
 
-                    <!-- Login Button -->
-                    <div style="text-align: center; margin: 30px 0;">
-                      <a href="https://www.theoaklinebank.com/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
-                        🔐 LOGIN & SET PASSWORD
+                    <!-- Action Buttons -->
+                    <div style="text-align: center; margin: 30px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                      <a href="https://www.theoaklinebank.com/login" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                        🔑 LOGIN TO ACCOUNT
+                      </a>
+                      <a href="https://www.theoaklinebank.com/reset-password" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                        🔐 SET NEW PASSWORD
                       </a>
                     </div>
 
                     <!-- Next Steps Info -->
                     <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 8px;">
                       <p style="color: #1e40af; font-size: 14px; font-weight: 600; margin: 0;">
-                        💡 <strong>Next Steps:</strong> After logging in with your temporary password, you'll be prompted to create a new secure password. Once set, you'll be redirected to your dashboard.
+                        💡 <strong>Next Steps:</strong><br/>
+                        • Click "Login to Account" to access your account (redirects to security verification on successful login)<br/>
+                        • Click "Set New Password" to create a permanent password (redirects to dashboard after successful setup)
                       </p>
                     </div>
 

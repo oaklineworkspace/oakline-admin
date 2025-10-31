@@ -78,18 +78,26 @@ export default async function handler(req, res) {
               </p>
             </div>
 
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="https://www.theoaklinebank.com/security" 
+            <div style="text-align: center; margin: 32px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+              <a href="https://www.theoaklinebank.com/login" 
                  style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
                         color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
                         font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);">
-                🔐 Set Your Password
+                🔑 Login to Account
+              </a>
+              <a href="https://www.theoaklinebank.com/reset-password" 
+                 style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); 
+                        color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
+                        font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
+                🔐 Set New Password
               </a>
             </div>
 
             <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 8px;">
               <p style="color: #1e40af; font-size: 14px; font-weight: 500; margin: 0;">
-                💡 <strong>Next Steps:</strong> After logging in with your temporary password, you'll be prompted to create a new secure password. Once set, you'll be redirected to your dashboard.
+                💡 <strong>Next Steps:</strong><br/>
+                • Click "Login to Account" to access your account (redirects to security verification)<br/>
+                • Click "Set New Password" to create a permanent password (redirects to dashboard after setup)
               </p>
             </div>
 
