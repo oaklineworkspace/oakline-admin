@@ -61,23 +61,19 @@ export default function ManageAllUsersPage() {
     setActionLoading({ ...actionLoading, [`resend_${user.id}`]: true });
 
     try {
-      const response = await fetch('/api/resend-enrollment', {
+      const response = await fetch('/api/admin/complete-enrollment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          applicationId: user.id,
           email: user.email,
-          firstName: user.first_name,
-          middleName: user.middle_name,
-          lastName: user.last_name,
-          country: user.country
+          applicationId: user.id
         })
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        alert(`✅ Enrollment link sent to ${user.email}`);
+        alert(`✅ Credentials sent to ${user.email}\n\nPassword Reset Link: https://www.theoaklinebank.com/reset-password`);
         await fetchAllUsersData();
       } else {
         alert(`❌ Failed: ${result.error}`);
@@ -257,7 +253,7 @@ export default function ManageAllUsersPage() {
                   disabled={actionLoading[`resend_${user.id}`]}
                   style={styles.actionButton}
                 >
-                  {actionLoading[`resend_${user.id}`] ? '⏳ Sending...' : '📧 Resend Enrollment'}
+                  {actionLoading[`resend_${user.id}`] ? '⏳ Sending...' : '📧 Send Credentials'}
                 </button>
                 <button
                   onClick={() => handleForcePasswordReset(user)}

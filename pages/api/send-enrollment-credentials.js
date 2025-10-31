@@ -78,6 +78,23 @@ export default async function handler(req, res) {
               </p>
             </div>
 
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0; border-radius: 8px;">
+              <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0 0 12px 0;">
+                🔑 <strong>Set Your Password:</strong>
+              </p>
+              <p style="color: #92400e; font-size: 14px; margin: 0 0 12px 0;">
+                Please use this link to set up your permanent password:
+              </p>
+              <div style="text-align: center; margin: 16px 0;">
+                <a href="https://www.theoaklinebank.com/reset-password" 
+                   style="display: inline-block; background: #f59e0b; 
+                          color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; 
+                          font-weight: 600; font-size: 14px;">
+                  Set Your Password
+                </a>
+              </div>
+            </div>
+
             <div style="text-align: center; margin: 32px 0;">
               <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
                  style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
