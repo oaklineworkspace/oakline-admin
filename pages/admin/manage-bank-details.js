@@ -84,7 +84,30 @@ export default function ManageBankDetails() {
       }
 
       if (data) {
-        setBankDetails(data);
+        // Ensure all fields have defined values
+        const normalizedData = {
+          name: data.name || '',
+          branch_name: data.branch_name || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          email_info: data.email_info || '',
+          email_contact: data.email_contact || '',
+          email_support: data.email_support || '',
+          email_loans: data.email_loans || '',
+          email_notify: data.email_notify || '',
+          email_updates: data.email_updates || '',
+          email_welcome: data.email_welcome || '',
+          routing_number: data.routing_number || '',
+          swift_code: data.swift_code || '',
+          nmls_id: data.nmls_id || '',
+          logo_url: data.logo_url || '',
+          website: data.website || '',
+          fax: data.fax || '',
+          customer_service_hours: data.customer_service_hours || '',
+          additional_info: data.additional_info || ''
+        };
+        
+        setBankDetails(normalizedData);
         
         // Load custom emails from JSON column
         if (data.custom_emails && Array.isArray(data.custom_emails)) {
@@ -172,7 +195,8 @@ export default function ManageBankDetails() {
       await fetchBankDetails();
     } catch (err) {
       console.error('Error saving bank details:', err);
-      showToast(`❌ ${err.message || 'Failed to save bank details'}`, 'error');
+      const errorMessage = err?.message || data?.error || data?.details || 'Failed to save bank details';
+      showToast(`❌ ${errorMessage}`, 'error');
     } finally {
       setSaving(false);
     }
@@ -343,7 +367,7 @@ export default function ManageBankDetails() {
                 <label style={styles.label}>Logo URL</label>
                 <input
                   type="text"
-                  value={bankDetails.logo_url}
+                  value={bankDetails.logo_url || ''}
                   onChange={(e) => handleInputChange('logo_url', e.target.value)}
                   style={styles.input}
                   placeholder="https://example.com/logo.png"

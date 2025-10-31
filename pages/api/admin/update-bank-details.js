@@ -128,7 +128,9 @@ export default async function handler(req, res) {
     console.error('Error updating bank details:', error);
     return res.status(500).json({
       error: 'Failed to update bank details',
-      details: error.message
+      details: error?.message || 'Unknown error occurred',
+      code: error?.code,
+      hint: error?.hint
     });
   }
 }
