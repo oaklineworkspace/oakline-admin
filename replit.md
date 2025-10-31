@@ -85,7 +85,29 @@ Preferred communication style: Simple, everyday language.
    - Automatic column creation for new email fields
    - Database function automatically creates columns if they don't exist
 
+8. **Crypto Wallet & Deposit Management**
+   - Assign and update crypto wallet addresses for users (BTC, USDT, ETH, BNB)
+   - Search and filter users by email or name
+   - Review and manage crypto deposit requests
+   - Approve deposits with automatic balance crediting
+   - Reject deposits with optional reason
+   - Email notifications for approved/rejected deposits
+   - Summary statistics and filtering by status
+
 ## Recent Changes
+
+### Crypto Wallet & Deposit Management (October 31, 2025)
+Added comprehensive cryptocurrency management for administrators:
+- **New Admin Pages**:
+  - `/admin/assign-crypto-wallets` - Assign/update wallet addresses for users across supported cryptocurrencies
+  - `/admin/manage-crypto-deposits` - Review, approve, or reject crypto deposits with automatic processing
+- **API Endpoints**: Four secure endpoints with bearer token authentication
+  - `POST /api/admin/assign-crypto-wallet` - Assign or update wallet addresses
+  - `GET /api/admin/get-crypto-deposits` - Fetch deposits with status filtering
+  - `POST /api/admin/approve-crypto-deposit` - Approve deposits and credit accounts
+  - `POST /api/admin/reject-crypto-deposit` - Reject deposits with notifications
+- **Security**: `lib/adminAuth.js` helper verifies admin authentication via Supabase bearer tokens
+- **Features**: Auto-balance updates, email notifications, summary statistics, search/filter capabilities
 
 ### Dynamic Email Field Support (October 31, 2025)
 Added ability to dynamically create email columns in the `bank_details` table:
