@@ -27,6 +27,12 @@ export default function AdminStickyDropdown() {
     { name: 'Reports', href: '/admin/admin-reports', icon: '📈', color: '#8b5cf6' }
   ];
 
+  const handleLogout = async () => {
+    const { supabase } = await import('../lib/supabaseClient');
+    await supabase.auth.signOut();
+    router.push('/admin/login');
+  };
+
   return (
     <div className="admin-sticky-dropdown" style={styles.container}>
       <button
@@ -90,6 +96,15 @@ export default function AdminStickyDropdown() {
                 style={styles.viewAllButton}
               >
                 View All Admin Pages
+              </button>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  handleLogout();
+                }}
+                style={styles.logoutButton}
+              >
+                🚪 Logout
               </button>
             </div>
           </div>
@@ -248,6 +263,23 @@ const styles = {
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 12px rgba(26, 62, 111, 0.3)',
     border: 'none',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    marginBottom: '0.75rem',
+    width: '100%'
+  },
+  logoutButton: {
+    display: 'inline-block',
+    padding: '0.875rem 2rem',
+    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '700',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+    border: 'none',
+    cursor: 'pointer',
+    width: '100%'
   }
 };

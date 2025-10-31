@@ -26,8 +26,15 @@ export default function ManageBankDetails() {
     routing_number: '',
     swift_code: '',
     nmls_id: '',
-    logo_url: ''
+    logo_url: '',
+    website: '',
+    fax: '',
+    customer_service_hours: '',
+    additional_info: ''
   });
+
+  // Dynamic email fields
+  const [customEmails, setCustomEmails] = useState([]);
 
   useEffect(() => {
     checkAuth();
@@ -78,6 +85,19 @@ export default function ManageBankDetails() {
 
       if (data) {
         setBankDetails(data);
+        
+        // Extract custom emails from data
+        const customEmailFields = [];
+        Object.keys(data).forEach(key => {
+          if (key.startsWith('custom_email_') && data[key]) {
+            customEmailFields.push({
+              id: key,
+              label: key.replace('custom_email_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              value: data[key]
+            });
+          }
+        });
+        setCustomEmails(customEmailFields);
       }
     } catch (err) {
       console.error('Error fetching bank details:', err);
@@ -99,9 +119,40 @@ export default function ManageBankDetails() {
     }));
   };
 
+  const handleCustomEmailChange = (id, value) => {
+    setCustomEmails(prev => 
+      prev.map(email => email.id === id ? { ...email, value } : email)
+    );
+  };
+
+  const handleCustomEmailLabelChange = (id, newLabel) => {
+    setCustomEmails(prev => 
+      prev.map(email => email.id === id ? { ...email, label: newLabel } : email)
+    );
+  };
+
+  const addCustomEmail = () => {
+    const newId = `custom_email_${Date.now()}`;
+    setCustomEmails(prev => [...prev, {
+      id: newId,
+      label: 'New Email',
+      value: ''
+    }]);
+  };
+
+  const removeCustomEmail = (id) => {
+    setCustomEmails(prev => prev.filter(email => email.id !== id));
+  };
+
   const handleSaveChanges = async () => {
     setSaving(true);
     try {
+      // Merge custom emails into bankDetails
+      const updatedDetails = { ...bankDetails };
+      customEmails.forEach(email => {
+        updatedDetails[email.id] = email.value;
+      });
+
       const { data: existingData } = await supabase
         .from('bank_details')
         .select('id')
@@ -112,12 +163,12 @@ export default function ManageBankDetails() {
       if (existingData) {
         result = await supabase
           .from('bank_details')
-          .update(bankDetails)
+          .update(updatedDetails)
           .eq('id', existingData.id);
       } else {
         result = await supabase
           .from('bank_details')
-          .insert([bankDetails]);
+          .insert([updatedDetails]);
       }
 
       if (result.error) throw result.error;
@@ -155,7 +206,6 @@ export default function ManageBankDetails() {
 
   return (
     <div style={styles.pageContainer}>
-      {/* Toast Notification */}
       {toast.show && (
         <div style={{
           ...styles.toast,
@@ -165,7 +215,6 @@ export default function ManageBankDetails() {
         </div>
       )}
 
-      {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContainer}>
           <div style={styles.headerLeft}>
@@ -206,7 +255,6 @@ export default function ManageBankDetails() {
       </header>
 
       <main style={styles.mainContent}>
-        {/* Page Title */}
         <div style={styles.pageHeader}>
           <div>
             <h2 style={styles.pageTitle}>🏦 Bank Details Management</h2>
@@ -224,7 +272,6 @@ export default function ManageBankDetails() {
           </button>
         </div>
 
-        {/* Form Container */}
         <div style={styles.formContainer}>
           <div style={styles.formGrid}>
             {/* Bank Information Section */}
@@ -276,6 +323,28 @@ export default function ManageBankDetails() {
               </div>
 
               <div style={styles.formGroup}>
+                <label style={styles.label}>Fax Number</label>
+                <input
+                  type="tel"
+                  value={bankDetails.fax}
+                  onChange={(e) => handleInputChange('fax', e.target.value)}
+                  style={styles.input}
+                  placeholder="+1 (XXX) XXX-XXXX"
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Website</label>
+                <input
+                  type="url"
+                  value={bankDetails.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  style={styles.input}
+                  placeholder="https://www.theoaklinebank.com"
+                />
+              </div>
+
+              <div style={styles.formGroup}>
                 <label style={styles.label}>Logo URL</label>
                 <input
                   type="text"
@@ -285,11 +354,22 @@ export default function ManageBankDetails() {
                   placeholder="https://example.com/logo.png"
                 />
               </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Customer Service Hours</label>
+                <textarea
+                  value={bankDetails.customer_service_hours}
+                  onChange={(e) => handleInputChange('customer_service_hours', e.target.value)}
+                  style={styles.textarea}
+                  placeholder="Mon-Fri: 9AM-5PM, Sat: 10AM-2PM"
+                  rows="2"
+                />
+              </div>
             </div>
 
-            {/* Email Addresses Section */}
+            {/* Standard Email Addresses Section */}
             <div style={styles.section}>
-              <h3 style={styles.sectionTitle}>📧 Email Addresses</h3>
+              <h3 style={styles.sectionTitle}>📧 Standard Email Addresses</h3>
               
               <div style={styles.formGroup}>
                 <label style={styles.label}>Info Email</label>
@@ -415,7 +495,68 @@ export default function ManageBankDetails() {
                 />
                 <p style={styles.helperText}>Nationwide Mortgage Licensing System ID</p>
               </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Additional Information</label>
+                <textarea
+                  value={bankDetails.additional_info}
+                  onChange={(e) => handleInputChange('additional_info', e.target.value)}
+                  style={styles.textarea}
+                  placeholder="Any additional bank information..."
+                  rows="4"
+                />
+              </div>
             </div>
+          </div>
+
+          {/* Custom Email Addresses Section */}
+          <div style={styles.customEmailSection}>
+            <div style={styles.customEmailHeader}>
+              <h3 style={styles.sectionTitle}>✉️ Custom Email Addresses</h3>
+              <button onClick={addCustomEmail} style={styles.addEmailButton}>
+                ➕ Add Custom Email
+              </button>
+            </div>
+
+            {customEmails.length === 0 ? (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyText}>No custom emails yet. Click "Add Custom Email" to create one.</p>
+              </div>
+            ) : (
+              <div style={styles.customEmailGrid}>
+                {customEmails.map((email) => (
+                  <div key={email.id} style={styles.customEmailItem}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Label</label>
+                      <input
+                        type="text"
+                        value={email.label}
+                        onChange={(e) => handleCustomEmailLabelChange(email.id, e.target.value)}
+                        style={styles.input}
+                        placeholder="e.g., Marketing, Sales, HR"
+                      />
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Email Address</label>
+                      <input
+                        type="email"
+                        value={email.value}
+                        onChange={(e) => handleCustomEmailChange(email.id, e.target.value)}
+                        style={styles.input}
+                        placeholder="email@theoaklinebank.com"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => removeCustomEmail(email.id)} 
+                      style={styles.removeButton}
+                      title="Remove this email"
+                    >
+                      🗑️ Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -429,7 +570,7 @@ export default function ManageBankDetails() {
                 cursor: saving ? 'not-allowed' : 'pointer'
               }}
             >
-              {saving ? '💾 Saving...' : '💾 Save Changes'}
+              {saving ? '💾 Saving...' : '💾 Save All Changes'}
             </button>
           </div>
         </div>
@@ -696,12 +837,78 @@ const styles = {
     color: '#64748b',
     margin: 0
   },
+  customEmailSection: {
+    marginTop: '2rem',
+    paddingTop: '2rem',
+    borderTop: '2px solid #e2e8f0'
+  },
+  customEmailHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1.5rem',
+    flexWrap: 'wrap',
+    gap: '1rem'
+  },
+  addEmailButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.75rem 1.5rem',
+    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
+  },
+  customEmailGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+    gap: '1.5rem'
+  },
+  customEmailItem: {
+    padding: '1.5rem',
+    backgroundColor: '#f8fafc',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    position: 'relative'
+  },
+  removeButton: {
+    marginTop: '1rem',
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ef4444',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    width: '100%'
+  },
+  emptyState: {
+    padding: '3rem 2rem',
+    textAlign: 'center',
+    backgroundColor: '#f8fafc',
+    border: '2px dashed #cbd5e1',
+    borderRadius: '12px'
+  },
+  emptyText: {
+    fontSize: '1rem',
+    color: '#64748b',
+    margin: 0
+  },
   actionButtons: {
     display: 'flex',
     justifyContent: 'flex-end',
     gap: '1rem',
     paddingTop: '1.5rem',
-    borderTop: '2px solid #e2e8f0'
+    borderTop: '2px solid #e2e8f0',
+    marginTop: '2rem'
   },
   saveButton: {
     display: 'flex',
