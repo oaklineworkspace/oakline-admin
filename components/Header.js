@@ -101,7 +101,7 @@ export default function Header() {
       {/* Main navigation */}
       <nav style={styles.nav}>
         <div style={styles.navContainer}>
-          <Link href="/" style={styles.logoContainer}>
+          <Link href="/home" style={styles.logoContainer}>
             <img src="/images/logo-primary.png" alt="Oakline Bank Logo" style={styles.logo} />
             <span style={styles.bankName}>Oakline Bank</span>
           </Link>

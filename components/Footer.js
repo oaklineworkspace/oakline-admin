@@ -76,7 +76,7 @@ export default function Footer() {
         <div style={styles.footerGrid}>
           {/* Company Info */}
           <div style={styles.companySection}>
-            <Link href="/" style={styles.logoContainer}>
+            <Link href="/home" style={styles.logoContainer}>
               <img src="/images/Oakline_Bank_logo_design_c1b04ae0.png" alt="Oakline Bank Logo" style={styles.logo} />
               <span style={styles.companyName}>Oakline Bank</span>
             </Link>

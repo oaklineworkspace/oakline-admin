@@ -1237,7 +1237,7 @@ export default function Apply() {
         {/* Enhanced Header */}
         <header style={styles.header}>
           <div style={styles.headerContent}>
-            <Link href="/" style={styles.logo}>
+            <Link href="/home" style={styles.logo}>
               <img src="/images/logo-primary.png" alt="Oakline Bank" style={styles.logoImage} />
               <div>
                 <div style={styles.bankName}>Oakline Bank</div>
@@ -1258,7 +1258,7 @@ export default function Apply() {
                 Existing Customer
               </Link>
               <div style={styles.headerButtons}>
-                <Link href="/" style={styles.homeButton}>
+                <Link href="/home" style={styles.homeButton}>
                   <span style={styles.homeButtonIcon}>🏠</span>
                   Back to Home
                 </Link>

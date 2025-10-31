@@ -38,7 +38,7 @@ export default function SignInPage() {
         if (adminProfile) {
           setMessage('Sign in successful! Redirecting to admin hub...');
           setTimeout(() => {
-            window.location.href = '/admin';
+            window.location.href = '/';
           }, 1000);
         } else {
           setMessage('Sign in successful! Redirecting to dashboard...');
@@ -79,7 +79,7 @@ export default function SignInPage() {
           justifyContent: 'flex-start',
           alignItems: 'center'
         }}>
-          <Link href="/" style={{
+          <Link href="/home" style={{
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',

@@ -317,7 +317,7 @@ function DashboardContent() {
       <header style={styles.header}>
         <div style={styles.headerContainer}>
           <div style={styles.headerLeft}>
-            <Link href="/" style={styles.logoContainer}>
+            <Link href="/home" style={styles.logoContainer}>
               <img src="/images/Oakline_Bank_logo_design_c1b04ae0.png" alt="Oakline Bank" style={styles.logo} />
               <div style={styles.brandInfo}>
                 <h1 style={styles.brandName}>Oakline Bank</h1>
@@ -337,7 +337,7 @@ function DashboardContent() {
                 <div style={styles.dropdown}>
                   <div style={styles.dropdownSection}>
                     <h4 style={styles.dropdownSectionTitle}>🏦 My Banking</h4>
-                    <Link href="/" style={styles.dropdownLink}>🏠 Home</Link>
+                    <Link href="/home" style={styles.dropdownLink}>🏠 Home</Link>
                     <Link href="/main-menu" style={styles.dropdownLink}>📋 Main Menu</Link>
                     <Link href="/account-details" style={styles.dropdownLink}>🏦 Account Details</Link>
                     <Link href="/transfer" style={styles.dropdownLink}>💸 Transfer Money</Link>

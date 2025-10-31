@@ -352,7 +352,7 @@ export default function Home() {
         <div style={styles.headerContainer}>
           <div style={styles.topHeaderRow}>
             {/* Logo Section */}
-            <Link href="/" style={styles.logoSection}>
+            <Link href="/home" style={styles.logoSection}>
               <img src="/images/Oakline_Bank_logo_design_c1b04ae0.png" alt="Oakline Bank" style={styles.headerLogo} />
               <div style={styles.brandSection}>
                 <span style={styles.bankName}>Oakline Bank</span>

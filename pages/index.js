@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
-import AdminFooter from '../../components/AdminFooter';
-import AdminNavDropdown from '../../components/AdminNavDropdown';
-import AdminPageDropdown from '../../components/AdminPageDropdown'; // Assuming this component is created
+import { supabase } from '../lib/supabaseClient';
+import AdminFooter from '../components/AdminFooter';
+import AdminNavDropdown from '../components/AdminNavDropdown';
+import AdminPageDropdown from '../components/AdminPageDropdown'; // Assuming this component is created
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

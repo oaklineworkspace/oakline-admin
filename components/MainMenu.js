@@ -170,7 +170,7 @@ export default function MainMenu({ user }) {
       <div style={styles.mainNav}>
         <div style={styles.navContainer}>
           {/* Logo */}
-          <Link href="/" style={styles.logoContainer}>
+          <Link href="/home" style={styles.logoContainer}>
             <img src="/images/logo-primary.png" alt="Oakline Bank" style={styles.logo} />
             <div style={styles.brandInfo}>
               <span style={styles.brandName}>Oakline Bank</span>
