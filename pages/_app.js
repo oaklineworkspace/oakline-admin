@@ -1,12 +1,8 @@
 // pages/_app.js
 import '../styles/globals.css';
-import '../styles/button-fixes.css';
-import '../styles/responsive.css';
-import Head from 'next/head';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createContext } from 'react';
 import { useRouter } from 'next/router';
-import { AuthProvider } from '../contexts/AuthContext';
 
 const queryClient = new QueryClient();
 
@@ -28,11 +24,9 @@ function App({ Component, pageProps }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PathnameContextProviderAdapter router={router}>
-          <Component {...pageProps} />
-        </PathnameContextProviderAdapter>
-      </AuthProvider>
+      <PathnameContextProviderAdapter router={router}>
+        <Component {...pageProps} />
+      </PathnameContextProviderAdapter>
     </QueryClientProvider>
   );
 }
