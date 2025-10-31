@@ -130,9 +130,6 @@ export default async function handler(req, res) {
       ? `${first_name} ${middle_name} ${last_name}`
       : `${first_name} ${last_name}`;
 
-    const loginUrl = `${detectedSiteUrl}/login`;
-    const siteUrl = detectedSiteUrl; // Use detectedSiteUrl for email template
-
     // Format account info for the new email template
     const populatedAccountNumbers = account_numbers || [];
     const accountDetailsHtml = populatedAccountNumbers.length > 0

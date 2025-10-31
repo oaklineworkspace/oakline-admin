@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 // Generate a 10-character temp password meeting rules
@@ -161,9 +160,10 @@ export default async function handler(req, res) {
     }
 
     res.status(200).json({
-      message: 'Enrollment completed successfully',
-      email: email,
-      tempPassword: tempPassword
+      success: true,
+      message: 'Credentials sent successfully',
+      credentialsSent: true,
+      passwordResetLink: 'https://www.theoaklinebank.com/reset-password'
     });
 
   } catch (error) {
