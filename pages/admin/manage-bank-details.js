@@ -86,18 +86,12 @@ export default function ManageBankDetails() {
       if (data) {
         setBankDetails(data);
         
-        // Extract custom emails from data
-        const customEmailFields = [];
-        Object.keys(data).forEach(key => {
-          if (key.startsWith('custom_email_') && data[key]) {
-            customEmailFields.push({
-              id: key,
-              label: key.replace('custom_email_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              value: data[key]
-            });
-          }
-        });
-        setCustomEmails(customEmailFields);
+        // Load custom emails from JSON column
+        if (data.custom_emails && Array.isArray(data.custom_emails)) {
+          setCustomEmails(data.custom_emails);
+        } else {
+          setCustomEmails([]);
+        }
       }
     } catch (err) {
       console.error('Error fetching bank details:', err);
@@ -147,11 +141,11 @@ export default function ManageBankDetails() {
   const handleSaveChanges = async () => {
     setSaving(true);
     try {
-      // Merge custom emails into bankDetails
-      const updatedDetails = { ...bankDetails };
-      customEmails.forEach(email => {
-        updatedDetails[email.id] = email.value;
-      });
+      // Store custom emails as JSON array
+      const updatedDetails = { 
+        ...bankDetails,
+        custom_emails: customEmails.length > 0 ? customEmails : null
+      };
 
       const { data: existingData } = await supabase
         .from('bank_details')
