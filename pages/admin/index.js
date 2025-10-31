@@ -177,6 +177,7 @@ export default function AdminNavigationHub() {
     {
       category: '🔧 System & Security',
       pages: [
+        { name: 'Bank Details', path: '/admin/manage-bank-details', icon: '🏦', description: 'Manage bank information and contact details' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜', description: 'View detailed system logs' },
         { name: 'Settings', path: '/admin/admin-settings', icon: '⚙️', description: 'Configure system settings' },
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭', description: 'Manage access control and roles' },
