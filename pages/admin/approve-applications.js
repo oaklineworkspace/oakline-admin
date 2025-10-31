@@ -198,6 +198,26 @@ export default function ApproveApplications() {
               <p><strong>Temporary Password:</strong> <code style={styles.code}>{approvalResult.tempPassword}</code></p>
               <p><strong>User ID:</strong> <code style={styles.code}>{approvalResult.userId}</code></p>
 
+              <h4 style={styles.sectionHeading}>🔗 User Access Links</h4>
+              <div style={styles.linkSection}>
+                <a 
+                  href={`https://www.theoaklinebank.com/login?redirect=/security`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.accessLink}
+                >
+                  🔑 Login to Account
+                </a>
+                <a 
+                  href={`https://www.theoaklinebank.com/reset-password?redirect=/dashboard`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.accessLinkSecondary}
+                >
+                  🔐 Reset Password
+                </a>
+              </div>
+
               <h4 style={styles.sectionHeading}>📊 Accounts Created ({approvalResult.accountsCreated})</h4>
               {approvalResult.accounts.map((acc, idx) => (
                 <div key={idx} style={styles.accountDetail}>
@@ -602,6 +622,41 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     width: '100%'
+  },
+  linkSection: {
+    display: 'flex',
+    gap: '0.75rem',
+    marginTop: '0.5rem',
+    marginBottom: '1rem',
+    flexWrap: 'wrap'
+  },
+  accessLink: {
+    flex: 1,
+    minWidth: '200px',
+    padding: '0.75rem 1rem',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    textAlign: 'center',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.3)'
+  },
+  accessLinkSecondary: {
+    flex: 1,
+    minWidth: '200px',
+    padding: '0.75rem 1rem',
+    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    textAlign: 'center',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
   },
   content: {
     background: 'white',
