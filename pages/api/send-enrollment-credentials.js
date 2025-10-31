@@ -79,13 +79,13 @@ export default async function handler(req, res) {
             </div>
 
             <div style="text-align: center; margin: 32px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-              <a href="https://www.theoaklinebank.com/login" 
+              <a href="https://www.theoaklinebank.com/login?redirect=/security" 
                  style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
                         color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
                         font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);">
                 🔑 Login to Account
               </a>
-              <a href="https://www.theoaklinebank.com/reset-password" 
+              <a href="https://www.theoaklinebank.com/reset-password?redirect=/dashboard" 
                  style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); 
                         color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
                         font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">

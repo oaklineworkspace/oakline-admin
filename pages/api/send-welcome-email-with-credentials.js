@@ -256,10 +256,10 @@ export default async function handler(req, res) {
 
                     <!-- Action Buttons -->
                     <div style="text-align: center; margin: 30px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                      <a href="https://www.theoaklinebank.com/login" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                      <a href="https://www.theoaklinebank.com/login?redirect=/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
                         🔑 LOGIN TO ACCOUNT
                       </a>
-                      <a href="https://www.theoaklinebank.com/reset-password" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                      <a href="https://www.theoaklinebank.com/reset-password?redirect=/dashboard" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
                         🔐 SET NEW PASSWORD
                       </a>
                     </div>
