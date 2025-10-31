@@ -18,6 +18,8 @@ export default function ManageBankDetails() {
     phone: '',
     email_info: '',
     email_contact: '',
+    email_support: '',
+    email_loans: '',
     email_notify: '',
     email_updates: '',
     email_welcome: '',
@@ -310,7 +312,31 @@ export default function ManageBankDetails() {
                   style={styles.input}
                   placeholder="contact@theoaklinebank.com"
                 />
-                <p style={styles.helperText}>Main contact address (also used for loans@theoaklinebank.com)</p>
+                <p style={styles.helperText}>Main contact address</p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Support Email</label>
+                <input
+                  type="email"
+                  value={bankDetails.email_support}
+                  onChange={(e) => handleInputChange('email_support', e.target.value)}
+                  style={styles.input}
+                  placeholder="support@theoaklinebank.com"
+                />
+                <p style={styles.helperText}>Customer support inquiries</p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Loans Email</label>
+                <input
+                  type="email"
+                  value={bankDetails.email_loans}
+                  onChange={(e) => handleInputChange('email_loans', e.target.value)}
+                  style={styles.input}
+                  placeholder="loans@theoaklinebank.com"
+                />
+                <p style={styles.helperText}>Loan applications and inquiries</p>
               </div>
 
               <div style={styles.formGroup}>

@@ -26,6 +26,21 @@ export default function AdminNavDropdown() {
       ]
     },
     {
+      category: '👥 User Management',
+      links: [
+        { name: 'Manage Enrollment', path: '/admin/manage-user-enrollment', icon: '📧' },
+        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '🔄' },
+        { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Delete Users', path: '/admin/delete-users', icon: '⚠️' },
+      ]
+    },
+    {
+      category: '🛠️ Testing & Tools',
+      links: [
+        { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
+      ]
+    },
+    {
       category: '📊 Dashboard & Overview',
       links: [
         { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏠' },

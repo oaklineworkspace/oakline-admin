@@ -72,6 +72,25 @@ export default function AdminPageDropdown() {
         { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
         { name: 'Audit Trail', href: '/admin/admin-audit', icon: '🔍' }
       ]
+    },
+    {
+      title: 'User Management',
+      icon: '👥',
+      color: '#EC4899',
+      items: [
+        { name: 'Manage Enrollment', href: '/admin/manage-user-enrollment', icon: '📧' },
+        { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '🔄' },
+        { name: 'Delete User by ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' }
+      ]
+    },
+    {
+      title: 'Testing & Tools',
+      icon: '🛠️',
+      color: '#6366F1',
+      items: [
+        { name: 'Test Card Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
+      ]
     }
   ];
 
