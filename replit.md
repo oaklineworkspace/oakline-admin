@@ -78,6 +78,22 @@ Preferred communication style: Simple, everyday language.
    - Audit trails
    - Transaction reports
 
+7. **Bank Details Management**
+   - Manage bank information and contact details
+   - Update standard email addresses (info, contact, support, loans, notify, updates, welcome)
+   - Add custom email fields dynamically
+   - Automatic column creation for new email fields
+   - Database function automatically creates columns if they don't exist
+
+## Recent Changes
+
+### Dynamic Email Field Support (October 31, 2025)
+Added ability to dynamically create email columns in the `bank_details` table:
+- **Database Function**: `add_bank_details_column_if_not_exists(column_name)` safely creates columns for email fields
+- **API Endpoint**: `/api/admin/update-bank-details` handles column creation and data updates with authentication
+- **Security**: Project-scoped JWT validation ensures only authenticated admins can modify bank details
+- **Frontend**: Bank details page automatically works with any email_* field without database migrations
+
 ## Security
 
 - Admin-only authentication
