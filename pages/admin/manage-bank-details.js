@@ -141,37 +141,38 @@ export default function ManageBankDetails() {
   const handleSaveChanges = async () => {
     setSaving(true);
     try {
-      // Store custom emails as JSON array
       const updatedDetails = { 
         ...bankDetails,
         custom_emails: customEmails.length > 0 ? customEmails : null
       };
 
-      const { data: existingData } = await supabase
-        .from('bank_details')
-        .select('id')
-        .limit(1)
-        .single();
-
-      let result;
-      if (existingData) {
-        result = await supabase
-          .from('bank_details')
-          .update(updatedDetails)
-          .eq('id', existingData.id);
-      } else {
-        result = await supabase
-          .from('bank_details')
-          .insert([updatedDetails]);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        showToast('❌ Session expired. Please login again.', 'error');
+        router.push('/admin/login');
+        return;
       }
 
-      if (result.error) throw result.error;
+      const response = await fetch('/api/admin/update-bank-details', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ bankDetails: updatedDetails })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update bank details');
+      }
 
       showToast('✅ Bank details updated successfully', 'success');
       await fetchBankDetails();
     } catch (err) {
       console.error('Error saving bank details:', err);
-      showToast('❌ Failed to save bank details', 'error');
+      showToast(`❌ ${err.message || 'Failed to save bank details'}`, 'error');
     } finally {
       setSaving(false);
     }
