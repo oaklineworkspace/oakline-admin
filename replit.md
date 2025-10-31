@@ -51,6 +51,19 @@ Preferred communication style: Simple, everyday language.
 - **Cache Control:** Next.js configured with cache-control headers.
 - **Feature Flags:** Environment-based feature flags for crypto, investments, loans, and notifications.
 
+### Routing Architecture
+
+**Route Organization (Updated October 31, 2025):**
+- **`/` (Root)**: Admin Dashboard login and navigation hub - the main entry point for bank staff and administrators
+- **`/home`**: Customer-facing bank homepage with marketing content, account features, and sign-up options
+- **`/dashboard`**: Customer account dashboard (post-login)
+- **`/admin/*`**: Legacy admin routes (maintained for backward compatibility)
+
+**Authentication Flow:**
+- Admin users: Login → redirects to `/` (Admin Navigation Center)
+- Customer users: Login → redirects to `/dashboard` (Customer Dashboard)
+- All customer-facing navigation links point to `/home` instead of `/`
+
 ## External Dependencies
 
 **Payment Processing:**
