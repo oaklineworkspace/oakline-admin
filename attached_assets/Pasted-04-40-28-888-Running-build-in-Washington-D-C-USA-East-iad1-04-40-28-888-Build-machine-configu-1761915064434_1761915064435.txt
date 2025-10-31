@@ -1,0 +1,1273 @@
+04:40:28.888 Running build in Washington, D.C., USA (East) – iad1
+04:40:28.888 Build machine configuration: 2 cores, 8 GB
+04:40:29.102 Cloning github.com/oaklineworkspace/oakline-admin (Branch: main, Commit: b9251a7)
+04:40:30.024 Cloning completed: 922.000ms
+04:40:30.442 Restored build cache from previous deployment (6Wy42aJFWKsVPzJPEx786gufv9q1)
+04:40:30.975 Running "vercel build"
+04:40:31.398 Vercel CLI 48.6.7
+04:40:31.792 Running "install" command: `npm install`...
+04:40:33.295 
+04:40:33.296 up to date, audited 383 packages in 1s
+04:40:33.297 
+04:40:33.297 144 packages are looking for funding
+04:40:33.297   run `npm fund` for details
+04:40:33.298 
+04:40:33.298 2 moderate severity vulnerabilities
+04:40:33.299 
+04:40:33.299 To address all issues (including breaking changes), run:
+04:40:33.299   npm audit fix --force
+04:40:33.300 
+04:40:33.300 Run `npm audit` for details.
+04:40:33.329 Detected Next.js version: 14.2.33
+04:40:33.330 Running "npm run build"
+04:40:33.447 
+04:40:33.447 > oakline-bank@1.0.0 build
+04:40:33.447 > next build
+04:40:33.449 
+04:40:34.127   ▲ Next.js 14.2.33
+04:40:34.127 
+04:40:34.128    Linting and checking validity of types ...
+04:40:34.313    Creating an optimized production build ...
+04:40:38.749 Failed to compile.
+04:40:38.749 
+04:40:38.750 ./pages/api/send-welcome-email-with-credentials.js
+04:40:38.750 Error: 
+04:40:38.750   [31mx[0m the name `nodemailer` is defined multiple times
+04:40:38.750      ,-[[36;1;4m/vercel/path0/pages/api/send-welcome-email-with-credentials.js[0m:1:1]
+04:40:38.750  [2m  1[0m | import { supabaseAdmin } from '../../lib/supabaseAdmin';
+04:40:38.750  [2m  2[0m | import nodemailer from 'nodemailer';
+04:40:38.750      : [31;1m       ^^^^^|^^^^[0m
+04:40:38.750      :             [31;1m`-- [31;1mprevious definition of `nodemailer` here[0m[0m
+04:40:38.750  [2m  3[0m | 
+04:40:38.750  [2m  4[0m | // Generate a secure password with the specified rules:
+04:40:38.750  [2m  5[0m | // - Starts with capital letter
+04:40:38.751  [2m  6[0m | // - Followed by small letters and numbers
+04:40:38.751  [2m  7[0m | // - Special characters: $ & @ #
+04:40:38.751  [2m  8[0m | // - Total length 10-12 characters
+04:40:38.751  [2m  9[0m | function generateSecurePassword() {
+04:40:38.751  [2m 10[0m |   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+04:40:38.751  [2m 11[0m |   const lower = 'abcdefghijklmnopqrstuvwxyz';
+04:40:38.751  [2m 12[0m |   const digits = '0123456789';
+04:40:38.751  [2m 13[0m |   const specials = ['$', '&', '@', '#'];
+04:40:38.751  [2m 14[0m | 
+04:40:38.751  [2m 15[0m |   // Start with one uppercase letter
+04:40:38.751  [2m 16[0m |   const first = upper[Math.floor(Math.random() * upper.length)];
+04:40:38.751  [2m 17[0m | 
+04:40:38.751  [2m 18[0m |   // Generate 6-8 lowercase letters and digits
+04:40:38.752  [2m 19[0m |   const pick = (str, n) => {
+04:40:38.752  [2m 20[0m |     let out = '';
+04:40:38.752  [2m 21[0m |     for (let i = 0; i < n; i++) {
+04:40:38.752  [2m 22[0m |       out += str[Math.floor(Math.random() * str.length)];
+04:40:38.752  [2m 23[0m |     }
+04:40:38.752  [2m 24[0m |     return out;
+04:40:38.752  [2m 25[0m |   };
+04:40:38.752  [2m 26[0m | 
+04:40:38.752  [2m 27[0m |   const middleLength = 6 + Math.floor(Math.random() * 3); // 6-8 characters
+04:40:38.752  [2m 28[0m |   const middle = pick(lower + digits, middleLength);
+04:40:38.752  [2m 29[0m | 
+04:40:38.752  [2m 30[0m |   // Add 1-2 special characters
+04:40:38.752  [2m 31[0m |   const specialCount = 1 + Math.floor(Math.random() * 2);
+04:40:38.752  [2m 32[0m |   let specialPart = '';
+04:40:38.752  [2m 33[0m |   for (let i = 0; i < specialCount; i++) {
+04:40:38.756  [2m 34[0m |     specialPart += specials[Math.floor(Math.random() * specials.length)];
+04:40:38.756  [2m 35[0m |   }
+04:40:38.756  [2m 36[0m | 
+04:40:38.756  [2m 37[0m |   return first + middle + specialPart;
+04:40:38.756  [2m 38[0m | }
+04:40:38.756  [2m 39[0m | 
+04:40:38.756  [2m 40[0m | export default async function handler(req, res) {
+04:40:38.756  [2m 41[0m |   if (req.method !== 'POST') {
+04:40:38.756  [2m 42[0m |     return res.status(405).json({ error: 'Method not allowed' });
+04:40:38.756  [2m 43[0m |   }
+04:40:38.757  [2m 44[0m | 
+04:40:38.757  [2m 45[0m |   const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
+04:40:38.761  [2m 46[0m |   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+04:40:38.762  [2m 47[0m | 
+04:40:38.762  [2m 48[0m |   console.log('🔍 Checking SMTP configuration...');
+04:40:38.762  [2m 49[0m |   console.log('SMTP_HOST:', process.env.SMTP_HOST ? '✅ Set' : '❌ Missing');
+04:40:38.762  [2m 50[0m |   console.log('SMTP_PORT:', process.env.SMTP_PORT ? '✅ Set' : '❌ Missing');
+04:40:38.762  [2m 51[0m |   console.log('SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
+04:40:38.762  [2m 52[0m |   console.log('SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
+04:40:38.762  [2m 53[0m | 
+04:40:38.762  [2m 54[0m |   if (missingVars.length > 0) {
+04:40:38.762  [2m 55[0m |     console.error('❌ Missing SMTP environment variables:', missingVars);
+04:40:38.762  [2m 56[0m |     return res.status(500).json({
+04:40:38.762  [2m 57[0m |       error: 'Email service not configured',
+04:40:38.762  [2m 58[0m |       message: `Missing environment variables: ${missingVars.join(', ')}`
+04:40:38.762  [2m 59[0m |     });
+04:40:38.763  [2m 60[0m |   }
+04:40:38.763  [2m 61[0m | 
+04:40:38.763  [2m 62[0m |   try {
+04:40:38.763  [2m 63[0m |     const {
+04:40:38.763  [2m 64[0m |       email,
+04:40:38.763  [2m 65[0m |       first_name,
+04:40:38.763  [2m 66[0m |       middle_name,
+04:40:38.763  [2m 67[0m |       last_name,
+04:40:38.763  [2m 68[0m |       temp_password, // Renamed for consistency with new email template
+04:40:38.763  [2m 69[0m |       account_numbers,
+04:40:38.763  [2m 70[0m |       account_types,
+04:40:38.763  [2m 71[0m |       has_pending_accounts,
+04:40:38.763  [2m 72[0m |       pending_account_types,
+04:40:38.763  [2m 73[0m |       application_id,
+04:40:38.763  [2m 74[0m |       country,
+04:40:38.764  [2m 75[0m |       site_url,
+04:40:38.764  [2m 76[0m |       bank_details // Assuming this contains all bank info
+04:40:38.764  [2m 77[0m |     } = req.body;
+04:40:38.764  [2m 78[0m | 
+04:40:38.764  [2m 79[0m |     // Basic validation
+04:40:38.764  [2m 80[0m |     if (!email || !first_name || !last_name || !temp_password) {
+04:40:38.764  [2m 81[0m |       return res.status(400).json({ error: 'Missing required fields' });
+04:40:38.764  [2m 82[0m |     }
+04:40:38.764  [2m 83[0m | 
+04:40:38.764  [2m 84[0m |     // Fetch bank details if not provided (assuming it's needed for email)
+04:40:38.764  [2m 85[0m |     let bankInfo = bank_details;
+04:40:38.764  [2m 86[0m |     if (!bankInfo) {
+04:40:38.764  [2m 87[0m |       const { data, error } = await supabaseAdmin
+04:40:38.764  [2m 88[0m |         .from('bank_details')
+04:40:38.764  [2m 89[0m |         .select('*')
+04:40:38.764  [2m 90[0m |         .limit(1)
+04:40:38.765  [2m 91[0m |         .single();
+04:40:38.765  [2m 92[0m | 
+04:40:38.765  [2m 93[0m |       if (error) {
+04:40:38.765  [2m 94[0m |         console.error('Failed to fetch bank details:', error);
+04:40:38.765  [2m 95[0m |         return res.status(500).json({ error: 'Failed to fetch bank details' });
+04:40:38.765  [2m 96[0m |       }
+04:40:38.765  [2m 97[0m |       bankInfo = data;
+04:40:38.765  [2m 98[0m |     }
+04:40:38.765  [2m 99[0m | 
+04:40:38.765  [2m100[0m |     const protocol = req.headers['x-forwarded-proto'] || 'https';
+04:40:38.765  [2m101[0m |     const host = req.headers['x-forwarded-host'] || req.headers.host;
+04:40:38.765  [2m102[0m |     const detectedSiteUrl = site_url || process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+04:40:38.765  [2m103[0m | 
+04:40:38.765  [2m104[0m |     console.log('Using site URL for login:', detectedSiteUrl);
+04:40:38.766  [2m105[0m | 
+04:40:38.766  [2m106[0m |     const transporter = nodemailer.createTransport({
+04:40:38.766  [2m107[0m |       host: process.env.SMTP_HOST,
+04:40:38.766  [2m108[0m |       port: parseInt(process.env.SMTP_PORT) || 587,
+04:40:38.766  [2m109[0m |       secure: process.env.SMTP_PORT === '465',
+04:40:38.766  [2m110[0m |       auth: {
+04:40:38.766  [2m111[0m |         user: process.env.SMTP_USER,
+04:40:38.766  [2m112[0m |         pass: process.env.SMTP_PASS,
+04:40:38.766  [2m113[0m |       },
+04:40:38.766  [2m114[0m |     });
+04:40:38.766  [2m115[0m | 
+04:40:38.766  [2m116[0m |     // Test SMTP connection
+04:40:38.766  [2m117[0m |     console.log('Testing SMTP connection...');
+04:40:38.766  [2m118[0m |     try {
+04:40:38.767  [2m119[0m |       await transporter.verify();
+04:40:38.767  [2m120[0m |       console.log('SMTP connection verified successfully');
+04:40:38.772  [2m121[0m |     } catch (smtpError) {
+04:40:38.772  [2m122[0m |       console.error('SMTP connection failed:', smtpError.message);
+04:40:38.772  [2m123[0m |       return res.status(500).json({
+04:40:38.775  [2m124[0m |         error: 'Email service connection failed',
+04:40:38.775  [2m125[0m |         message: smtpError.message
+04:40:38.775  [2m126[0m |       });
+04:40:38.776  [2m127[0m |     }
+04:40:38.776  [2m128[0m | 
+04:40:38.776  [2m129[0m |     const fullName = middle_name
+04:40:38.776  [2m130[0m |       ? `${first_name} ${middle_name} ${last_name}`
+04:40:38.776  [2m131[0m |       : `${first_name} ${last_name}`;
+04:40:38.776  [2m132[0m | 
+04:40:38.776  [2m133[0m |     const loginUrl = `${detectedSiteUrl}/login`;
+04:40:38.776  [2m134[0m |     const siteUrl = detectedSiteUrl; // Use detectedSiteUrl for email template
+04:40:38.776  [2m135[0m | 
+04:40:38.776  [2m136[0m |     // Format account info for the new email template
+04:40:38.776  [2m137[0m |     const populatedAccountNumbers = account_numbers || [];
+04:40:38.776  [2m138[0m |     const accountDetailsHtml = populatedAccountNumbers.length > 0
+04:40:38.776  [2m139[0m |       ? `
+04:40:38.776  [2m140[0m |       <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #f9fafb; border-radius: 8px; overflow: hidden;">
+04:40:38.776  [2m141[0m |         <thead>
+04:40:38.776  [2m142[0m |           <tr>
+04:40:38.776  [2m143[0m |             <th style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 15px 20px; text-align: left; font-size: 15px; font-weight: 700;">Account Type</th>
+04:40:38.777  [2m144[0m |             <th style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 15px 20px; text-align: right; font-size: 15px; font-weight: 700;">Account Number</th>
+04:40:38.777  [2m145[0m |           </tr>
+04:40:38.777  [2m146[0m |         </thead>
+04:40:38.777  [2m147[0m |         <tbody>
+04:40:38.777  [2m148[0m |           ${populatedAccountNumbers.map((num, idx) => {
+04:40:38.777  [2m149[0m |               const type = account_types && account_types[idx]
+04:40:38.777  [2m150[0m |                 ? account_types[idx].replace(/_/g, ' ').toUpperCase()
+04:40:38.777  [2m151[0m |                 : 'ACCOUNT';
+04:40:38.777  [2m152[0m |               return `
+04:40:38.777  [2m153[0m |                 <tr>
+04:40:38.777  [2m154[0m |                   <td style="padding: 15px 20px; color: #334155; font-size: 15px; font-weight: 600;">${type}</td>
+04:40:38.777  [2m155[0m |                   <td style="padding: 15px 20px; font-family: 'Courier New', monospace; color: #4b5563; font-size: 15px; font-weight: 700; text-align: right;">****${num.slice(-4)}</td>
+04:40:38.777  [2m156[0m |                 </tr>
+04:40:38.777  [2m157[0m |               `;
+04:40:38.777  [2m158[0m |             }).join('')}
+04:40:38.777  [2m159[0m |         </tbody>
+04:40:38.777  [2m160[0m |       </table>
+04:40:38.777  [2m161[0m |       ` : '<p style="margin: 20px 0; color: #6b7280; font-size: 15px;">Your account has been created.</p>';
+04:40:38.777  [2m162[0m | 
+04:40:38.778  [2m163[0m |     // Prepare pending accounts for the new email template
+04:40:38.778  [2m164[0m |     const pendingAccounts = pending_account_types || [];
+04:40:38.778  [2m165[0m | 
+04:40:38.778  [2m166[0m |     // Create email HTML using the updated structure and styles
+04:40:38.778  [2m167[0m |     const emailHtml = `
+04:40:38.778  [2m168[0m |       <!DOCTYPE html>
+04:40:38.778  [2m169[0m |       <html>
+04:40:38.778  [2m170[0m |       <head>
+04:40:38.778  [2m171[0m |         <meta charset="utf-8">
+04:40:38.778  [2m172[0m |         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+04:40:38.778  [2m173[0m |         <title>Welcome to ${bankInfo.name || 'Oakline Bank'}</title>
+04:40:38.778  [2m174[0m |       </head>
+04:40:38.778  [2m175[0m |       <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8;">
+04:40:38.778  [2m176[0m |         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f0f4f8;">
+04:40:38.778  [2m177[0m |           <tr>
+04:40:38.778  [2m178[0m |             <td align="center" style="padding: 40px 20px;">
+04:40:38.778  [2m179[0m |               <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(30, 64, 175, 0.15);">
+04:40:38.779  [2m180[0m | 
+04:40:38.779  [2m181[0m |                 <!-- Professional Header with Logo -->
+04:40:38.779  [2m182[0m |                 <tr>
+04:40:38.779  [2m183[0m |                   <td style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 0; text-align: center;">
+04:40:38.779  [2m184[0m |                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
+04:40:38.779  [2m185[0m |                       <tr>
+04:40:38.779  [2m186[0m |                         <td style="padding: 30px 20px 20px 20px; text-align: center;">
+04:40:38.779  [2m187[0m |                           <div style="background-color: white; display: inline-block; padding: 15px 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+04:40:38.779  [2m188[0m |                             <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #1e40af; letter-spacing: -0.5px;">
+04:40:38.779  [2m189[0m |                               🏦 ${bankInfo.name || 'OAKLINE BANK'}
+04:40:38.779  [2m190[0m |                             </h1>
+04:40:38.779  [2m191[0m |                           </div>
+04:40:38.779  [2m192[0m |                         </td>
+04:40:38.779  [2m193[0m |                       </tr>
+04:40:38.779  [2m194[0m |                       <tr>
+04:40:38.779  [2m195[0m |                         <td style="padding: 20px 20px 30px 20px; text-align: center;">
+04:40:38.779  [2m196[0m |                           <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Welcome to Your Financial Future</h2>
+04:40:38.780  [2m197[0m |                           <p style="margin: 10px 0 0 0; color: #e0e7ff; font-size: 16px;">Your Account is Ready!</p>
+04:40:38.780  [2m198[0m |                         </td>
+04:40:38.780  [2m199[0m |                       </tr>
+04:40:38.780  [2m200[0m |                     </table>
+04:40:38.780  [2m201[0m |                   </td>
+04:40:38.780  [2m202[0m |                 </tr>
+04:40:38.780  [2m203[0m | 
+04:40:38.780  [2m204[0m |                 <!-- Main Content Body -->
+04:40:38.780  [2m205[0m |                 <tr>
+04:40:38.780  [2m206[0m |                   <td style="padding: 40px 30px; background-color: #ffffff;">
+04:40:38.780  [2m207[0m |                     <h3 style="margin: 0 0 20px 0; color: #1e40af; font-size: 22px; font-weight: 700;">
+04:40:38.780  [2m208[0m |                       Hello ${first_name} ${last_name},
+04:40:38.780  [2m209[0m |                     </h3>
+04:40:38.780  [2m210[0m | 
+04:40:38.780  [2m211[0m |                     <p style="margin: 0 0 20px 0; color: #334155; font-size: 16px; line-height: 1.6;">
+04:40:38.780  [2m212[0m |                       Congratulations! Your application has been <strong style="color: #1e40af;">approved</strong> and your account${populatedAccountNumbers.length > 1 ? 's are' : ' is'} ready for activation.
+04:40:38.780  [2m213[0m |                     </p>
+04:40:38.780  [2m214[0m | 
+04:40:38.780  [2m215[0m |                     ${accountDetailsHtml}
+04:40:38.781  [2m216[0m | 
+04:40:38.781  [2m217[0m |                     ${has_pending_accounts && pendingAccounts.length > 0 ? `
+04:40:38.781  [2m218[0m |                     <!-- Pending Accounts Notice -->
+04:40:38.781  [2m219[0m |                     <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 8px;">
+04:40:38.781  [2m220[0m |                       <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.781  [2m221[0m |                         📋 Additional Accounts Pending Approval
+04:40:38.781  [2m222[0m |                       </h4>
+04:40:38.781  [2m223[0m |                       <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.5;">
+04:40:38.781  [2m224[0m |                         Your <strong>${pendingAccounts.join(', ').replace(/_/g, ' ').toUpperCase()}</strong> ${pendingAccounts.length > 1 ? 'accounts are' : 'account is'} currently under review. You will receive a notification email once ${pendingAccounts.length > 1 ? 'they are' : 'it is'} approved and ready to use.
+04:40:38.781  [2m225[0m |                       </p>
+04:40:38.781  [2m226[0m |                     </div>
+04:40:38.781  [2m227[0m |                     ` : ''}
+04:40:38.781  [2m228[0m | 
+04:40:38.781  [2m229[0m |                     <!-- Login Credentials Box -->
+04:40:38.781  [2m230[0m |                     <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 30px; margin: 30px 0; box-shadow: 0 8px 24px rgba(30, 64, 175, 0.4); border: 3px solid #ffffff;">
+04:40:38.781  [2m231[0m |                       <h4 style="margin: 0 0 20px 0; color: #ffffff; font-size: 22px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
+04:40:38.781  [2m232[0m |                         🔐 YOUR LOGIN CREDENTIALS
+04:40:38.781  [2m233[0m |                       </h4>
+04:40:38.781  [2m234[0m |                       <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: rgba(255,255,255,0.15); border-radius: 8px; padding: 15px;">
+04:40:38.781  [2m235[0m |                         <tr>
+04:40:38.781  [2m236[0m |                           <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Email:</td>
+04:40:38.781  [2m237[0m |                           <td style="padding: 12px; text-align: right;">
+04:40:38.782  [2m238[0m |                             <code style="background-color: #ffffff; color: #1e40af; padding: 8px 16px; border-radius: 6px; font-size: 15px; font-family: 'Courier New', monospace; font-weight: 700;">${email}</code>
+04:40:38.782  [2m239[0m |                           </td>
+04:40:38.782  [2m240[0m |                         </tr>
+04:40:38.782  [2m241[0m |                         <tr>
+04:40:38.782  [2m242[0m |                           <td colspan="2" style="height: 10px;"></td>
+04:40:38.782  [2m243[0m |                         </tr>
+04:40:38.782  [2m244[0m |                         <tr>
+04:40:38.782  [2m245[0m |                           <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Temporary Password:</td>
+04:40:38.782  [2m246[0m |                           <td style="padding: 12px; text-align: right;">
+04:40:38.782  [2m247[0m |                             <code style="background-color: #ffffff; color: #1e40af; padding: 10px 18px; border-radius: 6px; font-size: 16px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 2px; border: 2px solid #fbbf24;">${temp_password}</code>
+04:40:38.782  [2m248[0m |                           </td>
+04:40:38.782  [2m249[0m |                         </tr>
+04:40:38.782  [2m250[0m |                       </table>
+04:40:38.782  [2m251[0m |                     </div>
+04:40:38.782  [2m252[0m | 
+04:40:38.782  [2m253[0m |                     <!-- Security Warning -->
+04:40:38.782  [2m254[0m |                     <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px 20px; margin: 25px 0; border-radius: 8px;">
+04:40:38.782  [2m255[0m |                       <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">
+04:40:38.782  [2m256[0m |                         ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login.
+04:40:38.782  [2m257[0m |                       </p>
+04:40:38.783  [2m258[0m |                     </div>
+04:40:38.783  [2m259[0m | 
+04:40:38.783  [2m260[0m |                     <!-- CTA Button -->
+04:40:38.783  [2m261[0m |                     <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
+04:40:38.783  [2m262[0m |                       <tr>
+04:40:38.783  [2m263[0m |                         <td align="center">
+04:40:38.783  [2m264[0m |                           <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.3);">
+04:40:38.783  [2m265[0m |                             Login to Your Account
+04:40:38.783  [2m266[0m |                           </a>
+04:40:38.783  [2m267[0m |                         </td>
+04:40:38.783  [2m268[0m |                       </tr>
+04:40:38.783  [2m269[0m |                     </table>
+04:40:38.783  [2m270[0m | 
+04:40:38.783  [2m271[0m |                     <!-- What's Next Section -->
+04:40:38.783  [2m272[0m |                     <div style="background-color: #f8fafc; border-radius: 12px; padding: 25px; margin: 30px 0;">
+04:40:38.783  [2m273[0m |                       <h4 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 700;">
+04:40:38.783  [2m274[0m |                         🚀 What's Next?
+04:40:38.783  [2m275[0m |                       </h4>
+04:40:38.783  [2m276[0m |                       <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+04:40:38.783  [2m277[0m |                         <li>Login with your credentials above</li>
+04:40:38.783  [2m278[0m |                         <li>Set up a secure password</li>
+04:40:38.783  [2m279[0m |                         <li>Explore your account dashboard</li>
+04:40:38.784  [2m280[0m |                         <li>Set up direct deposits and bill payments</li>
+04:40:38.784  [2m281[0m |                         <li>Download our mobile app for banking on the go</li>
+04:40:38.784  [2m282[0m |                       </ul>
+04:40:38.784  [2m283[0m |                     </div>
+04:40:38.784  [2m284[0m | 
+04:40:38.784  [2m285[0m |                     <p style="margin: 30px 0 10px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+04:40:38.784  [2m286[0m |                       If you have any questions, our support team is here to help 24/7.
+04:40:38.784  [2m287[0m |                     </p>
+04:40:38.784  [2m288[0m |                     <p style="margin: 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.784  [2m289[0m |                       Welcome aboard!<br>
+04:40:38.784  [2m290[0m |                       The ${bankInfo.name || 'Oakline Bank'} Team
+04:40:38.784  [2m291[0m |                     </p>
+04:40:38.784  [2m292[0m |                   </td>
+04:40:38.784  [2m293[0m |                 </tr>
+04:40:38.784  [2m294[0m | 
+04:40:38.784  [2m295[0m |                 <!-- Professional Footer -->
+04:40:38.784  [2m296[0m |                 <tr>
+04:40:38.784  [2m297[0m |                   <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+04:40:38.784  [2m298[0m |                     <p style="margin: 0 0 10px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.784  [2m299[0m |                       ${bankInfo.name || 'Oakline Bank'}
+04:40:38.785  [2m300[0m |                     </p>
+04:40:38.785  [2m301[0m |                     <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
+04:40:38.785  [2m302[0m |                       ${bankInfo.address || ''}
+04:40:38.785  [2m303[0m |                     </p>
+04:40:38.785  [2m304[0m |                     <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
+04:40:38.785  [2m305[0m |                       Phone: ${bankInfo.phone || ''} | Email: ${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}
+04:40:38.786  [2m306[0m |                     </p>
+04:40:38.786  [2m307[0m |                     <p style="margin: 20px 0 0 0; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px;">
+04:40:38.786  [2m308[0m |                       © ${new Date().getFullYear()} ${bankInfo.name || 'Oakline Bank'}. All rights reserved.<br>
+04:40:38.786  [2m309[0m |                       Member FDIC | Routing: ${bankInfo.routing_number || '075915826'}
+04:40:38.786  [2m310[0m |                     </p>
+04:40:38.786  [2m311[0m |                   </td>
+04:40:38.786  [2m312[0m |                 </tr>
+04:40:38.786  [2m313[0m | 
+04:40:38.786  [2m314[0m |               </table>
+04:40:38.786  [2m315[0m |             </td>
+04:40:38.786  [2m316[0m |           </tr>
+04:40:38.786  [2m317[0m |         </table>
+04:40:38.786  [2m318[0m |       </body>
+04:40:38.786  [2m319[0m |       </html>
+04:40:38.786  [2m320[0m |     `;
+04:40:38.786  [2m321[0m | 
+04:40:38.787  [2m322[0m | 
+04:40:38.787  [2m323[0m |     const mailOptions = {
+04:40:38.787  [2m324[0m |       from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_welcome || 'welcome@theoaklinebank.com'}>`,
+04:40:38.787  [2m325[0m |       to: email,
+04:40:38.787  [2m326[0m |       subject: `Welcome to ${bankInfo.name || 'Oakline Bank'} — Your Account Has Been Approved`,
+04:40:38.787  [2m327[0m |       html: emailHtml
+04:40:38.787  [2m328[0m |     };
+04:40:38.787  [2m329[0m | 
+04:40:38.787  [2m330[0m |     const info = await transporter.sendMail(mailOptions);
+04:40:38.787  [2m331[0m |     console.log('Welcome email sent successfully:', info.messageId);
+04:40:38.787  [2m332[0m | 
+04:40:38.787  [2m333[0m |     // Note: Debit card generation and specific user notification logic beyond this email
+04:40:38.787  [2m334[0m |     // are not included as there were no corresponding code changes provided in the snippet.
+04:40:38.787  [2m335[0m |     // This would typically involve additional API calls or service integrations.
+04:40:38.787  [2m336[0m | 
+04:40:38.787  [2m337[0m |     return res.status(200).json({
+04:40:38.787  [2m338[0m |       success: true,
+04:40:38.792  [2m339[0m |       message: 'Welcome email sent successfully',
+04:40:38.792  [2m340[0m |       messageId: info.messageId
+04:40:38.792  [2m341[0m |     });
+04:40:38.792  [2m342[0m | 
+04:40:38.793  [2m343[0m |   } catch (error) {
+04:40:38.793  [2m344[0m |     console.error('Error processing account approval:', error);
+04:40:38.793  [2m345[0m |     return res.status(500).json({
+04:40:38.793  [2m346[0m |       error: 'Failed to process account approval',
+04:40:38.793  [2m347[0m |       details: error.message
+04:40:38.793  [2m348[0m |     });
+04:40:38.793  [2m349[0m |   }
+04:40:38.793  [2m350[0m | }
+04:40:38.794  [2m351[0m | import nodemailer from 'nodemailer';
+04:40:38.794      : [33;1m       ^^^^^|^^^^[0m
+04:40:38.794      :             [33;1m`-- [33;1m`nodemailer` redefined here[0m[0m
+04:40:38.794  [2m352[0m | 
+04:40:38.794  [2m353[0m | const transporter = nodemailer.createTransport({
+04:40:38.794  [2m354[0m |   host: process.env.SMTP_HOST,
+04:40:38.794      `----
+04:40:38.794 
+04:40:38.794   [31mx[0m the name `handler` is defined multiple times
+04:40:38.794      ,-[[36;1;4m/vercel/path0/pages/api/send-welcome-email-with-credentials.js[0m:37:1]
+04:40:38.794  [2m 37[0m |   return first + middle + specialPart;
+04:40:38.794  [2m 38[0m | }
+04:40:38.794  [2m 39[0m | 
+04:40:38.794  [2m 40[0m | export default async function handler(req, res) {
+04:40:38.794      : [31;1m                              ^^^|^^^[0m
+04:40:38.794      :                                  [31;1m`-- [31;1mprevious definition of `handler` here[0m[0m
+04:40:38.794  [2m 41[0m |   if (req.method !== 'POST') {
+04:40:38.794  [2m 42[0m |     return res.status(405).json({ error: 'Method not allowed' });
+04:40:38.794  [2m 43[0m |   }
+04:40:38.794  [2m 44[0m | 
+04:40:38.794  [2m 45[0m |   const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
+04:40:38.794  [2m 46[0m |   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+04:40:38.794  [2m 47[0m | 
+04:40:38.794  [2m 48[0m |   console.log('🔍 Checking SMTP configuration...');
+04:40:38.794  [2m 49[0m |   console.log('SMTP_HOST:', process.env.SMTP_HOST ? '✅ Set' : '❌ Missing');
+04:40:38.794  [2m 50[0m |   console.log('SMTP_PORT:', process.env.SMTP_PORT ? '✅ Set' : '❌ Missing');
+04:40:38.794  [2m 51[0m |   console.log('SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
+04:40:38.795  [2m 52[0m |   console.log('SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
+04:40:38.795  [2m 53[0m | 
+04:40:38.795  [2m 54[0m |   if (missingVars.length > 0) {
+04:40:38.795  [2m 55[0m |     console.error('❌ Missing SMTP environment variables:', missingVars);
+04:40:38.795  [2m 56[0m |     return res.status(500).json({
+04:40:38.795  [2m 57[0m |       error: 'Email service not configured',
+04:40:38.795  [2m 58[0m |       message: `Missing environment variables: ${missingVars.join(', ')}`
+04:40:38.795  [2m 59[0m |     });
+04:40:38.795  [2m 60[0m |   }
+04:40:38.795  [2m 61[0m | 
+04:40:38.795  [2m 62[0m |   try {
+04:40:38.795  [2m 63[0m |     const {
+04:40:38.795  [2m 64[0m |       email,
+04:40:38.795  [2m 65[0m |       first_name,
+04:40:38.795  [2m 66[0m |       middle_name,
+04:40:38.795  [2m 67[0m |       last_name,
+04:40:38.795  [2m 68[0m |       temp_password, // Renamed for consistency with new email template
+04:40:38.795  [2m 69[0m |       account_numbers,
+04:40:38.795  [2m 70[0m |       account_types,
+04:40:38.795  [2m 71[0m |       has_pending_accounts,
+04:40:38.795  [2m 72[0m |       pending_account_types,
+04:40:38.795  [2m 73[0m |       application_id,
+04:40:38.795  [2m 74[0m |       country,
+04:40:38.795  [2m 75[0m |       site_url,
+04:40:38.795  [2m 76[0m |       bank_details // Assuming this contains all bank info
+04:40:38.795  [2m 77[0m |     } = req.body;
+04:40:38.795  [2m 78[0m | 
+04:40:38.795  [2m 79[0m |     // Basic validation
+04:40:38.795  [2m 80[0m |     if (!email || !first_name || !last_name || !temp_password) {
+04:40:38.796  [2m 81[0m |       return res.status(400).json({ error: 'Missing required fields' });
+04:40:38.796  [2m 82[0m |     }
+04:40:38.796  [2m 83[0m | 
+04:40:38.796  [2m 84[0m |     // Fetch bank details if not provided (assuming it's needed for email)
+04:40:38.796  [2m 85[0m |     let bankInfo = bank_details;
+04:40:38.796  [2m 86[0m |     if (!bankInfo) {
+04:40:38.796  [2m 87[0m |       const { data, error } = await supabaseAdmin
+04:40:38.796  [2m 88[0m |         .from('bank_details')
+04:40:38.796  [2m 89[0m |         .select('*')
+04:40:38.796  [2m 90[0m |         .limit(1)
+04:40:38.796  [2m 91[0m |         .single();
+04:40:38.796  [2m 92[0m | 
+04:40:38.796  [2m 93[0m |       if (error) {
+04:40:38.796  [2m 94[0m |         console.error('Failed to fetch bank details:', error);
+04:40:38.796  [2m 95[0m |         return res.status(500).json({ error: 'Failed to fetch bank details' });
+04:40:38.796  [2m 96[0m |       }
+04:40:38.796  [2m 97[0m |       bankInfo = data;
+04:40:38.798  [2m 98[0m |     }
+04:40:38.798  [2m 99[0m | 
+04:40:38.798  [2m100[0m |     const protocol = req.headers['x-forwarded-proto'] || 'https';
+04:40:38.798  [2m101[0m |     const host = req.headers['x-forwarded-host'] || req.headers.host;
+04:40:38.798  [2m102[0m |     const detectedSiteUrl = site_url || process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+04:40:38.798  [2m103[0m | 
+04:40:38.798  [2m104[0m |     console.log('Using site URL for login:', detectedSiteUrl);
+04:40:38.798  [2m105[0m | 
+04:40:38.798  [2m106[0m |     const transporter = nodemailer.createTransport({
+04:40:38.798  [2m107[0m |       host: process.env.SMTP_HOST,
+04:40:38.798  [2m108[0m |       port: parseInt(process.env.SMTP_PORT) || 587,
+04:40:38.798  [2m109[0m |       secure: process.env.SMTP_PORT === '465',
+04:40:38.798  [2m110[0m |       auth: {
+04:40:38.798  [2m111[0m |         user: process.env.SMTP_USER,
+04:40:38.798  [2m112[0m |         pass: process.env.SMTP_PASS,
+04:40:38.798  [2m113[0m |       },
+04:40:38.798  [2m114[0m |     });
+04:40:38.798  [2m115[0m | 
+04:40:38.799  [2m116[0m |     // Test SMTP connection
+04:40:38.799  [2m117[0m |     console.log('Testing SMTP connection...');
+04:40:38.799  [2m118[0m |     try {
+04:40:38.799  [2m119[0m |       await transporter.verify();
+04:40:38.799  [2m120[0m |       console.log('SMTP connection verified successfully');
+04:40:38.799  [2m121[0m |     } catch (smtpError) {
+04:40:38.799  [2m122[0m |       console.error('SMTP connection failed:', smtpError.message);
+04:40:38.799  [2m123[0m |       return res.status(500).json({
+04:40:38.799  [2m124[0m |         error: 'Email service connection failed',
+04:40:38.799  [2m125[0m |         message: smtpError.message
+04:40:38.799  [2m126[0m |       });
+04:40:38.799  [2m127[0m |     }
+04:40:38.799  [2m128[0m | 
+04:40:38.799  [2m129[0m |     const fullName = middle_name
+04:40:38.799  [2m130[0m |       ? `${first_name} ${middle_name} ${last_name}`
+04:40:38.799  [2m131[0m |       : `${first_name} ${last_name}`;
+04:40:38.799  [2m132[0m | 
+04:40:38.799  [2m133[0m |     const loginUrl = `${detectedSiteUrl}/login`;
+04:40:38.799  [2m134[0m |     const siteUrl = detectedSiteUrl; // Use detectedSiteUrl for email template
+04:40:38.799  [2m135[0m | 
+04:40:38.799  [2m136[0m |     // Format account info for the new email template
+04:40:38.799  [2m137[0m |     const populatedAccountNumbers = account_numbers || [];
+04:40:38.799  [2m138[0m |     const accountDetailsHtml = populatedAccountNumbers.length > 0
+04:40:38.799  [2m139[0m |       ? `
+04:40:38.799  [2m140[0m |       <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #f9fafb; border-radius: 8px; overflow: hidden;">
+04:40:38.799  [2m141[0m |         <thead>
+04:40:38.799  [2m142[0m |           <tr>
+04:40:38.799  [2m143[0m |             <th style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 15px 20px; text-align: left; font-size: 15px; font-weight: 700;">Account Type</th>
+04:40:38.799  [2m144[0m |             <th style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 15px 20px; text-align: right; font-size: 15px; font-weight: 700;">Account Number</th>
+04:40:38.800  [2m145[0m |           </tr>
+04:40:38.800  [2m146[0m |         </thead>
+04:40:38.800  [2m147[0m |         <tbody>
+04:40:38.800  [2m148[0m |           ${populatedAccountNumbers.map((num, idx) => {
+04:40:38.800  [2m149[0m |               const type = account_types && account_types[idx]
+04:40:38.800  [2m150[0m |                 ? account_types[idx].replace(/_/g, ' ').toUpperCase()
+04:40:38.800  [2m151[0m |                 : 'ACCOUNT';
+04:40:38.800  [2m152[0m |               return `
+04:40:38.800  [2m153[0m |                 <tr>
+04:40:38.800  [2m154[0m |                   <td style="padding: 15px 20px; color: #334155; font-size: 15px; font-weight: 600;">${type}</td>
+04:40:38.800  [2m155[0m |                   <td style="padding: 15px 20px; font-family: 'Courier New', monospace; color: #4b5563; font-size: 15px; font-weight: 700; text-align: right;">****${num.slice(-4)}</td>
+04:40:38.800  [2m156[0m |                 </tr>
+04:40:38.800  [2m157[0m |               `;
+04:40:38.800  [2m158[0m |             }).join('')}
+04:40:38.800  [2m159[0m |         </tbody>
+04:40:38.800  [2m160[0m |       </table>
+04:40:38.800  [2m161[0m |       ` : '<p style="margin: 20px 0; color: #6b7280; font-size: 15px;">Your account has been created.</p>';
+04:40:38.800  [2m162[0m | 
+04:40:38.800  [2m163[0m |     // Prepare pending accounts for the new email template
+04:40:38.800  [2m164[0m |     const pendingAccounts = pending_account_types || [];
+04:40:38.800  [2m165[0m | 
+04:40:38.800  [2m166[0m |     // Create email HTML using the updated structure and styles
+04:40:38.800  [2m167[0m |     const emailHtml = `
+04:40:38.800  [2m168[0m |       <!DOCTYPE html>
+04:40:38.800  [2m169[0m |       <html>
+04:40:38.800  [2m170[0m |       <head>
+04:40:38.800  [2m171[0m |         <meta charset="utf-8">
+04:40:38.801  [2m172[0m |         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+04:40:38.801  [2m173[0m |         <title>Welcome to ${bankInfo.name || 'Oakline Bank'}</title>
+04:40:38.801  [2m174[0m |       </head>
+04:40:38.801  [2m175[0m |       <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8;">
+04:40:38.801  [2m176[0m |         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f0f4f8;">
+04:40:38.801  [2m177[0m |           <tr>
+04:40:38.801  [2m178[0m |             <td align="center" style="padding: 40px 20px;">
+04:40:38.801  [2m179[0m |               <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(30, 64, 175, 0.15);">
+04:40:38.801  [2m180[0m | 
+04:40:38.801  [2m181[0m |                 <!-- Professional Header with Logo -->
+04:40:38.802  [2m182[0m |                 <tr>
+04:40:38.802  [2m183[0m |                   <td style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 0; text-align: center;">
+04:40:38.802  [2m184[0m |                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
+04:40:38.802  [2m185[0m |                       <tr>
+04:40:38.802  [2m186[0m |                         <td style="padding: 30px 20px 20px 20px; text-align: center;">
+04:40:38.802  [2m187[0m |                           <div style="background-color: white; display: inline-block; padding: 15px 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+04:40:38.802  [2m188[0m |                             <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #1e40af; letter-spacing: -0.5px;">
+04:40:38.802  [2m189[0m |                               🏦 ${bankInfo.name || 'OAKLINE BANK'}
+04:40:38.802  [2m190[0m |                             </h1>
+04:40:38.802  [2m191[0m |                           </div>
+04:40:38.802  [2m192[0m |                         </td>
+04:40:38.802  [2m193[0m |                       </tr>
+04:40:38.802  [2m194[0m |                       <tr>
+04:40:38.802  [2m195[0m |                         <td style="padding: 20px 20px 30px 20px; text-align: center;">
+04:40:38.802  [2m196[0m |                           <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Welcome to Your Financial Future</h2>
+04:40:38.802  [2m197[0m |                           <p style="margin: 10px 0 0 0; color: #e0e7ff; font-size: 16px;">Your Account is Ready!</p>
+04:40:38.802  [2m198[0m |                         </td>
+04:40:38.802  [2m199[0m |                       </tr>
+04:40:38.802  [2m200[0m |                     </table>
+04:40:38.802  [2m201[0m |                   </td>
+04:40:38.802  [2m202[0m |                 </tr>
+04:40:38.802  [2m203[0m | 
+04:40:38.802  [2m204[0m |                 <!-- Main Content Body -->
+04:40:38.802  [2m205[0m |                 <tr>
+04:40:38.802  [2m206[0m |                   <td style="padding: 40px 30px; background-color: #ffffff;">
+04:40:38.802  [2m207[0m |                     <h3 style="margin: 0 0 20px 0; color: #1e40af; font-size: 22px; font-weight: 700;">
+04:40:38.802  [2m208[0m |                       Hello ${first_name} ${last_name},
+04:40:38.802  [2m209[0m |                     </h3>
+04:40:38.802  [2m210[0m | 
+04:40:38.802  [2m211[0m |                     <p style="margin: 0 0 20px 0; color: #334155; font-size: 16px; line-height: 1.6;">
+04:40:38.802  [2m212[0m |                       Congratulations! Your application has been <strong style="color: #1e40af;">approved</strong> and your account${populatedAccountNumbers.length > 1 ? 's are' : ' is'} ready for activation.
+04:40:38.802  [2m213[0m |                     </p>
+04:40:38.802  [2m214[0m | 
+04:40:38.802  [2m215[0m |                     ${accountDetailsHtml}
+04:40:38.803  [2m216[0m | 
+04:40:38.803  [2m217[0m |                     ${has_pending_accounts && pendingAccounts.length > 0 ? `
+04:40:38.803  [2m218[0m |                     <!-- Pending Accounts Notice -->
+04:40:38.803  [2m219[0m |                     <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 8px;">
+04:40:38.803  [2m220[0m |                       <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.803  [2m221[0m |                         📋 Additional Accounts Pending Approval
+04:40:38.803  [2m222[0m |                       </h4>
+04:40:38.803  [2m223[0m |                       <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.5;">
+04:40:38.803  [2m224[0m |                         Your <strong>${pendingAccounts.join(', ').replace(/_/g, ' ').toUpperCase()}</strong> ${pendingAccounts.length > 1 ? 'accounts are' : 'account is'} currently under review. You will receive a notification email once ${pendingAccounts.length > 1 ? 'they are' : 'it is'} approved and ready to use.
+04:40:38.803  [2m225[0m |                       </p>
+04:40:38.803  [2m226[0m |                     </div>
+04:40:38.803  [2m227[0m |                     ` : ''}
+04:40:38.803  [2m228[0m | 
+04:40:38.803  [2m229[0m |                     <!-- Login Credentials Box -->
+04:40:38.803  [2m230[0m |                     <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 30px; margin: 30px 0; box-shadow: 0 8px 24px rgba(30, 64, 175, 0.4); border: 3px solid #ffffff;">
+04:40:38.803  [2m231[0m |                       <h4 style="margin: 0 0 20px 0; color: #ffffff; font-size: 22px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
+04:40:38.803  [2m232[0m |                         🔐 YOUR LOGIN CREDENTIALS
+04:40:38.803  [2m233[0m |                       </h4>
+04:40:38.803  [2m234[0m |                       <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: rgba(255,255,255,0.15); border-radius: 8px; padding: 15px;">
+04:40:38.803  [2m235[0m |                         <tr>
+04:40:38.803  [2m236[0m |                           <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Email:</td>
+04:40:38.803  [2m237[0m |                           <td style="padding: 12px; text-align: right;">
+04:40:38.803  [2m238[0m |                             <code style="background-color: #ffffff; color: #1e40af; padding: 8px 16px; border-radius: 6px; font-size: 15px; font-family: 'Courier New', monospace; font-weight: 700;">${email}</code>
+04:40:38.803  [2m239[0m |                           </td>
+04:40:38.803  [2m240[0m |                         </tr>
+04:40:38.803  [2m241[0m |                         <tr>
+04:40:38.803  [2m242[0m |                           <td colspan="2" style="height: 10px;"></td>
+04:40:38.803  [2m243[0m |                         </tr>
+04:40:38.811  [2m244[0m |                         <tr>
+04:40:38.811  [2m245[0m |                           <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Temporary Password:</td>
+04:40:38.811  [2m246[0m |                           <td style="padding: 12px; text-align: right;">
+04:40:38.812  [2m247[0m |                             <code style="background-color: #ffffff; color: #1e40af; padding: 10px 18px; border-radius: 6px; font-size: 16px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 2px; border: 2px solid #fbbf24;">${temp_password}</code>
+04:40:38.812  [2m248[0m |                           </td>
+04:40:38.812  [2m249[0m |                         </tr>
+04:40:38.812  [2m250[0m |                       </table>
+04:40:38.812  [2m251[0m |                     </div>
+04:40:38.812  [2m252[0m | 
+04:40:38.812  [2m253[0m |                     <!-- Security Warning -->
+04:40:38.812  [2m254[0m |                     <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px 20px; margin: 25px 0; border-radius: 8px;">
+04:40:38.812  [2m255[0m |                       <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">
+04:40:38.812  [2m256[0m |                         ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login.
+04:40:38.812  [2m257[0m |                       </p>
+04:40:38.812  [2m258[0m |                     </div>
+04:40:38.813  [2m259[0m | 
+04:40:38.813  [2m260[0m |                     <!-- CTA Button -->
+04:40:38.813  [2m261[0m |                     <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
+04:40:38.813  [2m262[0m |                       <tr>
+04:40:38.813  [2m263[0m |                         <td align="center">
+04:40:38.813  [2m264[0m |                           <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.3);">
+04:40:38.813  [2m265[0m |                             Login to Your Account
+04:40:38.813  [2m266[0m |                           </a>
+04:40:38.813  [2m267[0m |                         </td>
+04:40:38.813  [2m268[0m |                       </tr>
+04:40:38.813  [2m269[0m |                     </table>
+04:40:38.813  [2m270[0m | 
+04:40:38.813  [2m271[0m |                     <!-- What's Next Section -->
+04:40:38.813  [2m272[0m |                     <div style="background-color: #f8fafc; border-radius: 12px; padding: 25px; margin: 30px 0;">
+04:40:38.814  [2m273[0m |                       <h4 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 700;">
+04:40:38.814  [2m274[0m |                         🚀 What's Next?
+04:40:38.814  [2m275[0m |                       </h4>
+04:40:38.814  [2m276[0m |                       <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+04:40:38.814  [2m277[0m |                         <li>Login with your credentials above</li>
+04:40:38.814  [2m278[0m |                         <li>Set up a secure password</li>
+04:40:38.814  [2m279[0m |                         <li>Explore your account dashboard</li>
+04:40:38.814  [2m280[0m |                         <li>Set up direct deposits and bill payments</li>
+04:40:38.814  [2m281[0m |                         <li>Download our mobile app for banking on the go</li>
+04:40:38.814  [2m282[0m |                       </ul>
+04:40:38.814  [2m283[0m |                     </div>
+04:40:38.814  [2m284[0m | 
+04:40:38.814  [2m285[0m |                     <p style="margin: 30px 0 10px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+04:40:38.814  [2m286[0m |                       If you have any questions, our support team is here to help 24/7.
+04:40:38.815  [2m287[0m |                     </p>
+04:40:38.815  [2m288[0m |                     <p style="margin: 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.815  [2m289[0m |                       Welcome aboard!<br>
+04:40:38.815  [2m290[0m |                       The ${bankInfo.name || 'Oakline Bank'} Team
+04:40:38.815  [2m291[0m |                     </p>
+04:40:38.815  [2m292[0m |                   </td>
+04:40:38.815  [2m293[0m |                 </tr>
+04:40:38.815  [2m294[0m | 
+04:40:38.815  [2m295[0m |                 <!-- Professional Footer -->
+04:40:38.815  [2m296[0m |                 <tr>
+04:40:38.815  [2m297[0m |                   <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+04:40:38.815  [2m298[0m |                     <p style="margin: 0 0 10px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.815  [2m299[0m |                       ${bankInfo.name || 'Oakline Bank'}
+04:40:38.815  [2m300[0m |                     </p>
+04:40:38.815  [2m301[0m |                     <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
+04:40:38.816  [2m302[0m |                       ${bankInfo.address || ''}
+04:40:38.816  [2m303[0m |                     </p>
+04:40:38.816  [2m304[0m |                     <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
+04:40:38.816  [2m305[0m |                       Phone: ${bankInfo.phone || ''} | Email: ${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}
+04:40:38.816  [2m306[0m |                     </p>
+04:40:38.816  [2m307[0m |                     <p style="margin: 20px 0 0 0; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px;">
+04:40:38.816  [2m308[0m |                       © ${new Date().getFullYear()} ${bankInfo.name || 'Oakline Bank'}. All rights reserved.<br>
+04:40:38.816  [2m309[0m |                       Member FDIC | Routing: ${bankInfo.routing_number || '075915826'}
+04:40:38.816  [2m310[0m |                     </p>
+04:40:38.816  [2m311[0m |                   </td>
+04:40:38.816  [2m312[0m |                 </tr>
+04:40:38.816  [2m313[0m | 
+04:40:38.816  [2m314[0m |               </table>
+04:40:38.816  [2m315[0m |             </td>
+04:40:38.817  [2m316[0m |           </tr>
+04:40:38.817  [2m317[0m |         </table>
+04:40:38.817  [2m318[0m |       </body>
+04:40:38.817  [2m319[0m |       </html>
+04:40:38.817  [2m320[0m |     `;
+04:40:38.817  [2m321[0m | 
+04:40:38.817  [2m322[0m | 
+04:40:38.817  [2m323[0m |     const mailOptions = {
+04:40:38.817  [2m324[0m |       from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_welcome || 'welcome@theoaklinebank.com'}>`,
+04:40:38.817  [2m325[0m |       to: email,
+04:40:38.817  [2m326[0m |       subject: `Welcome to ${bankInfo.name || 'Oakline Bank'} — Your Account Has Been Approved`,
+04:40:38.817  [2m327[0m |       html: emailHtml
+04:40:38.818  [2m328[0m |     };
+04:40:38.818  [2m329[0m | 
+04:40:38.818  [2m330[0m |     const info = await transporter.sendMail(mailOptions);
+04:40:38.818  [2m331[0m |     console.log('Welcome email sent successfully:', info.messageId);
+04:40:38.818  [2m332[0m | 
+04:40:38.818  [2m333[0m |     // Note: Debit card generation and specific user notification logic beyond this email
+04:40:38.818  [2m334[0m |     // are not included as there were no corresponding code changes provided in the snippet.
+04:40:38.818  [2m335[0m |     // This would typically involve additional API calls or service integrations.
+04:40:38.818  [2m336[0m | 
+04:40:38.818  [2m337[0m |     return res.status(200).json({
+04:40:38.818  [2m338[0m |       success: true,
+04:40:38.818  [2m339[0m |       message: 'Welcome email sent successfully',
+04:40:38.818  [2m340[0m |       messageId: info.messageId
+04:40:38.818  [2m341[0m |     });
+04:40:38.819  [2m342[0m | 
+04:40:38.819  [2m343[0m |   } catch (error) {
+04:40:38.819  [2m344[0m |     console.error('Error processing account approval:', error);
+04:40:38.819  [2m345[0m |     return res.status(500).json({
+04:40:38.819  [2m346[0m |       error: 'Failed to process account approval',
+04:40:38.819  [2m347[0m |       details: error.message
+04:40:38.819  [2m348[0m |     });
+04:40:38.819  [2m349[0m |   }
+04:40:38.819  [2m350[0m | }
+04:40:38.819  [2m351[0m | import nodemailer from 'nodemailer';
+04:40:38.820  [2m352[0m | 
+04:40:38.820  [2m353[0m | const transporter = nodemailer.createTransport({
+04:40:38.820  [2m354[0m |   host: process.env.SMTP_HOST,
+04:40:38.820  [2m355[0m |   port: parseInt(process.env.SMTP_PORT, 10),
+04:40:38.820  [2m356[0m |   secure: true,
+04:40:38.820  [2m357[0m |   auth: {
+04:40:38.820  [2m358[0m |     user: process.env.SMTP_USER,
+04:40:38.820  [2m359[0m |     pass: process.env.SMTP_PASS,
+04:40:38.820  [2m360[0m |   },
+04:40:38.820  [2m361[0m | });
+04:40:38.820  [2m362[0m | 
+04:40:38.821  [2m363[0m | export default async function handler(req, res) {
+04:40:38.821      : [33;1m                              ^^^|^^^[0m
+04:40:38.821      :                                  [33;1m`-- [33;1m`handler` redefined here[0m[0m
+04:40:38.821  [2m364[0m |   if (req.method !== 'POST') {
+04:40:38.821  [2m365[0m |     return res.status(405).json({ error: 'Method not allowed' });
+04:40:38.821  [2m366[0m |   }
+04:40:38.821      `----
+04:40:38.821 
+04:40:38.821   [31mx[0m the name `default` is exported multiple times
+04:40:38.821      ,-[[36;1;4m/vercel/path0/pages/api/send-welcome-email-with-credentials.js[0m:37:1]
+04:40:38.821  [2m 37[0m |       return first + middle + specialPart;
+04:40:38.821  [2m 38[0m |     }
+04:40:38.821  [2m 39[0m |     
+04:40:38.821  [2m 40[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m export default async function handler(req, res) {
+04:40:38.821  [2m 41[0m | [31;1m|[0m     if (req.method !== 'POST') {
+04:40:38.821  [2m 42[0m | [31;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+04:40:38.822  [2m 43[0m | [31;1m|[0m     }
+04:40:38.822  [2m 44[0m | [31;1m|[0m   
+04:40:38.822  [2m 45[0m | [31;1m|[0m     const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
+04:40:38.822  [2m 46[0m | [31;1m|[0m     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+04:40:38.822  [2m 47[0m | [31;1m|[0m   
+04:40:38.822  [2m 48[0m | [31;1m|[0m     console.log('🔍 Checking SMTP configuration...');
+04:40:38.822  [2m 49[0m | [31;1m|[0m     console.log('SMTP_HOST:', process.env.SMTP_HOST ? '✅ Set' : '❌ Missing');
+04:40:38.822  [2m 50[0m | [31;1m|[0m     console.log('SMTP_PORT:', process.env.SMTP_PORT ? '✅ Set' : '❌ Missing');
+04:40:38.822  [2m 51[0m | [31;1m|[0m     console.log('SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
+04:40:38.822  [2m 52[0m | [31;1m|[0m     console.log('SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
+04:40:38.822  [2m 53[0m | [31;1m|[0m   
+04:40:38.822  [2m 54[0m | [31;1m|[0m     if (missingVars.length > 0) {
+04:40:38.822  [2m 55[0m | [31;1m|[0m       console.error('❌ Missing SMTP environment variables:', missingVars);
+04:40:38.822  [2m 56[0m | [31;1m|[0m       return res.status(500).json({
+04:40:38.822  [2m 57[0m | [31;1m|[0m         error: 'Email service not configured',
+04:40:38.822  [2m 58[0m | [31;1m|[0m         message: `Missing environment variables: ${missingVars.join(', ')}`
+04:40:38.822  [2m 59[0m | [31;1m|[0m       });
+04:40:38.823  [2m 60[0m | [31;1m|[0m     }
+04:40:38.823  [2m 61[0m | [31;1m|[0m   
+04:40:38.823  [2m 62[0m | [31;1m|[0m     try {
+04:40:38.823  [2m 63[0m | [31;1m|[0m       const {
+04:40:38.823  [2m 64[0m | [31;1m|[0m         email,
+04:40:38.823  [2m 65[0m | [31;1m|[0m         first_name,
+04:40:38.823  [2m 66[0m | [31;1m|[0m         middle_name,
+04:40:38.823  [2m 67[0m | [31;1m|[0m         last_name,
+04:40:38.823  [2m 68[0m | [31;1m|[0m         temp_password, // Renamed for consistency with new email template
+04:40:38.823  [2m 69[0m | [31;1m|[0m         account_numbers,
+04:40:38.823  [2m 70[0m | [31;1m|[0m         account_types,
+04:40:38.823  [2m 71[0m | [31;1m|[0m         has_pending_accounts,
+04:40:38.823  [2m 72[0m | [31;1m|[0m         pending_account_types,
+04:40:38.823  [2m 73[0m | [31;1m|[0m         application_id,
+04:40:38.823  [2m 74[0m | [31;1m|[0m         country,
+04:40:38.823  [2m 75[0m | [31;1m|[0m         site_url,
+04:40:38.824  [2m 76[0m | [31;1m|[0m         bank_details // Assuming this contains all bank info
+04:40:38.824  [2m 77[0m | [31;1m|[0m       } = req.body;
+04:40:38.824  [2m 78[0m | [31;1m|[0m   
+04:40:38.824  [2m 79[0m | [31;1m|[0m       // Basic validation
+04:40:38.824  [2m 80[0m | [31;1m|[0m       if (!email || !first_name || !last_name || !temp_password) {
+04:40:38.824  [2m 81[0m | [31;1m|[0m         return res.status(400).json({ error: 'Missing required fields' });
+04:40:38.824  [2m 82[0m | [31;1m|[0m       }
+04:40:38.824  [2m 83[0m | [31;1m|[0m   
+04:40:38.824  [2m 84[0m | [31;1m|[0m       // Fetch bank details if not provided (assuming it's needed for email)
+04:40:38.824  [2m 85[0m | [31;1m|[0m       let bankInfo = bank_details;
+04:40:38.824  [2m 86[0m | [31;1m|[0m       if (!bankInfo) {
+04:40:38.824  [2m 87[0m | [31;1m|[0m         const { data, error } = await supabaseAdmin
+04:40:38.824  [2m 88[0m | [31;1m|[0m           .from('bank_details')
+04:40:38.824  [2m 89[0m | [31;1m|[0m           .select('*')
+04:40:38.824  [2m 90[0m | [31;1m|[0m           .limit(1)
+04:40:38.824  [2m 91[0m | [31;1m|[0m           .single();
+04:40:38.829  [2m 92[0m | [31;1m|[0m   
+04:40:38.829  [2m 93[0m | [31;1m|[0m         if (error) {
+04:40:38.829  [2m 94[0m | [31;1m|[0m           console.error('Failed to fetch bank details:', error);
+04:40:38.829  [2m 95[0m | [31;1m|[0m           return res.status(500).json({ error: 'Failed to fetch bank details' });
+04:40:38.829  [2m 96[0m | [31;1m|[0m         }
+04:40:38.829  [2m 97[0m | [31;1m|[0m         bankInfo = data;
+04:40:38.829  [2m 98[0m | [31;1m|[0m       }
+04:40:38.830  [2m 99[0m | [31;1m|[0m   
+04:40:38.830  [2m100[0m | [31;1m|[0m       const protocol = req.headers['x-forwarded-proto'] || 'https';
+04:40:38.830  [2m101[0m | [31;1m|[0m       const host = req.headers['x-forwarded-host'] || req.headers.host;
+04:40:38.830  [2m102[0m | [31;1m|[0m       const detectedSiteUrl = site_url || process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+04:40:38.830  [2m103[0m | [31;1m|[0m   
+04:40:38.830  [2m104[0m | [31;1m|[0m       console.log('Using site URL for login:', detectedSiteUrl);
+04:40:38.830  [2m105[0m | [31;1m|[0m   
+04:40:38.830  [2m106[0m | [31;1m|[0m       const transporter = nodemailer.createTransport({
+04:40:38.830  [2m107[0m | [31;1m|[0m         host: process.env.SMTP_HOST,
+04:40:38.830  [2m108[0m | [31;1m|[0m         port: parseInt(process.env.SMTP_PORT) || 587,
+04:40:38.830  [2m109[0m | [31;1m|[0m         secure: process.env.SMTP_PORT === '465',
+04:40:38.830  [2m110[0m | [31;1m|[0m         auth: {
+04:40:38.830  [2m111[0m | [31;1m|[0m           user: process.env.SMTP_USER,
+04:40:38.830  [2m112[0m | [31;1m|[0m           pass: process.env.SMTP_PASS,
+04:40:38.831  [2m113[0m | [31;1m|[0m         },
+04:40:38.831  [2m114[0m | [31;1m|[0m       });
+04:40:38.831  [2m115[0m | [31;1m|[0m   
+04:40:38.831  [2m116[0m | [31;1m|[0m       // Test SMTP connection
+04:40:38.831  [2m117[0m | [31;1m|[0m       console.log('Testing SMTP connection...');
+04:40:38.831  [2m118[0m | [31;1m|[0m       try {
+04:40:38.831  [2m119[0m | [31;1m|[0m         await transporter.verify();
+04:40:38.831  [2m120[0m | [31;1m|[0m         console.log('SMTP connection verified successfully');
+04:40:38.833  [2m121[0m | [31;1m|[0m       } catch (smtpError) {
+04:40:38.833  [2m122[0m | [31;1m|[0m         console.error('SMTP connection failed:', smtpError.message);
+04:40:38.833  [2m123[0m | [31;1m|[0m         return res.status(500).json({
+04:40:38.833  [2m124[0m | [31;1m|[0m           error: 'Email service connection failed',
+04:40:38.833  [2m125[0m | [31;1m|[0m           message: smtpError.message
+04:40:38.833  [2m126[0m | [31;1m|[0m         });
+04:40:38.833  [2m127[0m | [31;1m|[0m       }
+04:40:38.833  [2m128[0m | [31;1m|[0m   
+04:40:38.833  [2m129[0m | [31;1m|[0m       const fullName = middle_name
+04:40:38.833  [2m130[0m | [31;1m|[0m         ? `${first_name} ${middle_name} ${last_name}`
+04:40:38.833  [2m131[0m | [31;1m|[0m         : `${first_name} ${last_name}`;
+04:40:38.834  [2m132[0m | [31;1m|[0m   
+04:40:38.834  [2m133[0m | [31;1m|[0m       const loginUrl = `${detectedSiteUrl}/login`;
+04:40:38.834  [2m134[0m | [31;1m|[0m       const siteUrl = detectedSiteUrl; // Use detectedSiteUrl for email template
+04:40:38.834  [2m135[0m | [31;1m|[0m   
+04:40:38.834  [2m136[0m | [31;1m|[0m       // Format account info for the new email template
+04:40:38.834  [2m137[0m | [31;1m|[0m       const populatedAccountNumbers = account_numbers || [];
+04:40:38.834  [2m138[0m | [31;1m|[0m       const accountDetailsHtml = populatedAccountNumbers.length > 0
+04:40:38.834  [2m139[0m | [31;1m|[0m         ? `
+04:40:38.834  [2m140[0m | [31;1m|[0m         <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #f9fafb; border-radius: 8px; overflow: hidden;">
+04:40:38.834  [2m141[0m | [31;1m|[0m           <thead>
+04:40:38.834  [2m142[0m | [31;1m|[0m             <tr>
+04:40:38.834  [2m143[0m | [31;1m|[0m               <th style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 15px 20px; text-align: left; font-size: 15px; font-weight: 700;">Account Type</th>
+04:40:38.834  [2m144[0m | [31;1m|[0m               <th style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 15px 20px; text-align: right; font-size: 15px; font-weight: 700;">Account Number</th>
+04:40:38.834  [2m145[0m | [31;1m|[0m             </tr>
+04:40:38.834  [2m146[0m | [31;1m|[0m           </thead>
+04:40:38.835  [2m147[0m | [31;1m|[0m           <tbody>
+04:40:38.835  [2m148[0m | [31;1m|[0m             ${populatedAccountNumbers.map((num, idx) => {
+04:40:38.835  [2m149[0m | [31;1m|[0m                 const type = account_types && account_types[idx]
+04:40:38.835  [2m150[0m | [31;1m|[0m                   ? account_types[idx].replace(/_/g, ' ').toUpperCase()
+04:40:38.835  [2m151[0m | [31;1m|[0m                   : 'ACCOUNT';
+04:40:38.835  [2m152[0m | [31;1m|[0m                 return `
+04:40:38.835  [2m153[0m | [31;1m|[0m                   <tr>
+04:40:38.835  [2m154[0m | [31;1m|[0m                     <td style="padding: 15px 20px; color: #334155; font-size: 15px; font-weight: 600;">${type}</td>
+04:40:38.835  [2m155[0m | [31;1m|[0m                     <td style="padding: 15px 20px; font-family: 'Courier New', monospace; color: #4b5563; font-size: 15px; font-weight: 700; text-align: right;">****${num.slice(-4)}</td>
+04:40:38.836  [2m156[0m | [31;1m|[0m                   </tr>
+04:40:38.836  [2m157[0m | [31;1m|[0m                 `;
+04:40:38.836  [2m158[0m | [31;1m|[0m               }).join('')}
+04:40:38.836  [2m159[0m | [31;1m|[0m           </tbody>
+04:40:38.836  [2m160[0m | [31;1m|[0m         </table>
+04:40:38.836  [2m161[0m | [31;1m|[0m         ` : '<p style="margin: 20px 0; color: #6b7280; font-size: 15px;">Your account has been created.</p>';
+04:40:38.837  [2m162[0m | [31;1m|[0m   
+04:40:38.837  [2m163[0m | [31;1m|[0m       // Prepare pending accounts for the new email template
+04:40:38.837  [2m164[0m | [31;1m|[0m       const pendingAccounts = pending_account_types || [];
+04:40:38.837  [2m165[0m | [31;1m|[0m   
+04:40:38.837  [2m166[0m | [31;1m|[0m       // Create email HTML using the updated structure and styles
+04:40:38.837  [2m167[0m | [31;1m|[0m       const emailHtml = `
+04:40:38.837  [2m168[0m | [31;1m|[0m         <!DOCTYPE html>
+04:40:38.837  [2m169[0m | [31;1m|[0m         <html>
+04:40:38.837  [2m170[0m | [31;1m|[0m         <head>
+04:40:38.837  [2m171[0m | [31;1m|[0m           <meta charset="utf-8">
+04:40:38.837  [2m172[0m | [31;1m|[0m           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+04:40:38.837  [2m173[0m | [31;1m|[0m           <title>Welcome to ${bankInfo.name || 'Oakline Bank'}</title>
+04:40:38.837  [2m174[0m | [31;1m|[0m         </head>
+04:40:38.837  [2m175[0m | [31;1m|[0m         <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8;">
+04:40:38.843  [2m176[0m | [31;1m|[0m           <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f0f4f8;">
+04:40:38.843  [2m177[0m | [31;1m|[0m             <tr>
+04:40:38.843  [2m178[0m | [31;1m|[0m               <td align="center" style="padding: 40px 20px;">
+04:40:38.843  [2m179[0m | [31;1m|[0m                 <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(30, 64, 175, 0.15);">
+04:40:38.844  [2m180[0m | [31;1m|[0m   
+04:40:38.844  [2m181[0m | [31;1m|[0m                   <!-- Professional Header with Logo -->
+04:40:38.844  [2m182[0m | [31;1m|[0m                   <tr>
+04:40:38.844  [2m183[0m | [31;1m|[0m                     <td style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 0; text-align: center;">
+04:40:38.844  [2m184[0m | [31;1m|[0m                       <table role="presentation" style="width: 100%; border-collapse: collapse;">
+04:40:38.844  [2m185[0m | [31;1m|[0m                         <tr>
+04:40:38.844  [2m186[0m | [31;1m|[0m                           <td style="padding: 30px 20px 20px 20px; text-align: center;">
+04:40:38.844  [2m187[0m | [31;1m|[0m                             <div style="background-color: white; display: inline-block; padding: 15px 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+04:40:38.844  [2m188[0m | [31;1m|[0m                               <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #1e40af; letter-spacing: -0.5px;">
+04:40:38.844  [2m189[0m | [31;1m|[0m                                 🏦 ${bankInfo.name || 'OAKLINE BANK'}
+04:40:38.844  [2m190[0m | [31;1m|[0m                               </h1>
+04:40:38.844  [2m191[0m | [31;1m|[0m                             </div>
+04:40:38.845  [2m192[0m | [31;1m|[0m                           </td>
+04:40:38.845  [2m193[0m | [31;1m|[0m                         </tr>
+04:40:38.845  [2m194[0m | [31;1m|[0m                         <tr>
+04:40:38.845  [2m195[0m | [31;1m|[0m                           <td style="padding: 20px 20px 30px 20px; text-align: center;">
+04:40:38.845  [2m196[0m | [31;1m|[0m                             <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Welcome to Your Financial Future</h2>
+04:40:38.845  [2m197[0m | [31;1m|[0m                             <p style="margin: 10px 0 0 0; color: #e0e7ff; font-size: 16px;">Your Account is Ready!</p>
+04:40:38.845  [2m198[0m | [31;1m|[0m                           </td>
+04:40:38.845  [2m199[0m | [31;1m|[0m                         </tr>
+04:40:38.845  [2m200[0m | [31;1m|[0m                       </table>
+04:40:38.845  [2m201[0m | [31;1m|[0m                     </td>
+04:40:38.845  [2m202[0m | [31;1m|[0m                   </tr>
+04:40:38.845  [2m203[0m | [31;1m|[0m   
+04:40:38.846  [2m204[0m | [31;1m|[0m                   <!-- Main Content Body -->
+04:40:38.846  [2m205[0m | [31;1m|[0m                   <tr>
+04:40:38.846  [2m206[0m | [31;1m|[0m                     <td style="padding: 40px 30px; background-color: #ffffff;">
+04:40:38.846  [2m207[0m | [31;1m|[0m                       <h3 style="margin: 0 0 20px 0; color: #1e40af; font-size: 22px; font-weight: 700;">
+04:40:38.846  [2m208[0m | [31;1m|[0m                         Hello ${first_name} ${last_name},
+04:40:38.846  [2m209[0m | [31;1m|[0m                       </h3>
+04:40:38.846  [2m210[0m | [31;1m|[0m   
+04:40:38.846  [2m211[0m | [31;1m|[0m                       <p style="margin: 0 0 20px 0; color: #334155; font-size: 16px; line-height: 1.6;">
+04:40:38.846  [2m212[0m | [31;1m|[0m                         Congratulations! Your application has been <strong style="color: #1e40af;">approved</strong> and your account${populatedAccountNumbers.length > 1 ? 's are' : ' is'} ready for activation.
+04:40:38.846  [2m213[0m | [31;1m|[0m                       </p>
+04:40:38.846  [2m214[0m | [31;1m|[0m   
+04:40:38.846  [2m215[0m | [31;1m|[0m                       ${accountDetailsHtml}
+04:40:38.846  [2m216[0m | [31;1m|[0m   
+04:40:38.846  [2m217[0m | [31;1m|[0m                       ${has_pending_accounts && pendingAccounts.length > 0 ? `
+04:40:38.846  [2m218[0m | [31;1m|[0m                       <!-- Pending Accounts Notice -->
+04:40:38.847  [2m219[0m | [31;1m|[0m                       <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 8px;">
+04:40:38.847  [2m220[0m | [31;1m|[0m                         <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.847  [2m221[0m | [31;1m|[0m                           📋 Additional Accounts Pending Approval
+04:40:38.847  [2m222[0m | [31;1m|[0m                         </h4>
+04:40:38.847  [2m223[0m | [31;1m|[0m                         <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.5;">
+04:40:38.847  [2m224[0m | [31;1m|[0m                           Your <strong>${pendingAccounts.join(', ').replace(/_/g, ' ').toUpperCase()}</strong> ${pendingAccounts.length > 1 ? 'accounts are' : 'account is'} currently under review. You will receive a notification email once ${pendingAccounts.length > 1 ? 'they are' : 'it is'} approved and ready to use.
+04:40:38.847  [2m225[0m | [31;1m|[0m                         </p>
+04:40:38.847  [2m226[0m | [31;1m|[0m                       </div>
+04:40:38.847  [2m227[0m | [31;1m|[0m                       ` : ''}
+04:40:38.847  [2m228[0m | [31;1m|[0m   
+04:40:38.847  [2m229[0m | [31;1m|[0m                       <!-- Login Credentials Box -->
+04:40:38.847  [2m230[0m | [31;1m|[0m                       <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 30px; margin: 30px 0; box-shadow: 0 8px 24px rgba(30, 64, 175, 0.4); border: 3px solid #ffffff;">
+04:40:38.847  [2m231[0m | [31;1m|[0m                         <h4 style="margin: 0 0 20px 0; color: #ffffff; font-size: 22px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
+04:40:38.847  [2m232[0m | [31;1m|[0m                           🔐 YOUR LOGIN CREDENTIALS
+04:40:38.849  [2m233[0m | [31;1m|[0m                         </h4>
+04:40:38.849  [2m234[0m | [31;1m|[0m                         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: rgba(255,255,255,0.15); border-radius: 8px; padding: 15px;">
+04:40:38.849  [2m235[0m | [31;1m|[0m                           <tr>
+04:40:38.849  [2m236[0m | [31;1m|[0m                             <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Email:</td>
+04:40:38.849  [2m237[0m | [31;1m|[0m                             <td style="padding: 12px; text-align: right;">
+04:40:38.849  [2m238[0m | [31;1m|[0m                               <code style="background-color: #ffffff; color: #1e40af; padding: 8px 16px; border-radius: 6px; font-size: 15px; font-family: 'Courier New', monospace; font-weight: 700;">${email}</code>
+04:40:38.849  [2m239[0m | [31;1m|[0m                             </td>
+04:40:38.849  [2m240[0m | [31;1m|[0m                           </tr>
+04:40:38.849  [2m241[0m | [31;1m|[0m                           <tr>
+04:40:38.850  [2m242[0m | [31;1m|[0m                             <td colspan="2" style="height: 10px;"></td>
+04:40:38.850  [2m243[0m | [31;1m|[0m                           </tr>
+04:40:38.850  [2m244[0m | [31;1m|[0m                           <tr>
+04:40:38.850  [2m245[0m | [31;1m|[0m                             <td style="padding: 12px; color: #ffffff; font-size: 15px; font-weight: 700;">Temporary Password:</td>
+04:40:38.850  [2m246[0m | [31;1m|[0m                             <td style="padding: 12px; text-align: right;">
+04:40:38.850  [2m247[0m | [31;1m|[0m                               <code style="background-color: #ffffff; color: #1e40af; padding: 10px 18px; border-radius: 6px; font-size: 16px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 2px; border: 2px solid #fbbf24;">${temp_password}</code>
+04:40:38.850  [2m248[0m | [31;1m|[0m                             </td>
+04:40:38.850  [2m249[0m | [31;1m|[0m                           </tr>
+04:40:38.850  [2m250[0m | [31;1m|[0m                         </table>
+04:40:38.850  [2m251[0m | [31;1m|[0m                       </div>
+04:40:38.850  [2m252[0m | [31;1m|[0m   
+04:40:38.850  [2m253[0m | [31;1m|[0m                       <!-- Security Warning -->
+04:40:38.851  [2m254[0m | [31;1m|[0m                       <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px 20px; margin: 25px 0; border-radius: 8px;">
+04:40:38.851  [2m255[0m | [31;1m|[0m                         <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">
+04:40:38.851  [2m256[0m | [31;1m|[0m                           ⚠️ <strong>Important Security Notice:</strong> Please change your password immediately after your first login.
+04:40:38.851  [2m257[0m | [31;1m|[0m                         </p>
+04:40:38.851  [2m258[0m | [31;1m|[0m                       </div>
+04:40:38.851  [2m259[0m | [31;1m|[0m   
+04:40:38.851  [2m260[0m | [31;1m|[0m                       <!-- CTA Button -->
+04:40:38.851  [2m261[0m | [31;1m|[0m                       <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
+04:40:38.851  [2m262[0m | [31;1m|[0m                         <tr>
+04:40:38.851  [2m263[0m | [31;1m|[0m                           <td align="center">
+04:40:38.851  [2m264[0m | [31;1m|[0m                             <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.3);">
+04:40:38.851  [2m265[0m | [31;1m|[0m                               Login to Your Account
+04:40:38.852  [2m266[0m | [31;1m|[0m                             </a>
+04:40:38.852  [2m267[0m | [31;1m|[0m                           </td>
+04:40:38.852  [2m268[0m | [31;1m|[0m                         </tr>
+04:40:38.852  [2m269[0m | [31;1m|[0m                       </table>
+04:40:38.852  [2m270[0m | [31;1m|[0m   
+04:40:38.852  [2m271[0m | [31;1m|[0m                       <!-- What's Next Section -->
+04:40:38.852  [2m272[0m | [31;1m|[0m                       <div style="background-color: #f8fafc; border-radius: 12px; padding: 25px; margin: 30px 0;">
+04:40:38.852  [2m273[0m | [31;1m|[0m                         <h4 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 700;">
+04:40:38.852  [2m274[0m | [31;1m|[0m                           🚀 What's Next?
+04:40:38.852  [2m275[0m | [31;1m|[0m                         </h4>
+04:40:38.852  [2m276[0m | [31;1m|[0m                         <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+04:40:38.852  [2m277[0m | [31;1m|[0m                           <li>Login with your credentials above</li>
+04:40:38.853  [2m278[0m | [31;1m|[0m                           <li>Set up a secure password</li>
+04:40:38.853  [2m279[0m | [31;1m|[0m                           <li>Explore your account dashboard</li>
+04:40:38.853  [2m280[0m | [31;1m|[0m                           <li>Set up direct deposits and bill payments</li>
+04:40:38.853  [2m281[0m | [31;1m|[0m                           <li>Download our mobile app for banking on the go</li>
+04:40:38.853  [2m282[0m | [31;1m|[0m                         </ul>
+04:40:38.853  [2m283[0m | [31;1m|[0m                       </div>
+04:40:38.853  [2m284[0m | [31;1m|[0m   
+04:40:38.853  [2m285[0m | [31;1m|[0m                       <p style="margin: 30px 0 10px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+04:40:38.853  [2m286[0m | [31;1m|[0m                         If you have any questions, our support team is here to help 24/7.
+04:40:38.853  [2m287[0m | [31;1m|[0m                       </p>
+04:40:38.853  [2m288[0m | [31;1m|[0m                       <p style="margin: 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.854  [2m289[0m | [31;1m|[0m                         Welcome aboard!<br>
+04:40:38.854  [2m290[0m | [31;1m|[0m                         The ${bankInfo.name || 'Oakline Bank'} Team
+04:40:38.854  [2m291[0m | [31;1m|[0m                       </p>
+04:40:38.854  [2m292[0m | [31;1m|[0m                     </td>
+04:40:38.854  [2m293[0m | [31;1m|[0m                   </tr>
+04:40:38.854  [2m294[0m | [31;1m|[0m   
+04:40:38.854  [2m295[0m | [31;1m|[0m                   <!-- Professional Footer -->
+04:40:38.854  [2m296[0m | [31;1m|[0m                   <tr>
+04:40:38.854  [2m297[0m | [31;1m|[0m                     <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+04:40:38.854  [2m298[0m | [31;1m|[0m                       <p style="margin: 0 0 10px 0; color: #1e40af; font-size: 16px; font-weight: 700;">
+04:40:38.854  [2m299[0m | [31;1m|[0m                         ${bankInfo.name || 'Oakline Bank'}
+04:40:38.854  [2m300[0m | [31;1m|[0m                       </p>
+04:40:38.854  [2m301[0m | [31;1m|[0m                       <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
+04:40:38.854  [2m302[0m | [31;1m|[0m                         ${bankInfo.address || ''}
+04:40:38.855  [2m303[0m | [31;1m|[0m                       </p>
+04:40:38.855  [2m304[0m | [31;1m|[0m                       <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
+04:40:38.855  [2m305[0m | [31;1m|[0m                         Phone: ${bankInfo.phone || ''} | Email: ${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}
+04:40:38.855  [2m306[0m | [31;1m|[0m                       </p>
+04:40:38.855  [2m307[0m | [31;1m|[0m                       <p style="margin: 20px 0 0 0; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px;">
+04:40:38.855  [2m308[0m | [31;1m|[0m                         © ${new Date().getFullYear()} ${bankInfo.name || 'Oakline Bank'}. All rights reserved.<br>
+04:40:38.855  [2m309[0m | [31;1m|[0m                         Member FDIC | Routing: ${bankInfo.routing_number || '075915826'}
+04:40:38.855  [2m310[0m | [31;1m|[0m                       </p>
+04:40:38.855  [2m311[0m | [31;1m|[0m                     </td>
+04:40:38.855  [2m312[0m | [31;1m|[0m                   </tr>
+04:40:38.855  [2m313[0m | [31;1m|[0m   
+04:40:38.855  [2m314[0m | [31;1m|[0m                 </table>
+04:40:38.855  [2m315[0m | [31;1m|[0m               </td>
+04:40:38.855  [2m316[0m | [31;1m|[0m             </tr>
+04:40:38.856  [2m317[0m | [31;1m|[0m           </table>
+04:40:38.856  [2m318[0m | [31;1m|[0m         </body>
+04:40:38.856  [2m319[0m | [31;1m|[0m         </html>
+04:40:38.856  [2m320[0m | [31;1m|[0m       `;
+04:40:38.856  [2m321[0m | [31;1m|[0m   
+04:40:38.856  [2m322[0m | [31;1m|[0m   
+04:40:38.856  [2m323[0m | [31;1m|[0m       const mailOptions = {
+04:40:38.856  [2m324[0m | [31;1m|[0m         from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_welcome || 'welcome@theoaklinebank.com'}>`,
+04:40:38.857  [2m325[0m | [31;1m|[0m         to: email,
+04:40:38.857  [2m326[0m | [31;1m|[0m         subject: `Welcome to ${bankInfo.name || 'Oakline Bank'} — Your Account Has Been Approved`,
+04:40:38.857  [2m327[0m | [31;1m|[0m         html: emailHtml
+04:40:38.858  [2m328[0m | [31;1m|[0m       };
+04:40:38.858  [2m329[0m | [31;1m|[0m   
+04:40:38.858  [2m330[0m | [31;1m|[0m       const info = await transporter.sendMail(mailOptions);
+04:40:38.858  [2m331[0m | [31;1m|[0m       console.log('Welcome email sent successfully:', info.messageId);
+04:40:38.858  [2m332[0m | [31;1m|[0m   
+04:40:38.858  [2m333[0m | [31;1m|[0m       // Note: Debit card generation and specific user notification logic beyond this email
+04:40:38.858  [2m334[0m | [31;1m|[0m       // are not included as there were no corresponding code changes provided in the snippet.
+04:40:38.858  [2m335[0m | [31;1m|[0m       // This would typically involve additional API calls or service integrations.
+04:40:38.858  [2m336[0m | [31;1m|[0m   
+04:40:38.858  [2m337[0m | [31;1m|[0m       return res.status(200).json({
+04:40:38.859  [2m338[0m | [31;1m|[0m         success: true,
+04:40:38.859  [2m339[0m | [31;1m|[0m         message: 'Welcome email sent successfully',
+04:40:38.859  [2m340[0m | [31;1m|[0m         messageId: info.messageId
+04:40:38.859  [2m341[0m | [31;1m|[0m       });
+04:40:38.859  [2m342[0m | [31;1m|[0m   
+04:40:38.859  [2m343[0m | [31;1m|[0m     } catch (error) {
+04:40:38.859  [2m344[0m | [31;1m|[0m       console.error('Error processing account approval:', error);
+04:40:38.859  [2m345[0m | [31;1m|[0m       return res.status(500).json({
+04:40:38.859  [2m346[0m | [31;1m|[0m         error: 'Failed to process account approval',
+04:40:38.859  [2m347[0m | [31;1m|[0m         details: error.message
+04:40:38.860  [2m348[0m | [31;1m|[0m       });
+04:40:38.860  [2m349[0m | [31;1m|[0m     }
+04:40:38.860  [2m350[0m | [31;1m|[0m[31;1m-[0m[31;1m>[0m }
+04:40:38.860      : [31;1m`[0m[31;1m---[0m[31;1m-[0m [31;1mprevious exported here[0m
+04:40:38.860  [2m351[0m |     import nodemailer from 'nodemailer';
+04:40:38.860  [2m352[0m |     
+04:40:38.860  [2m353[0m |     const transporter = nodemailer.createTransport({
+04:40:38.860  [2m354[0m |       host: process.env.SMTP_HOST,
+04:40:38.860  [2m355[0m |       port: parseInt(process.env.SMTP_PORT, 10),
+04:40:38.860  [2m356[0m |       secure: true,
+04:40:38.860  [2m357[0m |       auth: {
+04:40:38.860  [2m358[0m |         user: process.env.SMTP_USER,
+04:40:38.860  [2m359[0m |         pass: process.env.SMTP_PASS,
+04:40:38.861  [2m360[0m |       },
+04:40:38.861  [2m361[0m |     });
+04:40:38.861  [2m362[0m |     
+04:40:38.861  [2m363[0m | [33;1m,[0m[33;1m-[0m[33;1m>[0m export default async function handler(req, res) {
+04:40:38.861  [2m364[0m | [33;1m|[0m     if (req.method !== 'POST') {
+04:40:38.861  [2m365[0m | [33;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+04:40:38.861  [2m366[0m | [33;1m|[0m     }
+04:40:38.861  [2m367[0m | [33;1m|[0m   
+04:40:38.861  [2m368[0m | [33;1m|[0m     const {
+04:40:38.861  [2m369[0m | [33;1m|[0m       email,
+04:40:38.861  [2m370[0m | [33;1m|[0m       first_name,
+04:40:38.861  [2m371[0m | [33;1m|[0m       middle_name,
+04:40:38.862  [2m372[0m | [33;1m|[0m       last_name,
+04:40:38.862  [2m373[0m | [33;1m|[0m       temp_password,
+04:40:38.862  [2m374[0m | [33;1m|[0m       account_numbers,
+04:40:38.862  [2m375[0m | [33;1m|[0m       account_types,
+04:40:38.862  [2m376[0m | [33;1m|[0m       has_pending_accounts,
+04:40:38.862  [2m377[0m | [33;1m|[0m       pending_account_types,
+04:40:38.862  [2m378[0m | [33;1m|[0m       site_url,
+04:40:38.862  [2m379[0m | [33;1m|[0m       bank_details
+04:40:38.862  [2m380[0m | [33;1m|[0m     } = req.body;
+04:40:38.862  [2m381[0m | [33;1m|[0m   
+04:40:38.862  [2m382[0m | [33;1m|[0m     if (!email || !first_name || !last_name || !temp_password) {
+04:40:38.863  [2m383[0m | [33;1m|[0m       return res.status(400).json({ error: 'Missing required fields' });
+04:40:38.863  [2m384[0m | [33;1m|[0m     }
+04:40:38.863  [2m385[0m | [33;1m|[0m   
+04:40:38.863  [2m386[0m | [33;1m|[0m     try {
+04:40:38.863  [2m387[0m | [33;1m|[0m       const fullName = middle_name 
+04:40:38.863  [2m388[0m | [33;1m|[0m         ? `${first_name} ${middle_name} ${last_name}`
+04:40:38.863  [2m389[0m | [33;1m|[0m         : `${first_name} ${last_name}`;
+04:40:38.863  [2m390[0m | [33;1m|[0m   
+04:40:38.863  [2m391[0m | [33;1m|[0m       const bankName = bank_details?.name || 'Oakline Bank';
+04:40:38.864  [2m392[0m | [33;1m|[0m       const bankEmail = bank_details?.email_info || 'info@theoaklinebank.com';
+04:40:38.864  [2m393[0m | [33;1m|[0m       const supportEmail = bank_details?.email_support || 'support@theoaklinebank.com';
+04:40:38.864  [2m394[0m | [33;1m|[0m       const routingNumber = bank_details?.routing_number || '075915826';
+04:40:38.864  [2m395[0m | [33;1m|[0m   
+04:40:38.864  [2m396[0m | [33;1m|[0m       const activeAccountsHtml = account_numbers && account_numbers.length > 0
+04:40:38.864  [2m397[0m | [33;1m|[0m         ? account_numbers.map((num, idx) => {
+04:40:38.864  [2m398[0m | [33;1m|[0m             const type = account_types[idx] || 'checking_account';
+04:40:38.864  [2m399[0m | [33;1m|[0m             const typeFormatted = type.replace(/_/g, ' ').toUpperCase();
+04:40:38.864  [2m400[0m | [33;1m|[0m             return `
+04:40:38.865  [2m401[0m | [33;1m|[0m               <div style="margin-bottom: 12px; padding: 16px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+04:40:38.865  [2m402[0m | [33;1m|[0m                 <div style="color: #1a365d; font-weight: 600; margin-bottom: 4px;">${typeFormatted}</div>
+04:40:38.865  [2m403[0m | [33;1m|[0m                 <div style="color: #4a5568; font-family: 'Courier New', monospace; font-size: 16px;">Account: ${num}</div>
+04:40:38.865  [2m404[0m | [33;1m|[0m                 <div style="color: #718096; font-size: 14px;">Routing: ${routingNumber}</div>
+04:40:38.865  [2m405[0m | [33;1m|[0m               </div>
+04:40:38.865  [2m406[0m | [33;1m|[0m             `;
+04:40:38.865  [2m407[0m | [33;1m|[0m           }).join('')
+04:40:38.865  [2m408[0m | [33;1m|[0m         : '<p style="color: #718096;">No active accounts yet.</p>';
+04:40:38.865  [2m409[0m | [33;1m|[0m   
+04:40:38.866  [2m410[0m | [33;1m|[0m       const pendingAccountsHtml = has_pending_accounts && pending_account_types && pending_account_types.length > 0
+04:40:38.866  [2m411[0m | [33;1m|[0m         ? `
+04:40:38.866  [2m412[0m | [33;1m|[0m           <div style="background-color: #fef5e7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 8px;">
+04:40:38.866  [2m413[0m | [33;1m|[0m             <h4 style="color: #92400e; font-size: 16px; margin: 0 0 12px 0;">⏳ Pending Account Approval</h4>
+04:40:38.866  [2m414[0m | [33;1m|[0m             <p style="color: #92400e; margin: 0 0 8px 0; font-size: 14px;">
+04:40:38.866  [2m415[0m | [33;1m|[0m               The following accounts are pending admin approval:
+04:40:38.866  [2m416[0m | [33;1m|[0m             </p>
+04:40:38.866  [2m417[0m | [33;1m|[0m             <ul style="color: #92400e; margin: 0; padding-left: 20px;">
+04:40:38.866  [2m418[0m | [33;1m|[0m               ${pending_account_types.map(type => {
+04:40:38.867  [2m419[0m | [33;1m|[0m                 const typeFormatted = type.replace(/_/g, ' ').toUpperCase();
+04:40:38.867  [2m420[0m | [33;1m|[0m                 return `<li style="margin-bottom: 4px;">${typeFormatted}</li>`;
+04:40:38.867  [2m421[0m | [33;1m|[0m               }).join('')}
+04:40:38.867  [2m422[0m | [33;1m|[0m             </ul>
+04:40:38.867  [2m423[0m | [33;1m|[0m             <p style="color: #92400e; margin: 8px 0 0 0; font-size: 13px;">
+04:40:38.867  [2m424[0m | [33;1m|[0m               You will receive a notification email once these accounts are approved.
+04:40:38.867  [2m425[0m | [33;1m|[0m             </p>
+04:40:38.867  [2m426[0m | [33;1m|[0m           </div>
+04:40:38.867  [2m427[0m | [33;1m|[0m         `
+04:40:38.868  [2m428[0m | [33;1m|[0m         : '';
+04:40:38.868  [2m429[0m | [33;1m|[0m   
+04:40:38.868  [2m430[0m | [33;1m|[0m       const emailHtml = `
+04:40:38.868  [2m431[0m | [33;1m|[0m         <!DOCTYPE html>
+04:40:38.868  [2m432[0m | [33;1m|[0m         <html>
+04:40:38.868  [2m433[0m | [33;1m|[0m         <head>
+04:40:38.868  [2m434[0m | [33;1m|[0m           <meta charset="utf-8">
+04:40:38.868  [2m435[0m | [33;1m|[0m           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+04:40:38.868  [2m436[0m | [33;1m|[0m         </head>
+04:40:38.868  [2m437[0m | [33;1m|[0m         <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
+04:40:38.869  [2m438[0m | [33;1m|[0m           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+04:40:38.869  [2m439[0m | [33;1m|[0m             <!-- Header -->
+04:40:38.869  [2m440[0m | [33;1m|[0m             <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5aa0 100%); padding: 32px 24px; text-align: center;">
+04:40:38.870  [2m441[0m | [33;1m|[0m               <div style="color: #ffffff; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
+04:40:38.870  [2m442[0m | [33;1m|[0m                 🏦 ${bankName}
+04:40:38.870  [2m443[0m | [33;1m|[0m               </div>
+04:40:38.870  [2m444[0m | [33;1m|[0m               <div style="color: #ffffff; opacity: 0.9; font-size: 16px;">
+04:40:38.870  [2m445[0m | [33;1m|[0m                 Welcome to Your Financial Future
+04:40:38.870  [2m446[0m | [33;1m|[0m               </div>
+04:40:38.870  [2m447[0m | [33;1m|[0m             </div>
+04:40:38.870  [2m448[0m | [33;1m|[0m             
+04:40:38.870  [2m449[0m | [33;1m|[0m             <!-- Main Content -->
+04:40:38.870  [2m450[0m | [33;1m|[0m             <div style="padding: 40px 32px;">
+04:40:38.870  [2m451[0m | [33;1m|[0m               <h1 style="color: #1a365d; font-size: 28px; font-weight: 700; margin: 0 0 16px 0;">
+04:40:38.870  [2m452[0m | [33;1m|[0m                 Welcome, ${fullName}! 🎉
+04:40:38.871  [2m453[0m | [33;1m|[0m               </h1>
+04:40:38.871  [2m454[0m | [33;1m|[0m               
+04:40:38.871  [2m455[0m | [33;1m|[0m               <p style="color: #4a5568; font-size: 18px; line-height: 1.6; margin: 0 0 32px 0;">
+04:40:38.871  [2m456[0m | [33;1m|[0m                 Your application has been approved! Your ${bankName} account is now active.
+04:40:38.871  [2m457[0m | [33;1m|[0m               </p>
+04:40:38.871  [2m458[0m | [33;1m|[0m               
+04:40:38.871  [2m459[0m | [33;1m|[0m               <!-- Login Credentials -->
+04:40:38.871  [2m460[0m | [33;1m|[0m               <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 8px;">
+04:40:38.871  [2m461[0m | [33;1m|[0m                 <h3 style="color: #1a365d; font-size: 18px; margin: 0 0 16px 0;">
+04:40:38.872  [2m462[0m | [33;1m|[0m                   🔐 Your Login Credentials
+04:40:38.872  [2m463[0m | [33;1m|[0m                 </h3>
+04:40:38.872  [2m464[0m | [33;1m|[0m                 <p style="margin: 0 0 8px 0; color: #4a5568;">
+04:40:38.872  [2m465[0m | [33;1m|[0m                   <strong>Email:</strong> ${email}
+04:40:38.872  [2m466[0m | [33;1m|[0m                 </p>
+04:40:38.872  [2m467[0m | [33;1m|[0m                 <p style="margin: 0 0 16px 0; color: #4a5568;">
+04:40:38.872  [2m468[0m | [33;1m|[0m                   <strong>Temporary Password:</strong> 
+04:40:38.872  [2m469[0m | [33;1m|[0m                   <code style="background-color: #e0f2fe; padding: 8px 12px; border-radius: 4px; font-size: 16px; font-weight: 600; display: inline-block; margin-top: 4px;">${temp_password}</code>
+04:40:38.872  [2m470[0m | [33;1m|[0m                 </p>
+04:40:38.873  [2m471[0m | [33;1m|[0m                 <div style="background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 12px;">
+04:40:38.873  [2m472[0m | [33;1m|[0m                   <p style="margin: 0; color: #92400e; font-size: 14px;">
+04:40:38.873  [2m473[0m | [33;1m|[0m                     ⚠️ <strong>Important:</strong> Please change your password immediately after your first login for security purposes.
+04:40:38.873  [2m474[0m | [33;1m|[0m                   </p>
+04:40:38.873  [2m475[0m | [33;1m|[0m                 </div>
+04:40:38.873  [2m476[0m | [33;1m|[0m               </div>
+04:40:38.873  [2m477[0m | [33;1m|[0m   
+04:40:38.873  [2m478[0m | [33;1m|[0m               <!-- Active Account Information -->
+04:40:38.874  [2m479[0m | [33;1m|[0m               <div style="background-color: #f7fafc; border-radius: 12px; padding: 24px; margin: 32px 0;">
+04:40:38.874  [2m480[0m | [33;1m|[0m                 <h3 style="color: #1a365d; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+04:40:38.874  [2m481[0m | [33;1m|[0m                   💳 Your Active Account${account_numbers && account_numbers.length > 1 ? 's' : ''}:
+04:40:38.874  [2m482[0m | [33;1m|[0m                 </h3>
+04:40:38.874  [2m483[0m | [33;1m|[0m                 ${activeAccountsHtml}
+04:40:38.874  [2m484[0m | [33;1m|[0m               </div>
+04:40:38.874  [2m485[0m | [33;1m|[0m   
+04:40:38.874  [2m486[0m | [33;1m|[0m               ${pendingAccountsHtml}
+04:40:38.875  [2m487[0m | [33;1m|[0m               
+04:40:38.875  [2m488[0m | [33;1m|[0m               <!-- CTA Button -->
+04:40:38.875  [2m489[0m | [33;1m|[0m               <div style="text-align: center; margin: 40px 0;">
+04:40:38.875  [2m490[0m | [33;1m|[0m                 <a href="${site_url}/login" 
+04:40:38.875  [2m491[0m | [33;1m|[0m                    style="display: inline-block; background: linear-gradient(135deg, #0066cc 0%, #2c5aa0 100%); 
+04:40:38.875  [2m492[0m | [33;1m|[0m                           color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
+04:40:38.875  [2m493[0m | [33;1m|[0m                           font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);">
+04:40:38.875  [2m494[0m | [33;1m|[0m                   Access Your Account Now
+04:40:38.875  [2m495[0m | [33;1m|[0m                 </a>
+04:40:38.875  [2m496[0m | [33;1m|[0m               </div>
+04:40:38.875  [2m497[0m | [33;1m|[0m               
+04:40:38.875  [2m498[0m | [33;1m|[0m               <!-- Next Steps -->
+04:40:38.875  [2m499[0m | [33;1m|[0m               <div style="background-color: #ecfdf5; border-radius: 12px; padding: 24px; margin: 32px 0;">
+04:40:38.875  [2m500[0m | [33;1m|[0m                 <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+04:40:38.875  [2m501[0m | [33;1m|[0m                   🚀 What's Next:
+04:40:38.875  [2m502[0m | [33;1m|[0m                 </h3>
+04:40:38.875  [2m503[0m | [33;1m|[0m                 <ul style="color: #047857; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+04:40:38.875  [2m504[0m | [33;1m|[0m                   <li style="margin-bottom: 8px;">Log in to your online banking dashboard</li>
+04:40:38.875  [2m505[0m | [33;1m|[0m                   <li style="margin-bottom: 8px;">Change your temporary password</li>
+04:40:38.875  [2m506[0m | [33;1m|[0m                   <li style="margin-bottom: 8px;">Set up mobile banking and notifications</li>
+04:40:38.875  [2m507[0m | [33;1m|[0m                   <li style="margin-bottom: 8px;">Explore our services and features</li>
+04:40:38.875  [2m508[0m | [33;1m|[0m                   ${has_pending_accounts ? '<li style="margin-bottom: 8px;">Wait for pending accounts to be approved</li>' : ''}
+04:40:38.875  [2m509[0m | [33;1m|[0m                 </ul>
+04:40:38.875  [2m510[0m | [33;1m|[0m               </div>
+04:40:38.875  [2m511[0m | [33;1m|[0m             </div>
+04:40:38.875  [2m512[0m | [33;1m|[0m             
+04:40:38.875  [2m513[0m | [33;1m|[0m             <!-- Footer -->
+04:40:38.875  [2m514[0m | [33;1m|[0m             <div style="background-color: #f7fafc; padding: 32px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+04:40:38.876  [2m515[0m | [33;1m|[0m               <p style="color: #718096; font-size: 14px; margin: 0 0 16px 0;">
+04:40:38.876  [2m516[0m | [33;1m|[0m                 Need help? Contact our support team:
+04:40:38.876  [2m517[0m | [33;1m|[0m               </p>
+04:40:38.876  [2m518[0m | [33;1m|[0m               <p style="color: #4a5568; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+04:40:38.876  [2m519[0m | [33;1m|[0m                 📧 ${supportEmail}
+04:40:38.877  [2m520[0m | [33;1m|[0m               </p>
+04:40:38.877  [2m521[0m | [33;1m|[0m               <p style="color: #718096; font-size: 14px; margin: 0 0 24px 0;">
+04:40:38.877  [2m522[0m | [33;1m|[0m                 Available 24/7 for your assistance
+04:40:38.877  [2m523[0m | [33;1m|[0m               </p>
+04:40:38.877  [2m524[0m | [33;1m|[0m               
+04:40:38.877  [2m525[0m | [33;1m|[0m               <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 24px;">
+04:40:38.877  [2m526[0m | [33;1m|[0m                 <p style="color: #718096; font-size: 12px; margin: 0;">
+04:40:38.877  [2m527[0m | [33;1m|[0m                   © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br>
+04:40:38.877  [2m528[0m | [33;1m|[0m                   Member FDIC | Routing: ${routingNumber}
+04:40:38.877  [2m529[0m | [33;1m|[0m                 </p>
+04:40:38.877  [2m530[0m | [33;1m|[0m               </div>
+04:40:38.878  [2m531[0m | [33;1m|[0m             </div>
+04:40:38.878  [2m532[0m | [33;1m|[0m           </div>
+04:40:38.878  [2m533[0m | [33;1m|[0m         </body>
+04:40:38.878  [2m534[0m | [33;1m|[0m         </html>
+04:40:38.878  [2m535[0m | [33;1m|[0m       `;
+04:40:38.878  [2m536[0m | [33;1m|[0m   
+04:40:38.878  [2m537[0m | [33;1m|[0m       const mailOptions = {
+04:40:38.878  [2m538[0m | [33;1m|[0m         from: `"${bankName}" <${bankEmail}>`,
+04:40:38.878  [2m539[0m | [33;1m|[0m         to: email,
+04:40:38.878  [2m540[0m | [33;1m|[0m         subject: `🎉 Welcome to ${bankName} - Your Account is Ready!`,
+04:40:38.878  [2m541[0m | [33;1m|[0m         html: emailHtml
+04:40:38.879  [2m542[0m | [33;1m|[0m       };
+04:40:38.879  [2m543[0m | [33;1m|[0m   
+04:40:38.879  [2m544[0m | [33;1m|[0m       const info = await transporter.sendMail(mailOptions);
+04:40:38.879  [2m545[0m | [33;1m|[0m       console.log('✅ Welcome email with credentials sent successfully:', info.messageId);
+04:40:38.879  [2m546[0m | [33;1m|[0m   
+04:40:38.879  [2m547[0m | [33;1m|[0m       return res.status(200).json({ 
+04:40:38.879  [2m548[0m | [33;1m|[0m         success: true, 
+04:40:38.879  [2m549[0m | [33;1m|[0m         message: 'Welcome email sent successfully',
+04:40:38.879  [2m550[0m | [33;1m|[0m         messageId: info.messageId
+04:40:38.879  [2m551[0m | [33;1m|[0m       });
+04:40:38.879  [2m552[0m | [33;1m|[0m   
+04:40:38.879  [2m553[0m | [33;1m|[0m     } catch (error) {
+04:40:38.880  [2m554[0m | [33;1m|[0m       console.error('❌ Error sending welcome email with credentials:', error);
+04:40:38.880  [2m555[0m | [33;1m|[0m       return res.status(500).json({ 
+04:40:38.880  [2m556[0m | [33;1m|[0m         error: 'Failed to send welcome email',
+04:40:38.880  [2m557[0m | [33;1m|[0m         details: error.message
+04:40:38.880  [2m558[0m | [33;1m|[0m       });
+04:40:38.880  [2m559[0m | [33;1m|[0m     }
+04:40:38.880  [2m560[0m | [33;1m|[0m[33;1m-[0m[33;1m>[0m }
+04:40:38.880      : [33;1m`[0m[33;1m---[0m[33;1m-[0m [33;1mexported more than once[0m
+04:40:38.880      `----
+04:40:38.880 
+04:40:38.880 Error: 
+04:40:38.881   [36m>[0m Exported identifiers must be unique
+04:40:38.881 
+04:40:38.881 Import trace for requested module:
+04:40:38.881 ./pages/api/send-welcome-email-with-credentials.js
+04:40:38.881 
+04:40:38.881 
+04:40:38.881 > Build failed because of webpack errors
+04:40:38.897 Error: Command "npm run build" exited with 1
