@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { supabase } from '../lib/supabaseClient';
 import AdminFooter from '../components/AdminFooter';
 import AdminNavDropdown from '../components/AdminNavDropdown';
-import AdminPageDropdown from '../components/AdminPageDropdown'; // Assuming this component is created
+import AdminPageDropdown from '../components/AdminPageDropdown';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
