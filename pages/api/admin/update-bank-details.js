@@ -48,35 +48,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Bank details are required' });
     }
 
-    const allFields = Object.keys(bankDetails);
-    const emailFieldsToUpdate = allFields.filter(field => field.startsWith('email_'));
-
-    for (const columnName of emailFieldsToUpdate) {
-      const columnValue = bankDetails[columnName];
-      
-      if (!columnValue || columnValue.trim() === '') continue;
-
-      if (!/^email_[a-z_]+$/.test(columnName)) {
-        console.warn(`Skipping invalid column name: ${columnName}`);
-        continue;
-      }
-
-      try {
-        const { error: addColumnError } = await supabaseAdmin.rpc(
-          'add_bank_details_column_if_not_exists',
-          { column_name: columnName }
-        );
-
-        if (addColumnError) {
-          console.error(`Error adding column ${columnName}:`, addColumnError);
-        } else {
-          console.log(`✅ Column ${columnName} is ready`);
-        }
-      } catch (err) {
-        console.warn(`Column check/creation warning for ${columnName}:`, err.message);
-      }
-    }
-
+    // Check if a record exists
     const { data: existingRecord, error: fetchError } = await supabaseAdmin
       .from('bank_details')
       .select('id')
