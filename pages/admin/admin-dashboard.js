@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
 import AdminNavDropdown from '../../components/AdminNavDropdown';
+import AdminStickyDropdown from '../../components/AdminStickyDropdown';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -180,6 +181,26 @@ export default function AdminDashboard() {
                 <p style={styles.cardDescription}>Review crypto deposits</p>
               </Link>
             </div>
+
+            <div style={styles.bottomNav}>
+              <Link href="/admin/approve-applications" style={styles.navButton}>
+                <div style={styles.navIcon}>✅</div>
+                <div style={styles.navText}>Approve</div>
+              </Link>
+              <Link href="/admin" style={styles.navButton}>
+                <div style={styles.navIcon}>🏠</div>
+                <div style={styles.navText}>Hub</div>
+              </Link>
+              <Link href="/admin/manage-accounts" style={styles.navButton}>
+                <div style={styles.navIcon}>🏦</div>
+                <div style={styles.navText}>Accounts</div>
+              </Link>
+              <Link href="/admin/admin-transactions" style={styles.navButton}>
+                <div style={styles.navIcon}>💸</div>
+                <div style={styles.navText}>Transactions</div>
+              </Link>
+              <AdminStickyDropdown />
+            </div>
           </>
         )}
       </div>
@@ -284,5 +305,43 @@ const styles = {
     fontSize: '14px',
     color: '#666',
     margin: 0
+  },
+  bottomNav: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderTop: '2px solid #e2e8f0',
+    padding: '8px 5px',
+    boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
+    zIndex: 1000,
+    gap: '4px'
+  },
+  navButton: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textDecoration: 'none',
+    color: '#1A3E6F',
+    padding: '6px 4px',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+    flex: 1,
+    maxWidth: '80px',
+    minWidth: '60px'
+  },
+  navIcon: {
+    fontSize: '20px',
+    marginBottom: '2px'
+  },
+  navText: {
+    fontSize: '10px',
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: '1.2'
   }
 };

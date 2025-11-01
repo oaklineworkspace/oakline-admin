@@ -182,6 +182,105 @@ export default function ManageCryptoDeposits() {
     }
   };
 
+  const handleViewDetails = (deposit) => {
+    const details = `
+Deposit Details:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ID: ${deposit.id}
+User Email: ${deposit.user_email}
+Account Number: ${deposit.account_number}
+Cryptocurrency: ${deposit.crypto_type}
+Network: ${deposit.network_type || 'N/A'}
+Amount: $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+Wallet Address: ${deposit.wallet_address}
+Transaction Hash: ${deposit.transaction_hash || 'N/A'}
+Confirmations: ${deposit.confirmations || 0}
+Status: ${deposit.status}
+Created: ${formatDate(deposit.created_at)}
+${deposit.confirmed_at ? `Confirmed: ${formatDate(deposit.confirmed_at)}` : ''}
+${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    `;
+    alert(details);
+  };
+
+  const handleReverseDeposit = async (depositId) => {
+    const reason = window.prompt('Enter reason for reversing this deposit:');
+    
+    if (!reason) {
+      alert('Reason is required to reverse a deposit');
+      return;
+    }
+
+    if (!window.confirm('⚠️ WARNING: This will reverse the deposit and deduct the amount from the user\'s account. Are you absolutely sure?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setMessage('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const deposit = deposits.find(d => d.id === depositId);
+      if (!deposit) {
+        throw new Error('Deposit not found');
+      }
+
+      const { data: account, error: accountError } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('account_number', deposit.account_number)
+        .single();
+
+      if (accountError || !account) {
+        throw new Error('Account not found');
+      }
+
+      if (parseFloat(account.balance) < parseFloat(deposit.amount)) {
+        throw new Error('Insufficient balance to reverse this deposit');
+      }
+
+      const newBalance = parseFloat(account.balance) - parseFloat(deposit.amount);
+
+      const { error: updateError } = await supabase
+        .from('accounts')
+        .update({ balance: newBalance })
+        .eq('account_number', deposit.account_number);
+
+      if (updateError) {
+        throw new Error('Failed to update account balance');
+      }
+
+      const { error: depositUpdateError } = await supabase
+        .from('crypto_deposits')
+        .update({ 
+          status: 'reversed',
+          reversed_at: new Date().toISOString(),
+          reversal_reason: reason
+        })
+        .eq('id', depositId);
+
+      if (depositUpdateError) {
+        throw new Error('Failed to update deposit status');
+      }
+
+      setMessage(`✅ Deposit reversed successfully. New balance: $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+      await fetchDeposits();
+
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      console.error('Error reversing deposit:', error);
+      setError(`Failed to reverse deposit: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('en-US', {
@@ -378,6 +477,13 @@ export default function ManageCryptoDeposits() {
                               >
                                 ✗ Reject
                               </button>
+                              <button
+                                onClick={() => handleViewDetails(deposit)}
+                                style={styles.viewButton}
+                                title="View transaction details"
+                              >
+                                👁️ View
+                              </button>
                             </>
                           ) : (
                             <>
@@ -397,11 +503,44 @@ export default function ManageCryptoDeposits() {
                               >
                                 ✗ Reject
                               </button>
+                              <button
+                                onClick={() => handleViewDetails(deposit)}
+                                style={styles.viewButton}
+                                title="View transaction details"
+                              >
+                                👁️ View
+                              </button>
                             </>
                           )}
                         </div>
+                      ) : deposit.status === 'approved' ? (
+                        <div style={styles.actionButtons}>
+                          <button
+                            onClick={() => handleViewDetails(deposit)}
+                            style={styles.viewButton}
+                            title="View transaction details"
+                          >
+                            👁️ View
+                          </button>
+                          <button
+                            onClick={() => handleReverseDeposit(deposit.id)}
+                            disabled={loading}
+                            style={loading ? styles.disabledButton : styles.reverseButton}
+                            title="Reverse approved deposit"
+                          >
+                            ↩️ Reverse
+                          </button>
+                        </div>
                       ) : (
-                        <span style={styles.noAction}>No actions</span>
+                        <div style={styles.actionButtons}>
+                          <button
+                            onClick={() => handleViewDetails(deposit)}
+                            style={styles.viewButton}
+                            title="View transaction details"
+                          >
+                            👁️ View
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -659,6 +798,30 @@ const styles = {
   rejectButton: {
     padding: '6px 12px',
     backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(10px, 2vw, 13px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+  },
+  viewButton: {
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(10px, 2vw, 13px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+  },
+  reverseButton: {
+    padding: '6px 12px',
+    backgroundColor: '#f59e0b',
     color: 'white',
     border: 'none',
     borderRadius: '6px',

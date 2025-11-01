@@ -125,46 +125,33 @@ export default function AdminStickyDropdown() {
 
 const styles = {
   containerWrapper: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    position: 'relative',
     display: 'flex',
-    gap: '0.5rem',
-    padding: '0.75rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(10px)',
-    borderTop: '2px solid #e2e8f0',
-    boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)',
-    zIndex: 1000,
-    justifyContent: 'center',
     alignItems: 'center'
   },
   dropdownGroup: {
     position: 'relative'
   },
   container: {
-    position: 'relative',
-    flex: 1,
-    maxWidth: '80px'
+    position: 'relative'
   },
   button: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '0.75rem 0.5rem',
+    padding: '0.5rem 0.75rem',
     backgroundColor: '#ffffff',
     color: '#1A3E6F',
     border: '1px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: '0.75rem',
+    borderRadius: '8px',
+    fontSize: '0.7rem',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     cursor: 'pointer',
     boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
-    minHeight: '60px',
-    width: '100%',
+    minHeight: '50px',
+    minWidth: '70px',
     position: 'relative',
     overflow: 'hidden'
   },
@@ -201,7 +188,7 @@ const styles = {
   },
   dropdown: {
     position: 'fixed',
-    bottom: '85px',
+    bottom: '70px',
     left: '50%',
     transform: 'translateX(-50%)',
     backgroundColor: 'white',
