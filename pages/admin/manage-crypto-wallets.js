@@ -224,6 +224,7 @@ export default function ManageCryptoWallets() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
+          walletId: wallet.id,
           userId: wallet.user_id,
           cryptoType,
           networkType,
