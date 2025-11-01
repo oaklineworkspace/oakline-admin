@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import { supabase } from '../../lib/supabaseClient';
@@ -11,12 +10,25 @@ export default function ManageCryptoDeposits() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  
   const [statusFilter, setStatusFilter] = useState('all');
-  const router = useRouter();
+  const [userSearchFilter, setUserSearchFilter] = useState('');
+  const [cryptoTypeFilter, setCryptoTypeFilter] = useState('all');
+  const [walletSearchFilter, setWalletSearchFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   useEffect(() => {
     fetchDeposits();
-  }, [statusFilter]);
+  }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [deposits, statusFilter, userSearchFilter, cryptoTypeFilter, walletSearchFilter, dateFromFilter, dateToFilter]);
 
   const fetchDeposits = async () => {
     try {
@@ -28,7 +40,7 @@ export default function ManageCryptoDeposits() {
         throw new Error('No active session');
       }
 
-      const response = await fetch(`/api/admin/get-crypto-deposits?status=${statusFilter}`, {
+      const response = await fetch('/api/admin/get-crypto-deposits?status=all', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -40,7 +52,6 @@ export default function ManageCryptoDeposits() {
       }
 
       setDeposits(result.deposits || []);
-      setFilteredDeposits(result.deposits || []);
       setSummary(result.summary || { total: 0, pending: 0, confirmed: 0, rejected: 0, reversed: 0, totalPendingAmount: 0 });
     } catch (error) {
       console.error('Error fetching deposits:', error);
@@ -50,169 +61,64 @@ export default function ManageCryptoDeposits() {
     }
   };
 
-  const handleConfirm = async (depositId) => {
-    if (!window.confirm('Confirm this crypto deposit? This verifies the transaction on the blockchain.')) {
-      return;
+  const applyFilters = () => {
+    let filtered = [...deposits];
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(d => d.status === statusFilter);
     }
 
-    try {
-      setLoading(true);
-      setError('');
-      setMessage('');
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch('/api/admin/confirm-crypto-deposit', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ depositId })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to confirm deposit');
-      }
-
-      setMessage('✅ Deposit verified successfully! You can now confirm it to credit the account.');
-      await fetchDeposits();
-
-      setTimeout(() => setMessage(''), 5000);
-    } catch (error) {
-      console.error('Error confirming deposit:', error);
-      setError(`Failed to confirm deposit: ${error.message}`);
-    } finally {
-      setLoading(false);
+    if (userSearchFilter) {
+      filtered = filtered.filter(d => 
+        d.user_email?.toLowerCase().includes(userSearchFilter.toLowerCase()) ||
+        d.user_id?.toLowerCase().includes(userSearchFilter.toLowerCase())
+      );
     }
+
+    if (cryptoTypeFilter !== 'all') {
+      filtered = filtered.filter(d => d.crypto_type === cryptoTypeFilter);
+    }
+
+    if (walletSearchFilter) {
+      filtered = filtered.filter(d => 
+        d.wallet_address?.toLowerCase().includes(walletSearchFilter.toLowerCase())
+      );
+    }
+
+    if (dateFromFilter) {
+      filtered = filtered.filter(d => new Date(d.created_at) >= new Date(dateFromFilter));
+    }
+
+    if (dateToFilter) {
+      const toDate = new Date(dateToFilter);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(d => new Date(d.created_at) <= toDate);
+    }
+
+    setFilteredDeposits(filtered);
+    setCurrentPage(1);
   };
 
-  const handleApprove = async (depositId) => {
-    if (!window.confirm('Are you sure you want to confirm this deposit? This will credit the user\'s account.')) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      setMessage('');
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch('/api/admin/approve-crypto-deposit', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ depositId })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to confirm deposit');
-      }
-
-      setMessage(`✅ Deposit confirmed successfully! New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-      await fetchDeposits();
-
-      setTimeout(() => setMessage(''), 5000);
-    } catch (error) {
-      console.error('Error confirming deposit:', error);
-      setError(`Failed to confirm deposit: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReject = async (depositId) => {
-    const reason = window.prompt('Enter rejection reason (optional):');
+  const handleStatusChange = async (depositId, newStatus) => {
+    let reason = null;
     
-    if (reason === null) {
-      return;
+    if (newStatus === 'rejected' || newStatus === 'on_hold' || newStatus === 'reversed' || newStatus === 'failed') {
+      reason = window.prompt(`Enter reason for ${newStatus}:`);
+      if (reason === null) return;
     }
 
-    if (!window.confirm('Are you sure you want to reject this deposit?')) {
-      return;
-    }
+    const confirmMessages = {
+      'confirmed': 'Approve this deposit? This will credit the user\'s account.',
+      'rejected': 'Reject this deposit?',
+      'on_hold': 'Put this deposit on hold?',
+      'awaiting_confirmations': 'Mark as awaiting confirmations?',
+      'processing': 'Mark as processing?',
+      'completed': 'Mark as completed? This will credit the user\'s account.',
+      'failed': 'Mark as failed?',
+      'reversed': '⚠️ WARNING: Reverse this deposit? This will deduct the amount from the user\'s account.',
+    };
 
-    try {
-      setLoading(true);
-      setError('');
-      setMessage('');
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch('/api/admin/reject-crypto-deposit', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ depositId, reason })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to reject deposit');
-      }
-
-      setMessage('✅ Deposit rejected successfully');
-      await fetchDeposits();
-
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      console.error('Error rejecting deposit:', error);
-      setError(`Failed to reject deposit: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleViewDetails = (deposit) => {
-    const details = `
-Deposit Details:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ID: ${deposit.id}
-User Email: ${deposit.user_email}
-Account Number: ${deposit.account_number}
-Cryptocurrency: ${deposit.crypto_type}
-Network: ${deposit.network_type || 'N/A'}
-Amount: $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-Wallet Address: ${deposit.wallet_address}
-Transaction Hash: ${deposit.transaction_hash || 'N/A'}
-Confirmations: ${deposit.confirmations || 0}
-Status: ${deposit.status}
-Created: ${formatDate(deposit.created_at)}
-${deposit.confirmed_at ? `Confirmed: ${formatDate(deposit.confirmed_at)}` : ''}
-${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    `;
-    alert(details);
-  };
-
-  const handleReverseDeposit = async (depositId) => {
-    const reason = window.prompt('Enter reason for reversing this deposit:');
-    
-    if (!reason) {
-      alert('Reason is required to reverse a deposit');
-      return;
-    }
-
-    if (!window.confirm('⚠️ WARNING: This will reverse the deposit and deduct the amount from the user\'s account. Are you absolutely sure?')) {
+    if (!window.confirm(confirmMessages[newStatus] || `Change status to ${newStatus}?`)) {
       return;
     }
 
@@ -226,28 +132,31 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
         throw new Error('No active session');
       }
 
-      const response = await fetch('/api/admin/reverse-crypto-deposit', {
+      const response = await fetch('/api/admin/update-crypto-deposit-status', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ depositId, reason })
+        body: JSON.stringify({ depositId, newStatus, reason })
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to reverse deposit');
+        throw new Error(result.error || 'Failed to update status');
       }
 
-      setMessage(`✅ Deposit reversed successfully. New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+      setMessage(result.message || `✅ Status updated to ${newStatus} successfully`);
+      if (result.newBalance !== undefined) {
+        setMessage(prev => `${prev} - New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+      }
+      
       await fetchDeposits();
-
       setTimeout(() => setMessage(''), 5000);
     } catch (error) {
-      console.error('Error reversing deposit:', error);
-      setError(`Failed to reverse deposit: ${error.message}`);
+      console.error('Error updating status:', error);
+      setError(`Failed to update status: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -264,17 +173,18 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
     });
   };
 
-  const getStatusBadge = (status, confirmedAt) => {
-    let statusStyles = {
+  const getStatusBadge = (status) => {
+    const statusStyles = {
       pending: { backgroundColor: '#fef3c7', color: '#92400e', text: 'Pending' },
+      on_hold: { backgroundColor: '#fef3c7', color: '#92400e', text: 'On Hold' },
+      awaiting_confirmations: { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Awaiting Confirmations' },
       confirmed: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Confirmed' },
+      processing: { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Processing' },
+      completed: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Completed' },
       rejected: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Rejected' },
+      failed: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Failed' },
       reversed: { backgroundColor: '#fff7ed', color: '#c2410c', text: 'Reversed' },
     };
-
-    if (status === 'pending' && confirmedAt) {
-      statusStyles.pending = { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Verifying' };
-    }
 
     const style = statusStyles[status] || statusStyles.pending;
 
@@ -292,6 +202,50 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
       </span>
     );
   };
+
+  const getAvailableActions = (deposit) => {
+    const actions = [];
+    const status = deposit.status;
+
+    switch (status) {
+      case 'pending':
+      case 'on_hold':
+      case 'awaiting_confirmations':
+        actions.push(
+          { label: 'Approve', value: 'confirmed', color: '#10b981' },
+          { label: 'Reject', value: 'rejected', color: '#ef4444' },
+          { label: 'On Hold', value: 'on_hold', color: '#f59e0b' },
+          { label: 'Awaiting Confirmations', value: 'awaiting_confirmations', color: '#3b82f6' },
+          { label: 'Processing', value: 'processing', color: '#3b82f6' }
+        );
+        break;
+      case 'processing':
+        actions.push(
+          { label: 'Complete', value: 'completed', color: '#10b981' },
+          { label: 'Failed', value: 'failed', color: '#ef4444' }
+        );
+        break;
+      case 'confirmed':
+      case 'completed':
+        actions.push(
+          { label: 'Reverse', value: 'reversed', color: '#f59e0b' }
+        );
+        break;
+      default:
+        break;
+    }
+
+    return actions;
+  };
+
+  const cryptoTypes = ['all', ...new Set(deposits.map(d => d.crypto_type).filter(Boolean))];
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredDeposits.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredDeposits.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   if (loading && deposits.length === 0) {
     return (
@@ -358,191 +312,298 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
           </div>
         </div>
 
-        <div style={styles.filterContainer}>
-          <label style={styles.filterLabel}>Filter by Status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={styles.filterSelect}
+        <div style={styles.filtersPanel}>
+          <h3 style={styles.filterTitle}>🔍 Filters & Search</h3>
+          <div style={styles.filtersGrid}>
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Status</label>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={styles.filterSelect}>
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="on_hold">On Hold</option>
+                <option value="awaiting_confirmations">Awaiting Confirmations</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
+                <option value="failed">Failed</option>
+                <option value="reversed">Reversed</option>
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>User Email / ID</label>
+              <input
+                type="text"
+                placeholder="Search by user..."
+                value={userSearchFilter}
+                onChange={(e) => setUserSearchFilter(e.target.value)}
+                style={styles.filterInput}
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Crypto Type</label>
+              <select value={cryptoTypeFilter} onChange={(e) => setCryptoTypeFilter(e.target.value)} style={styles.filterSelect}>
+                {cryptoTypes.map(type => (
+                  <option key={type} value={type}>{type === 'all' ? 'All Types' : type}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Wallet Address</label>
+              <input
+                type="text"
+                placeholder="Search wallet..."
+                value={walletSearchFilter}
+                onChange={(e) => setWalletSearchFilter(e.target.value)}
+                style={styles.filterInput}
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Date From</label>
+              <input
+                type="date"
+                value={dateFromFilter}
+                onChange={(e) => setDateFromFilter(e.target.value)}
+                style={styles.filterInput}
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Date To</label>
+              <input
+                type="date"
+                value={dateToFilter}
+                onChange={(e) => setDateToFilter(e.target.value)}
+                style={styles.filterInput}
+              />
+            </div>
+          </div>
+          
+          <button
+            onClick={() => {
+              setStatusFilter('all');
+              setUserSearchFilter('');
+              setCryptoTypeFilter('all');
+              setWalletSearchFilter('');
+              setDateFromFilter('');
+              setDateToFilter('');
+            }}
+            style={styles.clearFiltersButton}
           >
-            <option value="all">All Deposits</option>
-            <option value="pending">Pending Only</option>
-            <option value="verifying">Verifying Only</option>
-            <option value="confirmed">Confirmed Only</option>
-            <option value="rejected">Rejected Only</option>
-            <option value="reversed">Reversed Only</option>
-          </select>
+            Clear All Filters
+          </button>
+        </div>
+
+        <div style={styles.resultsInfo}>
+          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredDeposits.length)} of {filteredDeposits.length} deposits
         </div>
 
         <div style={styles.tableContainer}>
           <table style={styles.table}>
             <thead>
               <tr style={styles.tableHeader}>
-                <th style={styles.th}>ID</th>
-                <th style={styles.th}>User Email</th>
-                <th style={styles.th}>Account Number</th>
-                <th style={styles.th}>Crypto Type</th>
-                <th style={styles.th}>Network</th>
-                <th style={styles.th}>Wallet Address</th>
-                <th style={styles.th}>Amount</th>
-                <th style={styles.th}>TX Hash</th>
-                <th style={styles.th}>Confirmations</th>
+                <th style={styles.th}>Expand</th>
+                <th style={styles.th}>User</th>
+                <th style={styles.th}>Account</th>
+                <th style={styles.th}>Crypto</th>
+                <th style={styles.th}>Amount / Fee</th>
+                <th style={styles.th}>Wallet</th>
                 <th style={styles.th}>Status</th>
-                <th style={styles.th}>Date Created</th>
+                <th style={styles.th}>Created</th>
                 <th style={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredDeposits.length === 0 ? (
+              {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan="12" style={styles.emptyState}>
-                    {statusFilter === 'all' 
-                      ? 'No crypto deposits found' 
-                      : `No ${statusFilter} deposits found`}
+                  <td colSpan="9" style={styles.emptyState}>
+                    No deposits found matching your filters
                   </td>
                 </tr>
               ) : (
-                filteredDeposits.map((deposit) => (
-                  <tr key={deposit.id} style={styles.tableRow}>
-                    <td style={styles.td}>{deposit.id}</td>
-                    <td style={styles.td}>{deposit.user_email}</td>
-                    <td style={styles.td}>
-                      <span style={styles.accountNumber}>{deposit.account_number}</span>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={styles.cryptoBadge}>{deposit.crypto_type}</span>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={styles.networkBadge}>{deposit.network_type || 'N/A'}</span>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={styles.walletAddress} title={deposit.wallet_address}>
-                        {deposit.wallet_address?.substring(0, 12)}...{deposit.wallet_address?.substring(deposit.wallet_address.length - 8)}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <strong>${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                    </td>
-                    <td style={styles.td}>
-                      {deposit.transaction_hash ? (
-                        <span style={styles.txHash} title={deposit.transaction_hash}>
-                          {deposit.transaction_hash.substring(0, 10)}...
-                        </span>
-                      ) : (
-                        <span style={styles.noData}>N/A</span>
-                      )}
-                    </td>
-                    <td style={styles.td}>
-                      <span style={styles.confirmations}>{deposit.confirmations || 0}</span>
-                    </td>
-                    <td style={styles.td}>{getStatusBadge(deposit.status, deposit.confirmed_at)}</td>
-                    <td style={styles.td}>{formatDate(deposit.created_at)}</td>
-                    <td style={styles.td}>
-                      {deposit.status === 'pending' ? (
-                        <div style={styles.actionButtons}>
-                          {!deposit.confirmed_at ? (
-                            <>
-                              <button
-                                onClick={() => handleConfirm(deposit.id)}
-                                disabled={loading}
-                                style={loading ? styles.disabledButton : styles.confirmButton}
-                                title="Verify transaction on blockchain"
-                              >
-                                ✓ Verify
-                              </button>
-                              <button
-                                onClick={() => handleReject(deposit.id)}
-                                disabled={loading}
-                                style={loading ? styles.disabledButton : styles.rejectButton}
-                                title="Reject deposit"
-                              >
-                                ✗ Reject
-                              </button>
-                              <button
-                                onClick={() => handleViewDetails(deposit)}
-                                style={styles.viewButton}
-                                title="View transaction details"
-                              >
-                                👁️ View
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleApprove(deposit.id)}
-                                disabled={loading}
-                                style={loading ? styles.disabledButton : styles.approveButton}
-                                title="Confirm and credit account"
-                              >
-                                ✓ Confirm
-                              </button>
-                              <button
-                                onClick={() => handleReject(deposit.id)}
-                                disabled={loading}
-                                style={loading ? styles.disabledButton : styles.rejectButton}
-                                title="Reject deposit"
-                              >
-                                ✗ Reject
-                              </button>
-                              <button
-                                onClick={() => handleViewDetails(deposit)}
-                                style={styles.viewButton}
-                                title="View transaction details"
-                              >
-                                👁️ View
-                              </button>
-                            </>
+                currentItems.map((deposit) => (
+                  <>
+                    <tr key={deposit.id} style={styles.tableRow}>
+                      <td style={styles.td}>
+                        <button
+                          onClick={() => setExpandedRow(expandedRow === deposit.id ? null : deposit.id)}
+                          style={styles.expandButton}
+                        >
+                          {expandedRow === deposit.id ? '▼' : '▶'}
+                        </button>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.userCell}>
+                          <div style={styles.userEmail}>{deposit.user_email}</div>
+                          <div style={styles.userId}>ID: {deposit.user_id?.substring(0, 8)}...</div>
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.accountNumber}>{deposit.account_number}</span>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.cryptoCell}>
+                          <span style={styles.cryptoBadge}>{deposit.crypto_type}</span>
+                          <span style={styles.networkBadge}>{deposit.network_type || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.amountCell}>
+                          <strong>${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                          {deposit.fee > 0 && (
+                            <div style={styles.feeText}>Fee: ${parseFloat(deposit.fee).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                          )}
+                          {deposit.net_amount && (
+                            <div style={styles.netAmount}>Net: ${parseFloat(deposit.net_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                           )}
                         </div>
-                      ) : deposit.status === 'confirmed' ? (
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.walletAddress} title={deposit.wallet_address}>
+                          {deposit.wallet_address?.substring(0, 8)}...
+                        </span>
+                      </td>
+                      <td style={styles.td}>{getStatusBadge(deposit.status)}</td>
+                      <td style={styles.td}>{formatDate(deposit.created_at)}</td>
+                      <td style={styles.td}>
                         <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleViewDetails(deposit)}
-                            style={styles.viewButton}
-                            title="View transaction details"
-                          >
-                            👁️ View
-                          </button>
-                          <button
-                            onClick={() => handleReverseDeposit(deposit.id)}
-                            disabled={loading}
-                            style={loading ? styles.disabledButton : styles.reverseButton}
-                            title="Reverse confirmed deposit"
-                          >
-                            ↩️ Reverse
-                          </button>
+                          {getAvailableActions(deposit).map((action) => (
+                            <button
+                              key={action.value}
+                              onClick={() => handleStatusChange(deposit.id, action.value)}
+                              disabled={loading}
+                              style={{
+                                ...styles.actionButton,
+                                backgroundColor: loading ? '#ccc' : action.color,
+                              }}
+                              title={action.label}
+                            >
+                              {action.label}
+                            </button>
+                          ))}
                         </div>
-                      ) : deposit.status === 'reversed' || deposit.status === 'rejected' ? (
-                        <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleViewDetails(deposit)}
-                            style={styles.viewButton}
-                            title="View transaction details"
-                          >
-                            👁️ View
-                          </button>
-                          <span style={styles.noAction}>
-                            {deposit.status === 'reversed' ? 'Reversed' : 'Rejected'}
-                          </span>
-                        </div>
-                      ) : (
-                        <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleViewDetails(deposit)}
-                            style={styles.viewButton}
-                            title="View transaction details"
-                          >
-                            👁️ View
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    {expandedRow === deposit.id && (
+                      <tr key={`${deposit.id}-expanded`} style={styles.expandedRow}>
+                        <td colSpan="9" style={styles.expandedCell}>
+                          <div style={styles.expandedContent}>
+                            <h4 style={styles.expandedTitle}>Full Deposit Details</h4>
+                            <div style={styles.detailsGrid}>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>ID:</span>
+                                <span style={styles.detailValue}>{deposit.id}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Account ID:</span>
+                                <span style={styles.detailValue}>{deposit.account_id}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Transaction Hash:</span>
+                                <span style={styles.detailValue}>{deposit.transaction_hash || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Confirmations:</span>
+                                <span style={styles.detailValue}>{deposit.confirmations || 0} / {deposit.required_confirmations || 3}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Approved By:</span>
+                                <span style={styles.detailValue}>{deposit.approved_by || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Approved At:</span>
+                                <span style={styles.detailValue}>{formatDate(deposit.approved_at)}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Rejected By:</span>
+                                <span style={styles.detailValue}>{deposit.rejected_by || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Rejected At:</span>
+                                <span style={styles.detailValue}>{formatDate(deposit.rejected_at)}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Rejection Reason:</span>
+                                <span style={styles.detailValue}>{deposit.rejection_reason || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Hold Reason:</span>
+                                <span style={styles.detailValue}>{deposit.hold_reason || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Completed At:</span>
+                                <span style={styles.detailValue}>{formatDate(deposit.completed_at)}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>Updated At:</span>
+                                <span style={styles.detailValue}>{formatDate(deposit.updated_at)}</span>
+                              </div>
+                              <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                <span style={styles.detailLabel}>Full Wallet Address:</span>
+                                <span style={{...styles.detailValue, wordBreak: 'break-all'}}>{deposit.wallet_address}</span>
+                              </div>
+                              {deposit.metadata && Object.keys(deposit.metadata).length > 0 && (
+                                <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                  <span style={styles.detailLabel}>Metadata:</span>
+                                  <pre style={styles.metadataValue}>{JSON.stringify(deposit.metadata, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div style={styles.pagination}>
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{
+                ...styles.paginationButton,
+                ...(currentPage === 1 ? styles.paginationButtonDisabled : {})
+              }}
+            >
+              Previous
+            </button>
+            
+            <div style={styles.paginationNumbers}>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                <button
+                  key={number}
+                  onClick={() => paginate(number)}
+                  style={{
+                    ...styles.paginationNumber,
+                    ...(currentPage === number ? styles.paginationNumberActive : {})
+                  }}
+                >
+                  {number}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{
+                ...styles.paginationButton,
+                ...(currentPage === totalPages ? styles.paginationButtonDisabled : {})
+              }}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </AdminAuth>
   );
@@ -551,7 +612,7 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
 const styles = {
   container: {
     padding: '20px 15px',
-    maxWidth: '1600px',
+    maxWidth: '1800px',
     margin: '0 auto',
     backgroundColor: '#f8fafc',
     minHeight: '100vh',
@@ -603,103 +664,94 @@ const styles = {
     gap: '12px',
     transition: 'all 0.2s',
   },
-  totalCard: {
-    borderLeft: '4px solid #3b82f6',
+  totalCard: { borderLeft: '4px solid #3b82f6' },
+  pendingCard: { borderLeft: '4px solid #f59e0b' },
+  approvedCard: { borderLeft: '4px solid #10b981' },
+  rejectedCard: { borderLeft: '4px solid #ef4444' },
+  reversedCard: { borderLeft: '4px solid #f59e0b' },
+  summaryIcon: { fontSize: 'clamp(24px, 5vw, 32px)' },
+  summaryContent: { flex: 1 },
+  summaryLabel: { fontSize: 'clamp(11px, 2.2vw, 14px)', color: '#64748b', marginBottom: '4px' },
+  summaryValue: { fontSize: 'clamp(20px, 4vw, 28px)', fontWeight: 'bold', color: '#1e293b' },
+  summarySubtext: { fontSize: 'clamp(10px, 2vw, 12px)', color: '#64748b', marginTop: '4px' },
+  filtersPanel: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
-  pendingCard: {
-    borderLeft: '4px solid #f59e0b',
-  },
-  approvedCard: {
-    borderLeft: '4px solid #10b981',
-  },
-  rejectedCard: {
-    borderLeft: '4px solid #ef4444',
-  },
-  reversedCard: {
-    borderLeft: '4px solid #f59e0b',
-  },
-  summaryIcon: {
-    fontSize: 'clamp(24px, 5vw, 32px)',
-  },
-  summaryContent: {
-    flex: 1,
-  },
-  summaryLabel: {
-    fontSize: 'clamp(11px, 2.2vw, 14px)',
-    color: '#64748b',
-    marginBottom: '4px',
-  },
-  summaryValue: {
-    fontSize: 'clamp(20px, 5vw, 28px)',
+  filterTitle: {
+    fontSize: '18px',
     fontWeight: 'bold',
+    marginBottom: '15px',
     color: '#1e293b',
   },
-  summarySubtext: {
-    fontSize: 'clamp(10px, 2vw, 13px)',
-    color: '#64748b',
-    marginTop: '4px',
+  filtersGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '15px',
+    marginBottom: '15px',
   },
-  filterContainer: {
-    marginBottom: '16px',
+  filterGroup: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
+    gap: '6px',
   },
   filterLabel: {
-    fontSize: 'clamp(13px, 2.8vw, 15px)',
+    fontSize: '13px',
     fontWeight: '600',
     color: '#475569',
   },
   filterSelect: {
     padding: '8px 12px',
-    fontSize: 'clamp(12px, 2.5vw, 14px)',
-    border: '2px solid #e2e8f0',
-    borderRadius: '8px',
-    outline: 'none',
-    cursor: 'pointer',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    fontSize: '14px',
     backgroundColor: 'white',
-    flex: 1,
-    minWidth: '150px',
+    cursor: 'pointer',
   },
-  errorMessage: {
-    backgroundColor: '#fee2e2',
-    color: '#dc2626',
-    padding: '16px 20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    border: '1px solid #fca5a5',
-    borderLeft: '4px solid #dc2626',
+  filterInput: {
+    padding: '8px 12px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    fontSize: '14px',
   },
-  successMessage: {
-    backgroundColor: '#d1fae5',
-    color: '#059669',
-    padding: '16px 20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    border: '1px solid #6ee7b7',
-    borderLeft: '4px solid #059669',
+  clearFiltersButton: {
+    padding: '8px 16px',
+    backgroundColor: '#64748b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
+  resultsInfo: {
+    fontSize: '14px',
+    color: '#64748b',
+    marginBottom: '15px',
+    fontWeight: '500',
   },
   tableContainer: {
     backgroundColor: 'white',
     borderRadius: '12px',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-    overflow: 'auto',
-    WebkitOverflowScrolling: 'touch',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    overflowX: 'auto',
+    marginBottom: '20px',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '1200px',
   },
   tableHeader: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
   },
   th: {
-    padding: '12px 8px',
+    padding: '12px',
     textAlign: 'left',
-    fontWeight: '600',
-    fontSize: 'clamp(11px, 2.2vw, 14px)',
+    fontSize: '13px',
+    fontWeight: '700',
     color: '#475569',
     borderBottom: '2px solid #e2e8f0',
     whiteSpace: 'nowrap',
@@ -709,160 +761,214 @@ const styles = {
     transition: 'background-color 0.2s',
   },
   td: {
-    padding: '12px 8px',
-    fontSize: 'clamp(11px, 2.2vw, 14px)',
-    color: '#334155',
+    padding: '12px',
+    fontSize: '13px',
+    color: '#1e293b',
+  },
+  expandButton: {
+    padding: '4px 8px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
+  userCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  userEmail: {
+    fontWeight: '600',
+    fontSize: '13px',
+  },
+  userId: {
+    fontSize: '11px',
+    color: '#64748b',
   },
   accountNumber: {
     fontFamily: 'monospace',
+    fontSize: '12px',
     backgroundColor: '#f1f5f9',
-    padding: '3px 6px',
+    padding: '4px 8px',
     borderRadius: '4px',
-    fontSize: 'clamp(11px, 2.2vw, 13px)',
+  },
+  cryptoCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
   },
   cryptoBadge: {
     display: 'inline-block',
-    padding: '5px 10px',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    borderRadius: '6px',
-    fontSize: 'clamp(11px, 2.2vw, 13px)',
+    padding: '4px 8px',
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '4px',
+    fontSize: '11px',
     fontWeight: '600',
   },
   networkBadge: {
     display: 'inline-block',
-    padding: '3px 6px',
-    backgroundColor: '#8b5cf6',
-    color: 'white',
+    padding: '4px 8px',
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
     borderRadius: '4px',
-    fontSize: 'clamp(10px, 2vw, 11px)',
+    fontSize: '11px',
+  },
+  amountCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  feeText: {
+    fontSize: '11px',
+    color: '#ef4444',
+  },
+  netAmount: {
+    fontSize: '11px',
+    color: '#10b981',
     fontWeight: '600',
   },
   walletAddress: {
     fontFamily: 'monospace',
-    fontSize: 'clamp(10px, 2vw, 12px)',
-    color: '#64748b',
-  },
-  txHash: {
-    fontFamily: 'monospace',
-    fontSize: 'clamp(10px, 2vw, 11px)',
-    color: '#3b82f6',
-    cursor: 'pointer',
-  },
-  confirmations: {
-    display: 'inline-block',
-    padding: '3px 8px',
-    backgroundColor: '#e0f2fe',
-    color: '#0369a1',
-    borderRadius: '12px',
-    fontSize: 'clamp(10px, 2vw, 12px)',
-    fontWeight: '600',
-  },
-  noData: {
-    color: '#94a3b8',
-    fontSize: 'clamp(10px, 2vw, 12px)',
-    fontStyle: 'italic',
+    fontSize: '11px',
+    backgroundColor: '#f1f5f9',
+    padding: '4px 6px',
+    borderRadius: '4px',
   },
   actionButtons: {
     display: 'flex',
-    gap: '6px',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
+    gap: '4px',
   },
-  confirmButton: {
-    padding: '6px 12px',
+  actionButton: {
+    padding: '6px 10px',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  expandedRow: {
+    backgroundColor: '#f8fafc',
+  },
+  expandedCell: {
+    padding: '20px',
+  },
+  expandedContent: {
+    backgroundColor: 'white',
+    padding: '20px',
+    borderRadius: '8px',
+  },
+  expandedTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    marginBottom: '15px',
+    color: '#1e293b',
+  },
+  detailsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '15px',
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  detailLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  detailValue: {
+    fontSize: '13px',
+    color: '#1e293b',
+  },
+  metadataValue: {
+    fontSize: '11px',
+    backgroundColor: '#f1f5f9',
+    padding: '10px',
+    borderRadius: '4px',
+    overflow: 'auto',
+  },
+  pagination: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '10px',
+    marginTop: '20px',
+  },
+  paginationButton: {
+    padding: '8px 16px',
     backgroundColor: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
-    fontSize: 'clamp(10px, 2vw, 13px)',
+    fontSize: '14px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
   },
-  approveButton: {
-    padding: '6px 12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: 'clamp(10px, 2vw, 13px)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
-  },
-  rejectButton: {
-    padding: '6px 12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: 'clamp(10px, 2vw, 13px)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
-  },
-  viewButton: {
-    padding: '6px 12px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: 'clamp(10px, 2vw, 13px)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
-  },
-  reverseButton: {
-    padding: '6px 12px',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: 'clamp(10px, 2vw, 13px)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
-  },
-  disabledButton: {
-    padding: '6px 12px',
+  paginationButtonDisabled: {
     backgroundColor: '#cbd5e1',
-    color: '#94a3b8',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: 'clamp(10px, 2vw, 13px)',
-    fontWeight: '600',
     cursor: 'not-allowed',
-    whiteSpace: 'nowrap',
   },
-  noAction: {
-    color: '#94a3b8',
-    fontSize: 'clamp(11px, 2.2vw, 13px)',
-    fontStyle: 'italic',
+  paginationNumbers: {
+    display: 'flex',
+    gap: '5px',
+  },
+  paginationNumber: {
+    padding: '8px 12px',
+    backgroundColor: 'white',
+    color: '#3b82f6',
+    border: '1px solid #3b82f6',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
+  paginationNumberActive: {
+    backgroundColor: '#3b82f6',
+    color: 'white',
   },
   emptyState: {
-    padding: '40px 15px',
     textAlign: 'center',
-    color: '#94a3b8',
-    fontSize: 'clamp(14px, 3vw, 16px)',
+    padding: '40px',
+    color: '#64748b',
+    fontSize: '14px',
+  },
+  errorMessage: {
+    padding: '15px',
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+    borderRadius: '8px',
+    marginBottom: '15px',
+    fontSize: '14px',
+  },
+  successMessage: {
+    padding: '15px',
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+    borderRadius: '8px',
+    marginBottom: '15px',
+    fontSize: '14px',
   },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     minHeight: '100vh',
-    backgroundColor: '#f8fafc',
+    gap: '20px',
   },
   spinner: {
     width: '50px',
     height: '50px',
     border: '5px solid #e2e8f0',
-    borderTop: '5px solid #3b82f6',
+    borderTopColor: '#3b82f6',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
