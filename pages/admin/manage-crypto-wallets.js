@@ -29,7 +29,10 @@ export default function ManageCryptoWallets() {
 
   useEffect(() => {
     fetchUsers();
+    fetchExistingWallets();
   }, []);
+
+  const [existingWallets, setExistingWallets] = useState({});
 
   useEffect(() => {
     if (searchTerm) {
@@ -73,6 +76,33 @@ export default function ManageCryptoWallets() {
       setError(`Failed to fetch users: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchExistingWallets = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-user-wallets', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const walletsMap = {};
+        result.wallets?.forEach(wallet => {
+          if (!walletsMap[wallet.user_id]) {
+            walletsMap[wallet.user_id] = [];
+          }
+          walletsMap[wallet.user_id].push(wallet);
+        });
+        setExistingWallets(walletsMap);
+      }
+    } catch (error) {
+      console.error('Error fetching existing wallets:', error);
     }
   };
 
@@ -121,6 +151,9 @@ export default function ManageCryptoWallets() {
         walletAddress: ''
       });
       setSelectedUser(null);
+      
+      // Refresh existing wallets
+      await fetchExistingWallets();
 
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -194,7 +227,14 @@ export default function ManageCryptoWallets() {
               ) : (
                 filteredUsers.map(user => (
                   <tr key={user.id} style={styles.tableRow}>
-                    <td style={styles.td}>{user.email || 'No email'}</td>
+                    <td style={styles.td}>
+                      {user.email || 'No email'}
+                      {existingWallets[user.id] && existingWallets[user.id].length > 0 && (
+                        <div style={styles.existingWalletsBadge}>
+                          {existingWallets[user.id].length} wallet(s) assigned
+                        </div>
+                      )}
+                    </td>
                     <td style={styles.td}>
                       {user.profiles?.first_name && user.profiles?.last_name
                         ? `${user.profiles.first_name} ${user.profiles.last_name}`
@@ -426,6 +466,16 @@ const styles = {
     textAlign: 'center',
     color: '#94a3b8',
     fontSize: '16px',
+  },
+  existingWalletsBadge: {
+    display: 'inline-block',
+    marginTop: '4px',
+    padding: '4px 8px',
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
   },
   loadingContainer: {
     display: 'flex',

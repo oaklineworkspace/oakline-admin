@@ -103,7 +103,7 @@ export default function AdminNavDropdown() {
     {
       category: '₿ Crypto Management',
       links: [
-        { name: 'Assign Crypto Wallets', path: '/admin/assign-crypto-wallets', icon: '🔑' },
+        { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
         { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
       ]
     },

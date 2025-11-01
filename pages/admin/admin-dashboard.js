@@ -167,6 +167,18 @@ export default function AdminDashboard() {
                 <h3 style={styles.cardTitle}>Audit Logs</h3>
                 <p style={styles.cardDescription}>View system audit logs</p>
               </Link>
+
+              <Link href="/admin/manage-crypto-wallets" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>🔑</div>
+                <h3 style={styles.cardTitle}>Manage Crypto Wallets</h3>
+                <p style={styles.cardDescription}>Assign wallets to users</p>
+              </Link>
+
+              <Link href="/admin/manage-crypto-deposits" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>💰</div>
+                <h3 style={styles.cardTitle}>Manage Crypto Deposits</h3>
+                <p style={styles.cardDescription}>Review crypto deposits</p>
+              </Link>
             </div>
           </>
         )}
