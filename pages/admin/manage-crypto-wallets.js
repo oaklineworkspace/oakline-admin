@@ -17,13 +17,20 @@ export default function ManageCryptoWallets() {
     networkType: '',
     walletAddress: ''
   });
+  const [existingWallets, setExistingWallets] = useState({});
+  const [editingWallet, setEditingWallet] = useState(null);
+  const [editForm, setEditForm] = useState({
+    cryptoType: '',
+    networkType: '',
+    walletAddress: ''
+  });
 
   const cryptoNetworks = {
     'BTC': ['Bitcoin'],
-    'USDT': ['ERC20', 'TRC20', 'BEP20'],
-    'ETH': ['ERC20'],
-    'BNB': ['BEP20', 'BSC'],
-    'SOL': ['Solana'],
+    'USDT': ['BSC', 'ERC20', 'TRC20', 'SOL', 'TON'],
+    'ETH': ['ERC20', 'Arbitrum', 'Base'],
+    'BNB': ['BEP20'],
+    'SOL': ['SOL'],
     'TON': ['TON']
   };
 
@@ -31,8 +38,6 @@ export default function ManageCryptoWallets() {
     fetchUsers();
     fetchExistingWallets();
   }, []);
-
-  const [existingWallets, setExistingWallets] = useState({});
 
   useEffect(() => {
     if (searchTerm) {
@@ -48,7 +53,6 @@ export default function ManageCryptoWallets() {
   }, [searchTerm, users]);
 
   useEffect(() => {
-    // Set default network when crypto type changes
     if (walletForm.cryptoType && cryptoNetworks[walletForm.cryptoType]) {
       setWalletForm(prev => ({
         ...prev,
@@ -56,6 +60,15 @@ export default function ManageCryptoWallets() {
       }));
     }
   }, [walletForm.cryptoType]);
+
+  useEffect(() => {
+    if (editForm.cryptoType && cryptoNetworks[editForm.cryptoType]) {
+      setEditForm(prev => ({
+        ...prev,
+        networkType: cryptoNetworks[editForm.cryptoType][0]
+      }));
+    }
+  }, [editForm.cryptoType]);
 
   const fetchUsers = async () => {
     try {
@@ -152,13 +165,92 @@ export default function ManageCryptoWallets() {
       });
       setSelectedUser(null);
       
-      // Refresh existing wallets
       await fetchExistingWallets();
 
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       console.error('Error assigning wallet:', error);
       setError(`Failed to assign wallet: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditWallet = (wallet) => {
+    setEditingWallet(wallet.id);
+    setEditForm({
+      cryptoType: wallet.crypto_type,
+      networkType: wallet.network_type,
+      walletAddress: wallet.wallet_address
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingWallet(null);
+    setEditForm({
+      cryptoType: '',
+      networkType: '',
+      walletAddress: ''
+    });
+  };
+
+  const handleUpdateWallet = async (wallet, userName) => {
+    const { cryptoType, networkType, walletAddress } = editForm;
+    
+    if (!walletAddress || !walletAddress.trim()) {
+      setError('Please enter a wallet address');
+      return;
+    }
+
+    if (!networkType || !cryptoNetworks[cryptoType]?.includes(networkType)) {
+      setError('Invalid network type for selected crypto');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setMessage('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch('/api/admin/assign-crypto-wallet', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          userId: wallet.user_id,
+          cryptoType,
+          networkType,
+          walletAddress: walletAddress.trim()
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update wallet');
+      }
+
+      setMessage(`✅ Wallet updated successfully for ${userName}`);
+      setEditingWallet(null);
+      setEditForm({
+        cryptoType: '',
+        networkType: '',
+        walletAddress: ''
+      });
+      
+      await fetchExistingWallets();
+
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error updating wallet:', error);
+      setError(`Failed to update wallet: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -200,110 +292,259 @@ export default function ManageCryptoWallets() {
 
         <div style={styles.infoCard}>
           <p style={styles.infoText}>
-            <strong>Instructions:</strong> Assign cryptocurrency wallet addresses to users. 
-            Select a user, choose the crypto type and network, then enter the wallet address.
+            <strong>Instructions:</strong> Assign or edit cryptocurrency wallet addresses for users. 
+            Select a user to assign a new wallet, or click "Edit" on existing wallets to update them.
           </p>
         </div>
 
-        <div style={styles.tableContainer}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.tableHeader}>
-                <th style={styles.th}>User Email</th>
-                <th style={styles.th}>User Name</th>
-                <th style={styles.th}>Crypto Type</th>
-                <th style={styles.th}>Network Type</th>
-                <th style={styles.th}>Wallet Address</th>
-                <th style={styles.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={styles.emptyState}>
-                    {searchTerm ? 'No users found matching your search' : 'No users available'}
-                  </td>
+        {/* Existing Wallets Section */}
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>📋 Existing Assigned Wallets</h2>
+          <div style={styles.tableContainer}>
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.tableHeader}>
+                  <th style={styles.th}>User Email</th>
+                  <th style={styles.th}>User Name</th>
+                  <th style={styles.th}>Crypto Type</th>
+                  <th style={styles.th}>Network Type</th>
+                  <th style={styles.th}>Wallet Address</th>
+                  <th style={styles.th}>Assigned By</th>
+                  <th style={styles.th}>Updated At</th>
+                  <th style={styles.th}>Actions</th>
                 </tr>
-              ) : (
-                filteredUsers.map(user => (
-                  <tr key={user.id} style={styles.tableRow}>
-                    <td style={styles.td}>
-                      {user.email || 'No email'}
-                      {existingWallets[user.id] && existingWallets[user.id].length > 0 && (
-                        <div style={styles.existingWalletsBadge}>
-                          {existingWallets[user.id].length} wallet(s) assigned
-                        </div>
-                      )}
-                    </td>
-                    <td style={styles.td}>
-                      {user.profiles?.first_name && user.profiles?.last_name
-                        ? `${user.profiles.first_name} ${user.profiles.last_name}`
-                        : 'N/A'}
-                    </td>
-                    <td style={styles.td}>
-                      <select
-                        value={selectedUser === user.id ? walletForm.cryptoType : 'BTC'}
-                        onChange={(e) => {
-                          setSelectedUser(user.id);
-                          setWalletForm(prev => ({ ...prev, cryptoType: e.target.value }));
-                        }}
-                        style={styles.select}
-                      >
-                        {Object.keys(cryptoNetworks).map(crypto => (
-                          <option key={crypto} value={crypto}>{crypto}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={styles.td}>
-                      <select
-                        value={selectedUser === user.id ? walletForm.networkType : ''}
-                        onChange={(e) => {
-                          setSelectedUser(user.id);
-                          setWalletForm(prev => ({ ...prev, networkType: e.target.value }));
-                        }}
-                        style={styles.select}
-                        disabled={selectedUser !== user.id}
-                      >
-                        {selectedUser === user.id && cryptoNetworks[walletForm.cryptoType]?.map(network => (
-                          <option key={network} value={network}>{network}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={styles.td}>
-                      <input
-                        type="text"
-                        placeholder="Enter wallet address"
-                        value={selectedUser === user.id ? walletForm.walletAddress : ''}
-                        onChange={(e) => {
-                          setSelectedUser(user.id);
-                          setWalletForm(prev => ({ ...prev, walletAddress: e.target.value }));
-                        }}
-                        style={styles.input}
-                      />
-                    </td>
-                    <td style={styles.td}>
-                      <button
-                        onClick={() => handleAssignWallet(
-                          user.id, 
-                          user.profiles?.first_name 
-                            ? `${user.profiles.first_name} ${user.profiles.last_name}` 
-                            : user.email
-                        )}
-                        disabled={loading || selectedUser !== user.id || !walletForm.walletAddress?.trim()}
-                        style={
-                          loading || selectedUser !== user.id || !walletForm.walletAddress?.trim()
-                            ? styles.disabledButton
-                            : styles.assignButton
-                        }
-                      >
-                        Assign Wallet
-                      </button>
+              </thead>
+              <tbody>
+                {Object.keys(existingWallets).length === 0 ? (
+                  <tr>
+                    <td colSpan="8" style={styles.emptyState}>
+                      No wallets assigned yet
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  Object.entries(existingWallets).flatMap(([userId, wallets]) => {
+                    const user = users.find(u => u.id === userId);
+                    return wallets.map((wallet, idx) => (
+                      <tr key={wallet.id} style={styles.tableRow}>
+                        {idx === 0 && (
+                          <>
+                            <td style={styles.td} rowSpan={wallets.length}>
+                              {user?.email || 'Unknown'}
+                            </td>
+                            <td style={styles.td} rowSpan={wallets.length}>
+                              {user?.profiles?.first_name && user?.profiles?.last_name
+                                ? `${user.profiles.first_name} ${user.profiles.last_name}`
+                                : 'N/A'}
+                            </td>
+                          </>
+                        )}
+                        <td style={styles.td}>
+                          {editingWallet === wallet.id ? (
+                            <select
+                              value={editForm.cryptoType}
+                              onChange={(e) => setEditForm(prev => ({ 
+                                ...prev, 
+                                cryptoType: e.target.value 
+                              }))}
+                              style={styles.select}
+                            >
+                              {Object.keys(cryptoNetworks).map(crypto => (
+                                <option key={crypto} value={crypto}>{crypto}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span style={styles.cryptoBadge}>{wallet.crypto_type}</span>
+                          )}
+                        </td>
+                        <td style={styles.td}>
+                          {editingWallet === wallet.id ? (
+                            <select
+                              value={editForm.networkType}
+                              onChange={(e) => setEditForm(prev => ({ 
+                                ...prev, 
+                                networkType: e.target.value 
+                              }))}
+                              style={styles.select}
+                            >
+                              {cryptoNetworks[editForm.cryptoType]?.map(network => (
+                                <option key={network} value={network}>{network}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            wallet.network_type
+                          )}
+                        </td>
+                        <td style={styles.td}>
+                          {editingWallet === wallet.id ? (
+                            <input
+                              type="text"
+                              value={editForm.walletAddress}
+                              onChange={(e) => setEditForm(prev => ({ 
+                                ...prev, 
+                                walletAddress: e.target.value 
+                              }))}
+                              style={styles.input}
+                              placeholder="Enter wallet address"
+                            />
+                          ) : (
+                            <span style={styles.walletAddress}>{wallet.wallet_address}</span>
+                          )}
+                        </td>
+                        <td style={styles.td}>
+                          {wallet.assigned_by_email || 'System'}
+                        </td>
+                        <td style={styles.td}>
+                          {new Date(wallet.updated_at || wallet.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={styles.td}>
+                          {editingWallet === wallet.id ? (
+                            <div style={styles.editActions}>
+                              <button
+                                onClick={() => handleUpdateWallet(
+                                  wallet,
+                                  user?.profiles?.first_name 
+                                    ? `${user.profiles.first_name} ${user.profiles.last_name}` 
+                                    : user?.email
+                                )}
+                                disabled={loading || !editForm.walletAddress?.trim()}
+                                style={
+                                  loading || !editForm.walletAddress?.trim()
+                                    ? styles.disabledButton
+                                    : styles.saveButton
+                                }
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                style={styles.cancelButton}
+                                disabled={loading}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleEditWallet(wallet)}
+                              style={styles.editButton}
+                              disabled={loading}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Assign New Wallets Section */}
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>➕ Assign New Wallets</h2>
+          <div style={styles.tableContainer}>
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.tableHeader}>
+                  <th style={styles.th}>User Email</th>
+                  <th style={styles.th}>User Name</th>
+                  <th style={styles.th}>Crypto Type</th>
+                  <th style={styles.th}>Network Type</th>
+                  <th style={styles.th}>Wallet Address</th>
+                  <th style={styles.th}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={styles.emptyState}>
+                      {searchTerm ? 'No users found matching your search' : 'No users available'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map(user => (
+                    <tr key={user.id} style={styles.tableRow}>
+                      <td style={styles.td}>
+                        {user.email || 'No email'}
+                        {existingWallets[user.id] && existingWallets[user.id].length > 0 && (
+                          <div style={styles.existingWalletsBadge}>
+                            {existingWallets[user.id].length} wallet(s) assigned
+                          </div>
+                        )}
+                      </td>
+                      <td style={styles.td}>
+                        {user.profiles?.first_name && user.profiles?.last_name
+                          ? `${user.profiles.first_name} ${user.profiles.last_name}`
+                          : 'N/A'}
+                      </td>
+                      <td style={styles.td}>
+                        <select
+                          value={selectedUser === user.id ? walletForm.cryptoType : 'BTC'}
+                          onChange={(e) => {
+                            setSelectedUser(user.id);
+                            setWalletForm(prev => ({ ...prev, cryptoType: e.target.value }));
+                          }}
+                          style={styles.select}
+                        >
+                          {Object.keys(cryptoNetworks).map(crypto => (
+                            <option key={crypto} value={crypto}>{crypto}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={styles.td}>
+                        <select
+                          value={selectedUser === user.id ? walletForm.networkType : ''}
+                          onChange={(e) => {
+                            setSelectedUser(user.id);
+                            setWalletForm(prev => ({ ...prev, networkType: e.target.value }));
+                          }}
+                          style={styles.select}
+                          disabled={selectedUser !== user.id}
+                        >
+                          {selectedUser === user.id && cryptoNetworks[walletForm.cryptoType]?.map(network => (
+                            <option key={network} value={network}>{network}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={styles.td}>
+                        <input
+                          type="text"
+                          placeholder="Enter wallet address"
+                          value={selectedUser === user.id ? walletForm.walletAddress : ''}
+                          onChange={(e) => {
+                            setSelectedUser(user.id);
+                            setWalletForm(prev => ({ ...prev, walletAddress: e.target.value }));
+                          }}
+                          style={styles.input}
+                        />
+                      </td>
+                      <td style={styles.td}>
+                        <button
+                          onClick={() => handleAssignWallet(
+                            user.id, 
+                            user.profiles?.first_name 
+                              ? `${user.profiles.first_name} ${user.profiles.last_name}` 
+                              : user.email
+                          )}
+                          disabled={loading || selectedUser !== user.id || !walletForm.walletAddress?.trim()}
+                          style={
+                            loading || selectedUser !== user.id || !walletForm.walletAddress?.trim()
+                              ? styles.disabledButton
+                              : styles.assignButton
+                          }
+                        >
+                          Assign Wallet
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </AdminAuth>
@@ -313,7 +554,7 @@ export default function ManageCryptoWallets() {
 const styles = {
   container: {
     padding: '40px 20px',
-    maxWidth: '1400px',
+    maxWidth: '1600px',
     margin: '0 auto',
     backgroundColor: '#f8fafc',
     minHeight: '100vh',
@@ -388,6 +629,15 @@ const styles = {
     border: '1px solid #6ee7b7',
     borderLeft: '4px solid #059669',
   },
+  section: {
+    marginBottom: '40px',
+  },
+  sectionTitle: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: '16px',
+  },
   tableContainer: {
     backgroundColor: 'white',
     borderRadius: '12px',
@@ -397,7 +647,7 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '1000px',
+    minWidth: '1200px',
   },
   tableHeader: {
     backgroundColor: '#f1f5f9',
@@ -450,6 +700,43 @@ const styles = {
     transition: 'all 0.2s',
     whiteSpace: 'nowrap',
   },
+  editButton: {
+    padding: '8px 16px',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+  },
+  saveButton: {
+    padding: '8px 16px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    marginRight: '8px',
+  },
+  cancelButton: {
+    padding: '8px 16px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+  },
   disabledButton: {
     padding: '10px 20px',
     backgroundColor: '#cbd5e1',
@@ -460,6 +747,10 @@ const styles = {
     fontWeight: '600',
     cursor: 'not-allowed',
     whiteSpace: 'nowrap',
+  },
+  editActions: {
+    display: 'flex',
+    gap: '8px',
   },
   emptyState: {
     padding: '60px 20px',
@@ -476,6 +767,21 @@ const styles = {
     borderRadius: '4px',
     fontSize: '11px',
     fontWeight: '600',
+  },
+  cryptoBadge: {
+    display: 'inline-block',
+    padding: '6px 12px',
+    backgroundColor: '#e0e7ff',
+    color: '#4f46e5',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+  },
+  walletAddress: {
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    color: '#475569',
+    wordBreak: 'break-all',
   },
   loadingContainer: {
     display: 'flex',
