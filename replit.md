@@ -96,6 +96,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Replit Migration & Crypto Deposits Management Upgrade (November 1, 2025)
+Successfully migrated the Oakline Bank Admin Panel from Vercel to Replit with enhanced crypto deposit management:
+
+**Migration Achievements:**
+- Configured Next.js to run on Replit with proper port 5000 binding and host settings
+- Verified all environment variables and Supabase authentication
+- Fixed Supabase query syntax issues in loans API (`profiles!user_id` → `profiles:user_id`)
+
+**Crypto Deposits Management - Complete Rebuild:**
+- **Full Database Control**: Expandable rows display all 20+ database fields including timestamps, approval/rejection details, metadata, and transaction hashes
+- **Advanced Filtering**: Multi-dimensional filtering by status, user email/ID, crypto type, wallet address, and date range with one-click clear
+- **Smart Status Management**: Context-aware action buttons for all 9 status states (Pending, On Hold, Awaiting Confirmations, Confirmed, Processing, Completed, Rejected, Failed, Reversed)
+- **Automatic Balance Management**: Atomic balance updates with rollback on failure - deposits only change status after successful balance adjustments
+- **Complete Audit Trail**: Every status change logged in `crypto_deposit_audit_logs` with admin details, reasons, and balance changes
+- **Pagination & Search**: 10 items per page with comprehensive search across all deposit fields
+- **Data Integrity**: Critical fix ensures deposit statuses only update after balance changes succeed, preventing inconsistent states
+
+**API Enhancements:**
+- `POST /api/admin/update-crypto-deposit-status` - New unified endpoint for all status transitions with audit logging and balance management
+- Fixed `/api/admin/get-loans` Supabase join syntax for proper data fetching
+
 ### Transfers Management & Performance Optimization (November 1, 2025)
 Enhanced admin dashboard with professional transfer management and critical performance fixes:
 - **New Admin Page**: `/admin/admin-transfers` - Dedicated transfers page displaying all user transfers (internal, between accounts, wire) with user name, account number, transaction type, amount, description, status, and timestamp

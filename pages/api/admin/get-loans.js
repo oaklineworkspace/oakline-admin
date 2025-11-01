@@ -12,8 +12,8 @@ export default async function handler(req, res) {
       .from('loans')
       .select(`
         *,
-        profiles!user_id(email),
-        accounts!account_id(account_number, account_type)
+        profiles:user_id(email),
+        accounts:account_id(account_number, account_type)
       `)
       .order('created_at', { ascending: false });
 
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     // Transform the data to flatten user email
-    const transformedLoans = loans.map(loan => ({
+    const transformedLoans = (loans || []).map(loan => ({
       ...loan,
       user_email: loan.profiles?.email || 'N/A',
       account_number: loan.accounts?.account_number || 'N/A',
