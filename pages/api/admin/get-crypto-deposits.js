@@ -1,5 +1,10 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
+import sgMail from '@sendgrid/mail';
+
+// Initialize SendGrid with your API key
+// It's recommended to use environment variables for API keys
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -16,7 +21,7 @@ export default async function handler(req, res) {
 
     let query = supabaseAdmin
       .from('crypto_deposits')
-      .select('*')
+      .select('*, accounts!inner(*)') // Select all columns from crypto_deposits and join with accounts
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
@@ -31,9 +36,9 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error('Error fetching crypto deposits:', error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to fetch crypto deposits',
-        details: error.message 
+        details: error.message
       });
     }
 
@@ -46,12 +51,12 @@ export default async function handler(req, res) {
         .from('profiles')
         .select('id, email')
         .in('id', userIds);
-      
+
       if (profilesError) {
         console.error('Error fetching user profiles:', profilesError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'Failed to fetch user profiles',
-          details: profilesError.message 
+          details: profilesError.message
         });
       }
 
@@ -60,9 +65,11 @@ export default async function handler(req, res) {
       });
     }
 
+    // Enrich deposits with user emails and account numbers
     const enrichedDeposits = deposits.map(deposit => ({
       ...deposit,
-      user_email: userEmailMap[deposit.user_id] || 'Unknown'
+      user_email: userEmailMap[deposit.user_id] || 'N/A',
+      account_number: deposit.accounts?.account_number || 'N/A' // Safely access account_number from nested accounts
     }));
 
     const summary = {
@@ -77,7 +84,7 @@ export default async function handler(req, res) {
         .reduce((sum, d) => sum + parseFloat(d.amount || 0), 0)
     };
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
       deposits: enrichedDeposits,
       summary
@@ -85,9 +92,9 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error in get-crypto-deposits API:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Internal server error',
-      details: error.message 
+      details: error.message
     });
   }
 }

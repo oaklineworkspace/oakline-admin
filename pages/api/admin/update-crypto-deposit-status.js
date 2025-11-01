@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
+import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -199,6 +200,160 @@ export default async function handler(req, res) {
 
     if (auditError) {
       console.error('Error creating audit log:', auditError);
+    }
+
+    // Send email notification to user
+    const { data: user } = await supabaseAdmin.auth.admin.getUserById(deposit.user_id);
+
+    if (user && user.user && user.user.email) {
+      try {
+        let emailSubject = '';
+        let emailColor = '';
+        let emailIcon = '';
+        let emailTitle = '';
+        let emailMessage = '';
+
+        switch (newStatus) {
+          case 'confirmed':
+          case 'completed':
+            emailSubject = `✅ Crypto Deposit ${newStatus === 'completed' ? 'Completed' : 'Confirmed'} - ${deposit.crypto_type}`;
+            emailColor = '#10b981';
+            emailIcon = '✅';
+            emailTitle = `Your ${deposit.crypto_type} deposit has been ${newStatus}!`;
+            emailMessage = `Good news! Your cryptocurrency deposit has been successfully processed and ${balanceChanged ? 'credited to your account' : 'confirmed'}.`;
+            break;
+          case 'rejected':
+          case 'failed':
+            emailSubject = `❌ Crypto Deposit ${newStatus === 'rejected' ? 'Rejected' : 'Failed'} - ${deposit.crypto_type}`;
+            emailColor = '#dc2626';
+            emailIcon = '❌';
+            emailTitle = `Your ${deposit.crypto_type} deposit could not be processed`;
+            emailMessage = `We regret to inform you that your cryptocurrency deposit has been ${newStatus}.`;
+            break;
+          case 'reversed':
+            emailSubject = `⚠️ Crypto Deposit Reversed - ${deposit.crypto_type}`;
+            emailColor = '#f59e0b';
+            emailIcon = '⚠️';
+            emailTitle = `Your ${deposit.crypto_type} deposit has been reversed`;
+            emailMessage = 'Your cryptocurrency deposit has been reversed and the funds have been deducted from your account.';
+            break;
+          case 'on_hold':
+            emailSubject = `⏸️ Crypto Deposit On Hold - ${deposit.crypto_type}`;
+            emailColor = '#f59e0b';
+            emailIcon = '⏸️';
+            emailTitle = `Your ${deposit.crypto_type} deposit is on hold`;
+            emailMessage = 'Your cryptocurrency deposit is currently on hold and under review.';
+            break;
+          case 'processing':
+            emailSubject = `⏳ Crypto Deposit Processing - ${deposit.crypto_type}`;
+            emailColor = '#3b82f6';
+            emailIcon = '⏳';
+            emailTitle = `Your ${deposit.crypto_type} deposit is being processed`;
+            emailMessage = 'Your cryptocurrency deposit is currently being processed.';
+            break;
+          case 'awaiting_confirmations':
+            emailSubject = `⏳ Crypto Deposit Awaiting Confirmations - ${deposit.crypto_type}`;
+            emailColor = '#f59e0b';
+            emailIcon = '⏳';
+            emailTitle = `Your ${deposit.crypto_type} deposit is awaiting confirmations`;
+            emailMessage = 'Your cryptocurrency deposit is awaiting blockchain confirmations.';
+            break;
+          default:
+            emailSubject = `📝 Crypto Deposit Status Update - ${deposit.crypto_type}`;
+            emailColor = '#64748b';
+            emailIcon = '📝';
+            emailTitle = `Your ${deposit.crypto_type} deposit status has been updated`;
+            emailMessage = `Your cryptocurrency deposit status has been changed to ${newStatus}.`;
+        }
+
+        await sendEmail({
+          to: user.user.email,
+          subject: emailSubject,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <div style="background: linear-gradient(135deg, ${emailColor} 0%, ${emailColor}dd 100%); padding: 32px 24px; text-align: center;">
+                  <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">${emailIcon} Deposit ${newStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h1>
+                  <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
+                </div>
+                
+                <div style="padding: 40px 32px;">
+                  <h2 style="color: ${emailColor}; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+                    ${emailTitle}
+                  </h2>
+                  
+                  <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                    ${emailMessage}
+                  </p>
+                  
+                  <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                    <h3 style="color: #1e293b; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Transaction Details:</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Crypto Type:</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${deposit.crypto_type}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Amount:</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">$${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      ${deposit.fee > 0 ? `
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Fee:</td>
+                        <td style="padding: 8px 0; color: #ef4444; font-size: 14px; font-weight: 600; text-align: right;">$${parseFloat(deposit.fee).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      ` : ''}
+                      ${deposit.net_amount ? `
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Net Amount:</td>
+                        <td style="padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600; text-align: right;">$${parseFloat(deposit.net_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      ` : ''}
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Status:</td>
+                        <td style="padding: 8px 0; color: ${emailColor}; font-size: 14px; font-weight: 600; text-align: right;">${newStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
+                      </tr>
+                      ${reason ? `
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Reason:</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; text-align: right;">${reason}</td>
+                      </tr>
+                      ` : ''}
+                      ${balanceChanged && newBalance !== null ? `
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">New Balance:</td>
+                        <td style="padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600; text-align: right;">$${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </div>
+                  
+                  <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
+                    If you have any questions about this transaction, please contact our support team.
+                  </p>
+                </div>
+                
+                <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+                  <p style="color: #718096; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+                    Member FDIC | Routing: 075915826
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `,
+          type: EMAIL_TYPES.NOTIFY
+        });
+      } catch (emailError) {
+        console.error('Error sending status update email:', emailError);
+      }
     }
 
     const responseMessage = balanceChanged

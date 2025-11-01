@@ -461,7 +461,7 @@ export default function ManageCryptoDeposits() {
               <tr style={styles.tableHeader}>
                 <th style={styles.th}>Expand</th>
                 <th style={styles.th}>User</th>
-                <th style={styles.th}>Account</th>
+                <th style={styles.th}>Account Number</th>
                 <th style={styles.th}>Crypto</th>
                 <th style={styles.th}>Amount / Fee</th>
                 <th style={styles.th}>Wallet</th>
@@ -496,7 +496,11 @@ export default function ManageCryptoDeposits() {
                         </div>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.accountNumber}>{deposit.account_number}</span>
+                        <span style={styles.accountNumber}>
+                          {deposit.account_number && deposit.account_number !== 'N/A' 
+                            ? deposit.account_number 
+                            : 'N/A'}
+                        </span>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.cryptoCell}>
@@ -524,9 +528,9 @@ export default function ManageCryptoDeposits() {
                       <td style={styles.td}>{formatDate(deposit.created_at)}</td>
                       <td style={styles.td}>
                         <div style={styles.actionButtons}>
-                          {getAvailableActions(deposit).map((action) => (
+                          {getAvailableActions(deposit).map((action, index) => (
                             <button
-                              key={action.value}
+                              key={`${deposit.id}-${action.value}-${index}`}
                               onClick={() => {
                                 if (action.isEdit) {
                                   handleEditStatus(deposit);
