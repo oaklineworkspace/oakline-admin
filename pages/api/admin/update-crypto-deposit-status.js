@@ -101,6 +101,7 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString()
     };
 
+    // Update timestamps and admin references based on status
     if (newStatus === 'confirmed' || newStatus === 'completed') {
       updateData.approved_by = authResult.user.id;
       updateData.approved_at = new Date().toISOString();
@@ -116,6 +117,10 @@ export default async function handler(req, res) {
     } else if (newStatus === 'on_hold') {
       if (reason) {
         updateData.hold_reason = reason;
+      }
+    } else if (newStatus === 'reversed') {
+      if (reason) {
+        updateData.rejection_reason = reason;
       }
     }
 
@@ -165,10 +170,26 @@ export default async function handler(req, res) {
       note: note || `Status changed from ${oldStatus} to ${newStatus}${reason ? ` - Reason: ${reason}` : ''}`,
       metadata: {
         admin_email: authResult.user.email,
+        admin_id: authResult.user.id,
         timestamp: new Date().toISOString(),
         reason: reason || null,
         balance_changed: balanceChanged,
-        new_balance: newBalance
+        new_balance: newBalance,
+        old_approved_by: deposit.approved_by,
+        new_approved_by: updateData.approved_by || deposit.approved_by,
+        old_approved_at: deposit.approved_at,
+        new_approved_at: updateData.approved_at || deposit.approved_at,
+        old_rejected_by: deposit.rejected_by,
+        new_rejected_by: updateData.rejected_by || deposit.rejected_by,
+        old_rejected_at: deposit.rejected_at,
+        new_rejected_at: updateData.rejected_at || deposit.rejected_at,
+        old_completed_at: deposit.completed_at,
+        new_completed_at: updateData.completed_at || deposit.completed_at,
+        old_rejection_reason: deposit.rejection_reason,
+        new_rejection_reason: updateData.rejection_reason || deposit.rejection_reason,
+        old_hold_reason: deposit.hold_reason,
+        new_hold_reason: updateData.hold_reason || deposit.hold_reason,
+        action_type: note ? 'admin_edit' : 'status_change'
       }
     };
 

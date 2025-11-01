@@ -99,10 +99,9 @@ export default function ManageCryptoDeposits() {
     setCurrentPage(1);
   };
 
-  const handleStatusChange = async (depositId, newStatus) => {
-    let reason = null;
-    
-    if (newStatus === 'rejected' || newStatus === 'on_hold' || newStatus === 'reversed' || newStatus === 'failed') {
+  const handleStatusChange = async (depositId, newStatus, reason = null, note = null) => {
+    // Only prompt for reason if not already provided
+    if (!reason && (newStatus === 'rejected' || newStatus === 'on_hold' || newStatus === 'reversed' || newStatus === 'failed')) {
       reason = window.prompt(`Enter reason for ${newStatus}:`);
       if (reason === null) return;
     }
@@ -118,7 +117,8 @@ export default function ManageCryptoDeposits() {
       'reversed': '⚠️ WARNING: Reverse this deposit? This will deduct the amount from the user\'s account.',
     };
 
-    if (!window.confirm(confirmMessages[newStatus] || `Change status to ${newStatus}?`)) {
+    // Only confirm if not already confirmed (for edit/complete flows)
+    if (!note && !window.confirm(confirmMessages[newStatus] || `Change status to ${newStatus}?`)) {
       return;
     }
 
@@ -138,7 +138,7 @@ export default function ManageCryptoDeposits() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ depositId, newStatus, reason })
+        body: JSON.stringify({ depositId, newStatus, reason, note })
       });
 
       const result = await response.json();
@@ -177,13 +177,13 @@ export default function ManageCryptoDeposits() {
     const statusStyles = {
       pending: { backgroundColor: '#fef3c7', color: '#92400e', text: 'Pending' },
       on_hold: { backgroundColor: '#fef3c7', color: '#92400e', text: 'On Hold' },
-      awaiting_confirmations: { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Awaiting Confirmations' },
+      awaiting_confirmations: { backgroundColor: '#fef3c7', color: '#92400e', text: 'Awaiting Confirmations' },
       confirmed: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Confirmed' },
       processing: { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Processing' },
       completed: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Completed' },
       rejected: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Rejected' },
       failed: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Failed' },
-      reversed: { backgroundColor: '#fff7ed', color: '#c2410c', text: 'Reversed' },
+      reversed: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Reversed' },
     };
 
     const style = statusStyles[status] || statusStyles.pending;
@@ -203,10 +203,66 @@ export default function ManageCryptoDeposits() {
     );
   };
 
+  const handleEditStatus = async (deposit) => {
+    const statusOptions = [
+      'pending',
+      'on_hold',
+      'awaiting_confirmations',
+      'confirmed',
+      'processing',
+      'completed',
+      'failed',
+      'reversed'
+    ];
+
+    let optionsHtml = statusOptions.map(s => `<option value="${s}" ${s === deposit.status ? 'selected' : ''}>${s}</option>`).join('');
+    
+    const newStatus = window.prompt(
+      `Edit Status for Deposit ${deposit.id.substring(0, 8)}...\n\nCurrent Status: ${deposit.status}\n\nEnter new status (${statusOptions.join(', ')}):`,
+      deposit.status
+    );
+
+    if (!newStatus || newStatus === deposit.status) return;
+
+    if (!statusOptions.includes(newStatus)) {
+      alert('Invalid status. Please choose from: ' + statusOptions.join(', '));
+      return;
+    }
+
+    let reason = null;
+    if (['rejected', 'failed', 'on_hold', 'reversed'].includes(newStatus)) {
+      reason = window.prompt(`Enter reason for changing to ${newStatus}:`);
+      if (reason === null) return;
+    }
+
+    if (!window.confirm(`Change status from "${deposit.status}" to "${newStatus}"?`)) {
+      return;
+    }
+
+    await handleStatusChange(deposit.id, newStatus, reason, 'Edit status via admin');
+  };
+
+  const handleCompleteDeposit = async (depositId) => {
+    if (!window.confirm('Mark this deposit as completed? This will update the completed_at timestamp.')) {
+      return;
+    }
+
+    await handleStatusChange(depositId, 'completed', null, 'Marked as completed via admin');
+  };
+
   const getAvailableActions = (deposit) => {
     const actions = [];
     const status = deposit.status;
 
+    // Always show Edit button
+    actions.push({ label: 'Edit Status', value: 'edit', color: '#8b5cf6', isEdit: true });
+
+    // Show Complete button for confirmed/processing deposits
+    if (['confirmed', 'processing'].includes(status)) {
+      actions.push({ label: 'Complete', value: 'completed', color: '#10b981', isComplete: true });
+    }
+
+    // Context-sensitive actions based on current status
     switch (status) {
       case 'pending':
       case 'on_hold':
@@ -214,21 +270,18 @@ export default function ManageCryptoDeposits() {
         actions.push(
           { label: 'Approve', value: 'confirmed', color: '#10b981' },
           { label: 'Reject', value: 'rejected', color: '#ef4444' },
-          { label: 'On Hold', value: 'on_hold', color: '#f59e0b' },
-          { label: 'Awaiting Confirmations', value: 'awaiting_confirmations', color: '#3b82f6' },
           { label: 'Processing', value: 'processing', color: '#3b82f6' }
         );
         break;
       case 'processing':
         actions.push(
-          { label: 'Complete', value: 'completed', color: '#10b981' },
           { label: 'Failed', value: 'failed', color: '#ef4444' }
         );
         break;
       case 'confirmed':
       case 'completed':
         actions.push(
-          { label: 'Reverse', value: 'reversed', color: '#f59e0b' }
+          { label: 'Reverse', value: 'reversed', color: '#f97316' }
         );
         break;
       default:
@@ -474,7 +527,15 @@ export default function ManageCryptoDeposits() {
                           {getAvailableActions(deposit).map((action) => (
                             <button
                               key={action.value}
-                              onClick={() => handleStatusChange(deposit.id, action.value)}
+                              onClick={() => {
+                                if (action.isEdit) {
+                                  handleEditStatus(deposit);
+                                } else if (action.isComplete) {
+                                  handleCompleteDeposit(deposit.id);
+                                } else {
+                                  handleStatusChange(deposit.id, action.value);
+                                }
+                              }}
                               disabled={loading}
                               style={{
                                 ...styles.actionButton,
