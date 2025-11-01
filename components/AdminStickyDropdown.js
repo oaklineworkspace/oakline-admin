@@ -39,10 +39,6 @@ export default function AdminStickyDropdown() {
 
   return (
     <div className="admin-sticky-dropdown" style={styles.containerWrapper}>
-      <div style={styles.dropdownGroup}>
-        <AdminPageDropdown />
-      </div>
-      
       <div style={styles.container}>
         <button
           onClick={(e) => {
@@ -125,35 +121,40 @@ export default function AdminStickyDropdown() {
 
 const styles = {
   containerWrapper: {
-    position: 'relative',
     display: 'flex',
-    alignItems: 'center'
-  },
-  dropdownGroup: {
-    position: 'relative'
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%'
   },
   container: {
-    position: 'relative'
+    position: 'relative',
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center'
   },
   button: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '0.5rem 0.75rem',
-    backgroundColor: '#ffffff',
+    padding: '4px 2px',
+    backgroundColor: 'transparent',
     color: '#1A3E6F',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '0.7rem',
+    border: 'none',
+    borderRadius: '0',
+    fontSize: '9px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     cursor: 'pointer',
-    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
-    minHeight: '50px',
-    minWidth: '70px',
+    boxShadow: 'none',
+    minHeight: 'auto',
+    minWidth: '50px',
+    maxWidth: '70px',
     position: 'relative',
-    overflow: 'hidden'
+    overflow: 'visible',
+    width: '100%'
   },
   buttonActive: {
     backgroundColor: '#1A3E6F',
@@ -162,18 +163,19 @@ const styles = {
     boxShadow: '0 4px 12px rgba(26, 62, 111, 0.3)'
   },
   icon: {
-    fontSize: '1.25rem',
-    marginBottom: '0.25rem'
+    fontSize: '16px',
+    marginBottom: '2px'
   },
   text: {
-    fontSize: '0.7rem',
+    fontSize: '9px',
     fontWeight: '600',
     textAlign: 'center',
-    lineHeight: '1'
+    lineHeight: '1.1',
+    whiteSpace: 'nowrap'
   },
   arrow: {
-    fontSize: '0.6rem',
-    marginTop: '0.25rem',
+    fontSize: '8px',
+    marginTop: '1px',
     transition: 'transform 0.3s ease'
   },
   backdrop: {

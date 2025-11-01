@@ -199,7 +199,9 @@ export default function AdminDashboard() {
                 <div style={styles.navIcon}>💸</div>
                 <div style={styles.navText}>Transactions</div>
               </Link>
-              <AdminStickyDropdown />
+              <div style={styles.navButton}>
+                <AdminStickyDropdown />
+              </div>
             </div>
           </>
         )}
@@ -316,32 +318,33 @@ const styles = {
     alignItems: 'center',
     backgroundColor: 'white',
     borderTop: '2px solid #e2e8f0',
-    padding: '8px 5px',
+    padding: '6px 3px',
     boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
     zIndex: 1000,
-    gap: '4px'
+    gap: '2px'
   },
   navButton: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     textDecoration: 'none',
     color: '#1A3E6F',
-    padding: '6px 4px',
+    padding: '4px 2px',
     transition: 'all 0.3s ease',
     cursor: 'pointer',
     flex: 1,
-    maxWidth: '80px',
-    minWidth: '60px'
+    maxWidth: '70px',
+    minWidth: '50px'
   },
   navIcon: {
-    fontSize: '20px',
+    fontSize: '16px',
     marginBottom: '2px'
   },
   navText: {
-    fontSize: '10px',
+    fontSize: '9px',
     fontWeight: '600',
     textAlign: 'center',
-    lineHeight: '1.2'
+    lineHeight: '1.1'
   }
 };
