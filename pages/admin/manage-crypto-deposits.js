@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 export default function ManageCryptoDeposits() {
   const [deposits, setDeposits] = useState([]);
   const [filteredDeposits, setFilteredDeposits] = useState([]);
-  const [summary, setSummary] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, totalPendingAmount: 0 });
+  const [summary, setSummary] = useState({ total: 0, pending: 0, confirmed: 0, rejected: 0, totalPendingAmount: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -80,7 +80,7 @@ export default function ManageCryptoDeposits() {
         throw new Error(result.error || 'Failed to confirm deposit');
       }
 
-      setMessage('✅ Deposit confirmed successfully! You can now approve it to credit the account.');
+      setMessage('✅ Deposit verified successfully! You can now confirm it to credit the account.');
       await fetchDeposits();
 
       setTimeout(() => setMessage(''), 5000);
@@ -93,7 +93,7 @@ export default function ManageCryptoDeposits() {
   };
 
   const handleApprove = async (depositId) => {
-    if (!window.confirm('Are you sure you want to approve this deposit? This will credit the user\'s account.')) {
+    if (!window.confirm('Are you sure you want to confirm this deposit? This will credit the user\'s account.')) {
       return;
     }
 
@@ -119,16 +119,16 @@ export default function ManageCryptoDeposits() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to approve deposit');
+        throw new Error(result.error || 'Failed to confirm deposit');
       }
 
-      setMessage(`✅ Deposit approved successfully! New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      setMessage(`✅ Deposit confirmed successfully! New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
       await fetchDeposits();
 
       setTimeout(() => setMessage(''), 5000);
     } catch (error) {
-      console.error('Error approving deposit:', error);
-      setError(`Failed to approve deposit: ${error.message}`);
+      console.error('Error confirming deposit:', error);
+      setError(`Failed to confirm deposit: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -295,12 +295,12 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
   const getStatusBadge = (status, confirmedAt) => {
     let statusStyles = {
       pending: { backgroundColor: '#fef3c7', color: '#92400e', text: 'Pending' },
-      approved: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Approved' },
+      confirmed: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Confirmed' },
       rejected: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Rejected' },
     };
 
     if (status === 'pending' && confirmedAt) {
-      statusStyles.pending = { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Confirmed' };
+      statusStyles.pending = { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Verifying' };
     }
 
     const style = statusStyles[status] || statusStyles.pending;
@@ -365,8 +365,8 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
           <div style={{...styles.summaryCard, ...styles.approvedCard}}>
             <div style={styles.summaryIcon}>✅</div>
             <div style={styles.summaryContent}>
-              <div style={styles.summaryLabel}>Approved</div>
-              <div style={styles.summaryValue}>{summary.approved}</div>
+              <div style={styles.summaryLabel}>Confirmed</div>
+              <div style={styles.summaryValue}>{summary.confirmed}</div>
             </div>
           </div>
           <div style={{...styles.summaryCard, ...styles.rejectedCard}}>
@@ -387,8 +387,8 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
           >
             <option value="all">All Deposits</option>
             <option value="pending">Pending Only</option>
+            <option value="verifying">Verifying Only</option>
             <option value="confirmed">Confirmed Only</option>
-            <option value="approved">Approved Only</option>
             <option value="rejected">Rejected Only</option>
           </select>
         </div>
@@ -465,9 +465,9 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
                                 onClick={() => handleConfirm(deposit.id)}
                                 disabled={loading}
                                 style={loading ? styles.disabledButton : styles.confirmButton}
-                                title="Confirm transaction on blockchain"
+                                title="Verify transaction on blockchain"
                               >
-                                ✓ Confirm
+                                ✓ Verify
                               </button>
                               <button
                                 onClick={() => handleReject(deposit.id)}
@@ -491,9 +491,9 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
                                 onClick={() => handleApprove(deposit.id)}
                                 disabled={loading}
                                 style={loading ? styles.disabledButton : styles.approveButton}
-                                title="Approve and credit account"
+                                title="Confirm and credit account"
                               >
-                                ✓ Approve
+                                ✓ Confirm
                               </button>
                               <button
                                 onClick={() => handleReject(deposit.id)}
@@ -513,7 +513,7 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
                             </>
                           )}
                         </div>
-                      ) : deposit.status === 'approved' ? (
+                      ) : deposit.status === 'confirmed' ? (
                         <div style={styles.actionButtons}>
                           <button
                             onClick={() => handleViewDetails(deposit)}
@@ -526,7 +526,7 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
                             onClick={() => handleReverseDeposit(deposit.id)}
                             disabled={loading}
                             style={loading ? styles.disabledButton : styles.reverseButton}
-                            title="Reverse approved deposit"
+                            title="Reverse confirmed deposit"
                           >
                             ↩️ Reverse
                           </button>

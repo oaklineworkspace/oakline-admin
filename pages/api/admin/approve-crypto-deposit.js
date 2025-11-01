@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     const { error: depositUpdateError } = await supabaseAdmin
       .from('crypto_deposits')
       .update({ 
-        status: 'approved',
+        status: 'confirmed',
         approved_by: authResult.user.id,
         approved_at: new Date().toISOString()
       })

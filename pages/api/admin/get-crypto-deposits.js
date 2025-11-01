@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
-      if (status === 'confirmed') {
+      if (status === 'verifying') {
         query = query.eq('status', 'pending').not('confirmed_at', 'is', null);
       } else {
         query = query.eq('status', status);
@@ -68,8 +68,8 @@ export default async function handler(req, res) {
     const summary = {
       total: deposits.length,
       pending: deposits.filter(d => d.status === 'pending' && !d.confirmed_at).length,
-      confirmed: deposits.filter(d => d.status === 'pending' && d.confirmed_at).length,
-      approved: deposits.filter(d => d.status === 'approved').length,
+      verifying: deposits.filter(d => d.status === 'pending' && d.confirmed_at).length,
+      confirmed: deposits.filter(d => d.status === 'confirmed').length,
       rejected: deposits.filter(d => d.status === 'rejected').length,
       totalPendingAmount: deposits
         .filter(d => d.status === 'pending')
