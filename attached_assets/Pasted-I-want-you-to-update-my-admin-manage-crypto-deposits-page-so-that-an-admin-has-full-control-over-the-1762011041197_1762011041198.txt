@@ -1,0 +1,32 @@
+I want you to update my admin/manage-crypto-deposits page so that an admin has full control over the crypto deposit database.
+
+Requirements:
+	1.	Display Table:
+	•	Show all columns of crypto_deposits for each deposit including id, user_id, account_id, crypto_type, network_type, wallet_address, amount, fee, net_amount, status, confirmations, required_confirmations, transaction_hash, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, hold_reason, created_at, updated_at, completed_at.
+	•	Include user details from auth.users or profiles for better context (e.g., user name, email).
+	2.	Action Buttons for Status Changes:
+	•	Approve → sets status = 'confirmed'
+	•	Reject → sets status = 'rejected'
+	•	On Hold → sets status = 'on_hold'
+	•	Awaiting Confirmations → sets status = 'awaiting_confirmations'
+	•	Processing → sets status = 'processing'
+	•	Completed → sets status = 'completed'
+	•	Failed → sets status = 'failed'
+	•	Reversed → sets status = 'reversed'
+	3.	Audit Logging:
+	•	Every action (status change) must create a row in crypto_deposit_audit_logs with deposit_id, changed_by (admin id), old values, new values, and timestamp.
+	4.	UI/UX Considerations:
+	•	Each deposit row should have its action buttons clearly visible.
+	•	Only display action buttons that make sense based on current deposit status. For example, don’t show “Approve” for deposits already 'confirmed'.
+	•	Add search/filter by user, status, crypto_type, wallet_address, and date range.
+	•	Include pagination for large datasets.
+	5.	Database Operations:
+	•	Updating the deposit status should update crypto_deposits.status and relevant timestamp fields (approved_at, rejected_at, completed_at, etc.).
+	•	Ensure approved_by or rejected_by is updated with the admin’s UUID.
+	•	All changes must be reflected in crypto_deposit_audit_logs for traceability.
+	6.	Consistency:
+	•	Use Approve as the button label for confirming deposits.
+	•	Database status must remain 'confirmed' when approved.
+	•	Follow the same labeling convention for other statuses (Reject → 'rejected', On Hold → 'on_hold', etc.).
+
+Build this page in a way that is fully interactive and ready for production in the admin dashboard. Ensure all data integrity and audit logging are properly handled.
