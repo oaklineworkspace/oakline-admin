@@ -56,7 +56,7 @@ export default function ManageCryptoWallets() {
     if (walletForm.cryptoType && cryptoNetworks[walletForm.cryptoType]) {
       setWalletForm(prev => ({
         ...prev,
-        networkType: cryptoNetworks[walletForm.cryptoType][0]
+        networkType: cryptoNetworks[walletForm.cryptoType][0] || ''
       }));
     }
   }, [walletForm.cryptoType]);
@@ -65,7 +65,7 @@ export default function ManageCryptoWallets() {
     if (editForm.cryptoType && cryptoNetworks[editForm.cryptoType]) {
       setEditForm(prev => ({
         ...prev,
-        networkType: cryptoNetworks[editForm.cryptoType][0]
+        networkType: cryptoNetworks[editForm.cryptoType][0] || ''
       }));
     }
   }, [editForm.cryptoType]);
@@ -483,9 +483,22 @@ export default function ManageCryptoWallets() {
                       <td style={styles.td}>
                         <select
                           value={selectedUser === user.id ? walletForm.cryptoType : 'BTC'}
+                          onFocus={() => {
+                            if (selectedUser !== user.id) {
+                              setSelectedUser(user.id);
+                              setWalletForm({
+                                cryptoType: 'BTC',
+                                networkType: cryptoNetworks['BTC'][0],
+                                walletAddress: ''
+                              });
+                            }
+                          }}
                           onChange={(e) => {
-                            setSelectedUser(user.id);
-                            setWalletForm(prev => ({ ...prev, cryptoType: e.target.value }));
+                            setWalletForm(prev => ({ 
+                              ...prev, 
+                              cryptoType: e.target.value,
+                              networkType: cryptoNetworks[e.target.value][0]
+                            }));
                           }}
                           style={styles.select}
                         >
@@ -496,15 +509,23 @@ export default function ManageCryptoWallets() {
                       </td>
                       <td style={styles.td}>
                         <select
-                          value={selectedUser === user.id ? walletForm.networkType : ''}
+                          value={selectedUser === user.id && walletForm.networkType ? walletForm.networkType : (selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType][0] : '')}
+                          onFocus={() => {
+                            if (selectedUser !== user.id) {
+                              setSelectedUser(user.id);
+                              setWalletForm({
+                                cryptoType: 'BTC',
+                                networkType: cryptoNetworks['BTC'][0],
+                                walletAddress: ''
+                              });
+                            }
+                          }}
                           onChange={(e) => {
-                            setSelectedUser(user.id);
                             setWalletForm(prev => ({ ...prev, networkType: e.target.value }));
                           }}
                           style={styles.select}
-                          disabled={selectedUser !== user.id}
                         >
-                          {selectedUser === user.id && cryptoNetworks[walletForm.cryptoType]?.map(network => (
+                          {(selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType] : cryptoNetworks['BTC']).map(network => (
                             <option key={network} value={network}>{network}</option>
                           ))}
                         </select>
@@ -514,8 +535,17 @@ export default function ManageCryptoWallets() {
                           type="text"
                           placeholder="Enter wallet address"
                           value={selectedUser === user.id ? walletForm.walletAddress : ''}
+                          onFocus={() => {
+                            if (selectedUser !== user.id) {
+                              setSelectedUser(user.id);
+                              setWalletForm({
+                                cryptoType: 'BTC',
+                                networkType: cryptoNetworks['BTC'][0],
+                                walletAddress: ''
+                              });
+                            }
+                          }}
                           onChange={(e) => {
-                            setSelectedUser(user.id);
                             setWalletForm(prev => ({ ...prev, walletAddress: e.target.value }));
                           }}
                           style={styles.input}
