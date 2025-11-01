@@ -1,8 +1,8 @@
 
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import AdminPageDropdown from './AdminPageDropdown';
 
 export default function AdminStickyDropdown() {
   const router = useRouter();
@@ -19,16 +19,82 @@ export default function AdminStickyDropdown() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const adminTools = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: '📊', color: '#1A3E6F' },
-    { name: 'All Users', href: '/admin/manage-all-users', icon: '👥', color: '#059669' },
-    { name: 'Transfers', href: '/admin/admin-transfers', icon: '🔄', color: '#3b82f6' },
-    { name: 'Transactions', href: '/admin/admin-transactions', icon: '💸', color: '#10b981' },
-    { name: 'Create Admin', href: '/admin/register', icon: '➕', color: '#FFC857' },
-    { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️', color: '#2A5490' },
-    { name: 'System Logs', href: '/admin/admin-logs', icon: '📜', color: '#059669' },
-    { name: 'Audit Trail', href: '/admin/admin-audit', icon: '🔍', color: '#ea580c' },
-    { name: 'Reports', href: '/admin/admin-reports', icon: '📈', color: '#8b5cf6' }
+  const adminPages = [
+    {
+      category: '📊 Dashboard & Overview',
+      pages: [
+        { name: 'Admin Dashboard', href: '/admin/admin-dashboard', icon: '🏦' },
+        { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
+        { name: 'Admin Reports', href: '/admin/admin-reports', icon: '📈' },
+        { name: 'Admin Audit', href: '/admin/admin-audit', icon: '🔍' },
+        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' }
+      ]
+    },
+    {
+      category: '👥 User Management',
+      pages: [
+        { name: 'All Users', href: '/admin/manage-all-users', icon: '👥' },
+        { name: 'Customer Users', href: '/admin/admin-users', icon: '👨‍💼' },
+        { name: 'Create User', href: '/admin/create-user', icon: '➕' },
+        { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '🔑' },
+        { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '📧' },
+        { name: 'Delete User By ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' }
+      ]
+    },
+    {
+      category: '💳 Card Management',
+      pages: [
+        { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '📝' },
+        { name: 'Cards Dashboard', href: '/admin/admin-cards-dashboard', icon: '💳' },
+        { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' },
+        { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
+        { name: 'Assign Card', href: '/admin/admin-assign-card', icon: '🔗' },
+        { name: 'Test Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
+      ]
+    },
+    {
+      category: '💰 Financial Operations',
+      pages: [
+        { name: 'All Transactions', href: '/admin/admin-transactions', icon: '💸' },
+        { name: 'Transfers', href: '/admin/admin-transfers', icon: '🔄' },
+        { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
+        { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✍️' },
+        { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
+        { name: 'Account Balances', href: '/admin/admin-balance', icon: '💵' }
+      ]
+    },
+    {
+      category: '✅ Approvals & Applications',
+      pages: [
+        { name: 'Approve Applications', href: '/admin/approve-applications', icon: '✅' },
+        { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️' },
+        { name: 'Manage Accounts', href: '/admin/manage-accounts', icon: '🏦' }
+      ]
+    },
+    {
+      category: '🏦 Banking Services',
+      pages: [
+        { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
+        { name: 'Crypto Dashboard', href: '/admin/admin-crypto', icon: '₿' },
+        { name: 'Manage Crypto Wallets', href: '/admin/manage-crypto-wallets', icon: '🔑' },
+        { name: 'Manage Crypto Deposits', href: '/admin/manage-crypto-deposits', icon: '💰' },
+        { name: 'Assign Crypto Wallets', href: '/admin/assign-crypto-wallets', icon: '🔗' }
+      ]
+    },
+    {
+      category: '⚙️ Settings & Security',
+      pages: [
+        { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
+        { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
+        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📢' },
+        { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
+        { name: 'Create Admin', href: '/admin/register', icon: '➕' },
+        { name: 'Admin Login', href: '/admin/login', icon: '🔐' }
+      ]
+    }
   ];
 
   const handleLogout = async () => {
@@ -63,32 +129,30 @@ export default function AdminStickyDropdown() {
           <div style={styles.backdrop} onClick={() => setIsOpen(false)}></div>
           <div style={styles.dropdown}>
             <div style={styles.dropdownHeader}>
-              <h3 style={styles.dropdownTitle}>🏦 Admin Tools</h3>
-              <p style={styles.dropdownSubtitle}>Quick access to administration functions</p>
+              <h3 style={styles.dropdownTitle}>🏦 All Admin Pages</h3>
+              <p style={styles.dropdownSubtitle}>Complete administration access</p>
             </div>
 
-            <div style={styles.toolsGrid}>
-              {adminTools.map((tool, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setIsOpen(false);
-                    router.push(tool.href);
-                  }}
-                  style={styles.toolItem}
-                >
-                  <div style={{
-                    ...styles.toolIcon,
-                    backgroundColor: `${tool.color}15`,
-                    border: `2px solid ${tool.color}30`
-                  }}>
-                    <span style={{ fontSize: '1.5rem' }}>{tool.icon}</span>
+            <div style={styles.categoriesContainer}>
+              {adminPages.map((section, index) => (
+                <div key={index} style={styles.category}>
+                  <h4 style={styles.categoryTitle}>{section.category}</h4>
+                  <div style={styles.pagesGrid}>
+                    {section.pages.map((page, pageIndex) => (
+                      <button
+                        key={pageIndex}
+                        onClick={() => {
+                          setIsOpen(false);
+                          router.push(page.href);
+                        }}
+                        style={styles.pageItem}
+                      >
+                        <span style={styles.pageIcon}>{page.icon}</span>
+                        <span style={styles.pageName}>{page.name}</span>
+                      </button>
+                    ))}
                   </div>
-                  <div style={styles.toolContent}>
-                    <div style={styles.toolName}>{tool.name}</div>
-                  </div>
-                  <div style={{ ...styles.toolArrow, color: tool.color }}>→</div>
-                </button>
+                </div>
               ))}
             </div>
 
@@ -100,7 +164,7 @@ export default function AdminStickyDropdown() {
                 }}
                 style={styles.viewAllButton}
               >
-                View All Admin Pages
+                🏠 Admin Hub
               </button>
               <button
                 onClick={() => {
@@ -181,106 +245,113 @@ const styles = {
     borderRadius: '20px',
     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
     border: '2px solid #e2e8f0',
-    padding: '2rem',
+    padding: '1.5rem',
     minWidth: '360px',
     maxWidth: '90vw',
     zIndex: 999,
-    maxHeight: '60vh',
+    maxHeight: '70vh',
     overflowY: 'auto'
   },
   dropdownHeader: {
     textAlign: 'center',
-    marginBottom: '1.5rem',
-    paddingBottom: '1rem',
+    marginBottom: '1rem',
+    paddingBottom: '0.75rem',
     borderBottom: '2px solid #e2e8f0'
   },
   dropdownTitle: {
-    fontSize: '1.5rem',
+    fontSize: '1.25rem',
     fontWeight: '700',
     background: 'linear-gradient(135deg, #1A3E6F 0%, #2A5490 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
-    margin: '0 0 0.5rem 0'
+    margin: '0 0 0.25rem 0'
   },
   dropdownSubtitle: {
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     color: '#64748b',
     margin: 0
   },
-  toolsGrid: {
+  categoriesContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem',
-    marginBottom: '1.5rem'
-  },
-  toolItem: {
-    display: 'flex',
-    alignItems: 'center',
     gap: '1rem',
-    padding: '1rem',
-    borderRadius: '12px',
-    backgroundColor: '#f8fafc',
-    border: '2px solid #e2e8f0',
-    transition: 'all 0.3s ease',
-    cursor: 'pointer',
-    width: '100%',
-    textAlign: 'left'
+    marginBottom: '1rem'
   },
-  toolIcon: {
-    width: '48px',
-    height: '48px',
+  category: {
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
+    padding: '0.75rem',
+    border: '1px solid #e2e8f0'
+  },
+  categoryTitle: {
+    fontSize: '0.9rem',
+    fontWeight: '700',
+    color: '#1A3E6F',
+    margin: '0 0 0.5rem 0',
+    paddingBottom: '0.5rem',
+    borderBottom: '1px solid #e2e8f0'
+  },
+  pagesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gap: '0.5rem'
+  },
+  pageItem: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '12px',
+    gap: '0.5rem',
+    padding: '0.5rem',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    color: '#1A3E6F',
+    textAlign: 'left',
+    width: '100%'
+  },
+  pageIcon: {
+    fontSize: '1rem',
     flexShrink: 0
   },
-  toolContent: {
-    flex: 1
-  },
-  toolName: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: '#1A3E6F'
-  },
-  toolArrow: {
-    fontSize: '1.25rem',
-    fontWeight: 'bold'
+  pageName: {
+    fontSize: '0.75rem',
+    lineHeight: '1.2'
   },
   dropdownFooter: {
-    textAlign: 'center',
+    display: 'flex',
+    gap: '0.5rem',
     paddingTop: '1rem',
     borderTop: '2px solid #e2e8f0'
   },
   viewAllButton: {
-    display: 'inline-block',
-    padding: '0.875rem 2rem',
+    flex: 1,
+    padding: '0.75rem',
     background: 'linear-gradient(135deg, #1A3E6F 0%, #2A5490 100%)',
     color: 'white',
     textDecoration: 'none',
-    borderRadius: '12px',
-    fontSize: '1rem',
+    borderRadius: '10px',
+    fontSize: '0.875rem',
     fontWeight: '700',
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 12px rgba(26, 62, 111, 0.3)',
     border: 'none',
-    cursor: 'pointer',
-    marginBottom: '0.75rem',
-    width: '100%'
+    cursor: 'pointer'
   },
   logoutButton: {
-    display: 'inline-block',
-    padding: '0.875rem 2rem',
+    flex: 1,
+    padding: '0.75rem',
     background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
     color: 'white',
     textDecoration: 'none',
-    borderRadius: '12px',
-    fontSize: '1rem',
+    borderRadius: '10px',
+    fontSize: '0.875rem',
     fontWeight: '700',
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
     border: 'none',
-    cursor: 'pointer',
-    width: '100%'
+    cursor: 'pointer'
   }
 };
