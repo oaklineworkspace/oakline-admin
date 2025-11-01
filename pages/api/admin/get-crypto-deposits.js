@@ -16,13 +16,7 @@ export default async function handler(req, res) {
 
     let query = supabaseAdmin
       .from('crypto_deposits')
-      .select(`
-        *,
-        user:user_id (
-          id,
-          email
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
@@ -39,9 +33,20 @@ export default async function handler(req, res) {
       });
     }
 
+    // Fetch user emails separately
+    const userIds = [...new Set(deposits.map(d => d.user_id).filter(Boolean))];
+    const { data: users, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    const userEmailMap = {};
+    if (users && users.users) {
+      users.users.forEach(user => {
+        userEmailMap[user.id] = user.email;
+      });
+    }
+
     const enrichedDeposits = deposits.map(deposit => ({
       ...deposit,
-      user_email: deposit.user?.email || 'Unknown'
+      user_email: userEmailMap[deposit.user_id] || 'Unknown'
     }));
 
     const summary = {
