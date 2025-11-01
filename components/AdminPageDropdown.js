@@ -57,7 +57,10 @@ export default function AdminPageDropdown() {
       color: '#059669',
       items: [
         { name: 'All Transactions', href: '/admin/admin-transactions', icon: '💸' },
+        { name: 'User Transfers', href: '/admin/admin-transfers', icon: '🔄' },
         { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✏️' },
+        { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
+        { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
         { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' }
       ]
@@ -97,8 +100,21 @@ export default function AdminPageDropdown() {
       icon: '₿',
       color: '#F59E0B',
       items: [
+        { name: 'Crypto Dashboard', href: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', href: '/admin/manage-crypto-wallets', icon: '🔑' },
-        { name: 'Manage Crypto Deposits', href: '/admin/manage-crypto-deposits', icon: '💰' }
+        { name: 'Manage Crypto Deposits', href: '/admin/manage-crypto-deposits', icon: '💰' },
+        { name: 'Assign Crypto Wallets', href: '/admin/assign-crypto-wallets', icon: '🔗' }
+      ]
+    },
+    {
+      title: 'Banking Services',
+      icon: '🏦',
+      color: '#14b8a6',
+      items: [
+        { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
+        { name: 'Account Balances', href: '/admin/admin-balance', icon: '💰' },
+        { name: 'Manage Bank Details', href: '/admin/manage-bank-details', icon: '🏦' }
       ]
     }
   ];

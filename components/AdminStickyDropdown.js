@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import AdminPageDropdown from './AdminPageDropdown';
 
 export default function AdminStickyDropdown() {
   const router = useRouter();
@@ -20,6 +21,9 @@ export default function AdminStickyDropdown() {
 
   const adminTools = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: '📊', color: '#1A3E6F' },
+    { name: 'All Users', href: '/admin/manage-all-users', icon: '👥', color: '#059669' },
+    { name: 'Transfers', href: '/admin/admin-transfers', icon: '🔄', color: '#3b82f6' },
+    { name: 'Transactions', href: '/admin/admin-transactions', icon: '💸', color: '#10b981' },
     { name: 'Create Admin', href: '/admin/register', icon: '➕', color: '#FFC857' },
     { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️', color: '#2A5490' },
     { name: 'System Logs', href: '/admin/admin-logs', icon: '📜', color: '#059669' },
@@ -34,24 +38,29 @@ export default function AdminStickyDropdown() {
   };
 
   return (
-    <div className="admin-sticky-dropdown" style={styles.container}>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        style={{
-          ...styles.button,
-          ...(isOpen ? styles.buttonActive : {})
-        }}
-      >
-        <span style={styles.icon}>🛠️</span>
-        <span style={styles.text}>Admin Tools</span>
-        <span style={{
-          ...styles.arrow,
-          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-        }}>▼</span>
-      </button>
+    <div className="admin-sticky-dropdown" style={styles.containerWrapper}>
+      <div style={styles.dropdownGroup}>
+        <AdminPageDropdown />
+      </div>
+      
+      <div style={styles.container}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+          }}
+          style={{
+            ...styles.button,
+            ...(isOpen ? styles.buttonActive : {})
+          }}
+        >
+          <span style={styles.icon}>🛠️</span>
+          <span style={styles.text}>Admin Tools</span>
+          <span style={{
+            ...styles.arrow,
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>▼</span>
+        </button>
 
       {isOpen && (
         <>
@@ -115,6 +124,25 @@ export default function AdminStickyDropdown() {
 }
 
 const styles = {
+  containerWrapper: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    gap: '0.5rem',
+    padding: '0.75rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
+    borderTop: '2px solid #e2e8f0',
+    boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)',
+    zIndex: 1000,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  dropdownGroup: {
+    position: 'relative'
+  },
   container: {
     position: 'relative',
     flex: 1,

@@ -41,11 +41,13 @@ export default function AdminNavDropdown() {
       ]
     },
     {
-      category: '📊 Dashboard & Overview',
+      category: '📊 Dashboard & Reports',
       links: [
         { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏠' },
-        { name: 'Admin Reports', path: '/admin/admin-reports', icon: '📈' },
-        { name: 'Admin Audit', path: '/admin/admin-audit', icon: '🔍' },
+        { name: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
+        { name: 'Reports', path: '/admin/admin-reports', icon: '📈' },
+        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
+        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' }
       ]
     },
     {
@@ -61,9 +63,10 @@ export default function AdminNavDropdown() {
     {
       category: '🏦 Account Management',
       links: [
-        { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
         { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦' },
+        { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
         { name: 'Account Balance', path: '/admin/admin-balance', icon: '💰' },
+        { name: 'Manage Bank Details', path: '/admin/manage-bank-details', icon: '🏦' }
       ]
     },
     {
@@ -76,28 +79,33 @@ export default function AdminNavDropdown() {
     {
       category: '💳 Card Management',
       links: [
-        { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
         { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
-        { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
+        { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
+        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝' },
         { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗' },
+        { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' }
       ]
     },
     {
       category: '💸 Transactions',
       links: [
-        { name: 'Admin Transactions', path: '/admin/admin-transactions', icon: '💸' },
+        { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸' },
+        { name: 'User Transfers', path: '/admin/admin-transfers', icon: '🔄' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
-        { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' },
+        { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' }
       ]
     },
     {
-      category: '💼 Financial Services',
+      category: '🏠 Banking Services',
       links: [
-        { name: 'Admin Loans', path: '/admin/admin-loans', icon: '💼' },
-        { name: 'Admin Investments', path: '/admin/admin-investments', icon: '📈' },
-        { name: 'Admin Crypto', path: '/admin/admin-crypto', icon: '₿' },
+        { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
+        { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
+        { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
+        { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
+        { name: 'Assign Crypto Wallets', path: '/admin/assign-crypto-wallets', icon: '🔗' }
       ]
     },
     {
@@ -112,11 +120,12 @@ export default function AdminNavDropdown() {
       category: '⚙️ Settings & Security',
       links: [
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
-        { name: 'Admin Roles', path: '/admin/admin-roles', icon: '👑' },
-        { name: 'Admin Logs', path: '/admin/admin-logs', icon: '📝' },
+        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
+        { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
         { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
-        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧' },
+        { name: 'Create Admin', path: '/admin/register', icon: '➕' },
+        { name: 'Admin Login', path: '/admin/login', icon: '🔐' }
       ]
     },
     {
@@ -129,66 +138,77 @@ export default function AdminNavDropdown() {
   ];
 
   return (
-    <div style={styles.container} className="admin-nav-dropdown-container">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        style={{
-          ...styles.button,
-          ...(isOpen ? styles.buttonActive : {})
-        }}
-      >
-        <span style={styles.icon}>📑</span>
-        Admin Pages
-        <span style={{
-          ...styles.arrow,
-          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-        }}>▼</span>
-      </button>
+    <div style={styles.stickyContainer}>
+      <div style={styles.dropdownContainer} className="admin-nav-dropdown-container">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+          }}
+          style={{
+            ...styles.button,
+            ...(isOpen ? styles.buttonActive : {})
+          }}
+        >
+          <span style={styles.icon}>📑</span>
+          Admin Pages
+          <span style={{
+            ...styles.arrow,
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>▼</span>
+        </button>
 
-      {isOpen && (
-        <>
-          <div style={styles.backdrop} onClick={() => setIsOpen(false)}></div>
-          <div style={styles.dropdown}>
-            <div style={styles.dropdownHeader}>
-              <h3 style={styles.dropdownTitle}>🏦 Admin Pages</h3>
-            </div>
+        {isOpen && (
+          <>
+            <div style={styles.backdrop} onClick={() => setIsOpen(false)}></div>
+            <div style={styles.dropdown}>
+              <div style={styles.dropdownHeader}>
+                <h3 style={styles.dropdownTitle}>🏦 Admin Pages</h3>
+              </div>
 
-            <div style={styles.scrollContainer}>
-              {adminPages.map((section, index) => (
-                <div key={index} style={styles.section}>
-                  <h5 style={styles.sectionTitle}>{section.category}</h5>
-                  <div style={styles.linkList}>
-                    {section.links.map((link, linkIndex) => (
-                      <Link
-                        key={linkIndex}
-                        href={link.path}
-                        style={styles.link}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <span style={styles.linkIcon}>{link.icon}</span>
-                        <span style={styles.linkText}>{link.name}</span>
-                        <span style={styles.linkArrow}>→</span>
-                      </Link>
-                    ))}
+              <div style={styles.scrollContainer}>
+                {adminPages.map((section, index) => (
+                  <div key={index} style={styles.section}>
+                    <h5 style={styles.sectionTitle}>{section.category}</h5>
+                    <div style={styles.linkList}>
+                      {section.links.map((link, linkIndex) => (
+                        <Link
+                          key={linkIndex}
+                          href={link.path}
+                          style={styles.link}
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <span style={styles.linkIcon}>{link.icon}</span>
+                          <span style={styles.linkText}>{link.name}</span>
+                          <span style={styles.linkArrow}>→</span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
+  stickyContainer: {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 1000,
+    display: 'flex',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  dropdownContainer: {
     position: 'relative',
     display: 'inline-block',
-    zIndex: 1000
   },
   button: {
     display: 'flex',
