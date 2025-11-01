@@ -51,7 +51,9 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Account not found' });
       }
 
-      newBalance = parseFloat(account.balance || 0) + parseFloat(deposit.net_amount || deposit.amount);
+      const balanceBefore = parseFloat(account.balance || 0);
+      const depositAmount = parseFloat(deposit.net_amount || deposit.amount);
+      newBalance = balanceBefore + depositAmount;
 
       const { error: balanceUpdateError } = await supabaseAdmin
         .from('accounts')
@@ -61,6 +63,32 @@ export default async function handler(req, res) {
       if (balanceUpdateError) {
         console.error('Error updating account balance:', balanceUpdateError);
         return res.status(500).json({ error: 'Failed to credit account balance. Deposit status not changed.' });
+      }
+
+      // Create transaction record
+      const { error: transactionError } = await supabaseAdmin
+        .from('transactions')
+        .insert({
+          user_id: deposit.user_id,
+          account_id: deposit.account_id,
+          type: 'deposit',
+          amount: depositAmount,
+          status: 'completed',
+          description: 'Crypto deposit approved',
+          balance_before: balanceBefore,
+          balance_after: newBalance,
+          reference: deposit.transaction_hash || deposit.id,
+          created_at: new Date().toISOString()
+        });
+
+      if (transactionError) {
+        console.error('Error creating transaction record:', transactionError);
+        // Rollback balance update
+        await supabaseAdmin
+          .from('accounts')
+          .update({ balance: balanceBefore })
+          .eq('id', account.id);
+        return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
       }
 
       balanceChanged = true;
@@ -78,7 +106,9 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Account not found' });
       }
 
-      newBalance = parseFloat(account.balance || 0) - parseFloat(deposit.net_amount || deposit.amount);
+      const balanceBefore = parseFloat(account.balance || 0);
+      const depositAmount = parseFloat(deposit.net_amount || deposit.amount);
+      newBalance = balanceBefore - depositAmount;
 
       if (newBalance < 0) {
         return res.status(400).json({ error: 'Cannot reverse deposit: insufficient account balance. Deposit status not changed.' });
@@ -92,6 +122,32 @@ export default async function handler(req, res) {
       if (balanceUpdateError) {
         console.error('Error updating account balance:', balanceUpdateError);
         return res.status(500).json({ error: 'Failed to deduct account balance. Deposit status not changed.' });
+      }
+
+      // Create reversal transaction record
+      const { error: transactionError } = await supabaseAdmin
+        .from('transactions')
+        .insert({
+          user_id: deposit.user_id,
+          account_id: deposit.account_id,
+          type: 'withdrawal',
+          amount: depositAmount,
+          status: 'reversed',
+          description: `Crypto deposit reversed${reason ? ': ' + reason : ''}`,
+          balance_before: balanceBefore,
+          balance_after: newBalance,
+          reference: deposit.transaction_hash || deposit.id,
+          created_at: new Date().toISOString()
+        });
+
+      if (transactionError) {
+        console.error('Error creating reversal transaction record:', transactionError);
+        // Rollback balance update
+        await supabaseAdmin
+          .from('accounts')
+          .update({ balance: balanceBefore })
+          .eq('id', account.id);
+        return res.status(500).json({ error: 'Failed to create reversal transaction record. Balance changes have been rolled back.' });
       }
 
       balanceChanged = true;
@@ -149,6 +205,15 @@ export default async function handler(req, res) {
             .from('accounts')
             .update({ balance: originalBalance })
             .eq('id', deposit.account_id);
+
+          // Delete the transaction record we just created
+          if (deposit.transaction_hash || deposit.id) {
+            await supabaseAdmin
+              .from('transactions')
+              .delete()
+              .eq('reference', deposit.transaction_hash || deposit.id)
+              .eq('account_id', deposit.account_id);
+          }
         }
       }
       
