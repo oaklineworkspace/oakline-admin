@@ -96,6 +96,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Transfers Management & Performance Optimization (November 1, 2025)
+Enhanced admin dashboard with professional transfer management and critical performance fixes:
+- **New Admin Page**: `/admin/admin-transfers` - Dedicated transfers page displaying all user transfers (internal, between accounts, wire) with user name, account number, transaction type, amount, description, status, and timestamp
+- **Crypto Deposit Workflow**: Added professional two-step workflow with "Confirm" button to verify blockchain deposits before "Approve" button credits accounts
+- **API Enhancements**: 
+  - `POST /api/admin/confirm-crypto-deposit` - Mark crypto deposits as confirmed after blockchain verification
+  - Updated `GET /api/admin/get-crypto-deposits` to support "confirmed" status filtering
+- **Performance Optimizations**: 
+  - Added 500-record limit to transactions and transfers queries to improve page load times
+  - **Critical Fix**: Replaced `auth.admin.listUsers()` in crypto deposits API with targeted profiles query to prevent pagination-related data loss for accounts with >50 users
+- **Loans Page Fix**: Updated `/api/admin/get-loans` to properly fetch loan data with user emails from Supabase profiles table instead of auth service
+
 ### Crypto Wallet & Deposit Management (October 31, 2025)
 Added comprehensive cryptocurrency management for administrators:
 - **New Admin Pages**:
