@@ -148,7 +148,7 @@ export default function ManageCryptoDeposits() {
       }
 
       setMessage(result.message || `✅ Status updated to ${newStatus} successfully`);
-      if (result.newBalance !== undefined) {
+      if (result.newBalance !== undefined && result.newBalance !== null) {
         setMessage(prev => `${prev} - New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
       }
       
