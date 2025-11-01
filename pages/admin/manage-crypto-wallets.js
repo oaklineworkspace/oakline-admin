@@ -127,6 +127,18 @@ export default function ManageCryptoWallets() {
       return;
     }
 
+    // Check if this crypto/network combination already exists for this user
+    const userWallets = existingWallets[userId] || [];
+    const isDuplicate = userWallets.some(
+      wallet => wallet.crypto_type === cryptoType && wallet.network_type === networkType
+    );
+
+    if (isDuplicate) {
+      setError(`❌ This user already has a ${cryptoType} wallet on ${networkType} network. Please edit the existing wallet instead of creating a new one.`);
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -566,27 +578,36 @@ export default function ManageCryptoWallets() {
                         </select>
                       </td>
                       <td style={styles.td}>
-                        <select
-                          value={selectedUser === user.id && walletForm.networkType ? walletForm.networkType : (selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType][0] : '')}
-                          onFocus={() => {
-                            if (selectedUser !== user.id) {
-                              setSelectedUser(user.id);
-                              setWalletForm({
-                                cryptoType: 'BTC',
-                                networkType: cryptoNetworks['BTC'][0],
-                                walletAddress: ''
-                              });
-                            }
-                          }}
-                          onChange={(e) => {
-                            setWalletForm(prev => ({ ...prev, networkType: e.target.value }));
-                          }}
-                          style={styles.select}
-                        >
-                          {(selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType] : cryptoNetworks['BTC']).map(network => (
-                            <option key={network} value={network}>{network}</option>
-                          ))}
-                        </select>
+                        <div>
+                          <select
+                            value={selectedUser === user.id && walletForm.networkType ? walletForm.networkType : (selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType][0] : '')}
+                            onFocus={() => {
+                              if (selectedUser !== user.id) {
+                                setSelectedUser(user.id);
+                                setWalletForm({
+                                  cryptoType: 'BTC',
+                                  networkType: cryptoNetworks['BTC'][0],
+                                  walletAddress: ''
+                                });
+                              }
+                            }}
+                            onChange={(e) => {
+                              setWalletForm(prev => ({ ...prev, networkType: e.target.value }));
+                            }}
+                            style={styles.select}
+                          >
+                            {(selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType] : cryptoNetworks['BTC']).map(network => (
+                              <option key={network} value={network}>{network}</option>
+                            ))}
+                          </select>
+                          {selectedUser === user.id && existingWallets[user.id]?.some(
+                            w => w.crypto_type === walletForm.cryptoType && w.network_type === walletForm.networkType
+                          ) && (
+                            <div style={styles.alreadyAssignedWarning}>
+                              ⚠️ Already assigned
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <input
@@ -892,6 +913,17 @@ const styles = {
     fontSize: 'clamp(11px, 2.2vw, 13px)',
     color: '#475569',
     wordBreak: 'break-all',
+  },
+  alreadyAssignedWarning: {
+    display: 'inline-block',
+    marginTop: '4px',
+    padding: '3px 8px',
+    backgroundColor: '#fef3c7',
+    color: '#b45309',
+    borderRadius: '4px',
+    fontSize: 'clamp(10px, 2vw, 11px)',
+    fontWeight: '600',
+    border: '1px solid #fbbf24',
   },
   loadingContainer: {
     display: 'flex',
