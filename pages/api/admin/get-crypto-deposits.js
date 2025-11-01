@@ -1,10 +1,5 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
-import sgMail from '@sendgrid/mail';
-
-// Initialize SendGrid with your API key
-// It's recommended to use environment variables for API keys
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
