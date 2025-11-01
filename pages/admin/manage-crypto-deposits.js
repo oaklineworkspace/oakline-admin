@@ -226,50 +226,22 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
         throw new Error('No active session');
       }
 
-      const deposit = deposits.find(d => d.id === depositId);
-      if (!deposit) {
-        throw new Error('Deposit not found');
+      const response = await fetch('/api/admin/reverse-crypto-deposit', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ depositId, reason })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reverse deposit');
       }
 
-      const { data: account, error: accountError } = await supabase
-        .from('accounts')
-        .select('balance')
-        .eq('account_number', deposit.account_number)
-        .single();
-
-      if (accountError || !account) {
-        throw new Error('Account not found');
-      }
-
-      if (parseFloat(account.balance) < parseFloat(deposit.amount)) {
-        throw new Error('Insufficient balance to reverse this deposit');
-      }
-
-      const newBalance = parseFloat(account.balance) - parseFloat(deposit.amount);
-
-      const { error: updateError } = await supabase
-        .from('accounts')
-        .update({ balance: newBalance })
-        .eq('account_number', deposit.account_number);
-
-      if (updateError) {
-        throw new Error('Failed to update account balance');
-      }
-
-      const { error: depositUpdateError } = await supabase
-        .from('crypto_deposits')
-        .update({ 
-          status: 'reversed',
-          reversed_at: new Date().toISOString(),
-          reversal_reason: reason
-        })
-        .eq('id', depositId);
-
-      if (depositUpdateError) {
-        throw new Error('Failed to update deposit status');
-      }
-
-      setMessage(`✅ Deposit reversed successfully. New balance: $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+      setMessage(`✅ Deposit reversed successfully. New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
       await fetchDeposits();
 
       setTimeout(() => setMessage(''), 5000);
