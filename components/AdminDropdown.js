@@ -87,7 +87,9 @@ export default function AdminDropdown() {
       links: [
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
-        { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿' },
+        { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
+        { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
+        { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
       ]
     },
     {

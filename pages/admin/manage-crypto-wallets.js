@@ -26,7 +26,7 @@ export default function ManageCryptoWallets() {
   });
 
   const cryptoNetworks = {
-    'BTC': ['Bitcoin'],
+    'BTC': ['Bitcoin Mainnet', 'BSC (BEP20)'],
     'USDT': ['BSC', 'ERC20', 'TRC20', 'SOL', 'TON'],
     'ETH': ['ERC20', 'Arbitrum', 'Base'],
     'BNB': ['BEP20'],
