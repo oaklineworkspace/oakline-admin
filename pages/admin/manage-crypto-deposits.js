@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 export default function ManageCryptoDeposits() {
   const [deposits, setDeposits] = useState([]);
   const [filteredDeposits, setFilteredDeposits] = useState([]);
-  const [summary, setSummary] = useState({ total: 0, pending: 0, confirmed: 0, rejected: 0, totalPendingAmount: 0 });
+  const [summary, setSummary] = useState({ total: 0, pending: 0, confirmed: 0, rejected: 0, reversed: 0, totalPendingAmount: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -41,7 +41,7 @@ export default function ManageCryptoDeposits() {
 
       setDeposits(result.deposits || []);
       setFilteredDeposits(result.deposits || []);
-      setSummary(result.summary || { total: 0, pending: 0, approved: 0, rejected: 0, totalPendingAmount: 0 });
+      setSummary(result.summary || { total: 0, pending: 0, confirmed: 0, rejected: 0, reversed: 0, totalPendingAmount: 0 });
     } catch (error) {
       console.error('Error fetching deposits:', error);
       setError(`Failed to fetch deposits: ${error.message}`);
@@ -269,6 +269,7 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
       pending: { backgroundColor: '#fef3c7', color: '#92400e', text: 'Pending' },
       confirmed: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Confirmed' },
       rejected: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Rejected' },
+      reversed: { backgroundColor: '#fff7ed', color: '#c2410c', text: 'Reversed' },
     };
 
     if (status === 'pending' && confirmedAt) {
@@ -348,6 +349,13 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
               <div style={styles.summaryValue}>{summary.rejected}</div>
             </div>
           </div>
+          <div style={{...styles.summaryCard, ...styles.reversedCard}}>
+            <div style={styles.summaryIcon}>↩️</div>
+            <div style={styles.summaryContent}>
+              <div style={styles.summaryLabel}>Reversed</div>
+              <div style={styles.summaryValue}>{summary.reversed}</div>
+            </div>
+          </div>
         </div>
 
         <div style={styles.filterContainer}>
@@ -362,6 +370,7 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
             <option value="verifying">Verifying Only</option>
             <option value="confirmed">Confirmed Only</option>
             <option value="rejected">Rejected Only</option>
+            <option value="reversed">Reversed Only</option>
           </select>
         </div>
 
@@ -503,6 +512,19 @@ ${deposit.approved_at ? `Approved: ${formatDate(deposit.approved_at)}` : ''}
                             ↩️ Reverse
                           </button>
                         </div>
+                      ) : deposit.status === 'reversed' || deposit.status === 'rejected' ? (
+                        <div style={styles.actionButtons}>
+                          <button
+                            onClick={() => handleViewDetails(deposit)}
+                            style={styles.viewButton}
+                            title="View transaction details"
+                          >
+                            👁️ View
+                          </button>
+                          <span style={styles.noAction}>
+                            {deposit.status === 'reversed' ? 'Reversed' : 'Rejected'}
+                          </span>
+                        </div>
                       ) : (
                         <div style={styles.actionButtons}>
                           <button
@@ -592,6 +614,9 @@ const styles = {
   },
   rejectedCard: {
     borderLeft: '4px solid #ef4444',
+  },
+  reversedCard: {
+    borderLeft: '4px solid #f59e0b',
   },
   summaryIcon: {
     fontSize: 'clamp(24px, 5vw, 32px)',

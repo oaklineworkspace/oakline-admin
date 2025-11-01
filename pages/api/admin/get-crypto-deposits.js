@@ -71,6 +71,7 @@ export default async function handler(req, res) {
       verifying: deposits.filter(d => d.status === 'pending' && d.confirmed_at).length,
       confirmed: deposits.filter(d => d.status === 'confirmed').length,
       rejected: deposits.filter(d => d.status === 'rejected').length,
+      reversed: deposits.filter(d => d.status === 'reversed').length,
       totalPendingAmount: deposits
         .filter(d => d.status === 'pending')
         .reduce((sum, d) => sum + parseFloat(d.amount || 0), 0)
