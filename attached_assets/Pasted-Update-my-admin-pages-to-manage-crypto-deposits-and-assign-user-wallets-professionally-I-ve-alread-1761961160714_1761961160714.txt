@@ -1,0 +1,69 @@
+Update my admin pages to manage crypto deposits and assign user wallets professionally.
+
+I’ve already added SQL columns and tables for crypto_deposits, user_crypto_wallets, and admin_assigned_wallets as shown below.
+Make sure my admin dashboard is fully connected to them.
+
+⸻
+
+⚙️ Core Requirements
+
+1. Create a new admin page:
+📁 /admin/manage-crypto-wallets.js
+This page should allow admins to:
+	•	View all users.
+	•	Assign crypto wallets to each user manually.
+	•	Choose:
+	•	Crypto type (BTC, USDT, ETH, BNB, SOL, TON)
+	•	Network type (depends on the crypto)
+	•	Wallet address
+	•	On save:
+	•	Insert or update a record in admin_assigned_wallets
+	•	Update or insert in user_crypto_wallets
+	•	Log the action in audit_log if available (optional)
+	•	Show success message: “Wallet assigned successfully to [user_name].”
+
+⸻
+
+2. Update /admin/manage-crypto-deposits.js
+
+Admins should be able to:
+	•	View all crypto deposits from crypto_deposits table.
+	•	Filter by status: pending, confirmed, approved.
+	•	View details:
+	•	User name / email
+	•	Crypto type
+	•	Network type
+	•	Amount
+	•	Transaction hash (if available)
+	•	Confirmations
+	•	Deposit date
+	•	Actions:
+	•	✅ Approve Deposit:
+	•	Change status → approved
+	•	Set approved_by = current admin ID
+	•	Set approved_at = NOW()
+	•	❌ Reject Deposit:
+	•	Change status → rejected
+	•	Add optional note
+	•	Once approved, it should credit the user’s account balance using the same function already used by fiat deposits.
+
+⸻
+
+3. Improve /admin/view-user-details.js
+
+Add a new “Crypto Wallets” section under each user:
+	•	Show all wallets assigned to that user from user_crypto_wallets.
+	•	Include columns:
+	•	Crypto Type
+	•	Network Type
+	•	Wallet Address
+	•	Assigned By
+	•	Created / Updated At
+
+💡 Additional Notes
+	•	Use the same styling and layout as other admin pages.
+	•	Fetch all crypto deposits and wallets using Supabase.
+	•	When an admin assigns a wallet, it should automatically reflect in the user-facing deposit page.
+	•	If no wallet is assigned for a selected crypto/network, the user should see a “Wallet not yet assigned” message.
+	•	Add toast notifications for success and failure.
+
