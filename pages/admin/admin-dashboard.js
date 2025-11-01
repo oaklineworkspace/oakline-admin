@@ -199,9 +199,7 @@ export default function AdminDashboard() {
                 <div style={styles.navIcon}>💸</div>
                 <div style={styles.navText}>Transactions</div>
               </Link>
-              <div style={styles.navButton}>
-                <AdminStickyDropdown />
-              </div>
+              <AdminStickyDropdown />
             </div>
           </>
         )}

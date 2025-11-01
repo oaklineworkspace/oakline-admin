@@ -38,25 +38,25 @@ export default function AdminStickyDropdown() {
   };
 
   return (
-    <div className="admin-sticky-dropdown" style={styles.containerWrapper}>
-      <div style={styles.container}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsOpen(!isOpen);
-          }}
-          style={{
-            ...styles.button,
-            ...(isOpen ? styles.buttonActive : {})
-          }}
-        >
-          <span style={styles.icon}>🛠️</span>
-          <span style={styles.text}>Admin Tools</span>
-          <span style={{
-            ...styles.arrow,
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-          }}>▼</span>
-        </button>
+    <>
+      <button
+        className="admin-sticky-dropdown"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        style={{
+          ...styles.button,
+          ...(isOpen ? styles.buttonActive : {})
+        }}
+      >
+        <span style={styles.icon}>🛠️</span>
+        <span style={styles.text}>Tools</span>
+        <span style={{
+          ...styles.arrow,
+          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+        }}>▼</span>
+      </button>
 
       {isOpen && (
         <>
@@ -115,25 +115,11 @@ export default function AdminStickyDropdown() {
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
 
 const styles = {
-  containerWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    height: '100%'
-  },
-  container: {
-    position: 'relative',
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'center'
-  },
   button: {
     display: 'flex',
     flexDirection: 'column',
@@ -149,12 +135,10 @@ const styles = {
     transition: 'all 0.3s ease',
     cursor: 'pointer',
     boxShadow: 'none',
-    minHeight: 'auto',
-    minWidth: '50px',
+    flex: 1,
     maxWidth: '70px',
-    position: 'relative',
-    overflow: 'visible',
-    width: '100%'
+    minWidth: '50px',
+    textDecoration: 'none'
   },
   buttonActive: {
     backgroundColor: '#1A3E6F',
