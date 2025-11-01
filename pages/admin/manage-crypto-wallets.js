@@ -256,6 +256,48 @@ export default function ManageCryptoWallets() {
     }
   };
 
+  const handleDeleteWallet = async (walletId, userName, cryptoType) => {
+    if (!confirm(`Are you sure you want to delete the ${cryptoType} wallet for ${userName}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setMessage('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch('/api/admin/delete-crypto-wallet', {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ walletId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete wallet');
+      }
+
+      setMessage(`✅ Wallet deleted successfully for ${userName}`);
+      await fetchExistingWallets();
+
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error deleting wallet:', error);
+      setError(`Failed to delete wallet: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && users.length === 0) {
     return (
       <AdminAuth>
@@ -424,13 +466,28 @@ export default function ManageCryptoWallets() {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => handleEditWallet(wallet)}
-                              style={styles.editButton}
-                              disabled={loading}
-                            >
-                              Edit
-                            </button>
+                            <div style={styles.editActions}>
+                              <button
+                                onClick={() => handleEditWallet(wallet)}
+                                style={styles.editButton}
+                                disabled={loading}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteWallet(
+                                  wallet.id,
+                                  user?.profiles?.first_name 
+                                    ? `${user.profiles.first_name} ${user.profiles.last_name}` 
+                                    : user?.email,
+                                  wallet.crypto_type
+                                )}
+                                style={styles.deleteButton}
+                                disabled={loading}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -758,6 +815,18 @@ const styles = {
   cancelButton: {
     padding: '8px 16px',
     backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+  },
+  deleteButton: {
+    padding: '8px 16px',
+    backgroundColor: '#dc2626',
     color: 'white',
     border: 'none',
     borderRadius: '6px',

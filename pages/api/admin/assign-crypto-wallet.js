@@ -37,9 +37,9 @@ export default async function handler(req, res) {
       .eq('user_id', userId)
       .eq('crypto_type', cryptoType)
       .eq('network_type', networkType)
-      .single();
+      .maybeSingle();
 
-    if (checkError && checkError.code !== 'PGRST116') {
+    if (checkError) {
       console.error('Error checking existing wallet:', checkError);
       return res.status(500).json({ error: 'Failed to check existing wallet' });
     }
@@ -53,9 +53,7 @@ export default async function handler(req, res) {
           assigned_by: adminId,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', userId)
-        .eq('crypto_type', cryptoType)
-        .eq('network_type', networkType)
+        .eq('id', existing.id)
         .select()
         .single();
 
@@ -64,22 +62,34 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to update wallet address' });
       }
 
-      // Update admin_assigned_wallets
-      const { error: adminWalletError } = await supabaseAdmin
+      // Update admin_assigned_wallets using the ID
+      const { data: adminWallet } = await supabaseAdmin
         .from('admin_assigned_wallets')
-        .upsert({
-          admin_id: adminId,
-          user_id: userId,
-          crypto_type: cryptoType,
-          network_type: networkType,
-          wallet_address: walletAddress,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,crypto_type,network_type'
-        });
+        .select('id')
+        .eq('user_id', userId)
+        .eq('crypto_type', cryptoType)
+        .eq('network_type', networkType)
+        .maybeSingle();
 
-      if (adminWalletError) {
-        console.error('Error updating admin_assigned_wallets:', adminWalletError);
+      if (adminWallet) {
+        await supabaseAdmin
+          .from('admin_assigned_wallets')
+          .update({
+            admin_id: adminId,
+            wallet_address: walletAddress,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', adminWallet.id);
+      } else {
+        await supabaseAdmin
+          .from('admin_assigned_wallets')
+          .insert({
+            admin_id: adminId,
+            user_id: userId,
+            crypto_type: cryptoType,
+            network_type: networkType,
+            wallet_address: walletAddress
+          });
       }
 
       return res.status(200).json({ 
