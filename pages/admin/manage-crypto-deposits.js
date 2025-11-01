@@ -50,6 +50,48 @@ export default function ManageCryptoDeposits() {
     }
   };
 
+  const handleConfirm = async (depositId) => {
+    if (!window.confirm('Confirm this crypto deposit? This verifies the transaction on the blockchain.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setMessage('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch('/api/admin/confirm-crypto-deposit', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ depositId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to confirm deposit');
+      }
+
+      setMessage('✅ Deposit confirmed successfully! You can now approve it to credit the account.');
+      await fetchDeposits();
+
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      console.error('Error confirming deposit:', error);
+      setError(`Failed to confirm deposit: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleApprove = async (depositId) => {
     if (!window.confirm('Are you sure you want to approve this deposit? This will credit the user\'s account.')) {
       return;
@@ -151,12 +193,16 @@ export default function ManageCryptoDeposits() {
     });
   };
 
-  const getStatusBadge = (status) => {
-    const statusStyles = {
+  const getStatusBadge = (status, confirmedAt) => {
+    let statusStyles = {
       pending: { backgroundColor: '#fef3c7', color: '#92400e', text: 'Pending' },
       approved: { backgroundColor: '#d1fae5', color: '#065f46', text: 'Approved' },
       rejected: { backgroundColor: '#fee2e2', color: '#991b1b', text: 'Rejected' },
     };
+
+    if (status === 'pending' && confirmedAt) {
+      statusStyles.pending = { backgroundColor: '#dbeafe', color: '#1e40af', text: 'Confirmed' };
+    }
 
     const style = statusStyles[status] || statusStyles.pending;
 
@@ -242,6 +288,7 @@ export default function ManageCryptoDeposits() {
           >
             <option value="all">All Deposits</option>
             <option value="pending">Pending Only</option>
+            <option value="confirmed">Confirmed Only</option>
             <option value="approved">Approved Only</option>
             <option value="rejected">Rejected Only</option>
           </select>
@@ -308,27 +355,50 @@ export default function ManageCryptoDeposits() {
                     <td style={styles.td}>
                       <span style={styles.confirmations}>{deposit.confirmations || 0}</span>
                     </td>
-                    <td style={styles.td}>{getStatusBadge(deposit.status)}</td>
+                    <td style={styles.td}>{getStatusBadge(deposit.status, deposit.confirmed_at)}</td>
                     <td style={styles.td}>{formatDate(deposit.created_at)}</td>
                     <td style={styles.td}>
                       {deposit.status === 'pending' ? (
                         <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleApprove(deposit.id)}
-                            disabled={loading}
-                            style={loading ? styles.disabledButton : styles.approveButton}
-                            title="Approve and credit account"
-                          >
-                            ✓ Approve
-                          </button>
-                          <button
-                            onClick={() => handleReject(deposit.id)}
-                            disabled={loading}
-                            style={loading ? styles.disabledButton : styles.rejectButton}
-                            title="Reject deposit"
-                          >
-                            ✗ Reject
-                          </button>
+                          {!deposit.confirmed_at ? (
+                            <>
+                              <button
+                                onClick={() => handleConfirm(deposit.id)}
+                                disabled={loading}
+                                style={loading ? styles.disabledButton : styles.confirmButton}
+                                title="Confirm transaction on blockchain"
+                              >
+                                ✓ Confirm
+                              </button>
+                              <button
+                                onClick={() => handleReject(deposit.id)}
+                                disabled={loading}
+                                style={loading ? styles.disabledButton : styles.rejectButton}
+                                title="Reject deposit"
+                              >
+                                ✗ Reject
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleApprove(deposit.id)}
+                                disabled={loading}
+                                style={loading ? styles.disabledButton : styles.approveButton}
+                                title="Approve and credit account"
+                              >
+                                ✓ Approve
+                              </button>
+                              <button
+                                onClick={() => handleReject(deposit.id)}
+                                disabled={loading}
+                                style={loading ? styles.disabledButton : styles.rejectButton}
+                                title="Reject deposit"
+                              >
+                                ✗ Reject
+                              </button>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <span style={styles.noAction}>No actions</span>
@@ -561,6 +631,18 @@ const styles = {
     display: 'flex',
     gap: '6px',
     flexWrap: 'wrap',
+  },
+  confirmButton: {
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(10px, 2vw, 13px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
   },
   approveButton: {
     padding: '6px 12px',

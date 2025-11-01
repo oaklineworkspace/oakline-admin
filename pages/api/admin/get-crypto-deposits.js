@@ -20,7 +20,11 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
-      query = query.eq('status', status);
+      if (status === 'confirmed') {
+        query = query.eq('status', 'pending').not('confirmed_at', 'is', null);
+      } else {
+        query = query.eq('status', status);
+      }
     }
 
     const { data: deposits, error } = await query;
@@ -33,14 +37,26 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fetch user emails separately
+    // Fetch user emails from profiles table
     const userIds = [...new Set(deposits.map(d => d.user_id).filter(Boolean))];
-    const { data: users, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-    
-    const userEmailMap = {};
-    if (users && users.users) {
-      users.users.forEach(user => {
-        userEmailMap[user.id] = user.email;
+    let userEmailMap = {};
+
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
+      
+      if (profilesError) {
+        console.error('Error fetching user profiles:', profilesError);
+        return res.status(500).json({ 
+          error: 'Failed to fetch user profiles',
+          details: profilesError.message 
+        });
+      }
+
+      profiles.forEach(profile => {
+        userEmailMap[profile.id] = profile.email;
       });
     }
 
@@ -51,7 +67,8 @@ export default async function handler(req, res) {
 
     const summary = {
       total: deposits.length,
-      pending: deposits.filter(d => d.status === 'pending').length,
+      pending: deposits.filter(d => d.status === 'pending' && !d.confirmed_at).length,
+      confirmed: deposits.filter(d => d.status === 'pending' && d.confirmed_at).length,
       approved: deposits.filter(d => d.status === 'approved').length,
       rejected: deposits.filter(d => d.status === 'rejected').length,
       totalPendingAmount: deposits

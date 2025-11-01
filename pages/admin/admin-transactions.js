@@ -92,7 +92,8 @@ export default function AdminTransactions() {
             application_id
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (txError) throw txError;
 
