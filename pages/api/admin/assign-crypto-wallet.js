@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -12,26 +13,30 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId, cryptoType, walletAddress } = req.body;
+    const { userId, cryptoType, networkType, walletAddress } = req.body;
 
-    if (!userId || !cryptoType || !walletAddress) {
+    if (!userId || !cryptoType || !networkType || !walletAddress) {
       return res.status(400).json({ 
-        error: 'Missing required fields: userId, cryptoType, and walletAddress are required' 
+        error: 'Missing required fields: userId, cryptoType, networkType, and walletAddress are required' 
       });
     }
 
-    const validCryptoTypes = ['BTC', 'USDT', 'ETH', 'BNB'];
+    const validCryptoTypes = ['BTC', 'USDT', 'ETH', 'BNB', 'SOL', 'TON'];
     if (!validCryptoTypes.includes(cryptoType)) {
       return res.status(400).json({ 
         error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}` 
       });
     }
 
+    const adminId = authResult.user.id;
+
+    // Check if wallet already exists for this user/crypto/network combination
     const { data: existing, error: checkError } = await supabaseAdmin
       .from('user_crypto_wallets')
       .select('*')
       .eq('user_id', userId)
       .eq('crypto_type', cryptoType)
+      .eq('network_type', networkType)
       .single();
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -40,46 +45,86 @@ export default async function handler(req, res) {
     }
 
     if (existing) {
-      const { data, error } = await supabaseAdmin
+      // Update existing wallet
+      const { data: walletData, error: walletError } = await supabaseAdmin
         .from('user_crypto_wallets')
         .update({ 
           wallet_address: walletAddress,
+          assigned_by: adminId,
+          updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)
         .eq('crypto_type', cryptoType)
+        .eq('network_type', networkType)
         .select()
         .single();
 
-      if (error) {
-        console.error('Error updating wallet:', error);
+      if (walletError) {
+        console.error('Error updating wallet:', walletError);
         return res.status(500).json({ error: 'Failed to update wallet address' });
+      }
+
+      // Update admin_assigned_wallets
+      const { error: adminWalletError } = await supabaseAdmin
+        .from('admin_assigned_wallets')
+        .upsert({
+          admin_id: adminId,
+          user_id: userId,
+          crypto_type: cryptoType,
+          network_type: networkType,
+          wallet_address: walletAddress,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,crypto_type,network_type'
+        });
+
+      if (adminWalletError) {
+        console.error('Error updating admin_assigned_wallets:', adminWalletError);
       }
 
       return res.status(200).json({ 
         success: true, 
         message: 'Wallet address updated successfully',
-        wallet: data 
+        wallet: walletData 
       });
     } else {
-      const { data, error } = await supabaseAdmin
+      // Create new wallet
+      const { data: walletData, error: walletError } = await supabaseAdmin
         .from('user_crypto_wallets')
         .insert([{ 
           user_id: userId,
           crypto_type: cryptoType,
-          wallet_address: walletAddress 
+          network_type: networkType,
+          wallet_address: walletAddress,
+          assigned_by: adminId
         }])
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating wallet:', error);
+      if (walletError) {
+        console.error('Error creating wallet:', walletError);
         return res.status(500).json({ error: 'Failed to create wallet address' });
+      }
+
+      // Insert into admin_assigned_wallets
+      const { error: adminWalletError } = await supabaseAdmin
+        .from('admin_assigned_wallets')
+        .insert([{
+          admin_id: adminId,
+          user_id: userId,
+          crypto_type: cryptoType,
+          network_type: networkType,
+          wallet_address: walletAddress
+        }]);
+
+      if (adminWalletError) {
+        console.error('Error creating admin_assigned_wallets:', adminWalletError);
       }
 
       return res.status(201).json({ 
         success: true, 
         message: 'Wallet address assigned successfully',
-        wallet: data 
+        wallet: walletData 
       });
     }
 

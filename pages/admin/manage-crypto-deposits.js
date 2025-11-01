@@ -255,8 +255,11 @@ export default function ManageCryptoDeposits() {
                 <th style={styles.th}>User Email</th>
                 <th style={styles.th}>Account Number</th>
                 <th style={styles.th}>Crypto Type</th>
+                <th style={styles.th}>Network</th>
                 <th style={styles.th}>Wallet Address</th>
                 <th style={styles.th}>Amount</th>
+                <th style={styles.th}>TX Hash</th>
+                <th style={styles.th}>Confirmations</th>
                 <th style={styles.th}>Status</th>
                 <th style={styles.th}>Date Created</th>
                 <th style={styles.th}>Actions</th>
@@ -265,7 +268,7 @@ export default function ManageCryptoDeposits() {
             <tbody>
               {filteredDeposits.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={styles.emptyState}>
+                  <td colSpan="12" style={styles.emptyState}>
                     {statusFilter === 'all' 
                       ? 'No crypto deposits found' 
                       : `No ${statusFilter} deposits found`}
@@ -283,12 +286,27 @@ export default function ManageCryptoDeposits() {
                       <span style={styles.cryptoBadge}>{deposit.crypto_type}</span>
                     </td>
                     <td style={styles.td}>
+                      <span style={styles.networkBadge}>{deposit.network_type || 'N/A'}</span>
+                    </td>
+                    <td style={styles.td}>
                       <span style={styles.walletAddress} title={deposit.wallet_address}>
                         {deposit.wallet_address?.substring(0, 12)}...{deposit.wallet_address?.substring(deposit.wallet_address.length - 8)}
                       </span>
                     </td>
                     <td style={styles.td}>
                       <strong>${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                    </td>
+                    <td style={styles.td}>
+                      {deposit.transaction_hash ? (
+                        <span style={styles.txHash} title={deposit.transaction_hash}>
+                          {deposit.transaction_hash.substring(0, 10)}...
+                        </span>
+                      ) : (
+                        <span style={styles.noData}>N/A</span>
+                      )}
+                    </td>
+                    <td style={styles.td}>
+                      <span style={styles.confirmations}>{deposit.confirmations || 0}</span>
                     </td>
                     <td style={styles.td}>{getStatusBadge(deposit.status)}</td>
                     <td style={styles.td}>{formatDate(deposit.created_at)}</td>
@@ -456,7 +474,7 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '1200px',
+    minWidth: '1500px',
   },
   tableHeader: {
     backgroundColor: '#f1f5f9',
@@ -495,10 +513,39 @@ const styles = {
     fontSize: '13px',
     fontWeight: '600',
   },
+  networkBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
   walletAddress: {
     fontFamily: 'monospace',
     fontSize: '12px',
     color: '#64748b',
+  },
+  txHash: {
+    fontFamily: 'monospace',
+    fontSize: '11px',
+    color: '#3b82f6',
+    cursor: 'pointer',
+  },
+  confirmations: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    backgroundColor: '#e0f2fe',
+    color: '#0369a1',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  noData: {
+    color: '#94a3b8',
+    fontSize: '12px',
+    fontStyle: 'italic',
   },
   actionButtons: {
     display: 'flex',
