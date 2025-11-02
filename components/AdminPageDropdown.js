@@ -111,6 +111,7 @@ export default function AdminPageDropdown() {
       color: '#14b8a6',
       items: [
         { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
         { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
         { name: 'Account Balances', href: '/admin/admin-balance', icon: '💰' },
         { name: 'Manage Bank Details', href: '/admin/manage-bank-details', icon: '🏦' }

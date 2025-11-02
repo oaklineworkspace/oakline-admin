@@ -101,6 +101,7 @@ export default function AdminNavDropdown() {
       category: '🏠 Banking Services',
       links: [
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
         { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
