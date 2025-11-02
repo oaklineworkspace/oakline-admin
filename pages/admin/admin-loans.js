@@ -97,7 +97,7 @@ export default function AdminLoans() {
                 return {
                   ...loan,
                   deposit_info: detailData.depositInfo,
-                  deposit_paid: detailData.depositInfo?.amount >= loan.deposit_required // Add deposit_paid status
+                  deposit_paid: detailData.depositInfo?.verified && detailData.depositInfo?.amount >= loan.deposit_required
                 };
               }
             } catch (err) {

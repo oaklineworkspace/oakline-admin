@@ -50,11 +50,12 @@ export default async function handler(req, res) {
 
     let depositInfo = null;
     if (loan.deposit_required && loan.deposit_required > 0) {
+      const requiredAmount = parseFloat(loan.deposit_required);
+      
       const { data: cryptoDeposits } = await supabaseAdmin
         .from('crypto_deposits')
         .select('*')
         .eq('user_id', loan.user_id)
-        .gte('amount', loan.deposit_required)
         .in('status', ['confirmed', 'completed'])
         .order('created_at', { ascending: false })
         .limit(1);
@@ -65,24 +66,30 @@ export default async function handler(req, res) {
         .eq('user_id', loan.user_id)
         .eq('account_id', loan.account_id)
         .eq('type', 'deposit')
-        .gte('amount', loan.deposit_required)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (cryptoDeposits && cryptoDeposits.length > 0) {
+      const hasCryptoDeposit = cryptoDeposits && cryptoDeposits.length > 0;
+      const hasBankDeposit = transactions && transactions.length > 0;
+      
+      if (hasCryptoDeposit) {
+        const cryptoAmount = parseFloat(cryptoDeposits[0].amount);
+        const meetsRequirement = cryptoAmount >= requiredAmount;
         depositInfo = {
           type: 'crypto',
-          verified: true,
-          amount: cryptoDeposits[0].amount,
+          verified: meetsRequirement,
+          amount: cryptoAmount,
           date: cryptoDeposits[0].created_at,
           details: cryptoDeposits[0]
         };
-      } else if (transactions && transactions.length > 0) {
+      } else if (hasBankDeposit) {
+        const bankAmount = parseFloat(transactions[0].amount);
+        const meetsRequirement = bankAmount >= requiredAmount;
         depositInfo = {
           type: 'bank_transfer',
-          verified: true,
-          amount: transactions[0].amount,
+          verified: meetsRequirement,
+          amount: bankAmount,
           date: transactions[0].created_at,
           details: transactions[0]
         };

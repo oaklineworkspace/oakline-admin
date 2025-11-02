@@ -86,10 +86,15 @@ export default async function handler(req, res) {
           .eq('status', 'completed')
           .limit(1);
 
+        const hasCryptoDeposit = cryptoDeposits && cryptoDeposits.length > 0;
+        const hasBankDeposit = transactions && transactions.length > 0;
+        const depositAmount = hasCryptoDeposit ? parseFloat(cryptoDeposits[0].amount) : hasBankDeposit ? parseFloat(transactions[0].amount) : 0;
+        const meetsRequirement = depositAmount >= parseFloat(loan.deposit_required);
+        
         depositVerificationMap[loan.id] = {
-          verified: !!(cryptoDeposits?.length || transactions?.length),
-          amount: cryptoDeposits?.[0]?.amount || transactions?.[0]?.amount || 0,
-          type: cryptoDeposits?.length ? 'crypto' : transactions?.length ? 'bank' : 'none'
+          verified: meetsRequirement && (hasCryptoDeposit || hasBankDeposit),
+          amount: depositAmount,
+          type: hasCryptoDeposit ? 'crypto' : hasBankDeposit ? 'bank' : 'none'
         };
       }
     }
