@@ -66,13 +66,7 @@ export default function AdminAudit() {
       const { data, error } = await query;
 
       if (!error) {
-        let filtered = data || [];
-        if (searchTerm) {
-          filtered = filtered.filter(log => 
-            JSON.stringify(log).toLowerCase().includes(searchTerm.toLowerCase())
-          );
-        }
-        setAuditLogs(filtered);
+        setAuditLogs(data || []);
       }
     } catch (err) {
       console.error('Error fetching audit logs:', err);
@@ -95,16 +89,16 @@ export default function AdminAudit() {
   };
 
   const exportToCSV = () => {
-    if (auditLogs.length === 0) return;
+    if (filteredAuditLogs.length === 0) return;
     
     const headers = ['Date', 'User', 'Action', 'Table', 'Old Data', 'New Data'];
-    const rows = auditLogs.map(log => [
+    const rows = filteredAuditLogs.map(log => [
       new Date(log.created_at).toLocaleString(),
       log.profiles ? `${log.profiles.first_name} ${log.profiles.last_name}` : 'N/A',
       log.action || 'N/A',
       log.table_name || 'N/A',
-      formatJSON(log.old_data),
-      formatJSON(log.new_data)
+      formatJSON(log.old_data).replace(/\n/g, ' ').replace(/\s+/g, ' '),
+      formatJSON(log.new_data).replace(/\n/g, ' ').replace(/\s+/g, ' ')
     ]);
 
     const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -126,6 +120,19 @@ export default function AdminAudit() {
     if (lowerAction.includes('delete') || lowerAction.includes('remove')) return '#dc3545';
     return '#17a2b8';
   };
+
+  const filteredAuditLogs = auditLogs.filter(log => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    const logString = JSON.stringify({
+      action: log.action,
+      table_name: log.table_name,
+      user: log.profiles ? `${log.profiles.first_name} ${log.profiles.last_name}` : '',
+      old_data: log.old_data,
+      new_data: log.new_data
+    }).toLowerCase();
+    return logString.includes(searchLower);
+  });
 
   return (
     <AdminAuth>
@@ -210,7 +217,6 @@ export default function AdminAudit() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyUp={fetchAuditLogs}
                 placeholder="Search logs..."
                 style={styles.input}
               />
@@ -228,24 +234,24 @@ export default function AdminAudit() {
 
         <div style={styles.statsRow}>
           <div style={styles.statBox}>
-            <div style={styles.statNumber}>{auditLogs.length}</div>
+            <div style={styles.statNumber}>{filteredAuditLogs.length}</div>
             <div style={styles.statLabel}>Total Logs</div>
           </div>
           <div style={styles.statBox}>
             <div style={styles.statNumber}>
-              {auditLogs.filter(l => l.action?.toLowerCase().includes('create')).length}
+              {filteredAuditLogs.filter(l => l.action?.toLowerCase().includes('create')).length}
             </div>
             <div style={styles.statLabel}>Creates</div>
           </div>
           <div style={styles.statBox}>
             <div style={styles.statNumber}>
-              {auditLogs.filter(l => l.action?.toLowerCase().includes('update')).length}
+              {filteredAuditLogs.filter(l => l.action?.toLowerCase().includes('update')).length}
             </div>
             <div style={styles.statLabel}>Updates</div>
           </div>
           <div style={styles.statBox}>
             <div style={styles.statNumber}>
-              {auditLogs.filter(l => l.action?.toLowerCase().includes('delete')).length}
+              {filteredAuditLogs.filter(l => l.action?.toLowerCase().includes('delete')).length}
             </div>
             <div style={styles.statLabel}>Deletions</div>
           </div>
@@ -255,13 +261,13 @@ export default function AdminAudit() {
           <div style={styles.loading}>Loading audit logs...</div>
         ) : (
           <div style={styles.logsContainer}>
-            {auditLogs.length === 0 ? (
+            {filteredAuditLogs.length === 0 ? (
               <div style={styles.noData}>
                 <div style={styles.noDataIcon}>📋</div>
                 <div>No audit logs found for the selected filters</div>
               </div>
             ) : (
-              auditLogs.map((log) => (
+              filteredAuditLogs.map((log) => (
                 <div key={log.id} style={styles.logCard}>
                   <div 
                     style={styles.logHeader}

@@ -86,13 +86,34 @@ export default function AdminReports() {
   const exportToCSV = (data, filename) => {
     if (!data || data.length === 0) return;
     
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(obj => 
-      Object.values(obj).map(val => 
-        typeof val === 'string' && val.includes(',') ? `"${val}"` : val
-      ).join(',')
+    const flattenObject = (obj, prefix = '') => {
+      let flattened = {};
+      for (let key in obj) {
+        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
+          Object.assign(flattened, flattenObject(obj[key], prefix + key + '.'));
+        } else {
+          flattened[prefix + key] = obj[key];
+        }
+      }
+      return flattened;
+    };
+    
+    const flatData = data.map(item => flattenObject(item));
+    
+    const allKeys = new Set();
+    flatData.forEach(item => {
+      Object.keys(item).forEach(key => allKeys.add(key));
+    });
+    const headers = Array.from(allKeys).sort();
+    
+    const rows = flatData.map(obj => 
+      headers.map(header => {
+        const val = obj[header];
+        const stringVal = String(val === null || val === undefined ? '' : val);
+        return stringVal.includes(',') || stringVal.includes('"') ? `"${stringVal.replace(/"/g, '""')}"` : stringVal;
+      }).join(',')
     );
-    const csv = [headers, ...rows].join('\n');
+    const csv = [headers.join(','), ...rows].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
