@@ -171,7 +171,7 @@ export default function FileBrowser() {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
+      <header style={styles.header} className="file-browser-header">
         <div style={styles.headerLeft}>
           <h1 style={styles.title}>📁 File Browser</h1>
           <p style={styles.subtitle}>View repository files</p>
@@ -195,8 +195,8 @@ export default function FileBrowser() {
         </div>
       </header>
 
-      <div style={styles.content}>
-        <div style={styles.sidebar}>
+      <div style={styles.content} className="file-browser-content">
+        <div style={styles.sidebar} className="file-browser-sidebar">
           <div style={styles.searchBox}>
             <input
               type="text"
@@ -206,12 +206,12 @@ export default function FileBrowser() {
               style={styles.searchInput}
             />
           </div>
-          <div style={styles.fileTree}>
+          <div style={styles.fileTree} className="file-tree">
             {renderFileTree(files)}
           </div>
         </div>
 
-        <div style={styles.viewer}>
+        <div style={styles.viewer} className="file-browser-viewer">
           {selectedFile ? (
             <>
               <div style={styles.viewerHeader}>
@@ -226,7 +226,7 @@ export default function FileBrowser() {
                   ✕
                 </button>
               </div>
-              <pre style={styles.codeBlock}>
+              <pre style={styles.codeBlock} className="code-block">
                 <code>{fileContent}</code>
               </pre>
             </>
@@ -345,6 +345,10 @@ const styles = {
     height: 'calc(100vh - 100px)',
     gap: '1px',
     backgroundColor: '#e5e7eb',
+    '@media (maxWidth: 768px)': {
+      gridTemplateColumns: '1fr',
+      height: 'auto',
+    }
   },
   sidebar: {
     backgroundColor: 'white',
@@ -477,3 +481,62 @@ const styles = {
     marginBottom: '1rem',
   },
 };
+
+// Add CSS for mobile responsiveness
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `
+    @media (max-width: 768px) {
+      .file-browser-content {
+        grid-template-columns: 1fr !important;
+        height: auto !important;
+      }
+      
+      .file-browser-sidebar {
+        max-height: 300px;
+        border-bottom: 2px solid #e5e7eb;
+      }
+      
+      .file-browser-viewer {
+        min-height: 400px;
+      }
+      
+      .file-browser-header {
+        flex-direction: column !important;
+        gap: 1rem !important;
+      }
+      
+      .file-browser-header > div {
+        width: 100% !important;
+      }
+      
+      .admin-info {
+        justify-content: center !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .file-browser-content {
+        padding: 0 !important;
+      }
+      
+      .file-browser-sidebar {
+        max-height: 250px;
+      }
+      
+      .file-tree {
+        font-size: 12px !important;
+      }
+      
+      .code-block {
+        font-size: 11px !important;
+        padding: 1rem !important;
+      }
+    }
+  `;
+
+  if (!document.getElementById('file-browser-styles')) {
+    styleSheet.id = 'file-browser-styles';
+    document.head.appendChild(styleSheet);
+  }
+}

@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -84,15 +82,15 @@ export default function AdminStickyDropdown() {
       ]
     },
     {
-      category: '⚙️ Settings & Security',
+      category: '🔧 System & Security',
       pages: [
-        { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️' },
-        { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
-        { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
-        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📢' },
-        { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
-        { name: 'Create Admin', href: '/admin/register', icon: '➕' },
-        { name: 'Admin Login', href: '/admin/login', icon: '🔐' }
+        { name: 'Bank Details', path: '/admin/manage-bank-details' },
+        { name: 'System Logs', path: '/admin/admin-logs' },
+        { name: 'Settings', path: '/admin/admin-settings' },
+        { name: 'Roles & Permissions', path: '/admin/admin-roles' },
+        { name: 'Notifications', path: '/admin/admin-notifications' },
+        { name: 'Broadcast Messages', path: '/admin/broadcast-messages' },
+        { name: 'File Browser', path: '/admin/file-browser' }
       ]
     }
   ];
@@ -143,7 +141,7 @@ export default function AdminStickyDropdown() {
                         key={pageIndex}
                         onClick={() => {
                           setIsOpen(false);
-                          router.push(page.href);
+                          router.push(page.href || page.path);
                         }}
                         style={styles.pageItem}
                       >

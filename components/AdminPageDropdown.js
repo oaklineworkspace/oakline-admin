@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -115,6 +114,20 @@ export default function AdminPageDropdown() {
         { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
         { name: 'Account Balances', href: '/admin/admin-balance', icon: '💰' },
         { name: 'Manage Bank Details', href: '/admin/manage-bank-details', icon: '🏦' }
+      ]
+    },
+    {
+      title: 'System & Security',
+      icon: '🔧',
+      color: '#94a3b8',
+      items: [
+        { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
+        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
+        { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🔑' },
+        { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
+        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📣' },
+        { name: 'File Browser', path: '/admin/file-browser', icon: '📁'}
       ]
     }
   ];
