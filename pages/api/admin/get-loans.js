@@ -114,13 +114,20 @@ export default async function handler(req, res) {
     }
 
     // Transform the data to include user email, account info, and deposit verification
-    const transformedLoans = loans.map(loan => ({
-      ...loan,
-      user_email: profileMap[loan.user_id]?.email || 'N/A',
-      account_number: accountMap[loan.account_id]?.account_number || 'N/A',
-      account_type: accountMap[loan.account_id]?.account_type || 'N/A',
-      deposit_info: depositVerificationMap[loan.id] || { verified: true, amount: 0, type: 'none' }
-    }));
+    const transformedLoans = loans.map(loan => {
+      const hasDepositRequirement = loan.deposit_required && loan.deposit_required > 0;
+      const defaultDepositInfo = hasDepositRequirement 
+        ? { verified: false, amount: 0, type: 'none' }
+        : { verified: true, amount: 0, type: 'none' };
+      
+      return {
+        ...loan,
+        user_email: profileMap[loan.user_id]?.email || 'N/A',
+        account_number: accountMap[loan.account_id]?.account_number || 'N/A',
+        account_type: accountMap[loan.account_id]?.account_type || 'N/A',
+        deposit_info: depositVerificationMap[loan.id] || defaultDepositInfo
+      };
+    });
 
     return res.status(200).json({
       success: true,
