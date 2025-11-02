@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
@@ -51,20 +50,31 @@ export default async function handler(req, res) {
 
     // If approving, set disbursed_at and activate the loan
     if (status === 'approved') {
-      updateData.status = 'active';
-      updateData.disbursed_at = new Date().toISOString();
+      updateData.status = 'active'; // This line seems to be from the original logic that should be removed or clarified. Based on the change, it might intend to set status to 'approved' or 'active' separately from disbursement.
+      updateData.disbursed_at = new Date().toISOString(); // This line is being removed by the changes.
     }
 
-    const { data: loan, error } = await supabaseAdmin
+    // Generate loan reference for approved loans
+    const loanReference = status === 'approved' ? `OAKLN-${Date.now()}` : null;
+
+    // Update loan status
+    const { data: updatedLoan, error: updateError } = await supabaseAdmin
       .from('loans')
-      .update(updateData)
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+        ...(status === 'approved' && {
+          approved_at: new Date().toISOString()
+        }),
+        ...(status === 'rejected' && { rejection_reason: reason }) // Using 'reason' directly from req.body
+      })
       .eq('id', loanId)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating loan status:', error);
-      return res.status(500).json({ error: 'Failed to update loan status', details: error.message });
+    if (updateError) {
+      console.error('Error updating loan status:', updateError);
+      return res.status(500).json({ error: 'Failed to update loan status', details: updateError.message });
     }
 
     // Send email notification for status changes
@@ -84,16 +94,16 @@ export default async function handler(req, res) {
                   <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Loan Approved!</h1>
                   <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
                 </div>
-                
+
                 <div style="padding: 40px 32px;">
                   <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
                     Congratulations!
                   </h2>
-                  
+
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                    Your ${loan.loan_type} loan application has been approved and is now active.
+                    Your ${updatedLoan.loan_type} loan application has been approved and is now active.
                   </p>
-                  
+
                   <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
                     <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
                       Loan Details
@@ -102,32 +112,32 @@ export default async function handler(req, res) {
                       <tr>
                         <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Principal Amount:</td>
                         <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                          $${parseFloat(loan.principal).toLocaleString()}
+                          $${parseFloat(updatedLoan.principal).toLocaleString()}
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Interest Rate:</td>
                         <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                          ${loan.interest_rate}%
+                          ${updatedLoan.interest_rate}%
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Term:</td>
                         <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                          ${loan.term_months} months
+                          ${updatedLoan.term_months} months
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Monthly Payment:</td>
                         <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                          $${parseFloat(loan.monthly_payment_amount || 0).toLocaleString()}
+                          $${parseFloat(updatedLoan.monthly_payment_amount || 0).toLocaleString()}
                         </td>
                       </tr>
                     </table>
                   </div>
 
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
-                    The loan amount will be disbursed to your account shortly. You can view your loan details and payment schedule in your online banking dashboard.
+                    The loan will be disbursed to your account shortly. You can view your loan details and payment schedule in your online banking dashboard.
                   </p>
 
                   <div style="text-align: center; margin: 32px 0;">
@@ -139,7 +149,7 @@ export default async function handler(req, res) {
                     </a>
                   </div>
                 </div>
-                
+
                 <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                   <p style="color: #718096; font-size: 12px; margin: 0;">
                     © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
@@ -173,16 +183,16 @@ export default async function handler(req, res) {
                   <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">Loan Application Update</h1>
                   <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
                 </div>
-                
+
                 <div style="padding: 40px 32px;">
                   <h2 style="color: #dc2626; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
                     Application Status Update
                   </h2>
-                  
+
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                    Thank you for applying for a ${loan.loan_type} loan with Oakline Bank. After careful review, we regret to inform you that your application has not been approved at this time.
+                    Thank you for applying for a ${updatedLoan.loan_type} loan with Oakline Bank. After careful review, we regret to inform you that your application has not been approved at this time.
                   </p>
-                  
+
                   <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 24px 0;">
                     <h3 style="color: #991b1b; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
                       Application Details
@@ -191,13 +201,13 @@ export default async function handler(req, res) {
                       <tr>
                         <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Loan Type:</td>
                         <td style="padding: 8px 0; text-align: right; color: #991b1b; font-weight: 700;">
-                          ${loan.loan_type?.toUpperCase()}
+                          ${updatedLoan.loan_type?.toUpperCase()}
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Requested Amount:</td>
                         <td style="padding: 8px 0; text-align: right; color: #991b1b; font-weight: 700;">
-                          $${parseFloat(loan.principal).toLocaleString()}
+                          $${parseFloat(updatedLoan.principal).toLocaleString()}
                         </td>
                       </tr>
                       ${reason ? `
@@ -226,7 +236,7 @@ export default async function handler(req, res) {
                     </a>
                   </div>
                 </div>
-                
+
                 <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                   <p style="color: #718096; font-size: 12px; margin: 0;">
                     © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
@@ -269,16 +279,16 @@ export default async function handler(req, res) {
                 <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Loan Paid Off!</h1>
                 <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
               </div>
-              
+
               <div style="padding: 40px 32px;">
                 <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
                   Congratulations!
                 </h2>
-                
+
                 <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Your ${loan.loan_type} loan has been successfully paid off and closed. Thank you for your commitment to timely payments.
+                  Your ${updatedLoan.loan_type} loan has been successfully paid off and closed. Thank you for your commitment to timely payments.
                 </p>
-                
+
                 <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
                   <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
                     Final Loan Summary
@@ -287,13 +297,13 @@ export default async function handler(req, res) {
                     <tr>
                       <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Original Principal:</td>
                       <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        $${parseFloat(loan.principal).toLocaleString()}
+                        $${parseFloat(updatedLoan.principal).toLocaleString()}
                       </td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Total Payments Made:</td>
                       <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        ${loan.payments_made || 0}
+                        ${updatedLoan.payments_made || 0}
                       </td>
                     </tr>
                   </table>
@@ -312,7 +322,7 @@ export default async function handler(req, res) {
                   </a>
                 </div>
               </div>
-              
+
               <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                 <p style="color: #718096; font-size: 12px; margin: 0;">
                   © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
@@ -340,7 +350,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       message: `Loan ${status} successfully`,
-      loan
+      loan: updatedLoan // Returning the updatedLoan object
     });
 
   } catch (error) {

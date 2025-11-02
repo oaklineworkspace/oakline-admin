@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -33,10 +32,24 @@ export default function AdminLoans() {
     adminPassword: ''
   });
   const [loanToApprove, setLoanToApprove] = useState(null);
+  const [treasuryBalance, setTreasuryBalance] = useState(0); // State for treasury balance
 
   useEffect(() => {
     fetchLoans();
+    fetchTreasuryBalance(); // Fetch treasury balance on component mount
   }, []);
+
+  const fetchTreasuryBalance = async () => {
+    try {
+      const response = await fetch('/api/admin/get-treasury-balance');
+      if (!response.ok) throw new Error('Failed to fetch treasury balance');
+      const data = await response.json();
+      setTreasuryBalance(data.balance);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching treasury balance:', err);
+    }
+  };
 
   const fetchLoans = async () => {
     setLoading(true);
@@ -53,10 +66,10 @@ export default function AdminLoans() {
           'Authorization': `Bearer ${session.access_token}`
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch loans');
       const data = await response.json();
-      
+
       // Fetch deposit verification status for each loan
       const loansWithDeposits = await Promise.all(
         (data.loans || []).map(async (loan) => {
@@ -67,12 +80,13 @@ export default function AdminLoans() {
                   'Authorization': `Bearer ${session.access_token}`
                 }
               });
-              
+
               if (detailResponse.ok) {
                 const detailData = await detailResponse.json();
                 return {
                   ...loan,
-                  deposit_info: detailData.depositInfo
+                  deposit_info: detailData.depositInfo,
+                  deposit_paid: detailData.depositInfo?.amount >= loan.deposit_required // Add deposit_paid status
                 };
               }
             } catch (err) {
@@ -82,7 +96,7 @@ export default function AdminLoans() {
           return loan;
         })
       );
-      
+
       setLoans(loansWithDeposits);
     } catch (err) {
       setError(err.message);
@@ -110,7 +124,7 @@ export default function AdminLoans() {
       });
 
       if (!response.ok) throw new Error('Failed to process payment');
-      
+
       setSuccess('Payment processed successfully');
       setShowModal(null);
       setFormData({ ...formData, amount: '', note: '' });
@@ -120,13 +134,21 @@ export default function AdminLoans() {
     }
   };
 
-  const handleApproveLoan = async () => {
-    if (!formData.adminPassword) {
-      setError('Password is required to approve loan');
-      return;
-    }
-
+  const handleApprove = async (loanId) => {
     try {
+      const loan = loans.find(l => l.id === loanId);
+
+      if (loan.deposit_required > 0 && !loan.deposit_paid) {
+        alert(`Cannot approve loan: User must first pay the required deposit of $${loan.deposit_required.toFixed(2)}`);
+        return;
+      }
+
+      // Check treasury balance before approving
+      if (parseFloat(loan.principal) > treasuryBalance) {
+        alert('Cannot approve loan: Insufficient treasury balance.');
+        return;
+      }
+
       // Get the session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -136,31 +158,61 @@ export default function AdminLoans() {
 
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ 
-          loanId: loanToApprove.id,
-          userId: loanToApprove.user_id,
-          userEmail: loanToApprove.user_email,
+        body: JSON.stringify({
+          loanId: loanId,
+          userId: loan.user_id,
+          userEmail: loan.user_email,
           status: 'approved',
-          adminPassword: formData.adminPassword
+          adminPassword: formData.adminPassword // Include password for approval
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || 'Failed to approve loan');
       }
-      
-      setSuccess('Loan approved and notification sent to user');
+
+      alert('Loan approved successfully! You can now disburse the funds.');
       setShowModal(null);
       setLoanToApprove(null);
       setFormData({...formData, adminPassword: ''});
       await fetchLoans();
-    } catch (err) {
-      setError(err.message);
+      fetchTreasuryBalance(); // Update treasury balance after approval
+    } catch (error) {
+      console.error('Error approving loan:', error);
+      setError(error.message || 'Failed to approve loan');
+    }
+  };
+
+  const handleDisburse = async (loanId) => {
+    if (!confirm('Are you sure you want to disburse this loan? This will transfer funds from the treasury to the user account.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/approve-loan-with-disbursement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to disburse loan');
+      }
+
+      alert('Loan disbursed successfully! Funds have been credited to user account.');
+      fetchLoans();
+      fetchTreasuryBalance(); // Update treasury balance after disbursement
+    } catch (error) {
+      console.error('Error disbursing loan:', error);
+      setError(error.message || 'Failed to disburse loan');
     }
   };
 
@@ -181,13 +233,13 @@ export default function AdminLoans() {
 
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ 
-          loanId, 
-          status: 'rejected', 
+        body: JSON.stringify({
+          loanId,
+          status: 'rejected',
           reason,
           userId: loan.user_id,
           userEmail: loan.user_email
@@ -198,7 +250,7 @@ export default function AdminLoans() {
         const data = await response.json();
         throw new Error(data.error || 'Failed to reject loan');
       }
-      
+
       setSuccess('Loan rejected and notification sent to user');
       setShowModal(null);
       setFormData({...formData, note: ''});
@@ -226,7 +278,7 @@ export default function AdminLoans() {
       });
 
       if (!response.ok) throw new Error('Failed to create loan');
-      
+
       setSuccess('Loan created successfully');
       setShowModal(null);
       setFormData({
@@ -245,7 +297,7 @@ export default function AdminLoans() {
                          loan.id?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || loan.loan_type === filterType;
     const matchesStatus = filterStatus === 'all' || loan.status === filterStatus;
-    const matchesTab = activeTab === 'all' || 
+    const matchesTab = activeTab === 'all' ||
                       (activeTab === 'pending' && loan.status === 'pending') ||
                       (activeTab === 'active' && loan.status === 'active') ||
                       (activeTab === 'overdue' && loan.is_late);
@@ -279,6 +331,17 @@ export default function AdminLoans() {
             <Link href="/admin/admin-dashboard" style={styles.backButton}>
               ← Dashboard
             </Link>
+          </div>
+        </div>
+
+        {/* Treasury Balance Card */}
+        <div style={styles.treasuryCard}>
+          <div style={styles.treasuryIcon}>🏛️</div>
+          <div>
+            <div style={styles.treasuryLabel}>Treasury Balance</div>
+            <div style={styles.treasuryAmount}>
+              ${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
         </div>
 
@@ -380,10 +443,12 @@ export default function AdminLoans() {
                       ...styles.statusBadge,
                       background: loan.status === 'active' ? '#d1fae5' :
                                 loan.status === 'pending' ? '#fef3c7' :
-                                loan.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
+                                loan.status === 'rejected' ? '#fee2e2' :
+                                loan.status === 'approved' ? '#dbeafe' : '#f3f4f6',
                       color: loan.status === 'active' ? '#065f46' :
                             loan.status === 'pending' ? '#92400e' :
-                            loan.status === 'rejected' ? '#991b1b' : '#374151'
+                            loan.status === 'rejected' ? '#991b1b' :
+                            loan.status === 'approved' ? '#1e40af' : '#374151'
                     }}>
                       {loan.status?.toUpperCase()}
                     </span>
@@ -425,13 +490,13 @@ export default function AdminLoans() {
                         <span style={styles.infoLabel}>Deposit Required:</span>
                         <span style={styles.infoValue}>
                           ${parseFloat(loan.deposit_required).toLocaleString()}
-                          {loan.deposit_info?.verified ? (
+                          {loan.deposit_paid ? (
                             <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
-                              ✓ Verified
+                              ✓ Paid
                             </span>
                           ) : (
                             <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
-                              ✗ Not Verified
+                              ✗ Unpaid
                             </span>
                           )}
                         </span>
@@ -447,36 +512,49 @@ export default function AdminLoans() {
                       👁️ Details
                     </button>
                     {loan.status === 'pending' && (
-                      <>
-                        <button 
-                          onClick={() => {
-                            if (loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified) {
-                              setError(`Deposit verification required: User must deposit $${parseFloat(loan.deposit_required).toLocaleString()} before loan can be approved.`);
-                              return;
-                            }
-                            setLoanToApprove(loan);
-                            setShowModal('approve');
-                          }} 
-                          style={{
-                            ...styles.approveButton,
-                            opacity: (loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified) ? 0.5 : 1,
-                            cursor: (loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified) ? 'not-allowed' : 'pointer'
-                          }}
-                          title={
-                            loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified
-                              ? `Requires deposit of $${parseFloat(loan.deposit_required).toLocaleString()}`
+                      <button
+                        onClick={() => {
+                          setLoanToApprove(loan);
+                          setShowModal('approve');
+                        }}
+                        style={{
+                          ...styles.approveButton,
+                          opacity: (loan.deposit_required > 0 && !loan.deposit_paid) || (parseFloat(loan.principal) > treasuryBalance) ? 0.6 : 1,
+                          cursor: (loan.deposit_required > 0 && !loan.deposit_paid) || (parseFloat(loan.principal) > treasuryBalance) ? 'not-allowed' : 'pointer'
+                        }}
+                        title={
+                          loan.deposit_required > 0 && !loan.deposit_paid
+                            ? `Deposit of $${parseFloat(loan.deposit_required).toLocaleString()} not paid`
+                            : parseFloat(loan.principal) > treasuryBalance
+                              ? 'Insufficient treasury balance'
                               : 'Approve loan'
-                          }
-                        >
-                          {loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified ? '🔒' : '✅'} Approve
-                        </button>
-                        <button onClick={() => {
-                          setFormData({...formData, loanId: loan.id});
-                          setShowModal('reject');
-                        }} style={styles.rejectButton}>
-                          ❌ Reject
-                        </button>
-                      </>
+                        }
+                        disabled={loan.deposit_required > 0 && !loan.deposit_paid || parseFloat(loan.principal) > treasuryBalance}
+                      >
+                        ✅ Approve
+                      </button>
+                    )}
+                    {loan.status === 'approved' && !loan.disbursed_at && (
+                      <button
+                        onClick={() => handleDisburse(loan.id)}
+                        style={{
+                          ...styles.disburseButton,
+                          opacity: parseFloat(loan.principal) > treasuryBalance ? 0.6 : 1,
+                          cursor: parseFloat(loan.principal) > treasuryBalance ? 'not-allowed' : 'pointer'
+                        }}
+                        title={parseFloat(loan.principal) > treasuryBalance ? 'Insufficient treasury balance' : 'Disburse loan'}
+                        disabled={parseFloat(loan.principal) > treasuryBalance}
+                      >
+                        💰 Disburse Loan
+                      </button>
+                    )}
+                    {loan.status === 'pending' && (
+                      <button onClick={() => {
+                        setFormData({...formData, loanId: loan.id});
+                        setShowModal('reject');
+                      }} style={styles.rejectButton}>
+                        ❌ Reject
+                      </button>
                     )}
                     {loan.status === 'active' && (
                       <button onClick={() => {
@@ -553,6 +631,12 @@ export default function AdminLoans() {
                     <span style={styles.detailLabel}>Created:</span>
                     <span style={styles.detailValue}>{new Date(selectedLoan.created_at).toLocaleDateString()}</span>
                   </div>
+                   {selectedLoan.disbursed_at && (
+                     <div style={styles.detailItem}>
+                       <span style={styles.detailLabel}>Disbursed On:</span>
+                       <span style={styles.detailValue}>{new Date(selectedLoan.disbursed_at).toLocaleString()}</span>
+                     </div>
+                   )}
                 </div>
               </div>
             </div>
@@ -728,24 +812,30 @@ export default function AdminLoans() {
                     <span style={styles.detailLabel}>Principal Amount:</span>
                     <span style={styles.detailValue}>${parseFloat(loanToApprove.principal).toLocaleString()}</span>
                   </div>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Treasury Balance:</span>
+                    <span style={styles.detailValue}>
+                      ${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                   {loanToApprove.deposit_required && loanToApprove.deposit_required > 0 && (
                     <div style={styles.detailItem}>
                       <span style={styles.detailLabel}>Deposit Status:</span>
                       <span style={styles.detailValue}>
-                        {loanToApprove.deposit_info?.verified ? (
+                        {loanToApprove.deposit_paid ? (
                           <span style={{color: '#10b981', fontWeight: '700'}}>
-                            ✓ Verified ($${parseFloat(loanToApprove.deposit_info.amount).toLocaleString()})
+                            ✓ Paid ($${parseFloat(loanToApprove.deposit_info?.amount || 0).toLocaleString()})
                           </span>
                         ) : (
                           <span style={{color: '#dc2626', fontWeight: '700'}}>
-                            ✗ Not Verified (Required: ${parseFloat(loanToApprove.deposit_required).toLocaleString()})
+                            ✗ Unpaid (Required: ${parseFloat(loanToApprove.deposit_required).toLocaleString()})
                           </span>
                         )}
                       </span>
                     </div>
                   )}
                 </div>
-                {loanToApprove.deposit_required && loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified && (
+                {loanToApprove.deposit_required > 0 && !loanToApprove.deposit_paid && (
                   <div style={{
                     background: '#fef2f2',
                     border: '2px solid #dc2626',
@@ -754,11 +844,28 @@ export default function AdminLoans() {
                     marginBottom: '16px'
                   }}>
                     <p style={{color: '#991b1b', fontWeight: '600', margin: '0 0 8px 0', fontSize: '14px'}}>
-                      ⚠️ Deposit Not Verified
+                      ⚠️ Deposit Not Paid
                     </p>
                     <p style={{color: '#4a5568', fontSize: '13px', margin: 0}}>
-                      The borrower has not made the required deposit of ${parseFloat(loanToApprove.deposit_required).toLocaleString()}. 
-                      Please verify the deposit before approving this loan.
+                      The borrower has not paid the required deposit of ${parseFloat(loanToApprove.deposit_required).toLocaleString()}.
+                      Please ensure the deposit is paid before approving this loan.
+                    </p>
+                  </div>
+                )}
+                 {parseFloat(loanToApprove.principal) > treasuryBalance && (
+                  <div style={{
+                    background: '#fef3c7',
+                    border: '2px solid #d97706',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '16px'
+                  }}>
+                    <p style={{color: '#92400e', fontWeight: '600', margin: '0 0 8px 0', fontSize: '14px'}}>
+                      ⚠️ Insufficient Treasury Funds
+                    </p>
+                    <p style={{color: '#4a5568', fontSize: '13px', margin: 0}}>
+                      The principal amount of this loan (${parseFloat(loanToApprove.principal).toLocaleString()}) exceeds the current treasury balance (${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).
+                      Please ensure sufficient funds are available before approving.
                     </p>
                   </div>
                 )}
@@ -775,9 +882,14 @@ export default function AdminLoans() {
                 <p style={{color: '#64748b', fontSize: '14px', marginBottom: '16px'}}>
                   The borrower will receive an email notification once approved.
                 </p>
-                <button 
-                  onClick={handleApproveLoan} 
+                <button
+                  onClick={handleApprove}
                   style={styles.approveButton}
+                  disabled={
+                    (loanToApprove.deposit_required > 0 && !loanToApprove.deposit_paid) ||
+                    (parseFloat(loanToApprove.principal) > treasuryBalance) ||
+                    !formData.adminPassword
+                  }
                 >
                   Confirm Approval
                 </button>
@@ -804,8 +916,8 @@ export default function AdminLoans() {
                     placeholder="Enter reason for rejection..."
                   />
                 </div>
-                <button 
-                  onClick={() => handleRejectLoan(formData.loanId, formData.note)} 
+                <button
+                  onClick={() => handleRejectLoan(formData.loanId, formData.note)}
                   style={styles.rejectButton}
                 >
                   Confirm Rejection
@@ -1101,7 +1213,6 @@ const styles = {
     cursor: 'pointer'
   },
   approveButton: {
-    flex: 1,
     padding: '10px',
     background: '#10b981',
     color: 'white',
@@ -1109,7 +1220,8 @@ const styles = {
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    flex: 1 // Added to make buttons take equal space
   },
   rejectButton: {
     flex: 1,
@@ -1132,6 +1244,17 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
+  },
+  disburseButton: {
+    padding: '10px',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    flex: 1
   },
   modalOverlay: {
     position: 'fixed',
@@ -1237,5 +1360,28 @@ const styles = {
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
-  }
+  },
+  treasuryCard: {
+    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+    padding: '1.5rem',
+    borderRadius: '12px',
+    marginBottom: '2rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    color: 'white',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+  },
+  treasuryIcon: {
+    fontSize: '3rem'
+  },
+  treasuryLabel: {
+    fontSize: '0.9rem',
+    opacity: 0.9,
+    marginBottom: '0.25rem'
+  },
+  treasuryAmount: {
+    fontSize: '2rem',
+    fontWeight: 'bold'
+  },
 };
