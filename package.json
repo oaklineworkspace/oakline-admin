@@ -8,6 +8,9 @@
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint"
   },
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
     "@stripe/react-stripe-js": "^4.0.1",
