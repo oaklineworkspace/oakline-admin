@@ -1,0 +1,14 @@
+version: "1.0"
+services:
+  - name: oakline-bank
+    type: nodejs
+    build:
+      commands:
+        - npm ci
+        - npm run build
+    run:
+      command: npm run start
+      environment:
+        - NODE_ENV=production
+      ports:
+        - port: 5000
