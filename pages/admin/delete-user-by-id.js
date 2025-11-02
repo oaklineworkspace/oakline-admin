@@ -233,6 +233,9 @@ export default function DeleteUserById() {
                   <li>Card transactions and cards</li>
                   <li>Zelle transactions and settings</li>
                   <li>Loan payments and loans</li>
+                  <li>Crypto deposits and wallets</li>
+                  <li>Crypto deposit audit logs</li>
+                  <li>Admin assigned wallets</li>
                   <li>Applications and enrollments</li>
                   <li>Notifications and logs</li>
                   <li>User profile and authentication</li>

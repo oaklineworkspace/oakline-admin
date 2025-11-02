@@ -261,11 +261,14 @@ export default function DeleteUsers() {
                   <li>Card transactions and cards</li>
                   <li>Zelle transactions and settings</li>
                   <li>Loan payments and loans</li>
+                  <li>Crypto deposits and wallets</li>
+                  <li>Crypto deposit audit logs</li>
+                  <li>Admin assigned wallets</li>
                   <li>Applications and enrollments</li>
                   <li>Notifications and logs</li>
                   <li>User profile and authentication</li>
                 </ul>
-                <p style={{ color: '#dc3545', fontSize: '14px', fontWeight: 'bold', margin: 0 }}>
+                <p style={{ color: '#dc2626', fontSize: '14px', fontWeight: 'bold', margin: 0 }}>
                   ⚠️ This action cannot be undone!
                 </p>
               </div>
