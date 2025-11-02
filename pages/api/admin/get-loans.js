@@ -12,8 +12,8 @@ export default async function handler(req, res) {
       .from('loans')
       .select(`
         *,
-        profiles:user_id(email),
-        accounts:account_id(account_number, account_type)
+        profiles!loans_user_id_fkey(email),
+        accounts!loans_account_id_fkey(account_number, account_type)
       `)
       .order('created_at', { ascending: false });
 
