@@ -42,7 +42,18 @@ export default function AdminLoans() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-loans');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/get-loans', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch loans');
       const data = await response.json();
       setLoans(data.loans || []);
@@ -128,16 +139,42 @@ export default function AdminLoans() {
 
   const handleRejectLoan = async (loanId, reason) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      // Find the loan to get user details
+      const loan = loans.find(l => l.id === loanId);
+      if (!loan) {
+        setError('Loan not found');
+        return;
+      }
+
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loanId, status: 'rejected', reason })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          loanId, 
+          status: 'rejected', 
+          reason,
+          userId: loan.user_id,
+          userEmail: loan.user_email
+        })
       });
 
-      if (!response.ok) throw new Error('Failed to reject loan');
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to reject loan');
+      }
       
-      setSuccess('Loan rejected');
+      setSuccess('Loan rejected and notification sent to user');
       setShowModal(null);
+      setFormData({...formData, note: ''});
       await fetchLoans();
     } catch (err) {
       setError(err.message);
