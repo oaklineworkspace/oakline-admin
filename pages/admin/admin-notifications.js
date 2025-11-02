@@ -1,42 +1,130 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import Link from 'next/link';
 
 export default function AdminNotifications() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'success',
-      title: 'Application Approved',
-      message: 'New user application has been approved successfully.',
-      time: '2 minutes ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'warning',
-      title: 'Pending Review',
-      message: '5 new applications are waiting for approval.',
-      time: '1 hour ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'info',
-      title: 'System Update',
-      message: 'System maintenance scheduled for tonight at 2 AM.',
-      time: '3 hours ago',
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newNotification, setNewNotification] = useState({
+    user_id: '',
+    type: 'info',
+    title: '',
+    message: '',
+  });
+  const [statusMessage, setStatusMessage] = useState('');
+  const [filter, setFilter] = useState('all');
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
+  useEffect(() => {
+    fetchNotifications();
+    fetchUsers();
+    const subscription = supabase
+      .channel('notifications_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*, profiles(first_name, last_name, email)')
+        .order('created_at', { ascending: false });
+
+      if (!error) {
+        setNotifications(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .order('first_name');
+      
+      if (!error) {
+        setUsers(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const handleCreateNotification = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .insert([newNotification]);
+
+      if (error) throw error;
+
+      setStatusMessage('✅ Notification created successfully!');
+      setShowCreateForm(false);
+      setNewNotification({
+        user_id: '',
+        type: 'info',
+        title: '',
+        message: '',
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error('Error creating notification:', err);
+      setStatusMessage('❌ Failed to create notification');
+    }
+  };
+
+  const markAsRead = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+
+      if (!error) {
+        fetchNotifications();
+      }
+    } catch (err) {
+      console.error('Error marking as read:', err);
+    }
+  };
+
+  const deleteNotification = async (id) => {
+    if (!confirm('Are you sure you want to delete this notification?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+      if (!error) {
+        setStatusMessage('✅ Notification deleted');
+        fetchNotifications();
+      }
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+      setStatusMessage('❌ Failed to delete notification');
+    }
   };
 
   const getNotificationIcon = (type) => {
@@ -59,25 +147,128 @@ export default function AdminNotifications() {
     }
   };
 
+  const filteredNotifications = notifications.filter(n => {
+    if (filter === 'unread') return !n.read;
+    if (filter === 'read') return n.read;
+    return true;
+  });
+
   return (
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
             <h1 style={styles.title}>🔔 Admin Notifications</h1>
-            <p style={styles.subtitle}>Stay updated with system alerts and important messages</p>
+            <p style={styles.subtitle}>Manage and send notifications to users</p>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setShowCreateForm(!showCreateForm)} style={styles.createButton}>
+              {showCreateForm ? '✖ Cancel' : '+ Create Notification'}
+            </button>
+            <Link href="/" style={styles.backButton}>← Back to Hub</Link>
+          </div>
+        </div>
+
+        {statusMessage && (
+          <div style={styles.statusMessage}>{statusMessage}</div>
+        )}
+
+        {showCreateForm && (
+          <div style={styles.createForm}>
+            <h3 style={styles.formTitle}>Create New Notification</h3>
+            <form onSubmit={handleCreateNotification}>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>User:</label>
+                <select
+                  value={newNotification.user_id}
+                  onChange={(e) => setNewNotification({...newNotification, user_id: e.target.value})}
+                  style={styles.formSelect}
+                  required
+                >
+                  <option value="">Select a user</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name} ({user.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Type:</label>
+                <select
+                  value={newNotification.type}
+                  onChange={(e) => setNewNotification({...newNotification, type: e.target.value})}
+                  style={styles.formSelect}
+                >
+                  <option value="info">Info</option>
+                  <option value="success">Success</option>
+                  <option value="warning">Warning</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Title:</label>
+                <input
+                  type="text"
+                  value={newNotification.title}
+                  onChange={(e) => setNewNotification({...newNotification, title: e.target.value})}
+                  style={styles.formInput}
+                  placeholder="Notification title"
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Message:</label>
+                <textarea
+                  value={newNotification.message}
+                  onChange={(e) => setNewNotification({...newNotification, message: e.target.value})}
+                  style={styles.formTextarea}
+                  placeholder="Notification message"
+                  required
+                  rows="4"
+                />
+              </div>
+              <button type="submit" style={styles.submitButton}>
+                ✉️ Send Notification
+              </button>
+            </form>
+          </div>
+        )}
+
+        <div style={styles.filterBar}>
+          <div style={styles.filterTabs}>
+            <button
+              onClick={() => setFilter('all')}
+              style={{ ...styles.filterTab, ...(filter === 'all' ? styles.activeFilterTab : {}) }}
+            >
+              All ({notifications.length})
+            </button>
+            <button
+              onClick={() => setFilter('unread')}
+              style={{ ...styles.filterTab, ...(filter === 'unread' ? styles.activeFilterTab : {}) }}
+            >
+              Unread ({notifications.filter(n => !n.read).length})
+            </button>
+            <button
+              onClick={() => setFilter('read')}
+              style={{ ...styles.filterTab, ...(filter === 'read' ? styles.activeFilterTab : {}) }}
+            >
+              Read ({notifications.filter(n => n.read).length})
+            </button>
           </div>
         </div>
 
         <div style={styles.content}>
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div style={styles.loading}>Loading notifications...</div>
+          ) : filteredNotifications.length === 0 ? (
             <div style={styles.emptyState}>
               <p style={styles.emptyIcon}>📭</p>
-              <p style={styles.emptyText}>No notifications</p>
+              <p style={styles.emptyText}>No notifications found</p>
             </div>
           ) : (
             <div style={styles.notificationsList}>
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <div 
                   key={notification.id} 
                   style={{
@@ -85,7 +276,6 @@ export default function AdminNotifications() {
                     backgroundColor: notification.read ? '#f9fafb' : '#ffffff',
                     borderLeft: `4px solid ${getNotificationColor(notification.type)}`
                   }}
-                  onClick={() => markAsRead(notification.id)}
                 >
                   <div style={styles.notificationIcon}>
                     {getNotificationIcon(notification.type)}
@@ -96,7 +286,22 @@ export default function AdminNotifications() {
                       {!notification.read && <span style={styles.unreadBadge}>NEW</span>}
                     </div>
                     <p style={styles.notificationMessage}>{notification.message}</p>
-                    <p style={styles.notificationTime}>{notification.time}</p>
+                    <p style={styles.notificationUser}>
+                      To: {notification.profiles ? `${notification.profiles.first_name} ${notification.profiles.last_name}` : 'N/A'}
+                    </p>
+                    <p style={styles.notificationTime}>
+                      {new Date(notification.created_at).toLocaleString()}
+                    </p>
+                    <div style={styles.notificationActions}>
+                      {!notification.read && (
+                        <button onClick={() => markAsRead(notification.id)} style={styles.actionButton}>
+                          ✓ Mark as Read
+                        </button>
+                      )}
+                      <button onClick={() => deleteNotification(notification.id)} style={styles.deleteButton}>
+                        🗑 Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -205,5 +410,144 @@ const styles = {
   emptyText: {
     fontSize: 'clamp(1rem, 2.5vw, 1.25rem)',
     color: '#9ca3af'
+  },
+  backButton: {
+    padding: '10px 20px',
+    background: '#6c757d',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontWeight: '500',
+    display: 'inline-block'
+  },
+  createButton: {
+    padding: '10px 20px',
+    background: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+  statusMessage: {
+    padding: '15px',
+    background: '#d4edda',
+    color: '#155724',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #c3e6cb'
+  },
+  createForm: {
+    background: 'white',
+    padding: '25px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  formTitle: {
+    fontSize: '20px',
+    fontWeight: '600',
+    marginBottom: '20px',
+    color: '#1a202c'
+  },
+  formGroup: {
+    marginBottom: '15px'
+  },
+  formLabel: {
+    display: 'block',
+    marginBottom: '5px',
+    fontWeight: '500',
+    color: '#4b5563'
+  },
+  formInput: {
+    width: '100%',
+    padding: '10px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '6px',
+    fontSize: '14px'
+  },
+  formSelect: {
+    width: '100%',
+    padding: '10px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '6px',
+    fontSize: '14px',
+    background: 'white'
+  },
+  formTextarea: {
+    width: '100%',
+    padding: '10px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontFamily: 'inherit'
+  },
+  submitButton: {
+    padding: '12px 24px',
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+  filterBar: {
+    background: 'white',
+    padding: '15px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  filterTabs: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap'
+  },
+  filterTab: {
+    padding: '8px 16px',
+    background: '#f3f4f6',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+  activeFilterTab: {
+    background: '#3b82f6',
+    color: 'white'
+  },
+  loading: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#9ca3af'
+  },
+  notificationUser: {
+    fontSize: '0.85rem',
+    color: '#6b7280',
+    margin: '4px 0'
+  },
+  notificationActions: {
+    display: 'flex',
+    gap: '10px',
+    marginTop: '10px'
+  },
+  actionButton: {
+    padding: '6px 12px',
+    background: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer'
+  },
+  deleteButton: {
+    padding: '6px 12px',
+    background: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer'
   }
 };
