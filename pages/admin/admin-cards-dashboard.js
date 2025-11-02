@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminBackButton from '../../components/AdminBackButton';
@@ -51,7 +50,7 @@ export default function AdminCardsDashboard() {
   const handleCardAction = async (cardId, action) => {
     try {
       let updateData = {};
-      
+
       switch (action) {
         case 'activate':
           updateData = { status: 'active' };
@@ -309,7 +308,7 @@ export default function AdminCardsDashboard() {
                           Activate
                         </button>
                       )}
-                      
+
                       {card.is_locked ? (
                         <button
                           onClick={() => handleCardAction(card.id, 'unlock')}

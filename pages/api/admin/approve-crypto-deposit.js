@@ -38,35 +38,60 @@ export default async function handler(req, res) {
       });
     }
 
-    const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_id;
-    let targetAccount;
-    let newBalance;
-
-    if (isLoanDeposit) {
-      const { data: treasuryAccount, error: treasuryError } = await supabaseAdmin
+    // Fetch treasury account details if it's a loan deposit
+    let treasuryAccount = null;
+    if (deposit.purpose === 'loan_requirement' && deposit.loan_id) {
+      const { data: treasuryData, error: treasuryError } = await supabaseAdmin
         .from('accounts')
         .select('*')
         .eq('user_id', TREASURY_USER_ID)
         .single();
 
-      if (treasuryError || !treasuryAccount) {
+      if (treasuryError || !treasuryData) {
         console.error('Error fetching treasury account:', treasuryError);
         return res.status(500).json({ error: 'Treasury account not found' });
       }
+      treasuryAccount = treasuryData;
+    }
 
-      targetAccount = treasuryAccount;
-      newBalance = parseFloat(treasuryAccount.balance || 0) + parseFloat(deposit.amount);
+    // 3. Credit appropriate account based on deposit purpose
+    const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_id;
+    const targetAccountId = isLoanDeposit ? treasuryAccount.id : deposit.account_id;
 
-      const { error: treasuryUpdateError } = await supabaseAdmin
-        .from('accounts')
-        .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('id', treasuryAccount.id);
+    const { data: targetAccount, error: accountError } = await supabaseAdmin
+      .from('accounts')
+      .select('*')
+      .eq('id', targetAccountId)
+      .single();
 
-      if (treasuryUpdateError) {
-        console.error('Error updating treasury balance:', treasuryUpdateError);
-        return res.status(500).json({ error: 'Failed to update treasury balance' });
-      }
+    if (accountError || !targetAccount) {
+      await supabaseAdmin
+        .from('crypto_deposits')
+        .update({ status: 'pending' })
+        .eq('id', depositId);
+      return res.status(500).json({ error: 'Failed to fetch target account' });
+    }
 
+    const newBalance = parseFloat(targetAccount.balance || 0) + parseFloat(deposit.amount);
+
+    const { error: balanceError } = await supabaseAdmin
+      .from('accounts')
+      .update({ 
+        balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', targetAccount.id);
+
+    if (balanceError) {
+      await supabaseAdmin
+        .from('crypto_deposits')
+        .update({ status: 'pending' })
+        .eq('id', depositId);
+      return res.status(500).json({ error: 'Failed to update account balance' });
+    }
+
+    // Update loan table if it's a loan deposit
+    if (isLoanDeposit) {
       const { error: loanUpdateError } = await supabaseAdmin
         .from('loans')
         .update({ 
@@ -80,31 +105,7 @@ export default async function handler(req, res) {
 
       if (loanUpdateError) {
         console.error('Error updating loan deposit status:', loanUpdateError);
-      }
-
-    } else {
-      const { data: account, error: accountError } = await supabaseAdmin
-        .from('accounts')
-        .select('*')
-        .eq('account_number', deposit.account_number)
-        .single();
-
-      if (accountError || !account) {
-        console.error('Error fetching account:', accountError);
-        return res.status(404).json({ error: 'Account not found' });
-      }
-
-      targetAccount = account;
-      newBalance = parseFloat(account.balance || 0) + parseFloat(deposit.amount);
-
-      const { error: updateError } = await supabaseAdmin
-        .from('accounts')
-        .update({ balance: newBalance })
-        .eq('id', account.id);
-
-      if (updateError) {
-        console.error('Error updating account balance:', updateError);
-        return res.status(500).json({ error: 'Failed to update account balance' });
+        // Depending on criticality, you might want to return an error or just log it
       }
     }
 
@@ -156,7 +157,7 @@ export default async function handler(req, res) {
         const emailSubject = isLoanDeposit 
           ? `✅ Loan Deposit Received - ${deposit.crypto_type}`
           : `✅ Crypto Deposit Approved - ${deposit.crypto_type}`;
-        
+
         const emailBody = isLoanDeposit 
           ? `
             <!DOCTYPE html>
@@ -171,28 +172,28 @@ export default async function handler(req, res) {
                   <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Loan Deposit Received</h1>
                   <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
                 </div>
-                
+
                 <div style="padding: 40px 32px;">
                   <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
                     Your loan requirement deposit has been received!
                   </h2>
-                  
+
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
                     Great news! Your 10% loan requirement deposit has been successfully processed and received by our treasury. Your loan application can now proceed to the next stage.
                   </p>
-                  
+
                   <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
                     <p style="color: #065f46; font-size: 16px; margin: 0 0 12px 0;"><strong>Deposit Details:</strong></p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Purpose:</strong> Loan Requirement Deposit</p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Cryptocurrency:</strong> ${deposit.crypto_type}</p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Amount:</strong> $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
-                  
+
                   <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
                     Your loan application is now eligible for approval. You'll receive a notification once your loan has been reviewed.
                   </p>
                 </div>
-                
+
                 <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                   <p style="color: #718096; font-size: 12px; margin: 0;">
                     © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
@@ -216,16 +217,16 @@ export default async function handler(req, res) {
                   <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Deposit Approved</h1>
                   <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
                 </div>
-                
+
                 <div style="padding: 40px 32px;">
                   <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
                     Your ${deposit.crypto_type} deposit has been approved!
                   </h2>
-                  
+
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
                     Good news! Your cryptocurrency deposit has been successfully processed and credited to your account.
                   </p>
-                  
+
                   <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
                     <p style="color: #065f46; font-size: 16px; margin: 0 0 12px 0;"><strong>Deposit Details:</strong></p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Cryptocurrency:</strong> ${deposit.crypto_type}</p>
@@ -233,12 +234,12 @@ export default async function handler(req, res) {
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Account Number:</strong> ${deposit.account_number}</p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>New Balance:</strong> $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
-                  
+
                   <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
                     The funds are now available in your account and ready to use.
                   </p>
                 </div>
-                
+
                 <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                   <p style="color: #718096; font-size: 12px; margin: 0;">
                     © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>

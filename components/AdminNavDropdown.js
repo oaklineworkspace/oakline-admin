@@ -102,6 +102,7 @@ export default function AdminNavDropdown() {
       links: [
         { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Detail', path: '/admin/loans/[loanId]', icon: '📄' },
         { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
         { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },

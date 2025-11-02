@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -121,7 +120,7 @@ export default function AdminCrypto() {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await response.json();
-      
+
       setRecentActivity((data.deposits || []).slice(0, 10));
     } catch (error) {
       console.error('Error fetching recent activity:', error);
@@ -255,7 +254,7 @@ export default function AdminCrypto() {
                       <p style={styles.cryptoSymbol}>{crypto.symbol}</p>
                     </div>
                   </div>
-                  
+
                   <div style={styles.networkList}>
                     <h4 style={styles.networkListTitle}>Available Networks:</h4>
                     {crypto.networks.map((network, idx) => (

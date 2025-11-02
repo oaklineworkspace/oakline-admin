@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -248,7 +247,7 @@ export default function AdminInvestments() {
               <div style={styles.headerCell}>Volume</div>
               <div style={styles.headerCell}>Actions</div>
             </div>
-            
+
             {investments.map(asset => (
               <div key={asset.id} style={styles.assetRow}>
                 <div style={styles.assetCell}>

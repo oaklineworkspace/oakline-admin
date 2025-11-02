@@ -47,9 +47,12 @@ export default async function handler(req, res) {
     }
 
     // 3. Check treasury balance
-    if (treasuryAccount.balance < loan.principal) {
+    const treasuryBalance = parseFloat(treasuryAccount.balance || 0);
+    const requiredAmount = parseFloat(loan.principal);
+    
+    if (treasuryBalance < requiredAmount) {
       return res.status(400).json({ 
-        error: `Insufficient Treasury Balance. Available: $${treasuryAccount.balance.toFixed(2)}, Required: $${loan.principal.toFixed(2)}. Please fund the treasury account before disbursing this loan.`
+        error: `Treasury balance insufficient for disbursement. Available: $${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, Required: $${requiredAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Please fund the treasury account before disbursing this loan.`
       });
     }
 

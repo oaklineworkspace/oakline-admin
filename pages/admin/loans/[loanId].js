@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../../components/AdminAuth';
+import AdminFooter from '../../../components/AdminFooter';
 import { supabase } from '../../../lib/supabaseClient';
 
 export default function LoanDetail() {
@@ -502,6 +503,7 @@ export default function LoanDetail() {
           </div>
         )}
       </div>
+      <AdminFooter />
     </AdminAuth>
   );
 }
