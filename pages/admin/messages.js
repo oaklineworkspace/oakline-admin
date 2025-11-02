@@ -40,18 +40,55 @@ export default function AdminMessages() {
 
   const fetchThreads = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch threads first
+      const { data: threadsData, error: threadsError } = await supabase
         .from('chat_threads')
-        .select(`
-          *,
-          user:user_id(id, email),
-          admin:admin_id(id, email),
-          profiles!chat_threads_user_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .order('last_message_at', { ascending: false });
 
-      if (error) throw error;
-      setThreads(data || []);
+      if (threadsError) throw threadsError;
+
+      if (!threadsData || threadsData.length === 0) {
+        setThreads([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(threadsData.map(t => t.user_id).filter(Boolean))];
+      const adminIds = [...new Set(threadsData.map(t => t.admin_id).filter(Boolean))];
+
+      // Fetch profiles for users
+      const { data: userProfiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+
+      // Fetch admin profiles
+      const { data: adminProfiles } = await supabase
+        .from('admin_profiles')
+        .select('id, email')
+        .in('id', adminIds);
+
+      // Create lookup maps
+      const userMap = (userProfiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+
+      const adminMap = (adminProfiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+
+      // Combine the data
+      const combinedData = threadsData.map(thread => ({
+        ...thread,
+        profiles: userMap[thread.user_id] || null,
+        user: userMap[thread.user_id] ? { id: thread.user_id, email: userMap[thread.user_id].email } : null,
+        admin: adminMap[thread.admin_id] ? { id: thread.admin_id, email: adminMap[thread.admin_id].email } : null
+      }));
+
+      setThreads(combinedData);
     } catch (error) {
       console.error('Error fetching threads:', error);
     } finally {
