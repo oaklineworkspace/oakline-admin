@@ -1,0 +1,72 @@
+🧭 Prompt for Replit AI (Admin Repository)
+
+💬 “Improve the loan approval and disbursement workflow in the admin panel.
+
+🟩 Step 1: Approve Loan
+	•	When the admin clicks ‘Approve’, update the loan’s status to 'approved'.
+	•	Generate a unique loan reference number (e.g., OAKLN-{timestamp}) and store it in the loan_reference field.
+	•	Record the approved_at timestamp.
+	•	Do not disburse funds yet — just mark it as approved.
+
+⸻
+
+💰 Step 2: Disburse Loan (Credit User, Deduct Treasury)
+	•	When the admin clicks ‘Disburse Loan’, the system should:
+	1.	Fetch the Treasury Account — using user_id = '7f62c3ec-31fe-4952-aa00-2c922064d56a' (the bank’s treasury/admin account).
+	2.	Check Treasury Balance:
+	•	If the treasury balance < loan.amount,
+	•	Stop the process,
+	•	Notify the admin with: "Insufficient Treasury Balance. Please fund the treasury account before disbursing this loan."
+	•	Otherwise, proceed.
+	3.	Deduct from Treasury:
+	•	Subtract loan.amount from treasury.balance
+	•	Insert a transactions record for the treasury:
+	•	type = 'treasury_debit'
+	•	status = 'completed'
+	•	amount = loan.amount
+	•	description = 'Loan disbursement to user'
+	4.	Credit User Account:
+	•	Add loan.amount to the user’s accounts.balance in Supabase.
+	•	Insert a transactions record for the user:
+	•	type = 'loan_disbursement'
+	•	status = 'completed'
+	•	amount = loan.amount
+	•	description = 'Loan credited to user account'
+	5.	Update Loan Table:
+	•	status = 'active'
+	•	disbursed_at = current_timestamp
+
+⸻
+
+💳 Step 3: Record Loan Repayments
+	•	When the user repays, allow the admin to record it via ‘Record Repayment’:
+	•	Decrease remaining_balance by the payment amount.
+	•	Insert into loan_payments:
+	•	payment_amount, payment_date, payment_method.
+	•	Add a transactions record for repayment:
+	•	type = 'loan_repayment'
+	•	status = 'completed'
+	•	description = 'User loan repayment'
+	•	Add the payment to the treasury account balance again.
+	•	If remaining_balance <= 0, mark loan status = 'closed'.
+
+⸻
+
+🧾 Admin Dashboard Enhancements
+	•	Show all loans with columns:
+	•	loan_reference, loan_amount, remaining_balance,
+status, approved_at, disbursed_at, closed_at.
+	•	Show treasury balance in real-time at the top of the page.
+	•	Each admin action (approve, disburse, record repayment) should automatically refresh the loan table and treasury balance display.
+
+⸻
+
+Make sure all actions interact with the correct Supabase tables (loans, accounts, transactions, loan_payments) and use proper error messages for insufficient treasury balance or invalid user accounts.”
+
+⸻
+
+✅ This version ensures:
+	•	The treasury account acts like your central bank vault.
+	•	Users never receive loans unless funds exist.
+	•	Repayments automatically replenish the treasury.
+	•	You have a clean, auditable record in transactions.
