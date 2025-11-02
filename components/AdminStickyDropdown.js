@@ -90,6 +90,7 @@ export default function AdminStickyDropdown() {
         { name: 'Roles & Permissions', path: '/admin/admin-roles' },
         { name: 'Notifications', path: '/admin/admin-notifications' },
         { name: 'Broadcast Messages', path: '/admin/broadcast-messages' },
+        { name: 'User Messages', path: '/admin/messages' },
         { name: 'File Browser', path: '/admin/file-browser' }
       ]
     }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
@@ -246,7 +245,8 @@ export default function FileBrowser() {
 const styles = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#f5f7fa',
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(12px, 3vw, 20px)'
   },
   loadingContainer: {
     display: 'flex',
@@ -369,9 +369,12 @@ const styles = {
     outline: 'none',
   },
   fileTree: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '1rem',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: 'clamp(12px, 2vw, 16px)',
+    maxHeight: 'clamp(300px, 60vh, 500px)',
+    overflowY: 'auto'
   },
   folderContainer: {
     marginBottom: '0.25rem',
@@ -458,15 +461,14 @@ const styles = {
     color: '#6b7280',
   },
   codeBlock: {
-    flex: 1,
-    margin: 0,
-    padding: '1.5rem',
-    overflow: 'auto',
-    backgroundColor: '#1e293b',
+    background: '#1e293b',
     color: '#e2e8f0',
-    fontSize: '13px',
-    fontFamily: 'monospace',
+    padding: 'clamp(12px, 2vw, 20px)',
+    borderRadius: '8px',
+    overflowX: 'auto',
+    fontSize: 'clamp(12px, 1.5vw, 14px)',
     lineHeight: '1.6',
+    fontFamily: 'Monaco, Consolas, "Courier New", monospace'
   },
   emptyState: {
     display: 'flex',
@@ -491,43 +493,43 @@ if (typeof document !== 'undefined') {
         grid-template-columns: 1fr !important;
         height: auto !important;
       }
-      
+
       .file-browser-sidebar {
         max-height: 300px;
         border-bottom: 2px solid #e5e7eb;
       }
-      
+
       .file-browser-viewer {
         min-height: 400px;
       }
-      
+
       .file-browser-header {
         flex-direction: column !important;
         gap: 1rem !important;
       }
-      
+
       .file-browser-header > div {
         width: 100% !important;
       }
-      
+
       .admin-info {
         justify-content: center !important;
       }
     }
-    
+
     @media (max-width: 480px) {
       .file-browser-content {
         padding: 0 !important;
       }
-      
+
       .file-browser-sidebar {
         max-height: 250px;
       }
-      
+
       .file-tree {
         font-size: 12px !important;
       }
-      
+
       .code-block {
         font-size: 11px !important;
         padding: 1rem !important;

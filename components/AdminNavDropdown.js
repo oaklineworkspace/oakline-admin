@@ -124,6 +124,8 @@ export default function AdminNavDropdown() {
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭' },
         { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
         { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
+        { name: 'User Messages', path: '/admin/messages' },
+        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
         { name: 'File Browser', path: '/admin/file-browser', icon: '📁' },
         { name: 'Create Admin', path: '/admin/register', icon: '➕' },
         { name: 'Admin Login', path: '/admin/login', icon: '🔐' }

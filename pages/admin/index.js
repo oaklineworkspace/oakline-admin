@@ -298,6 +298,9 @@ export default function AdminNavigationHub() {
           <div style={styles.navIcon}>💸</div>
           <div style={styles.navText}>Transactions</div>
         </Link>
+        <Link href="/admin/messages" style={styles.quickLink}>
+            💬 User Messages
+          </Link>
         <AdminStickyDropdown />
       </div>
 
@@ -506,5 +509,23 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease'
+  },
+  quickLink: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textDecoration: 'none',
+    color: '#1A3E6F',
+    padding: '4px 2px',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+    flex: 1,
+    maxWidth: '70px',
+    minWidth: '50px',
+    fontSize: '12px',
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: '1.1'
   }
 };
