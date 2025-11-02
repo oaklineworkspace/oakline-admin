@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function AdminLoans() {
   const router = useRouter();
@@ -88,9 +89,19 @@ export default function AdminLoans() {
     }
 
     try {
+      // Get the session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in to approve loans');
+        return;
+      }
+
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ 
           loanId: loanToApprove.id,
           userId: loanToApprove.user_id,
