@@ -317,7 +317,60 @@ export default async function handler(req, res) {
         }
       },
 
-      // 26. Email queue
+      // 26. Crypto deposit audit logs (depends on crypto_deposits)
+      async () => {
+        const { data: userDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userDeposits && userDeposits.length > 0) {
+          const depositIds = userDeposits.map(d => d.id);
+          await supabaseAdmin
+            .from('crypto_deposit_audit_logs')
+            .delete()
+            .in('deposit_id', depositIds);
+          console.log('✅ Deleted crypto deposit audit logs');
+        }
+      },
+
+      // 27. Crypto deposits
+      async () => {
+        await supabaseAdmin
+          .from('crypto_deposits')
+          .delete()
+          .eq('user_id', userIdToDelete);
+        console.log('✅ Deleted crypto deposits');
+      },
+
+      // 28. User crypto wallets
+      async () => {
+        await supabaseAdmin
+          .from('user_crypto_wallets')
+          .delete()
+          .eq('user_id', userIdToDelete);
+        console.log('✅ Deleted user crypto wallets');
+      },
+
+      // 29. Admin assigned wallets (as admin)
+      async () => {
+        await supabaseAdmin
+          .from('admin_assigned_wallets')
+          .delete()
+          .eq('admin_id', userIdToDelete);
+        console.log('✅ Deleted admin assigned wallets (as admin)');
+      },
+
+      // 30. Admin assigned wallets (as user)
+      async () => {
+        await supabaseAdmin
+          .from('admin_assigned_wallets')
+          .delete()
+          .eq('user_id', userIdToDelete);
+        console.log('✅ Deleted admin assigned wallets (as user)');
+      },
+
+      // 31. Email queue
       async () => {
         await supabaseAdmin
           .from('email_queue')
@@ -326,7 +379,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted email queue entries');
       },
 
-      // 27. Profile
+      // 32. Profile
       async () => {
         await supabaseAdmin
           .from('profiles')
