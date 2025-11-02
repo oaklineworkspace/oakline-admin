@@ -356,6 +356,23 @@ export default function AdminLoans() {
                         </span>
                       </div>
                     )}
+                    {loan.deposit_required && loan.deposit_required > 0 && (
+                      <div style={styles.loanInfo}>
+                        <span style={styles.infoLabel}>Deposit Required:</span>
+                        <span style={styles.infoValue}>
+                          ${parseFloat(loan.deposit_required).toLocaleString()}
+                          {loan.deposit_info?.verified ? (
+                            <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
+                              ✓ Verified
+                            </span>
+                          ) : (
+                            <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
+                              ✗ Not Verified
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                     {loan.is_late && (
                       <div style={styles.lateBadge}>⚠️ PAYMENT OVERDUE</div>
                     )}
@@ -1098,5 +1115,14 @@ const styles = {
     fontWeight: '700',
     cursor: 'pointer',
     marginTop: '8px'
+  },
+  depositBadge: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
   }
 };

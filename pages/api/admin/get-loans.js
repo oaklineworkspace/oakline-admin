@@ -1,9 +1,15 @@
 
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const authResult = await verifyAdminAuth(req);
+  if (authResult.error) {
+    return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
   try {
@@ -52,12 +58,49 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
-    // Transform the data to include user email and account info
+    // Fetch deposit information for loans that require deposits
+    const loansRequiringDeposits = loans.filter(loan => 
+      loan.deposit_required && loan.deposit_required > 0
+    );
+
+    let depositVerificationMap = {};
+    if (loansRequiringDeposits.length > 0) {
+      for (const loan of loansRequiringDeposits) {
+        // Check crypto deposits
+        const { data: cryptoDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
+          .select('*')
+          .eq('user_id', loan.user_id)
+          .gte('amount', loan.deposit_required)
+          .in('status', ['confirmed', 'completed'])
+          .limit(1);
+
+        // Check regular transactions
+        const { data: transactions } = await supabaseAdmin
+          .from('transactions')
+          .select('*')
+          .eq('user_id', loan.user_id)
+          .eq('account_id', loan.account_id)
+          .eq('type', 'deposit')
+          .gte('amount', loan.deposit_required)
+          .eq('status', 'completed')
+          .limit(1);
+
+        depositVerificationMap[loan.id] = {
+          verified: !!(cryptoDeposits?.length || transactions?.length),
+          amount: cryptoDeposits?.[0]?.amount || transactions?.[0]?.amount || 0,
+          type: cryptoDeposits?.length ? 'crypto' : transactions?.length ? 'bank' : 'none'
+        };
+      }
+    }
+
+    // Transform the data to include user email, account info, and deposit verification
     const transformedLoans = loans.map(loan => ({
       ...loan,
       user_email: profileMap[loan.user_id]?.email || 'N/A',
       account_number: accountMap[loan.account_id]?.account_number || 'N/A',
-      account_type: accountMap[loan.account_id]?.account_type || 'N/A'
+      account_type: accountMap[loan.account_id]?.account_type || 'N/A',
+      deposit_info: depositVerificationMap[loan.id] || { verified: true, amount: 0, type: 'none' }
     }));
 
     return res.status(200).json({
