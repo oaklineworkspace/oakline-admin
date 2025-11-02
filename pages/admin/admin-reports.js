@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
+import AdminFooter from '../../components/AdminFooter';
 import Link from 'next/link';
 
 export default function AdminReports() {
@@ -401,6 +402,7 @@ export default function AdminReports() {
           </div>
         )}
       </div>
+      <AdminFooter />
     </AdminAuth>
   );
 }

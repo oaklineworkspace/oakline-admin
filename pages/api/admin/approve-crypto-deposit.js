@@ -2,6 +2,8 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
+const TREASURY_USER_ID = '7f62c3ec-31fe-4952-aa00-2c922064d56a';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -36,33 +38,80 @@ export default async function handler(req, res) {
       });
     }
 
-    const { data: account, error: accountError } = await supabaseAdmin
-      .from('accounts')
-      .select('*')
-      .eq('account_number', deposit.account_number)
-      .single();
+    const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_id;
+    let targetAccount;
+    let newBalance;
 
-    if (accountError || !account) {
-      console.error('Error fetching account:', accountError);
-      return res.status(404).json({ error: 'Account not found' });
-    }
+    if (isLoanDeposit) {
+      const { data: treasuryAccount, error: treasuryError } = await supabaseAdmin
+        .from('accounts')
+        .select('*')
+        .eq('user_id', TREASURY_USER_ID)
+        .single();
 
-    const newBalance = parseFloat(account.balance || 0) + parseFloat(deposit.amount);
+      if (treasuryError || !treasuryAccount) {
+        console.error('Error fetching treasury account:', treasuryError);
+        return res.status(500).json({ error: 'Treasury account not found' });
+      }
 
-    const { error: updateError } = await supabaseAdmin
-      .from('accounts')
-      .update({ balance: newBalance })
-      .eq('id', account.id);
+      targetAccount = treasuryAccount;
+      newBalance = parseFloat(treasuryAccount.balance || 0) + parseFloat(deposit.amount);
 
-    if (updateError) {
-      console.error('Error updating account balance:', updateError);
-      return res.status(500).json({ error: 'Failed to update account balance' });
+      const { error: treasuryUpdateError } = await supabaseAdmin
+        .from('accounts')
+        .update({ balance: newBalance, updated_at: new Date().toISOString() })
+        .eq('id', treasuryAccount.id);
+
+      if (treasuryUpdateError) {
+        console.error('Error updating treasury balance:', treasuryUpdateError);
+        return res.status(500).json({ error: 'Failed to update treasury balance' });
+      }
+
+      const { error: loanUpdateError } = await supabaseAdmin
+        .from('loans')
+        .update({ 
+          deposit_status: 'completed',
+          deposit_paid: true,
+          deposit_amount: parseFloat(deposit.amount),
+          deposit_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', deposit.loan_id);
+
+      if (loanUpdateError) {
+        console.error('Error updating loan deposit status:', loanUpdateError);
+      }
+
+    } else {
+      const { data: account, error: accountError } = await supabaseAdmin
+        .from('accounts')
+        .select('*')
+        .eq('account_number', deposit.account_number)
+        .single();
+
+      if (accountError || !account) {
+        console.error('Error fetching account:', accountError);
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      targetAccount = account;
+      newBalance = parseFloat(account.balance || 0) + parseFloat(deposit.amount);
+
+      const { error: updateError } = await supabaseAdmin
+        .from('accounts')
+        .update({ balance: newBalance })
+        .eq('id', account.id);
+
+      if (updateError) {
+        console.error('Error updating account balance:', updateError);
+        return res.status(500).json({ error: 'Failed to update account balance' });
+      }
     }
 
     const { error: depositUpdateError } = await supabaseAdmin
       .from('crypto_deposits')
       .update({ 
-        status: 'confirmed',
+        status: 'completed',
         approved_by: authResult.user.id,
         approved_at: new Date().toISOString()
       })
@@ -73,14 +122,88 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to update deposit status' });
     }
 
+    const transactionType = isLoanDeposit ? 'treasury_credit' : 'crypto_deposit';
+    const transactionDescription = isLoanDeposit 
+      ? `Loan requirement deposit - 10% deposit received for loan ${deposit.loan_id}`
+      : `Crypto deposit - ${deposit.crypto_type}`;
+
+    await supabaseAdmin
+      .from('transactions')
+      .insert({
+        user_id: isLoanDeposit ? TREASURY_USER_ID : deposit.user_id,
+        account_id: targetAccount.id,
+        type: transactionType,
+        amount: parseFloat(deposit.amount),
+        description: transactionDescription,
+        status: 'completed',
+        balance_before: parseFloat(targetAccount.balance || 0),
+        balance_after: newBalance,
+        reference: `CRYPTO-${Date.now()}`,
+        metadata: {
+          crypto_type: deposit.crypto_type,
+          network_type: deposit.network_type,
+          wallet_address: deposit.wallet_address,
+          transaction_hash: deposit.transaction_hash,
+          is_loan_deposit: isLoanDeposit,
+          loan_id: deposit.loan_id || null
+        }
+      });
+
     const { data: user } = await supabaseAdmin.auth.admin.getUserById(deposit.user_id);
 
     if (user && user.user.email) {
       try {
-        await sendEmail({
-          to: user.user.email,
-          subject: `✅ Crypto Deposit Approved - ${deposit.crypto_type}`,
-          html: `
+        const emailSubject = isLoanDeposit 
+          ? `✅ Loan Deposit Received - ${deposit.crypto_type}`
+          : `✅ Crypto Deposit Approved - ${deposit.crypto_type}`;
+        
+        const emailBody = isLoanDeposit 
+          ? `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 24px; text-align: center;">
+                  <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Loan Deposit Received</h1>
+                  <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
+                </div>
+                
+                <div style="padding: 40px 32px;">
+                  <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+                    Your loan requirement deposit has been received!
+                  </h2>
+                  
+                  <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                    Great news! Your 10% loan requirement deposit has been successfully processed and received by our treasury. Your loan application can now proceed to the next stage.
+                  </p>
+                  
+                  <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
+                    <p style="color: #065f46; font-size: 16px; margin: 0 0 12px 0;"><strong>Deposit Details:</strong></p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Purpose:</strong> Loan Requirement Deposit</p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Cryptocurrency:</strong> ${deposit.crypto_type}</p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Amount:</strong> $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                  
+                  <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
+                    Your loan application is now eligible for approval. You'll receive a notification once your loan has been reviewed.
+                  </p>
+                </div>
+                
+                <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+                  <p style="color: #718096; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+                    Member FDIC | Routing: 075915826
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+          : `
             <!DOCTYPE html>
             <html>
             <head>
@@ -125,7 +248,12 @@ export default async function handler(req, res) {
               </div>
             </body>
             </html>
-          `,
+          `;
+
+        await sendEmail({
+          to: user.user.email,
+          subject: emailSubject,
+          html: emailBody,
           type: EMAIL_TYPES.NOTIFY
         });
       } catch (emailError) {
@@ -135,8 +263,12 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ 
       success: true,
-      message: 'Deposit approved and funds credited successfully',
-      newBalance
+      message: isLoanDeposit 
+        ? 'Loan deposit received and credited to treasury successfully'
+        : 'Deposit approved and funds credited successfully',
+      newBalance,
+      isLoanDeposit,
+      loanId: deposit.loan_id || null
     });
 
   } catch (error) {

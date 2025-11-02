@@ -5,7 +5,7 @@ import AdminAuth from '../../components/AdminAuth';
 import AdminBackButton from '../../components/AdminBackButton';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
-const VALID_TYPES = ['credit', 'debit'];
+const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit'];
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -461,6 +461,13 @@ export default function AdminTransactions() {
                 <option value="all">All Types</option>
                 <option value="credit">Credit</option>
                 <option value="debit">Debit</option>
+                <option value="deposit">Deposit</option>
+                <option value="withdrawal">Withdrawal</option>
+                <option value="transfer">Transfer</option>
+                <option value="crypto_deposit">Crypto Deposit</option>
+                <option value="loan_disbursement">Loan Disbursement</option>
+                <option value="treasury_credit">Treasury Credit</option>
+                <option value="treasury_debit">Treasury Debit</option>
               </select>
             </div>
 

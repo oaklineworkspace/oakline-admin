@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
+import AdminFooter from '../../components/AdminFooter';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -172,6 +173,7 @@ export default function AdminUsers() {
         )}
       </div>
     </div>
+    <AdminFooter />
     </AdminAuth>
   );
 }
