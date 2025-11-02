@@ -81,32 +81,16 @@ export default function AdminLoans() {
       if (!response.ok) throw new Error('Failed to fetch loans');
       const data = await response.json();
 
-      // Fetch deposit verification status for each loan
-      const loansWithDeposits = await Promise.all(
-        (data.loans || []).map(async (loan) => {
-          if (loan.deposit_required && loan.deposit_required > 0) {
-            try {
-              const detailResponse = await fetch(`/api/admin/get-loan-detail?loanId=${loan.id}`, {
-                headers: {
-                  'Authorization': `Bearer ${session.access_token}`
-                }
-              });
-
-              if (detailResponse.ok) {
-                const detailData = await detailResponse.json();
-                return {
-                  ...loan,
-                  deposit_info: detailData.depositInfo,
-                  deposit_paid: detailData.depositInfo?.verified && detailData.depositInfo?.amount >= loan.deposit_required
-                };
-              }
-            } catch (err) {
-              console.error('Error fetching deposit info for loan:', loan.id, err);
-            }
-          }
-          return loan;
-        })
-      );
+      // Use the deposit_info from the main loans response
+      const loansWithDeposits = (data.loans || []).map(loan => {
+        if (loan.deposit_required && loan.deposit_required > 0 && loan.deposit_info) {
+          return {
+            ...loan,
+            deposit_paid: loan.deposit_info.verified === true
+          };
+        }
+        return loan;
+      });
 
       setLoans(loansWithDeposits);
     } catch (err) {
