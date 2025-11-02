@@ -41,7 +41,18 @@ export default function AdminLoans() {
 
   const fetchTreasuryBalance = async () => {
     try {
-      const response = await fetch('/api/admin/get-treasury-balance');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No session found for treasury balance fetch');
+        return;
+      }
+
+      const response = await fetch('/api/admin/get-treasury-balance', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch treasury balance');
       const data = await response.json();
       setTreasuryBalance(data.balance);
