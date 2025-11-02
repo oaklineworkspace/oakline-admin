@@ -73,6 +73,7 @@ export default function AdminStickyDropdown() {
     {
       category: '🏦 Banking Services',
       pages: [
+        { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
         { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
         { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },

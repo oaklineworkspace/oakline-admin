@@ -170,6 +170,7 @@ export default function AdminNavigationHub() {
     {
       category: '🏦 Banking Services',
       pages: [
+        { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️', description: 'View Oakline Bank treasury account' },
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠', description: 'Manage loan applications and approvals' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈', description: 'Handle investment accounts' },
         { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿', description: 'Manage cryptocurrency operations' },

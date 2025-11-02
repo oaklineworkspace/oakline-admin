@@ -85,6 +85,7 @@ export default function AdminDropdown() {
     {
       category: '💼 Financial Services',
       links: [
+        { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
         { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
