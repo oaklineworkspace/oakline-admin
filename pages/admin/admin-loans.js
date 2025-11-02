@@ -28,8 +28,10 @@ export default function AdminLoans() {
     interestRate: '',
     termMonths: '',
     purpose: '',
-    monthlyPayment: ''
+    monthlyPayment: '',
+    adminPassword: ''
   });
+  const [loanToApprove, setLoanToApprove] = useState(null);
 
   useEffect(() => {
     fetchLoans();
@@ -79,17 +81,34 @@ export default function AdminLoans() {
     }
   };
 
-  const handleApproveLoan = async (loanId) => {
+  const handleApproveLoan = async () => {
+    if (!formData.adminPassword) {
+      setError('Password is required to approve loan');
+      return;
+    }
+
     try {
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loanId, status: 'approved' })
+        body: JSON.stringify({ 
+          loanId: loanToApprove.id,
+          userId: loanToApprove.user_id,
+          userEmail: loanToApprove.user_email,
+          status: 'approved',
+          adminPassword: formData.adminPassword
+        })
       });
 
-      if (!response.ok) throw new Error('Failed to approve loan');
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to approve loan');
+      }
       
-      setSuccess('Loan approved successfully');
+      setSuccess('Loan approved and notification sent to user');
+      setShowModal(null);
+      setLoanToApprove(null);
+      setFormData({...formData, adminPassword: ''});
       await fetchLoans();
     } catch (err) {
       setError(err.message);
@@ -337,7 +356,10 @@ export default function AdminLoans() {
                     </button>
                     {loan.status === 'pending' && (
                       <>
-                        <button onClick={() => handleApproveLoan(loan.id)} style={styles.approveButton}>
+                        <button onClick={() => {
+                          setLoanToApprove(loan);
+                          setShowModal('approve');
+                        }} style={styles.approveButton}>
                           ✅ Approve
                         </button>
                         <button onClick={() => {
@@ -562,6 +584,61 @@ export default function AdminLoans() {
                 </div>
                 <button onClick={handleProcessPayment} style={styles.submitButton}>
                   Process Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Approve Loan Confirmation Modal */}
+        {showModal === 'approve' && loanToApprove && (
+          <div style={styles.modalOverlay} onClick={() => {
+            setShowModal(null);
+            setLoanToApprove(null);
+            setFormData({...formData, adminPassword: ''});
+          }}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Confirm Loan Approval</h2>
+                <button onClick={() => {
+                  setShowModal(null);
+                  setLoanToApprove(null);
+                  setFormData({...formData, adminPassword: ''});
+                }} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <div style={{...styles.detailsGrid, marginBottom: '20px'}}>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Borrower:</span>
+                    <span style={styles.detailValue}>{loanToApprove.user_email}</span>
+                  </div>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Loan Type:</span>
+                    <span style={styles.detailValue}>{loanToApprove.loan_type}</span>
+                  </div>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Principal Amount:</span>
+                    <span style={styles.detailValue}>${parseFloat(loanToApprove.principal).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Admin Password *</label>
+                  <input
+                    type="password"
+                    value={formData.adminPassword}
+                    onChange={(e) => setFormData({...formData, adminPassword: e.target.value})}
+                    style={styles.input}
+                    placeholder="Enter your password to confirm"
+                  />
+                </div>
+                <p style={{color: '#64748b', fontSize: '14px', marginBottom: '16px'}}>
+                  The borrower will receive an email notification once approved.
+                </p>
+                <button 
+                  onClick={handleApproveLoan} 
+                  style={styles.approveButton}
+                >
+                  Confirm Approval
                 </button>
               </div>
             </div>
