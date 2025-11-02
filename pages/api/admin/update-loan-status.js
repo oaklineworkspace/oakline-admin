@@ -53,7 +53,6 @@ export default async function handler(req, res) {
     if (status === 'approved') {
       updateData.status = 'active';
       updateData.disbursed_at = new Date().toISOString();
-      updateData.remaining_balance = updateData.principal;
     }
 
     const { data: loan, error } = await supabaseAdmin
@@ -71,193 +70,190 @@ export default async function handler(req, res) {
     // Send email notification for status changes
     if ((status === 'approved' || status === 'rejected') && userEmail) {
       try {
-        const emailHtml = status === 'approved' ? `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-              <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
-                <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Loan Approved!</h1>
-                <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
-              </div>
-              
-              <div style="padding: 40px 32px;">
-                <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
-                  Congratulations!
-                </h2>
-                
-                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Your ${loan.loan_type} loan application has been approved and is now active.
-                </p>
-                
-                <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
-                  <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
-                    Loan Details
-                  </h3>
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Principal Amount:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        $${parseFloat(loan.principal).toLocaleString()}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Interest Rate:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        ${loan.interest_rate}%
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Term:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        ${loan.term_months} months
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Monthly Payment:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        $${parseFloat(loan.monthly_payment_amount || 0).toLocaleString()}
-                      </td>
-                    </tr>
-                  </table>
+        if (status === 'approved') {
+          const emailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
+                  <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Loan Approved!</h1>
+                  <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
                 </div>
+                
+                <div style="padding: 40px 32px;">
+                  <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+                    Congratulations!
+                  </h2>
+                  
+                  <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                    Your ${loan.loan_type} loan application has been approved and is now active.
+                  </p>
+                  
+                  <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
+                    <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
+                      Loan Details
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Principal Amount:</td>
+                        <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
+                          $${parseFloat(loan.principal).toLocaleString()}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Interest Rate:</td>
+                        <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
+                          ${loan.interest_rate}%
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Term:</td>
+                        <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
+                          ${loan.term_months} months
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Monthly Payment:</td>
+                        <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
+                          $${parseFloat(loan.monthly_payment_amount || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
 
-                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
-                  The loan amount will be disbursed to your account shortly. You can view your loan details and payment schedule in your online banking dashboard.
-                </p>
+                  <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
+                    The loan amount will be disbursed to your account shortly. You can view your loan details and payment schedule in your online banking dashboard.
+                  </p>
 
-                <div style="text-align: center; margin: 32px 0;">
-                  <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
-                     style="display: inline-block; background-color: #10b981; color: #ffffff; 
-                            padding: 14px 32px; text-decoration: none; border-radius: 8px; 
-                            font-weight: 600; font-size: 16px;">
-                    View Loan Details
-                  </a>
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
+                       style="display: inline-block; background-color: #10b981; color: #ffffff; 
+                              padding: 14px 32px; text-decoration: none; border-radius: 8px; 
+                              font-weight: 600; font-size: 16px;">
+                      View Loan Details
+                    </a>
+                  </div>
+                </div>
+                
+                <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+                  <p style="color: #718096; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+                    Member FDIC | Routing: 075915826
+                  </p>
                 </div>
               </div>
-              
-              <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="color: #718096; font-size: 12px; margin: 0;">
-                  © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
-                  Member FDIC | Routing: 075915826
-                </p>
+            </body>
+            </html>
+          `;
+
+          await sendEmail({
+            to: userEmail,
+            subject: '🎉 Your Loan Has Been Approved - Oakline Bank',
+            html: emailHtml,
+            type: EMAIL_TYPES.NOTIFY
+          });
+
+          console.log('Loan approval email sent to:', userEmail);
+        } else if (status === 'rejected') {
+          const rejectionEmailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 32px 24px; text-align: center;">
+                  <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">Loan Application Update</h1>
+                  <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
+                </div>
+                
+                <div style="padding: 40px 32px;">
+                  <h2 style="color: #dc2626; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+                    Application Status Update
+                  </h2>
+                  
+                  <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                    Thank you for applying for a ${loan.loan_type} loan with Oakline Bank. After careful review, we regret to inform you that your application has not been approved at this time.
+                  </p>
+                  
+                  <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 24px 0;">
+                    <h3 style="color: #991b1b; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
+                      Application Details
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Loan Type:</td>
+                        <td style="padding: 8px 0; text-align: right; color: #991b1b; font-weight: 700;">
+                          ${loan.loan_type?.toUpperCase()}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Requested Amount:</td>
+                        <td style="padding: 8px 0; text-align: right; color: #991b1b; font-weight: 700;">
+                          $${parseFloat(loan.principal).toLocaleString()}
+                        </td>
+                      </tr>
+                      ${reason ? `
+                      <tr>
+                        <td colspan="2" style="padding: 16px 0 8px 0; color: #4a5568; font-weight: 600;">Reason:</td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="padding: 0; color: #991b1b;">
+                          ${reason}
+                        </td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </div>
+
+                  <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
+                    We encourage you to contact our loan specialists to discuss alternative options or to understand what steps you can take to improve your eligibility for future applications.
+                  </p>
+
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
+                       style="display: inline-block; background-color: #3b82f6; color: #ffffff; 
+                              padding: 14px 32px; text-decoration: none; border-radius: 8px; 
+                              font-weight: 600; font-size: 16px;">
+                      Contact Support
+                    </a>
+                  </div>
+                </div>
+                
+                <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+                  <p style="color: #718096; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+                    Member FDIC | Routing: 075915826
+                  </p>
+                </div>
               </div>
-            </div>
-          </body>
-          </html>
-        `;
+            </body>
+            </html>
+          `;
 
-        await sendEmail({
-          to: userEmail,
-          subject: '🎉 Your Loan Has Been Approved - Oakline Bank',
-          html: emailHtml,
-          type: EMAIL_TYPES.NOTIFY
-        });
+          await sendEmail({
+            to: userEmail,
+            subject: 'Loan Application Update - Oakline Bank',
+            html: rejectionEmailHtml,
+            type: EMAIL_TYPES.NOTIFY
+          });
 
-        console.log('Loan approval email sent to:', userEmail);
+          console.log('Loan rejection email sent to:', userEmail);
+        }
       } catch (emailError) {
-        console.error('Error sending loan approval email:', emailError);
-        // Don't fail the request if email fails
-      }
-    } else if (status === 'rejected' && userEmail) {
-      try {
-        const rejectionEmailHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-              <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 32px 24px; text-align: center;">
-                <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">Loan Application Update</h1>
-                <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
-              </div>
-              
-              <div style="padding: 40px 32px;">
-                <h2 style="color: #dc2626; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
-                  Application Status Update
-                </h2>
-                
-                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Thank you for applying for a ${loan.loan_type} loan with Oakline Bank. After careful review, we regret to inform you that your application has not been approved at this time.
-                </p>
-                
-                <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 24px 0;">
-                  <h3 style="color: #991b1b; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
-                    Application Details
-                  </h3>
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Loan Type:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #991b1b; font-weight: 700;">
-                        ${loan.loan_type?.toUpperCase()}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Requested Amount:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #991b1b; font-weight: 700;">
-                        $${parseFloat(loan.principal).toLocaleString()}
-                      </td>
-                    </tr>
-                    ${reason ? `
-                    <tr>
-                      <td colspan="2" style="padding: 16px 0 8px 0; color: #4a5568; font-weight: 600;">Reason:</td>
-                    </tr>
-                    <tr>
-                      <td colspan="2" style="padding: 0; color: #991b1b;">
-                        ${reason}
-                      </td>
-                    </tr>
-                    ` : ''}
-                  </table>
-                </div>
-
-                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
-                  We encourage you to contact our loan specialists to discuss alternative options or to understand what steps you can take to improve your eligibility for future applications.
-                </p>
-
-                <div style="text-align: center; margin: 32px 0;">
-                  <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
-                     style="display: inline-block; background-color: #3b82f6; color: #ffffff; 
-                            padding: 14px 32px; text-decoration: none; border-radius: 8px; 
-                            font-weight: 600; font-size: 16px;">
-                    Contact Support
-                  </a>
-                </div>
-              </div>
-              
-              <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="color: #718096; font-size: 12px; margin: 0;">
-                  © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
-                  Member FDIC | Routing: 075915826
-                </p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `;
-
-        await sendEmail({
-          to: userEmail,
-          subject: 'Loan Application Update - Oakline Bank',
-          html: rejectionEmailHtml,
-          type: EMAIL_TYPES.NOTIFY
-        });
-
-        console.log('Loan rejection email sent to:', userEmail);
-      } catch (emailError) {
-        console.error('Error sending loan rejection email:', emailError);
+        console.error('Error sending email:', emailError);
         // Don't fail the request if email fails
       }
     }
 
-    // Send email for other status changes (active, closed, etc.)
+    // Send email for closed loans
     if (status === 'closed' && userEmail) {
       try {
         const closedEmailHtml = `

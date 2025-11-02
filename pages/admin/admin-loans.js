@@ -56,7 +56,34 @@ export default function AdminLoans() {
       
       if (!response.ok) throw new Error('Failed to fetch loans');
       const data = await response.json();
-      setLoans(data.loans || []);
+      
+      // Fetch deposit verification status for each loan
+      const loansWithDeposits = await Promise.all(
+        (data.loans || []).map(async (loan) => {
+          if (loan.deposit_required && loan.deposit_required > 0) {
+            try {
+              const detailResponse = await fetch(`/api/admin/get-loan-detail?loanId=${loan.id}`, {
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`
+                }
+              });
+              
+              if (detailResponse.ok) {
+                const detailData = await detailResponse.json();
+                return {
+                  ...loan,
+                  deposit_info: detailData.depositInfo
+                };
+              }
+            } catch (err) {
+              console.error('Error fetching deposit info for loan:', loan.id, err);
+            }
+          }
+          return loan;
+        })
+      );
+      
+      setLoans(loansWithDeposits);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching loans:', err);
@@ -421,11 +448,27 @@ export default function AdminLoans() {
                     </button>
                     {loan.status === 'pending' && (
                       <>
-                        <button onClick={() => {
-                          setLoanToApprove(loan);
-                          setShowModal('approve');
-                        }} style={styles.approveButton}>
-                          ✅ Approve
+                        <button 
+                          onClick={() => {
+                            if (loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified) {
+                              setError(`Deposit verification required: User must deposit $${parseFloat(loan.deposit_required).toLocaleString()} before loan can be approved.`);
+                              return;
+                            }
+                            setLoanToApprove(loan);
+                            setShowModal('approve');
+                          }} 
+                          style={{
+                            ...styles.approveButton,
+                            opacity: (loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified) ? 0.5 : 1,
+                            cursor: (loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified) ? 'not-allowed' : 'pointer'
+                          }}
+                          title={
+                            loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified
+                              ? `Requires deposit of $${parseFloat(loan.deposit_required).toLocaleString()}`
+                              : 'Approve loan'
+                          }
+                        >
+                          {loan.deposit_required && loan.deposit_required > 0 && !loan.deposit_info?.verified ? '🔒' : '✅'} Approve
                         </button>
                         <button onClick={() => {
                           setFormData({...formData, loanId: loan.id});
@@ -685,7 +728,40 @@ export default function AdminLoans() {
                     <span style={styles.detailLabel}>Principal Amount:</span>
                     <span style={styles.detailValue}>${parseFloat(loanToApprove.principal).toLocaleString()}</span>
                   </div>
+                  {loanToApprove.deposit_required && loanToApprove.deposit_required > 0 && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>Deposit Status:</span>
+                      <span style={styles.detailValue}>
+                        {loanToApprove.deposit_info?.verified ? (
+                          <span style={{color: '#10b981', fontWeight: '700'}}>
+                            ✓ Verified ($${parseFloat(loanToApprove.deposit_info.amount).toLocaleString()})
+                          </span>
+                        ) : (
+                          <span style={{color: '#dc2626', fontWeight: '700'}}>
+                            ✗ Not Verified (Required: ${parseFloat(loanToApprove.deposit_required).toLocaleString()})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
                 </div>
+                {loanToApprove.deposit_required && loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified && (
+                  <div style={{
+                    background: '#fef2f2',
+                    border: '2px solid #dc2626',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '16px'
+                  }}>
+                    <p style={{color: '#991b1b', fontWeight: '600', margin: '0 0 8px 0', fontSize: '14px'}}>
+                      ⚠️ Deposit Not Verified
+                    </p>
+                    <p style={{color: '#4a5568', fontSize: '13px', margin: 0}}>
+                      The borrower has not made the required deposit of ${parseFloat(loanToApprove.deposit_required).toLocaleString()}. 
+                      Please verify the deposit before approving this loan.
+                    </p>
+                  </div>
+                )}
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Admin Password *</label>
                   <input
