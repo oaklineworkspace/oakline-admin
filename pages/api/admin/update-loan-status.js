@@ -38,25 +38,6 @@ export default async function handler(req, res) {
       }
     }
 
-    const updateData = {
-      status,
-      updated_at: new Date().toISOString()
-    };
-
-    // Add rejection reason if provided
-    if (status === 'rejected' && reason) {
-      updateData.rejection_reason = reason;
-    }
-
-    // If approving, set disbursed_at and activate the loan
-    if (status === 'approved') {
-      updateData.status = 'active'; // This line seems to be from the original logic that should be removed or clarified. Based on the change, it might intend to set status to 'approved' or 'active' separately from disbursement.
-      updateData.disbursed_at = new Date().toISOString(); // This line is being removed by the changes.
-    }
-
-    // Generate loan reference for approved loans
-    const loanReference = status === 'approved' ? `OAKLN-${Date.now()}` : null;
-
     // Update loan status
     const { data: updatedLoan, error: updateError } = await supabaseAdmin
       .from('loans')
@@ -66,7 +47,7 @@ export default async function handler(req, res) {
         ...(status === 'approved' && {
           approved_at: new Date().toISOString()
         }),
-        ...(status === 'rejected' && { rejection_reason: reason }) // Using 'reason' directly from req.body
+        ...(status === 'rejected' && { rejection_reason: reason })
       })
       .eq('id', loanId)
       .select()
@@ -75,6 +56,37 @@ export default async function handler(req, res) {
     if (updateError) {
       console.error('Error updating loan status:', updateError);
       return res.status(500).json({ error: 'Failed to update loan status', details: updateError.message });
+    }
+
+    // Record action in audit logs
+    try {
+      const authHeader = req.headers.authorization;
+      let adminUserId = null;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (user) {
+          adminUserId = user.id;
+        }
+      }
+
+      await supabaseAdmin
+        .from('audit_logs')
+        .insert({
+          user_id: adminUserId,
+          action: `loan_${status}`,
+          table_name: 'loans',
+          old_data: { loan_id: loanId },
+          new_data: { 
+            loan_id: loanId, 
+            status, 
+            ...(status === 'approved' && { approved_at: updatedLoan.approved_at }),
+            ...(status === 'rejected' && { rejection_reason: reason })
+          }
+        });
+    } catch (auditError) {
+      console.error('Error creating audit log:', auditError);
     }
 
     // Send email notification for status changes
