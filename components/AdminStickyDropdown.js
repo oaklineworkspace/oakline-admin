@@ -37,7 +37,8 @@ export default function AdminStickyDropdown() {
         { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '🔑' },
         { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '📧' },
         { name: 'Delete User By ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
-        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' }
+        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' },
+        { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '💰' }
       ]
     },
     {
@@ -132,6 +133,21 @@ export default function AdminStickyDropdown() {
             <div style={styles.dropdownHeader}>
               <h3 style={styles.dropdownTitle}>🏦 All Admin Pages</h3>
               <p style={styles.dropdownSubtitle}>Complete administration access</p>
+              <button
+                onClick={() => setIsOpen(false)}
+                style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             <div style={styles.categoriesContainer}>
@@ -257,7 +273,8 @@ const styles = {
     textAlign: 'center',
     marginBottom: '1rem',
     paddingBottom: '0.75rem',
-    borderBottom: '2px solid #e2e8f0'
+    borderBottom: '2px solid #e2e8f0',
+    position: 'relative'
   },
   dropdownTitle: {
     fontSize: '1.25rem',

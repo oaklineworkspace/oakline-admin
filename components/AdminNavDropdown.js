@@ -139,6 +139,7 @@ export default function AdminNavDropdown() {
       links: [
         { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️' },
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🔍' },
+        { name: 'Delete User Loans', path: '/admin/delete-user-loans', icon: '🏠' },
       ]
     }
   ];

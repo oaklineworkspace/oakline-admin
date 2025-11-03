@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
+import AdminBackButton from '../../components/AdminBackButton';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function DeleteUserLoans() {
@@ -124,9 +124,7 @@ export default function DeleteUserLoans() {
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.title}>🗑️ Delete User Loan Data</h1>
-          <Link href="/admin/admin-dashboard" style={styles.backButton}>
-            ← Back to Dashboard
-          </Link>
+          <AdminBackButton />
         </div>
 
         {message && (
@@ -332,16 +330,7 @@ const styles = {
     color: '#dc2626',
     margin: 0
   },
-  backButton: {
-    padding: '10px 20px',
-    backgroundColor: '#64748b',
-    color: 'white',
-    textDecoration: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    transition: 'background-color 0.2s'
-  },
+  
   message: {
     padding: '16px',
     borderRadius: '8px',

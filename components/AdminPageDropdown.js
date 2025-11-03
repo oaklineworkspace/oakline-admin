@@ -83,7 +83,8 @@ export default function AdminPageDropdown() {
         { name: 'Manage Enrollment', href: '/admin/manage-user-enrollment', icon: '📧' },
         { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '🔄' },
         { name: 'Delete User by ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
-        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' }
+        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' },
+        { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '🏠' }
       ]
     },
     {
