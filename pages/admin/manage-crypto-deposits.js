@@ -17,6 +17,7 @@ export default function ManageCryptoDeposits() {
   const [walletSearchFilter, setWalletSearchFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
+  const [purposeFilter, setPurposeFilter] = useState('all');
   
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -28,7 +29,7 @@ export default function ManageCryptoDeposits() {
 
   useEffect(() => {
     applyFilters();
-  }, [deposits, statusFilter, userSearchFilter, cryptoTypeFilter, walletSearchFilter, dateFromFilter, dateToFilter]);
+  }, [deposits, statusFilter, userSearchFilter, cryptoTypeFilter, walletSearchFilter, dateFromFilter, dateToFilter, purposeFilter]);
 
   const fetchDeposits = async () => {
     try {
@@ -77,6 +78,10 @@ export default function ManageCryptoDeposits() {
 
     if (cryptoTypeFilter !== 'all') {
       filtered = filtered.filter(d => d.crypto_type === cryptoTypeFilter);
+    }
+
+    if (purposeFilter !== 'all') {
+      filtered = filtered.filter(d => (d.purpose || 'general_deposit') === purposeFilter);
     }
 
     if (walletSearchFilter) {
@@ -405,6 +410,15 @@ export default function ManageCryptoDeposits() {
             </div>
 
             <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Purpose</label>
+              <select value={purposeFilter} onChange={(e) => setPurposeFilter(e.target.value)} style={styles.filterSelect}>
+                <option value="all">All Purposes</option>
+                <option value="general_deposit">General Deposit</option>
+                <option value="loan_requirement">Loan Requirement</option>
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
               <label style={styles.filterLabel}>Wallet Address</label>
               <input
                 type="text"
@@ -444,6 +458,7 @@ export default function ManageCryptoDeposits() {
               setWalletSearchFilter('');
               setDateFromFilter('');
               setDateToFilter('');
+              setPurposeFilter('all');
             }}
             style={styles.clearFiltersButton}
           >
@@ -462,6 +477,7 @@ export default function ManageCryptoDeposits() {
                 <th style={styles.th}>Expand</th>
                 <th style={styles.th}>User</th>
                 <th style={styles.th}>Account Number</th>
+                <th style={styles.th}>Purpose</th>
                 <th style={styles.th}>Crypto</th>
                 <th style={styles.th}>Amount / Fee</th>
                 <th style={styles.th}>Wallet</th>
@@ -473,7 +489,7 @@ export default function ManageCryptoDeposits() {
             <tbody>
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={styles.emptyState}>
+                  <td colSpan="10" style={styles.emptyState}>
                     No deposits found matching your filters
                   </td>
                 </tr>
@@ -501,6 +517,24 @@ export default function ManageCryptoDeposits() {
                             ? deposit.account_number 
                             : 'N/A'}
                         </span>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.cryptoCell}>
+                          {deposit.purpose === 'loan_requirement' ? (
+                            <span style={{...styles.cryptoBadge, backgroundColor: '#fef3c7', color: '#92400e'}}>
+                              💰 Loan Deposit
+                            </span>
+                          ) : (
+                            <span style={{...styles.cryptoBadge, backgroundColor: '#dbeafe', color: '#1e40af'}}>
+                              🏦 General
+                            </span>
+                          )}
+                          {deposit.loan_id && (
+                            <span style={{...styles.networkBadge, fontSize: '10px'}}>
+                              ID: {deposit.loan_id.substring(0, 8)}...
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.cryptoCell}>
@@ -555,7 +589,7 @@ export default function ManageCryptoDeposits() {
                     </tr>
                     {expandedRow === deposit.id && (
                       <tr key={`${deposit.id}-expanded`} style={styles.expandedRow}>
-                        <td colSpan="9" style={styles.expandedCell}>
+                        <td colSpan="10" style={styles.expandedCell}>
                           <div style={styles.expandedContent}>
                             <h4 style={styles.expandedTitle}>Full Deposit Details</h4>
                             <div style={styles.detailsGrid}>

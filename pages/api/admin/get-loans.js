@@ -68,47 +68,65 @@ export default async function handler(req, res) {
       for (const loan of loansRequiringDeposits) {
         const requiredAmount = parseFloat(loan.deposit_required);
         
-        // Check crypto deposits
+        // Check crypto deposits specifically for this loan
         const { data: cryptoDeposits } = await supabaseAdmin
           .from('crypto_deposits')
           .select('*')
-          .eq('user_id', loan.user_id)
+          .eq('loan_id', loan.id)
+          .eq('purpose', 'loan_requirement')
           .in('status', ['confirmed', 'completed'])
           .order('created_at', { ascending: false })
           .limit(1);
 
-        // Check regular transactions (deposits to the loan account)
-        const { data: transactions } = await supabaseAdmin
-          .from('transactions')
+        // Fallback: Check crypto deposits by user without loan_id (legacy)
+        const { data: legacyCryptoDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
           .select('*')
           .eq('user_id', loan.user_id)
-          .eq('account_id', loan.account_id)
-          .eq('type', 'deposit')
-          .eq('status', 'completed')
+          .is('loan_id', null)
+          .in('status', ['confirmed', 'completed'])
           .order('created_at', { ascending: false })
           .limit(1);
 
         const hasCryptoDeposit = cryptoDeposits && cryptoDeposits.length > 0;
-        const hasBankDeposit = transactions && transactions.length > 0;
+        const hasLegacyCryptoDeposit = !hasCryptoDeposit && legacyCryptoDeposits && legacyCryptoDeposits.length > 0;
         
         let depositAmount = 0;
         let isVerified = false;
         let depositType = 'none';
+        let depositStatus = 'none';
         
         if (hasCryptoDeposit) {
           depositAmount = parseFloat(cryptoDeposits[0].amount);
           isVerified = depositAmount >= requiredAmount;
           depositType = 'crypto';
-        } else if (hasBankDeposit) {
-          depositAmount = parseFloat(transactions[0].amount);
+          depositStatus = cryptoDeposits[0].status;
+        } else if (hasLegacyCryptoDeposit) {
+          depositAmount = parseFloat(legacyCryptoDeposits[0].amount);
           isVerified = depositAmount >= requiredAmount;
-          depositType = 'bank';
+          depositType = 'crypto';
+          depositStatus = legacyCryptoDeposits[0].status;
         }
+        
+        // Check if there's a pending deposit for this loan
+        const { data: pendingDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
+          .select('*')
+          .eq('loan_id', loan.id)
+          .eq('purpose', 'loan_requirement')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const hasPendingDeposit = pendingDeposits && pendingDeposits.length > 0;
         
         depositVerificationMap[loan.id] = {
           verified: isVerified,
           amount: depositAmount,
-          type: depositType
+          type: depositType,
+          status: depositStatus,
+          has_pending: hasPendingDeposit,
+          pending_amount: hasPendingDeposit ? parseFloat(pendingDeposits[0].amount) : 0
         };
       }
     }

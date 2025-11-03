@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Deposit not found' });
     }
 
-    if (deposit.status !== 'pending') {
+    if (deposit.status !== 'pending' && deposit.status !== 'awaiting_confirmations') {
       return res.status(400).json({ 
         error: `Deposit has already been ${deposit.status}` 
       });
@@ -40,7 +40,9 @@ export default async function handler(req, res) {
 
     // Fetch treasury account details if it's a loan deposit
     let treasuryAccount = null;
-    if (deposit.purpose === 'loan_requirement' && deposit.loan_id) {
+    const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_id;
+    
+    if (isLoanDeposit) {
       const { data: treasuryData, error: treasuryError } = await supabaseAdmin
         .from('accounts')
         .select('*')
@@ -55,7 +57,6 @@ export default async function handler(req, res) {
     }
 
     // 3. Credit appropriate account based on deposit purpose
-    const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_id;
     const targetAccountId = isLoanDeposit ? treasuryAccount.id : deposit.account_id;
 
     const { data: targetAccount, error: accountError } = await supabaseAdmin
