@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   try {
     // CREATE - Add new wallet
     if (req.method === 'POST') {
-      const { cryptoType, networkType, walletAddress } = req.body;
+      const { cryptoType, networkType, walletAddress, memo } = req.body;
 
       if (!cryptoType || !networkType || !walletAddress) {
         return res.status(400).json({
@@ -20,19 +20,18 @@ export default async function handler(req, res) {
         });
       }
 
-      // Validate crypto and network types - must match database constraints
-      const validCryptoTypes = ['BTC', 'USDT', 'ETH', 'BNB', 'SOL', 'TON'];
-      const validNetworkTypes = ['Bitcoin Mainnet', 'BSC (BEP20)', 'BSC', 'ERC20', 'TRC20', 'SOL', 'TON', 'Arbitrum', 'Base', 'BEP20', 'POLYGON'];
+      // Validate crypto type and network type exist in crypto_assets
+      const { data: cryptoAsset, error: assetError } = await supabaseAdmin
+        .from('crypto_assets')
+        .select('*')
+        .eq('crypto_type', cryptoType)
+        .eq('network_type', networkType)
+        .eq('status', 'active')
+        .single();
 
-      if (!validCryptoTypes.includes(cryptoType)) {
+      if (assetError || !cryptoAsset) {
         return res.status(400).json({
-          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}`
-        });
-      }
-
-      if (!validNetworkTypes.includes(networkType)) {
-        return res.status(400).json({
-          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}`
+          error: `Invalid crypto type or network combination. This asset is not supported or is disabled.`
         });
       }
 
@@ -54,13 +53,20 @@ export default async function handler(req, res) {
         .from('loan_crypto_wallets')
         .insert([{
           admin_id: adminId,
-          crypto_type: cryptoType,
-          network_type: networkType,
+          crypto_asset_id: cryptoAsset.id,
           wallet_address: walletAddress.trim(),
+          memo: memo || null,
           purpose: 'loan_requirement',
           status: 'active'
         }])
-        .select()
+        .select(`
+          *,
+          crypto_assets (
+            crypto_type,
+            symbol,
+            network_type
+          )
+        `)
         .single();
 
       if (insertError) {
@@ -77,7 +83,7 @@ export default async function handler(req, res) {
 
     // UPDATE - Edit existing wallet
     if (req.method === 'PUT') {
-      const { walletId, cryptoType, networkType, walletAddress } = req.body;
+      const { walletId, cryptoType, networkType, walletAddress, memo } = req.body;
 
       if (!walletId) {
         return res.status(400).json({ error: 'Wallet ID is required' });
@@ -89,19 +95,18 @@ export default async function handler(req, res) {
         });
       }
 
-      // Validate crypto and network types - must match database constraints
-      const validCryptoTypes = ['BTC', 'USDT', 'ETH', 'BNB', 'SOL', 'TON'];
-      const validNetworkTypes = ['Bitcoin Mainnet', 'BSC (BEP20)', 'BSC', 'ERC20', 'TRC20', 'SOL', 'TON', 'Arbitrum', 'Base', 'BEP20', 'POLYGON'];
+      // Validate crypto type and network type exist in crypto_assets
+      const { data: cryptoAsset, error: assetError } = await supabaseAdmin
+        .from('crypto_assets')
+        .select('*')
+        .eq('crypto_type', cryptoType)
+        .eq('network_type', networkType)
+        .eq('status', 'active')
+        .single();
 
-      if (!validCryptoTypes.includes(cryptoType)) {
+      if (assetError || !cryptoAsset) {
         return res.status(400).json({
-          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}`
-        });
-      }
-
-      if (!validNetworkTypes.includes(networkType)) {
-        return res.status(400).json({
-          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}`
+          error: `Invalid crypto type or network combination. This asset is not supported or is disabled.`
         });
       }
 
@@ -122,13 +127,20 @@ export default async function handler(req, res) {
       const { data: wallet, error: updateError } = await supabaseAdmin
         .from('loan_crypto_wallets')
         .update({
-          crypto_type: cryptoType,
-          network_type: networkType,
+          crypto_asset_id: cryptoAsset.id,
           wallet_address: walletAddress.trim(),
+          memo: memo || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', walletId)
-        .select()
+        .select(`
+          *,
+          crypto_assets (
+            crypto_type,
+            symbol,
+            network_type
+          )
+        `)
         .single();
 
       if (updateError) {

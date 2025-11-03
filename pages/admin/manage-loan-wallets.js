@@ -12,24 +12,32 @@ export default function ManageLoanWallets() {
   const [editingWallet, setEditingWallet] = useState(null);
   
   const [formData, setFormData] = useState({
-    cryptoType: 'BTC',
-    networkType: 'BTC',
-    walletAddress: ''
+    cryptoType: 'Bitcoin',
+    networkType: 'Bitcoin',
+    walletAddress: '',
+    memo: ''
   });
 
   const [editFormData, setEditFormData] = useState({
     cryptoType: '',
     networkType: '',
-    walletAddress: ''
+    walletAddress: '',
+    memo: ''
   });
 
   const cryptoNetworks = {
-    'BTC': ['Bitcoin Mainnet', 'BSC (BEP20)'],
-    'USDT': ['BSC', 'ERC20', 'TRC20', 'SOL', 'TON'],
-    'ETH': ['ERC20', 'Arbitrum', 'Base'],
-    'BNB': ['BEP20'],
-    'SOL': ['SOL'],
-    'TON': ['TON']
+    'Bitcoin': ['Bitcoin', 'BNB Smart Chain (BEP20)'],
+    'Ethereum': ['Ethereum (ERC20)', 'Arbitrum One', 'Optimism', 'Base'],
+    'Tether USD': ['Ethereum (ERC20)', 'Tron (TRC20)', 'BNB Smart Chain (BEP20)', 'Solana (SOL)', 'Polygon (MATIC)'],
+    'USD Coin': ['Ethereum (ERC20)', 'Solana (SOL)', 'Base', 'Polygon (MATIC)'],
+    'BNB': ['BNB Smart Chain (BEP20)'],
+    'Cardano': ['Cardano'],
+    'Solana': ['Solana (SOL)'],
+    'Polygon': ['Polygon (MATIC)'],
+    'Avalanche': ['Avalanche (C-Chain)'],
+    'Litecoin': ['Litecoin'],
+    'XRP': ['XRP Ledger'],
+    'TON': ['The Open Network (TON)']
   };
 
   useEffect(() => {
@@ -109,7 +117,8 @@ export default function ManageLoanWallets() {
         body: JSON.stringify({
           cryptoType: formData.cryptoType,
           networkType: formData.networkType,
-          walletAddress: formData.walletAddress.trim()
+          walletAddress: formData.walletAddress.trim(),
+          memo: formData.memo.trim() || null
         })
       });
 
@@ -120,9 +129,10 @@ export default function ManageLoanWallets() {
 
       setMessage('✅ Wallet added successfully!');
       setFormData({
-        cryptoType: 'BTC',
-        networkType: 'BTC',
-        walletAddress: ''
+        cryptoType: 'Bitcoin',
+        networkType: 'Bitcoin',
+        walletAddress: '',
+        memo: ''
       });
       await fetchWallets();
 
@@ -138,9 +148,10 @@ export default function ManageLoanWallets() {
   const handleEdit = (wallet) => {
     setEditingWallet(wallet.id);
     setEditFormData({
-      cryptoType: wallet.crypto_type,
-      networkType: wallet.network_type,
-      walletAddress: wallet.wallet_address
+      cryptoType: wallet.crypto_assets?.crypto_type || wallet.crypto_type || '',
+      networkType: wallet.crypto_assets?.network_type || wallet.network_type || '',
+      walletAddress: wallet.wallet_address || '',
+      memo: wallet.memo || ''
     });
   };
 
@@ -149,7 +160,8 @@ export default function ManageLoanWallets() {
     setEditFormData({
       cryptoType: '',
       networkType: '',
-      walletAddress: ''
+      walletAddress: '',
+      memo: ''
     });
   };
 
@@ -179,7 +191,8 @@ export default function ManageLoanWallets() {
           walletId,
           cryptoType: editFormData.cryptoType,
           networkType: editFormData.networkType,
-          walletAddress: editFormData.walletAddress.trim()
+          walletAddress: editFormData.walletAddress.trim(),
+          memo: editFormData.memo.trim() || null
         })
       });
 
@@ -346,6 +359,17 @@ export default function ManageLoanWallets() {
               </div>
 
               <div style={styles.formGroup}>
+                <label style={styles.label}>Memo / Tag (Optional)</label>
+                <input
+                  type="text"
+                  value={formData.memo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                  placeholder="For XRP, TON, etc."
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
                 <button
                   type="submit"
                   disabled={loading}
@@ -368,6 +392,7 @@ export default function ManageLoanWallets() {
                   <th style={styles.th}>Crypto</th>
                   <th style={styles.th}>Network</th>
                   <th style={styles.th}>Wallet Address</th>
+                  <th style={styles.th}>Memo/Tag</th>
                   <th style={styles.th}>Status</th>
                   <th style={styles.th}>Created</th>
                   <th style={styles.th}>Actions</th>
@@ -381,7 +406,12 @@ export default function ManageLoanWallets() {
                     </td>
                   </tr>
                 ) : (
-                  wallets.map(wallet => (
+                  wallets.map(wallet => {
+                    const cryptoType = wallet.crypto_assets?.crypto_type || wallet.crypto_type || 'N/A';
+                    const networkType = wallet.crypto_assets?.network_type || wallet.network_type || 'N/A';
+                    const symbol = wallet.crypto_assets?.symbol || '';
+                    
+                    return (
                     <tr key={wallet.id} style={styles.tableRow}>
                       <td style={styles.td}>
                         {editingWallet === wallet.id ? (
@@ -395,7 +425,7 @@ export default function ManageLoanWallets() {
                             ))}
                           </select>
                         ) : (
-                          <span style={styles.cryptoBadge}>{wallet.crypto_type}</span>
+                          <span style={styles.cryptoBadge}>{cryptoType} {symbol && `(${symbol})`}</span>
                         )}
                       </td>
                       <td style={styles.td}>
@@ -410,7 +440,7 @@ export default function ManageLoanWallets() {
                             ))}
                           </select>
                         ) : (
-                          wallet.network_type
+                          networkType
                         )}
                       </td>
                       <td style={styles.td}>
@@ -423,6 +453,19 @@ export default function ManageLoanWallets() {
                           />
                         ) : (
                           <span style={styles.walletAddress}>{wallet.wallet_address}</span>
+                        )}
+                      </td>
+                      <td style={styles.td}>
+                        {editingWallet === wallet.id ? (
+                          <input
+                            type="text"
+                            value={editFormData.memo}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, memo: e.target.value }))}
+                            style={styles.inputSmall}
+                            placeholder="Optional"
+                          />
+                        ) : (
+                          <span style={{fontSize: '12px', color: '#64748b'}}>{wallet.memo || '-'}</span>
                         )}
                       </td>
                       <td style={styles.td}>
@@ -480,7 +523,8 @@ export default function ManageLoanWallets() {
                         )}
                       </td>
                     </tr>
-                  ))
+                  );
+                  })
                 )}
               </tbody>
             </table>

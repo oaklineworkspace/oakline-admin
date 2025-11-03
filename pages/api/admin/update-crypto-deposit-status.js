@@ -181,26 +181,26 @@ export default async function handler(req, res) {
       }
     }
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: depositUpdateError } = await supabaseAdmin
       .from('crypto_deposits')
       .update(updateData)
       .eq('id', depositId);
 
-    if (updateError) {
-      console.error('Error updating deposit status:', updateError);
-      
+    if (depositUpdateError) {
+      console.error('Error updating deposit status:', depositUpdateError);
+
       if (balanceChanged && newBalance !== null) {
         const { data: account } = await supabaseAdmin
           .from('accounts')
           .select('balance')
           .eq('id', deposit.account_id)
           .single();
-        
+
         if (account) {
-          const originalBalance = newStatus === 'reversed' 
+          const originalBalance = newStatus === 'reversed'
             ? parseFloat(account.balance) + parseFloat(deposit.net_amount || deposit.amount)
             : parseFloat(account.balance) - parseFloat(deposit.net_amount || deposit.amount);
-          
+
           await supabaseAdmin
             .from('accounts')
             .update({ balance: originalBalance })
@@ -216,56 +216,54 @@ export default async function handler(req, res) {
           }
         }
       }
-      
+
       return res.status(500).json({ error: 'Failed to update deposit status. Balance changes have been rolled back.' });
     }
 
-    const auditLogData = {
-      deposit_id: depositId,
-      changed_by: authResult.user.id,
-      old_status: oldStatus,
-      new_status: newStatus,
-      old_confirmations: deposit.confirmations,
-      new_confirmations: deposit.confirmations,
-      old_amount: deposit.amount,
-      new_amount: deposit.amount,
-      old_fee: deposit.fee,
-      new_fee: deposit.fee,
-      old_wallet_address: deposit.wallet_address,
-      new_wallet_address: deposit.wallet_address,
-      note: note || `Status changed from ${oldStatus} to ${newStatus}${reason ? ` - Reason: ${reason}` : ''}`,
-      metadata: {
-        admin_email: authResult.user.email,
-        admin_id: authResult.user.id,
-        timestamp: new Date().toISOString(),
-        reason: reason || null,
-        balance_changed: balanceChanged,
-        new_balance: newBalance,
-        old_approved_by: deposit.approved_by,
-        new_approved_by: updateData.approved_by || deposit.approved_by,
-        old_approved_at: deposit.approved_at,
-        new_approved_at: updateData.approved_at || deposit.approved_at,
-        old_rejected_by: deposit.rejected_by,
-        new_rejected_by: updateData.rejected_by || deposit.rejected_by,
-        old_rejected_at: deposit.rejected_at,
-        new_rejected_at: updateData.rejected_at || deposit.rejected_at,
-        old_completed_at: deposit.completed_at,
-        new_completed_at: updateData.completed_at || deposit.completed_at,
-        old_rejection_reason: deposit.rejection_reason,
-        new_rejection_reason: updateData.rejection_reason || deposit.rejection_reason,
-        old_hold_reason: deposit.hold_reason,
-        new_hold_reason: updateData.hold_reason || deposit.hold_reason,
-        action_type: note ? 'admin_edit' : 'status_change'
-      }
-    };
-
-    const { error: auditError } = await supabaseAdmin
+    // Log the status change in audit logs
+    await supabaseAdmin
       .from('crypto_deposit_audit_logs')
-      .insert(auditLogData);
+      .insert({
+        deposit_id: depositId,
+        changed_by: authResult.user.id,
+        old_status: deposit.status,
+        new_status: newStatus,
+        old_amount: deposit.amount,
+        new_amount: deposit.amount,
+        note: note || `Status changed from ${deposit.status} to ${newStatus}${reason ? ` - Reason: ${reason}` : ''}`,
+        metadata: {
+          admin_email: authResult.user.email,
+          admin_id: authResult.user.id,
+          timestamp: new Date().toISOString(),
+          reason: reason || null,
+          balance_changed: balanceChanged,
+          new_balance: newBalance || null,
+          is_loan_deposit: deposit.purpose === 'loan_requirement',
+          loan_id: deposit.loan_id || null,
+          old_confirmations: deposit.confirmations,
+          new_confirmations: deposit.confirmations,
+          old_fee: deposit.fee,
+          new_fee: deposit.fee,
+          old_wallet_address: deposit.wallet_address,
+          new_wallet_address: deposit.wallet_address,
+          old_approved_by: deposit.approved_by,
+          new_approved_by: updateData.approved_by || deposit.approved_by,
+          old_approved_at: deposit.approved_at,
+          new_approved_at: updateData.approved_at || deposit.approved_at,
+          old_rejected_by: deposit.rejected_by,
+          new_rejected_by: updateData.rejected_by || deposit.rejected_by,
+          old_rejected_at: deposit.rejected_at,
+          new_rejected_at: updateData.rejected_at || deposit.rejected_at,
+          old_completed_at: deposit.completed_at,
+          new_completed_at: updateData.completed_at || deposit.completed_at,
+          old_rejection_reason: deposit.rejection_reason,
+          new_rejection_reason: updateData.rejection_reason || deposit.rejection_reason,
+          old_hold_reason: deposit.hold_reason,
+          new_hold_reason: updateData.hold_reason || deposit.hold_reason,
+          action_type: note ? 'admin_edit' : 'status_change'
+        }
+      });
 
-    if (auditError) {
-      console.error('Error creating audit log:', auditError);
-    }
 
     // Send email notification to user
     const { data: user } = await supabaseAdmin.auth.admin.getUserById(deposit.user_id);
@@ -347,16 +345,16 @@ export default async function handler(req, res) {
                   <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">${emailIcon} Deposit ${newStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h1>
                   <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
                 </div>
-                
+
                 <div style="padding: 40px 32px;">
                   <h2 style="color: ${emailColor}; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
                     ${emailTitle}
                   </h2>
-                  
+
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
                     ${emailMessage}
                   </p>
-                  
+
                   <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 24px 0;">
                     <h3 style="color: #1e293b; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Transaction Details:</h3>
                     <table style="width: 100%; border-collapse: collapse;">
@@ -398,12 +396,12 @@ export default async function handler(req, res) {
                       ` : ''}
                     </table>
                   </div>
-                  
+
                   <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
                     If you have any questions about this transaction, please contact our support team.
                   </p>
                 </div>
-                
+
                 <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                   <p style="color: #718096; font-size: 12px; margin: 0;">
                     © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>

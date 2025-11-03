@@ -115,7 +115,8 @@ export default async function handler(req, res) {
       .update({ 
         status: 'completed',
         approved_by: authResult.user.id,
-        approved_at: new Date().toISOString()
+        approved_at: new Date().toISOString(),
+        completed_at: new Date().toISOString()
       })
       .eq('id', depositId);
 
@@ -123,6 +124,23 @@ export default async function handler(req, res) {
       console.error('Error updating deposit status:', depositUpdateError);
       return res.status(500).json({ error: 'Failed to update deposit status' });
     }
+
+    // Log the approval in audit logs
+    await supabaseAdmin
+      .from('crypto_deposit_audit_logs')
+      .insert({
+        deposit_id: depositId,
+        changed_by: authResult.user.id,
+        old_status: deposit.status,
+        new_status: 'completed',
+        note: `Deposit approved and credited to ${isLoanDeposit ? 'treasury' : 'user account'}`,
+        metadata: {
+          credited_amount: parseFloat(deposit.amount),
+          account_id: targetAccount.id,
+          is_loan_deposit: isLoanDeposit,
+          loan_id: deposit.loan_id || null
+        }
+      });
 
     const transactionType = isLoanDeposit ? 'treasury_credit' : 'crypto_deposit';
     const transactionDescription = isLoanDeposit 
