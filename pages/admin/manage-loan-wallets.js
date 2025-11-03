@@ -40,27 +40,55 @@ export default function ManageLoanWallets() {
     'TON': ['The Open Network (TON)']
   };
 
+  // Fetch available crypto assets from backend on mount
+  const [availableCryptoAssets, setAvailableCryptoAssets] = useState({});
+
   useEffect(() => {
     fetchWallets();
+    fetchCryptoAssets();
   }, []);
 
-  useEffect(() => {
-    if (formData.cryptoType && cryptoNetworks[formData.cryptoType]) {
-      setFormData(prev => ({
-        ...prev,
-        networkType: cryptoNetworks[formData.cryptoType][0]
-      }));
+  const fetchCryptoAssets = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-crypto-assets', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.grouped) {
+          setAvailableCryptoAssets(result.grouped);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching crypto assets:', err);
     }
-  }, [formData.cryptoType]);
+  };
 
   useEffect(() => {
-    if (editFormData.cryptoType && cryptoNetworks[editFormData.cryptoType]) {
-      setEditFormData(prev => ({
+    const networks = availableCryptoAssets[formData.cryptoType] || cryptoNetworks[formData.cryptoType] || [];
+    if (networks.length > 0) {
+      setFormData(prev => ({
         ...prev,
-        networkType: cryptoNetworks[editFormData.cryptoType][0]
+        networkType: networks[0]
       }));
     }
-  }, [editFormData.cryptoType]);
+  }, [formData.cryptoType, availableCryptoAssets]);
+
+  useEffect(() => {
+    const networks = availableCryptoAssets[editFormData.cryptoType] || cryptoNetworks[editFormData.cryptoType] || [];
+    if (networks.length > 0) {
+      setEditFormData(prev => ({
+        ...prev,
+        networkType: networks[0]
+      }));
+    }
+  }, [editFormData.cryptoType, availableCryptoAssets]);
 
   const fetchWallets = async () => {
     try {
@@ -326,9 +354,14 @@ export default function ManageLoanWallets() {
                   style={styles.select}
                   required
                 >
-                  {Object.keys(cryptoNetworks).map(crypto => (
-                    <option key={crypto} value={crypto}>{crypto}</option>
-                  ))}
+                  {Object.keys(availableCryptoAssets).length > 0 
+                    ? Object.keys(availableCryptoAssets).map(crypto => (
+                        <option key={crypto} value={crypto}>{crypto}</option>
+                      ))
+                    : Object.keys(cryptoNetworks).map(crypto => (
+                        <option key={crypto} value={crypto}>{crypto}</option>
+                      ))
+                  }
                 </select>
               </div>
 
@@ -340,7 +373,7 @@ export default function ManageLoanWallets() {
                   style={styles.select}
                   required
                 >
-                  {cryptoNetworks[formData.cryptoType]?.map(network => (
+                  {(availableCryptoAssets[formData.cryptoType] || cryptoNetworks[formData.cryptoType] || []).map(network => (
                     <option key={network} value={network}>{network}</option>
                   ))}
                 </select>
@@ -420,7 +453,10 @@ export default function ManageLoanWallets() {
                             onChange={(e) => setEditFormData(prev => ({ ...prev, cryptoType: e.target.value }))}
                             style={styles.selectSmall}
                           >
-                            {Object.keys(cryptoNetworks).map(crypto => (
+                            {(Object.keys(availableCryptoAssets).length > 0 
+                              ? Object.keys(availableCryptoAssets)
+                              : Object.keys(cryptoNetworks)
+                            ).map(crypto => (
                               <option key={crypto} value={crypto}>{crypto}</option>
                             ))}
                           </select>
@@ -435,7 +471,7 @@ export default function ManageLoanWallets() {
                             onChange={(e) => setEditFormData(prev => ({ ...prev, networkType: e.target.value }))}
                             style={styles.selectSmall}
                           >
-                            {cryptoNetworks[editFormData.cryptoType]?.map(network => (
+                            {(availableCryptoAssets[editFormData.cryptoType] || cryptoNetworks[editFormData.cryptoType] || []).map(network => (
                               <option key={network} value={network}>{network}</option>
                             ))}
                           </select>
