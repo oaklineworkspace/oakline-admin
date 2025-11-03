@@ -103,7 +103,8 @@ export default function AdminPageDropdown() {
         { name: 'Crypto Dashboard', href: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', href: '/admin/manage-crypto-wallets', icon: '🔑' },
         { name: 'Manage Crypto Deposits', href: '/admin/manage-crypto-deposits', icon: '💰' },
-        { name: 'Assign Crypto Wallets', href: '/admin/assign-crypto-wallets', icon: '🔗' }
+        { name: 'Assign Crypto Wallets', href: '/admin/assign-crypto-wallets', icon: '🔗' },
+        { name: 'Manage Crypto Assets', href: '/admin/manage-crypto-assets', icon: '⚙️' }
       ]
     },
     {
