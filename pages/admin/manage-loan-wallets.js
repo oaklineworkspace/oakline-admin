@@ -13,7 +13,7 @@ export default function ManageLoanWallets() {
   
   const [formData, setFormData] = useState({
     cryptoType: 'BTC',
-    networkType: 'Bitcoin Mainnet',
+    networkType: 'BTC',
     walletAddress: ''
   });
 
@@ -24,13 +24,13 @@ export default function ManageLoanWallets() {
   });
 
   const cryptoNetworks = {
-    'BTC': ['Bitcoin Mainnet', 'BSC (BEP20)'],
-    'ETH': ['ERC20', 'Arbitrum', 'Base'],
-    'USDT': ['BSC', 'ERC20', 'TRC20', 'SOL', 'TON'],
+    'BTC': ['BTC', 'BEP20'],
+    'ETH': ['ERC20', 'POLYGON'],
+    'USDT': ['ERC20', 'TRC20', 'BEP20', 'SOLANA'],
     'USDC': ['ERC20', 'BEP20', 'POLYGON', 'SOLANA'],
     'BNB': ['BEP20'],
     'TRX': ['TRC20'],
-    'SOL': ['SOL']
+    'SOL': ['SOLANA']
   };
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function ManageLoanWallets() {
       setMessage('✅ Wallet added successfully!');
       setFormData({
         cryptoType: 'BTC',
-        networkType: 'Bitcoin Mainnet',
+        networkType: 'BTC',
         walletAddress: ''
       });
       await fetchWallets();

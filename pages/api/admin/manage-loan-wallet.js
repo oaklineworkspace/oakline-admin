@@ -21,9 +21,9 @@ export default async function handler(req, res) {
         });
       }
 
-      // Validate crypto and network types
+      // Validate crypto and network types - must match database constraints
       const validCryptoTypes = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'TRX', 'SOL'];
-      const validNetworkTypes = ['Bitcoin Mainnet', 'BSC (BEP20)', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON', 'Arbitrum', 'Base', 'BSC', 'SOL', 'TON'];
+      const validNetworkTypes = ['BTC', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON'];
 
       if (!validCryptoTypes.includes(cryptoType)) {
         return res.status(400).json({ 
@@ -87,6 +87,22 @@ export default async function handler(req, res) {
       if (!cryptoType || !networkType || !walletAddress) {
         return res.status(400).json({ 
           error: 'Missing required fields: cryptoType, networkType, and walletAddress are required' 
+        });
+      }
+
+      // Validate crypto and network types - must match database constraints
+      const validCryptoTypes = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'TRX', 'SOL'];
+      const validNetworkTypes = ['BTC', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON'];
+
+      if (!validCryptoTypes.includes(cryptoType)) {
+        return res.status(400).json({ 
+          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}` 
+        });
+      }
+
+      if (!validNetworkTypes.includes(networkType)) {
+        return res.status(400).json({ 
+          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}` 
         });
       }
 

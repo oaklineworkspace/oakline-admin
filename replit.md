@@ -3,6 +3,12 @@
 ## Overview
 Oakline Bank Admin Panel is a secure, full-stack banking administration platform built with Next.js 14. Its primary purpose is to provide comprehensive administrative functionality for managing users, accounts, transactions, cards, applications, and loans. The platform aims to streamline bank operations, enhance security, and offer robust tools for financial oversight and customer service.
 
+## Recent Changes (November 2025)
+- **Database Constraint Alignment (Nov 3, 2025):** Fixed crypto wallet creation for loan requirements by aligning frontend and API network type values with database CHECK constraints. The `loan_crypto_wallets` table only accepts specific network types: BTC, ERC20, TRC20, BEP20, SOLANA, POLYGON. Updated both POST and PUT handlers to validate before insertion.
+- **Loan Deposit Status Tracking:** Modified to use `loans.deposit_status` database field as single source of truth instead of calculating from crypto_deposits table.
+- **Loan Approval Workflow:** Separated approval action from disbursement - approve button now only sets status to 'approved' without automatically disbursing funds.
+- **Audit Logging:** Added comprehensive audit logging for all loan approval and rejection actions with admin details.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
