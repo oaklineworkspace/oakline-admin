@@ -554,9 +554,13 @@ export default function ManageCryptoDeposits() {
                         </div>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.walletAddress} title={deposit.wallet_address}>
-                          {deposit.wallet_address?.substring(0, 8)}...
-                        </span>
+                        {deposit.wallet_address ? (
+                          <span style={styles.walletAddress} title={deposit.wallet_address}>
+                            {deposit.wallet_address.substring(0, 10)}...{deposit.wallet_address.substring(deposit.wallet_address.length - 6)}
+                          </span>
+                        ) : (
+                          <span style={{...styles.walletAddress, color: '#ef4444'}}>No wallet</span>
+                        )}
                       </td>
                       <td style={styles.td}>{getStatusBadge(deposit.status)}</td>
                       <td style={styles.td}>{formatDate(deposit.created_at)}</td>

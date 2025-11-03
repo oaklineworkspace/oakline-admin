@@ -485,14 +485,20 @@ export default function AdminLoans() {
                         <span style={styles.infoLabel}>Deposit Required:</span>
                         <span style={styles.infoValue}>
                           ${parseFloat(loan.deposit_required).toLocaleString()}
-                          {loan.deposit_info?.verified ? (
-                            <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
-                              ✓ Paid (${parseFloat(loan.deposit_info.amount).toLocaleString()})
-                            </span>
-                          ) : loan.deposit_info?.has_pending ? (
-                            <span style={{...styles.depositBadge, background: '#fef3c7', color: '#92400e', marginLeft: '8px'}}>
-                              ⏳ Pending Review (${parseFloat(loan.deposit_info.pending_amount).toLocaleString()})
-                            </span>
+                          {loan.deposit_info ? (
+                            loan.deposit_info.verified ? (
+                              <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
+                                ✓ Paid (${parseFloat(loan.deposit_info.amount).toLocaleString()})
+                              </span>
+                            ) : loan.deposit_info.has_pending ? (
+                              <span style={{...styles.depositBadge, background: '#fef3c7', color: '#92400e', marginLeft: '8px'}}>
+                                ⏳ Pending Review (${parseFloat(loan.deposit_info.pending_amount).toLocaleString()})
+                              </span>
+                            ) : (
+                              <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
+                                ✗ Not Received
+                              </span>
+                            )
                           ) : (
                             <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
                               ✗ Not Received
@@ -518,19 +524,19 @@ export default function AdminLoans() {
                         }}
                         style={{
                           ...styles.approveButton,
-                          opacity: (loan.deposit_required > 0 && !loan.deposit_info?.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 0.6 : 1,
-                          cursor: (loan.deposit_required > 0 && !loan.deposit_info?.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 'not-allowed' : 'pointer'
+                          opacity: (loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 0.6 : 1,
+                          cursor: (loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 'not-allowed' : 'pointer'
                         }}
                         title={
-                          loan.deposit_required > 0 && !loan.deposit_info?.verified
-                            ? loan.deposit_info?.has_pending
+                          loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified
+                            ? loan.deposit_info.has_pending
                               ? 'Deposit pending admin approval in Manage Crypto Deposits'
                               : `Deposit of $${parseFloat(loan.deposit_required).toLocaleString()} not received`
                             : parseFloat(loan.principal) > treasuryBalance
                               ? 'Insufficient treasury balance'
                               : 'Approve loan'
                         }
-                        disabled={loan.deposit_required > 0 && !loan.deposit_info?.verified || parseFloat(loan.principal) > treasuryBalance}
+                        disabled={(loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified) || parseFloat(loan.principal) > treasuryBalance}
                       >
                         ✅ Approve
                       </button>
@@ -840,7 +846,7 @@ export default function AdminLoans() {
                     </div>
                   )}
                 </div>
-                {loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified && !loanToApprove.deposit_info?.has_pending && (
+                {loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified && !loanToApprove.deposit_info.has_pending && (
                   <div style={{
                     background: '#fef2f2',
                     border: '2px solid #dc2626',
@@ -857,7 +863,7 @@ export default function AdminLoans() {
                     </p>
                   </div>
                 )}
-                {loanToApprove.deposit_required > 0 && loanToApprove.deposit_info?.has_pending && !loanToApprove.deposit_info?.verified && (
+                {loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && loanToApprove.deposit_info.has_pending && !loanToApprove.deposit_info.verified && (
                   <div style={{
                     background: '#fef3c7',
                     border: '2px solid #f59e0b',
@@ -908,7 +914,7 @@ export default function AdminLoans() {
                   onClick={() => handleApprove(loanToApprove.id)}
                   style={styles.approveButton}
                   disabled={
-                    (loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified) ||
+                    (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
                     (parseFloat(loanToApprove.principal) > treasuryBalance) ||
                     !formData.adminPassword
                   }

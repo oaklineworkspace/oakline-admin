@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -59,59 +58,207 @@ export default async function handler(req, res) {
     }, {});
 
     // Fetch deposit information for loans that require deposits
-    const loansRequiringDeposits = loans.filter(loan => 
-      loan.deposit_required && loan.deposit_required > 0
-    );
-
+    const loansData = loans; // Renamed for clarity with the change
     let depositVerificationMap = {};
-    if (loansRequiringDeposits.length > 0) {
-      for (const loan of loansRequiringDeposits) {
-        const isDepositCompleted = loan.deposit_status === 'completed';
-        const depositAmount = parseFloat(loan.deposit_amount || 0);
-        
-        // Check if there's a pending deposit for this loan
-        const { data: pendingDeposits } = await supabaseAdmin
+
+    if (loansData.length > 0) {
+      // For each loan that requires a deposit, check if it's been paid
+      const loansWithDeposits = await Promise.all(loansData.map(async (loan) => {
+        if (!loan.deposit_required || loan.deposit_required <= 0) {
+          return { ...loan, deposit_info: null };
+        }
+
+        const requiredAmount = parseFloat(loan.deposit_required);
+
+        // First check for loan-specific deposits (purpose = 'loan_requirement' and loan_id matches)
+        const { data: loanDeposits } = await supabaseAdmin
           .from('crypto_deposits')
           .select('*')
           .eq('loan_id', loan.id)
           .eq('purpose', 'loan_requirement')
-          .eq('status', 'pending')
+          .in('status', ['confirmed', 'completed'])
           .order('created_at', { ascending: false })
           .limit(1);
 
-        const hasPendingDeposit = pendingDeposits && pendingDeposits.length > 0;
-        
-        depositVerificationMap[loan.id] = {
-          verified: isDepositCompleted,
-          amount: depositAmount,
-          type: loan.deposit_method || 'crypto',
-          status: loan.deposit_status,
-          has_pending: hasPendingDeposit,
-          pending_amount: hasPendingDeposit ? parseFloat(pendingDeposits[0].amount) : 0
+        const hasLoanDeposit = loanDeposits && loanDeposits.length > 0;
+
+        if (hasLoanDeposit) {
+          const depositAmount = parseFloat(loanDeposits[0].amount);
+          // Send email to user about completed crypto deposit
+          if (loanDeposits[0].status === 'completed') {
+            try {
+              await fetch('/api/email/send-deposit-completed-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profileMap[loan.user_id]?.email,
+                  subject: 'Your Crypto Deposit for Loan Requirement is Completed',
+                  text: `Your crypto deposit of ${depositAmount} for your loan requirement has been completed. Deposit ID: ${loanDeposits[0].id}.`,
+                  html: `<p>Your crypto deposit of <strong>${depositAmount}</strong> for your loan requirement has been completed.</p><p>Deposit ID: ${loanDeposits[0].id}</p>`
+                })
+              });
+            } catch (emailError) {
+              console.error('Failed to send deposit completed email:', emailError);
+            }
+          }
+          return {
+            ...loan,
+            deposit_info: {
+              verified: depositAmount >= requiredAmount,
+              amount: depositAmount,
+              type: 'crypto',
+              date: loanDeposits[0].created_at,
+              deposit_id: loanDeposits[0].id
+            }
+          };
+        }
+
+        // Check for general crypto deposits by user
+        const { data: cryptoDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
+          .select('*')
+          .eq('user_id', loan.user_id)
+          .in('status', ['confirmed', 'completed'])
+          .gte('amount', requiredAmount)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const hasCryptoDeposit = cryptoDeposits && cryptoDeposits.length > 0;
+
+        if (hasCryptoDeposit) {
+          const cryptoAmount = parseFloat(cryptoDeposits[0].amount);
+          // Send email to user about completed crypto deposit
+          if (cryptoDeposits[0].status === 'completed') {
+            try {
+              await fetch('/api/email/send-deposit-completed-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profileMap[loan.user_id]?.email,
+                  subject: 'Your Crypto Deposit is Completed',
+                  text: `Your crypto deposit of ${cryptoAmount} has been completed. Deposit ID: ${cryptoDeposits[0].id}.`,
+                  html: `<p>Your crypto deposit of <strong>${cryptoAmount}</strong> has been completed.</p><p>Deposit ID: ${cryptoDeposits[0].id}</p>`
+                })
+              });
+            } catch (emailError) {
+              console.error('Failed to send deposit completed email:', emailError);
+            }
+          }
+          return {
+            ...loan,
+            deposit_info: {
+              verified: true,
+              amount: cryptoAmount,
+              type: 'crypto',
+              date: cryptoDeposits[0].created_at,
+              deposit_id: cryptoDeposits[0].id
+            }
+          };
+        }
+
+        // Check if there's a pending crypto deposit for this loan
+        const { data: pendingLoanDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
+          .select('*')
+          .eq('loan_id', loan.id)
+          .eq('purpose', 'loan_requirement')
+          .in('status', ['pending', 'awaiting_confirmations', 'processing'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const hasPendingLoan = pendingLoanDeposits && pendingLoanDeposits.length > 0;
+
+        if (hasPendingLoan) {
+          return {
+            ...loan,
+            deposit_info: {
+              verified: false,
+              has_pending: true,
+              pending_amount: parseFloat(pendingLoanDeposits[0].amount),
+              amount: 0,
+              type: 'crypto',
+              date: null,
+              deposit_id: pendingLoanDeposits[0].id
+            }
+          };
+        }
+
+        // Check if there's a pending general crypto deposit
+        const { data: pendingDeposits } = await supabaseAdmin
+          .from('crypto_deposits')
+          .select('*')
+          .eq('user_id', loan.user_id)
+          .in('status', ['pending', 'awaiting_confirmations', 'processing'])
+          .gte('amount', requiredAmount)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const hasPending = pendingDeposits && pendingDeposits.length > 0;
+
+        if (hasPending) {
+          return {
+            ...loan,
+            deposit_info: {
+              verified: false,
+              has_pending: true,
+              pending_amount: parseFloat(pendingDeposits[0].amount),
+              amount: 0,
+              type: 'crypto',
+              date: null,
+              deposit_id: pendingDeposits[0].id
+            }
+          };
+        }
+
+        return {
+          ...loan,
+          deposit_info: {
+            verified: false,
+            has_pending: false,
+            amount: 0,
+            type: null,
+            date: null,
+            deposit_id: null
+          }
         };
-      }
+      }));
+
+      // Reconstruct the transformedLoans array to include the updated deposit_info
+      const transformedLoans = loansData.map(loan => {
+        const updatedLoan = loansWithDeposits.find(l => l.id === loan.id);
+        const hasDepositRequirement = loan.deposit_required && loan.deposit_required > 0;
+
+        let deposit_info = updatedLoan?.deposit_info || { verified: true, amount: 0, type: 'none', status: 'not_required' };
+
+        // Ensure a default for loans without deposit requirements or if the fetch failed
+        if (!hasDepositRequirement) {
+          deposit_info = { verified: true, amount: 0, type: 'none', status: 'not_required' };
+        } else if (!updatedLoan) {
+            // Fallback if no deposit info was found for a loan that requires one
+            deposit_info = { verified: false, amount: 0, type: 'none', status: 'pending', has_pending: false };
+        }
+
+
+        return {
+          ...loan,
+          user_email: profileMap[loan.user_id]?.email || 'N/A',
+          account_number: accountMap[loan.account_id]?.account_number || 'N/A',
+          account_type: accountMap[loan.account_id]?.account_type || 'N/A',
+          deposit_info: deposit_info
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        loans: transformedLoans
+      });
+    } else {
+      // If there are no loans, return empty
+      return res.status(200).json({
+        success: true,
+        loans: []
+      });
     }
-
-    // Transform the data to include user email, account info, and deposit verification
-    const transformedLoans = loans.map(loan => {
-      const hasDepositRequirement = loan.deposit_required && loan.deposit_required > 0;
-      const defaultDepositInfo = hasDepositRequirement 
-        ? { verified: loan.deposit_status === 'completed', amount: parseFloat(loan.deposit_amount || 0), type: loan.deposit_method || 'none', status: loan.deposit_status }
-        : { verified: true, amount: 0, type: 'none', status: 'not_required' };
-      
-      return {
-        ...loan,
-        user_email: profileMap[loan.user_id]?.email || 'N/A',
-        account_number: accountMap[loan.account_id]?.account_number || 'N/A',
-        account_type: accountMap[loan.account_id]?.account_type || 'N/A',
-        deposit_info: depositVerificationMap[loan.id] || defaultDepositInfo
-      };
-    });
-
-    return res.status(200).json({
-      success: true,
-      loans: transformedLoans
-    });
 
   } catch (error) {
     console.error('Error in get-loans:', error);

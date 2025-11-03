@@ -358,9 +358,23 @@ export default async function handler(req, res) {
                   <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 24px 0;">
                     <h3 style="color: #1e293b; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Transaction Details:</h3>
                     <table style="width: 100%; border-collapse: collapse;">
+                      ${deposit.purpose === 'loan_requirement' ? `
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Purpose:</td>
+                        <td style="padding: 8px 0; color: #f59e0b; font-size: 14px; font-weight: 600; text-align: right;">Loan Requirement Deposit</td>
+                      </tr>
+                      ` : ''}
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Crypto Type:</td>
                         <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${deposit.crypto_type}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Network:</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${deposit.network_type || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Wallet Address:</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 12px; font-family: monospace; text-align: right; word-break: break-all;">${deposit.wallet_address}</td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Amount:</td>
