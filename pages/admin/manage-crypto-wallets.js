@@ -156,6 +156,13 @@ export default function ManageCryptoWallets() {
     
     if (!walletAddress || !walletAddress.trim()) {
       setError('Please enter a wallet address');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    if (!networkType) {
+      setError('Please select a network type');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
@@ -178,6 +185,7 @@ export default function ManageCryptoWallets() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        setLoading(false);
         throw new Error('No active session');
       }
 
@@ -202,9 +210,16 @@ export default function ManageCryptoWallets() {
       }
 
       setMessage(`✅ Wallet assigned successfully to ${userName}`);
+      
+      // Reset form with proper defaults
+      const firstCrypto = Object.keys(availableCryptoAssets).length > 0 
+        ? Object.keys(availableCryptoAssets)[0] 
+        : 'Bitcoin';
+      const networks = availableCryptoAssets[firstCrypto] || cryptoNetworks[firstCrypto] || [];
+      
       setWalletForm({
-        cryptoType: 'BTC',
-        networkType: 'Bitcoin',
+        cryptoType: firstCrypto,
+        networkType: networks[0] || '',
         walletAddress: ''
       });
       setSelectedUser(null);
@@ -215,6 +230,7 @@ export default function ManageCryptoWallets() {
     } catch (error) {
       console.error('Error assigning wallet:', error);
       setError(`Failed to assign wallet: ${error.message}`);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
     }
@@ -593,7 +609,7 @@ export default function ManageCryptoWallets() {
                               setSelectedUser(user.id);
                               const firstCrypto = Object.keys(availableCryptoAssets).length > 0 
                                 ? Object.keys(availableCryptoAssets)[0] 
-                                : Object.keys(cryptoNetworks)[0];
+                                : 'Bitcoin';
                               const networks = availableCryptoAssets[firstCrypto] || cryptoNetworks[firstCrypto] || [];
                               setWalletForm({
                                 cryptoType: firstCrypto,
@@ -603,6 +619,7 @@ export default function ManageCryptoWallets() {
                             }
                           }}
                           onChange={(e) => {
+                            setSelectedUser(user.id);
                             const networks = availableCryptoAssets[e.target.value] || cryptoNetworks[e.target.value] || [];
                             setWalletForm(prev => ({ 
                               ...prev, 
@@ -629,7 +646,7 @@ export default function ManageCryptoWallets() {
                                 setSelectedUser(user.id);
                                 const firstCrypto = Object.keys(availableCryptoAssets).length > 0 
                                   ? Object.keys(availableCryptoAssets)[0] 
-                                  : Object.keys(cryptoNetworks)[0];
+                                  : 'Bitcoin';
                                 const networks = availableCryptoAssets[firstCrypto] || cryptoNetworks[firstCrypto] || [];
                                 setWalletForm({
                                   cryptoType: firstCrypto,
@@ -639,16 +656,19 @@ export default function ManageCryptoWallets() {
                               }
                             }}
                             onChange={(e) => {
+                              setSelectedUser(user.id);
                               setWalletForm(prev => ({ ...prev, networkType: e.target.value }));
                             }}
                             style={styles.select}
+                            disabled={selectedUser !== user.id}
                           >
-                            {(selectedUser === user.id 
-                              ? (availableCryptoAssets[walletForm.cryptoType] || cryptoNetworks[walletForm.cryptoType] || [])
-                              : []
-                            ).map(network => (
-                              <option key={network} value={network}>{network}</option>
-                            ))}
+                            {selectedUser === user.id ? (
+                              (availableCryptoAssets[walletForm.cryptoType] || cryptoNetworks[walletForm.cryptoType] || []).map(network => (
+                                <option key={network} value={network}>{network}</option>
+                              ))
+                            ) : (
+                              <option value="">Select crypto first</option>
+                            )}
                           </select>
                           {selectedUser === user.id && existingWallets[user.id]?.some(
                             w => w.crypto_type === walletForm.cryptoType && w.network_type === walletForm.networkType
@@ -667,14 +687,19 @@ export default function ManageCryptoWallets() {
                           onFocus={() => {
                             if (selectedUser !== user.id) {
                               setSelectedUser(user.id);
+                              const firstCrypto = Object.keys(availableCryptoAssets).length > 0 
+                                ? Object.keys(availableCryptoAssets)[0] 
+                                : 'Bitcoin';
+                              const networks = availableCryptoAssets[firstCrypto] || cryptoNetworks[firstCrypto] || [];
                               setWalletForm({
-                                cryptoType: 'BTC',
-                                networkType: cryptoNetworks['BTC'][0],
+                                cryptoType: firstCrypto,
+                                networkType: networks[0] || '',
                                 walletAddress: ''
                               });
                             }
                           }}
                           onChange={(e) => {
+                            setSelectedUser(user.id);
                             setWalletForm(prev => ({ ...prev, walletAddress: e.target.value }));
                           }}
                           style={styles.input}
