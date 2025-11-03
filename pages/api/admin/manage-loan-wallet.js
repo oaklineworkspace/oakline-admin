@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -16,24 +15,24 @@ export default async function handler(req, res) {
       const { cryptoType, networkType, walletAddress } = req.body;
 
       if (!cryptoType || !networkType || !walletAddress) {
-        return res.status(400).json({ 
-          error: 'Missing required fields: cryptoType, networkType, and walletAddress are required' 
+        return res.status(400).json({
+          error: 'Missing required fields: cryptoType, networkType, and walletAddress are required'
         });
       }
 
       // Validate crypto and network types - must match database constraints
-      const validCryptoTypes = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'TRX', 'SOL'];
-      const validNetworkTypes = ['BTC', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON'];
+      const validCryptoTypes = ['BTC', 'USDT', 'ETH', 'BNB', 'SOL', 'TON'];
+      const validNetworkTypes = ['Bitcoin Mainnet', 'BSC (BEP20)', 'BSC', 'ERC20', 'TRC20', 'SOL', 'TON', 'Arbitrum', 'Base', 'BEP20', 'POLYGON'];
 
       if (!validCryptoTypes.includes(cryptoType)) {
-        return res.status(400).json({ 
-          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}` 
+        return res.status(400).json({
+          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}`
         });
       }
 
       if (!validNetworkTypes.includes(networkType)) {
-        return res.status(400).json({ 
-          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}` 
+        return res.status(400).json({
+          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}`
         });
       }
 
@@ -45,8 +44,8 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (existing) {
-        return res.status(400).json({ 
-          error: 'This wallet address already exists in the system' 
+        return res.status(400).json({
+          error: 'This wallet address already exists in the system'
         });
       }
 
@@ -69,10 +68,10 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to create wallet' });
       }
 
-      return res.status(201).json({ 
-        success: true, 
+      return res.status(201).json({
+        success: true,
         message: 'Wallet added successfully',
-        wallet 
+        wallet
       });
     }
 
@@ -85,24 +84,24 @@ export default async function handler(req, res) {
       }
 
       if (!cryptoType || !networkType || !walletAddress) {
-        return res.status(400).json({ 
-          error: 'Missing required fields: cryptoType, networkType, and walletAddress are required' 
+        return res.status(400).json({
+          error: 'Missing required fields: cryptoType, networkType, and walletAddress are required'
         });
       }
 
       // Validate crypto and network types - must match database constraints
-      const validCryptoTypes = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'TRX', 'SOL'];
-      const validNetworkTypes = ['BTC', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON'];
+      const validCryptoTypes = ['BTC', 'USDT', 'ETH', 'BNB', 'SOL', 'TON'];
+      const validNetworkTypes = ['Bitcoin Mainnet', 'BSC (BEP20)', 'BSC', 'ERC20', 'TRC20', 'SOL', 'TON', 'Arbitrum', 'Base', 'BEP20', 'POLYGON'];
 
       if (!validCryptoTypes.includes(cryptoType)) {
-        return res.status(400).json({ 
-          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}` 
+        return res.status(400).json({
+          error: `Invalid crypto type. Must be one of: ${validCryptoTypes.join(', ')}`
         });
       }
 
       if (!validNetworkTypes.includes(networkType)) {
-        return res.status(400).json({ 
-          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}` 
+        return res.status(400).json({
+          error: `Invalid network type. Must be one of: ${validNetworkTypes.join(', ')}`
         });
       }
 
@@ -115,8 +114,8 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (existing) {
-        return res.status(400).json({ 
-          error: 'This wallet address already exists in the system' 
+        return res.status(400).json({
+          error: 'This wallet address already exists in the system'
         });
       }
 
@@ -137,10 +136,10 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to update wallet' });
       }
 
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: 'Wallet updated successfully',
-        wallet 
+        wallet
       });
     }
 
@@ -171,10 +170,10 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to update wallet status' });
       }
 
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: `Wallet ${status === 'active' ? 'activated' : 'deactivated'} successfully`,
-        wallet 
+        wallet
       });
     }
 
@@ -199,8 +198,8 @@ export default async function handler(req, res) {
       }
 
       if (deposits && deposits.length > 0) {
-        return res.status(400).json({ 
-          error: 'Cannot delete wallet that has associated deposits. Consider deactivating it instead.' 
+        return res.status(400).json({
+          error: 'Cannot delete wallet that has associated deposits. Consider deactivating it instead.'
         });
       }
 
@@ -214,8 +213,8 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to delete wallet' });
       }
 
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: 'Wallet deleted successfully'
       });
     }
@@ -224,9 +223,9 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error in manage-loan-wallet API:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Internal server error',
-      details: error.message 
+      details: error.message
     });
   }
 }
