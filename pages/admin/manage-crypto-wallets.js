@@ -24,19 +24,27 @@ export default function ManageCryptoWallets() {
     networkType: '',
     walletAddress: ''
   });
+  const [availableCryptoAssets, setAvailableCryptoAssets] = useState({});
 
   const cryptoNetworks = {
-    'BTC': ['Bitcoin Mainnet', 'BSC (BEP20)'],
-    'USDT': ['BSC', 'ERC20', 'TRC20', 'SOL', 'TON'],
-    'ETH': ['ERC20', 'Arbitrum', 'Base'],
-    'BNB': ['BEP20'],
-    'SOL': ['SOL'],
-    'TON': ['TON']
+    'Bitcoin': ['Bitcoin', 'BNB Smart Chain (BEP20)'],
+    'Tether USD': ['BNB Smart Chain (BEP20)', 'Ethereum (ERC20)', 'Tron (TRC20)', 'Solana (SOL)', 'The Open Network (TON)'],
+    'Ethereum': ['Ethereum (ERC20)', 'Arbitrum One', 'Optimism', 'Base'],
+    'BNB': ['BNB Smart Chain (BEP20)'],
+    'Solana': ['Solana (SOL)'],
+    'TON': ['The Open Network (TON)'],
+    'USD Coin': ['BNB Smart Chain (BEP20)', 'Ethereum (ERC20)', 'Solana (SOL)', 'Polygon (MATIC)', 'Avalanche (C-Chain)'],
+    'Cardano': ['Cardano'],
+    'Polygon': ['Polygon (MATIC)'],
+    'Avalanche': ['Avalanche (C-Chain)'],
+    'Litecoin': ['Litecoin'],
+    'XRP': ['XRP Ledger']
   };
 
   useEffect(() => {
     fetchUsers();
     fetchExistingWallets();
+    fetchCryptoAssets();
   }, []);
 
   useEffect(() => {
@@ -53,22 +61,24 @@ export default function ManageCryptoWallets() {
   }, [searchTerm, users]);
 
   useEffect(() => {
-    if (walletForm.cryptoType && cryptoNetworks[walletForm.cryptoType]) {
+    const networks = availableCryptoAssets[walletForm.cryptoType] || cryptoNetworks[walletForm.cryptoType] || [];
+    if (networks.length > 0) {
       setWalletForm(prev => ({
         ...prev,
-        networkType: cryptoNetworks[walletForm.cryptoType][0] || ''
+        networkType: networks[0]
       }));
     }
-  }, [walletForm.cryptoType]);
+  }, [walletForm.cryptoType, availableCryptoAssets]);
 
   useEffect(() => {
-    if (editForm.cryptoType && cryptoNetworks[editForm.cryptoType]) {
+    const networks = availableCryptoAssets[editForm.cryptoType] || cryptoNetworks[editForm.cryptoType] || [];
+    if (networks.length > 0) {
       setEditForm(prev => ({
         ...prev,
-        networkType: cryptoNetworks[editForm.cryptoType][0] || ''
+        networkType: networks[0]
       }));
     }
-  }, [editForm.cryptoType]);
+  }, [editForm.cryptoType, availableCryptoAssets]);
 
   const fetchUsers = async () => {
     try {
@@ -89,6 +99,28 @@ export default function ManageCryptoWallets() {
       setError(`Failed to fetch users: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCryptoAssets = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-crypto-assets', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.grouped) {
+          setAvailableCryptoAssets(result.grouped);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching crypto assets:', err);
     }
   };
 
@@ -403,7 +435,10 @@ export default function ManageCryptoWallets() {
                               }))}
                               style={styles.select}
                             >
-                              {Object.keys(cryptoNetworks).map(crypto => (
+                              {(Object.keys(availableCryptoAssets).length > 0 
+                                ? Object.keys(availableCryptoAssets)
+                                : Object.keys(cryptoNetworks)
+                              ).map(crypto => (
                                 <option key={crypto} value={crypto}>{crypto}</option>
                               ))}
                             </select>
@@ -421,7 +456,7 @@ export default function ManageCryptoWallets() {
                               }))}
                               style={styles.select}
                             >
-                              {cryptoNetworks[editForm.cryptoType]?.map(network => (
+                              {(availableCryptoAssets[editForm.cryptoType] || cryptoNetworks[editForm.cryptoType] || []).map(network => (
                                 <option key={network} value={network}>{network}</option>
                               ))}
                             </select>
@@ -552,27 +587,35 @@ export default function ManageCryptoWallets() {
                       </td>
                       <td style={styles.td}>
                         <select
-                          value={selectedUser === user.id ? walletForm.cryptoType : 'BTC'}
+                          value={selectedUser === user.id ? walletForm.cryptoType : (Object.keys(availableCryptoAssets).length > 0 ? Object.keys(availableCryptoAssets)[0] : 'Bitcoin')}
                           onFocus={() => {
                             if (selectedUser !== user.id) {
                               setSelectedUser(user.id);
+                              const firstCrypto = Object.keys(availableCryptoAssets).length > 0 
+                                ? Object.keys(availableCryptoAssets)[0] 
+                                : Object.keys(cryptoNetworks)[0];
+                              const networks = availableCryptoAssets[firstCrypto] || cryptoNetworks[firstCrypto] || [];
                               setWalletForm({
-                                cryptoType: 'BTC',
-                                networkType: cryptoNetworks['BTC'][0],
+                                cryptoType: firstCrypto,
+                                networkType: networks[0] || '',
                                 walletAddress: ''
                               });
                             }
                           }}
                           onChange={(e) => {
+                            const networks = availableCryptoAssets[e.target.value] || cryptoNetworks[e.target.value] || [];
                             setWalletForm(prev => ({ 
                               ...prev, 
                               cryptoType: e.target.value,
-                              networkType: cryptoNetworks[e.target.value][0]
+                              networkType: networks[0] || ''
                             }));
                           }}
                           style={styles.select}
                         >
-                          {Object.keys(cryptoNetworks).map(crypto => (
+                          {(Object.keys(availableCryptoAssets).length > 0 
+                            ? Object.keys(availableCryptoAssets)
+                            : Object.keys(cryptoNetworks)
+                          ).map(crypto => (
                             <option key={crypto} value={crypto}>{crypto}</option>
                           ))}
                         </select>
@@ -580,13 +623,17 @@ export default function ManageCryptoWallets() {
                       <td style={styles.td}>
                         <div>
                           <select
-                            value={selectedUser === user.id && walletForm.networkType ? walletForm.networkType : (selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType][0] : '')}
+                            value={selectedUser === user.id && walletForm.networkType ? walletForm.networkType : ''}
                             onFocus={() => {
                               if (selectedUser !== user.id) {
                                 setSelectedUser(user.id);
+                                const firstCrypto = Object.keys(availableCryptoAssets).length > 0 
+                                  ? Object.keys(availableCryptoAssets)[0] 
+                                  : Object.keys(cryptoNetworks)[0];
+                                const networks = availableCryptoAssets[firstCrypto] || cryptoNetworks[firstCrypto] || [];
                                 setWalletForm({
-                                  cryptoType: 'BTC',
-                                  networkType: cryptoNetworks['BTC'][0],
+                                  cryptoType: firstCrypto,
+                                  networkType: networks[0] || '',
                                   walletAddress: ''
                                 });
                               }
@@ -596,7 +643,10 @@ export default function ManageCryptoWallets() {
                             }}
                             style={styles.select}
                           >
-                            {(selectedUser === user.id ? cryptoNetworks[walletForm.cryptoType] : cryptoNetworks['BTC']).map(network => (
+                            {(selectedUser === user.id 
+                              ? (availableCryptoAssets[walletForm.cryptoType] || cryptoNetworks[walletForm.cryptoType] || [])
+                              : []
+                            ).map(network => (
                               <option key={network} value={network}>{network}</option>
                             ))}
                           </select>
