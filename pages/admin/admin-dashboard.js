@@ -184,7 +184,13 @@ export default function AdminDashboard() {
               <Link href="/admin/manage-loan-wallets" style={styles.adminPageCard}>
                 <div style={styles.cardIcon}>🏦</div>
                 <h3 style={styles.cardTitle}>Manage Loan Wallets</h3>
-                <p style={styles.cardDescription}>Manage loan crypto deposit wallets</p>
+                <p style={styles.cardDescription}>Manage loan crypto wallets</p>
+              </Link>
+
+              <Link href="/admin/manage-crypto-assets" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>⚙️</div>
+                <h3 style={styles.cardTitle}>Manage Crypto Assets</h3>
+                <p style={styles.cardDescription}>Configure crypto types & networks</p>
               </Link>
             </div>
 
