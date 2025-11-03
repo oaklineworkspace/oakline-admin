@@ -13,7 +13,7 @@ export default function ManageLoanWallets() {
   
   const [formData, setFormData] = useState({
     cryptoType: 'BTC',
-    networkType: 'BTC',
+    networkType: 'Bitcoin Mainnet',
     walletAddress: ''
   });
 
@@ -122,7 +122,7 @@ export default function ManageLoanWallets() {
       setMessage('✅ Wallet added successfully!');
       setFormData({
         cryptoType: 'BTC',
-        networkType: 'BTC',
+        networkType: 'Bitcoin Mainnet',
         walletAddress: ''
       });
       await fetchWallets();
