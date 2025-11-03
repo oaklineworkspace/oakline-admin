@@ -26,7 +26,18 @@ export default async function handler(req, res) {
 
     const { data: deposit, error: depositError } = await supabaseAdmin
       .from('crypto_deposits')
-      .select('*')
+      .select(`
+        *,
+        crypto_asset:crypto_asset_id (
+          crypto_type,
+          network_type,
+          symbol
+        ),
+        loan_wallet:loan_wallet_id (
+          wallet_address,
+          memo
+        )
+      `)
       .eq('id', depositId)
       .single();
 
@@ -34,6 +45,12 @@ export default async function handler(req, res) {
       console.error('Error fetching deposit:', depositError);
       return res.status(404).json({ error: 'Deposit not found' });
     }
+
+    // Flatten the crypto asset and wallet data for easier access
+    const cryptoType = deposit.crypto_asset?.crypto_type || 'Unknown';
+    const networkType = deposit.crypto_asset?.network_type || 'N/A';
+    const walletAddress = deposit.loan_wallet?.wallet_address || 'N/A';
+    const walletMemo = deposit.loan_wallet?.memo;
 
     const oldStatus = deposit.status;
     let newBalance = null;
@@ -65,30 +82,41 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to credit account balance. Deposit status not changed.' });
       }
 
-      // Create transaction record
-      const { error: transactionError } = await supabaseAdmin
+      // Check if transaction already exists
+      const txReference = deposit.tx_hash || deposit.id;
+      const { data: existingTx } = await supabaseAdmin
         .from('transactions')
-        .insert({
-          user_id: deposit.user_id,
-          account_id: deposit.account_id,
-          type: 'deposit',
-          amount: depositAmount,
-          status: 'completed',
-          description: 'Crypto deposit approved',
-          balance_before: balanceBefore,
-          balance_after: newBalance,
-          reference: deposit.transaction_hash || deposit.id,
-          created_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('reference', txReference)
+        .eq('account_id', deposit.account_id)
+        .single();
 
-      if (transactionError) {
-        console.error('Error creating transaction record:', transactionError);
-        // Rollback balance update
-        await supabaseAdmin
-          .from('accounts')
-          .update({ balance: balanceBefore })
-          .eq('id', account.id);
-        return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
+      if (!existingTx) {
+        // Create transaction record only if it doesn't exist
+        const { error: transactionError } = await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: deposit.user_id,
+            account_id: deposit.account_id,
+            type: 'deposit',
+            amount: depositAmount,
+            status: 'completed',
+            description: 'Crypto deposit approved',
+            balance_before: balanceBefore,
+            balance_after: newBalance,
+            reference: txReference,
+            created_at: new Date().toISOString()
+          });
+
+        if (transactionError) {
+          console.error('Error creating transaction record:', transactionError);
+          // Rollback balance update
+          await supabaseAdmin
+            .from('accounts')
+            .update({ balance: balanceBefore })
+            .eq('id', account.id);
+          return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
+        }
       }
 
       balanceChanged = true;
@@ -124,30 +152,41 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to deduct account balance. Deposit status not changed.' });
       }
 
-      // Create reversal transaction record
-      const { error: transactionError } = await supabaseAdmin
+      // Check if reversal transaction already exists
+      const reversalRef = `reversal-${deposit.tx_hash || deposit.id}`;
+      const { data: existingReversalTx } = await supabaseAdmin
         .from('transactions')
-        .insert({
-          user_id: deposit.user_id,
-          account_id: deposit.account_id,
-          type: 'withdrawal',
-          amount: depositAmount,
-          status: 'reversed',
-          description: `Crypto deposit reversed${reason ? ': ' + reason : ''}`,
-          balance_before: balanceBefore,
-          balance_after: newBalance,
-          reference: deposit.transaction_hash || deposit.id,
-          created_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('reference', reversalRef)
+        .eq('account_id', deposit.account_id)
+        .single();
 
-      if (transactionError) {
-        console.error('Error creating reversal transaction record:', transactionError);
-        // Rollback balance update
-        await supabaseAdmin
-          .from('accounts')
-          .update({ balance: balanceBefore })
-          .eq('id', account.id);
-        return res.status(500).json({ error: 'Failed to create reversal transaction record. Balance changes have been rolled back.' });
+      if (!existingReversalTx) {
+        // Create reversal transaction record only if it doesn't exist
+        const { error: transactionError } = await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: deposit.user_id,
+            account_id: deposit.account_id,
+            type: 'withdrawal',
+            amount: depositAmount,
+            status: 'reversed',
+            description: `Crypto deposit reversed${reason ? ': ' + reason : ''}`,
+            balance_before: balanceBefore,
+            balance_after: newBalance,
+            reference: reversalRef,
+            created_at: new Date().toISOString()
+          });
+
+        if (transactionError) {
+          console.error('Error creating reversal transaction record:', transactionError);
+          // Rollback balance update
+          await supabaseAdmin
+            .from('accounts')
+            .update({ balance: balanceBefore })
+            .eq('id', account.id);
+          return res.status(500).json({ error: 'Failed to create reversal transaction record. Balance changes have been rolled back.' });
+        }
       }
 
       balanceChanged = true;
@@ -279,53 +318,53 @@ export default async function handler(req, res) {
         switch (newStatus) {
           case 'confirmed':
           case 'completed':
-            emailSubject = `✅ Crypto Deposit ${newStatus === 'completed' ? 'Completed' : 'Confirmed'} - ${deposit.crypto_type}`;
+            emailSubject = `✅ Crypto Deposit ${newStatus === 'completed' ? 'Completed' : 'Confirmed'} - ${cryptoType}`;
             emailColor = '#10b981';
             emailIcon = '✅';
-            emailTitle = `Your ${deposit.crypto_type} deposit has been ${newStatus}!`;
+            emailTitle = `Your ${cryptoType} deposit has been ${newStatus}!`;
             emailMessage = `Good news! Your cryptocurrency deposit has been successfully processed and ${balanceChanged ? 'credited to your account' : 'confirmed'}.`;
             break;
           case 'rejected':
           case 'failed':
-            emailSubject = `❌ Crypto Deposit ${newStatus === 'rejected' ? 'Rejected' : 'Failed'} - ${deposit.crypto_type}`;
+            emailSubject = `❌ Crypto Deposit ${newStatus === 'rejected' ? 'Rejected' : 'Failed'} - ${cryptoType}`;
             emailColor = '#dc2626';
             emailIcon = '❌';
-            emailTitle = `Your ${deposit.crypto_type} deposit could not be processed`;
+            emailTitle = `Your ${cryptoType} deposit could not be processed`;
             emailMessage = `We regret to inform you that your cryptocurrency deposit has been ${newStatus}.`;
             break;
           case 'reversed':
-            emailSubject = `⚠️ Crypto Deposit Reversed - ${deposit.crypto_type}`;
+            emailSubject = `⚠️ Crypto Deposit Reversed - ${cryptoType}`;
             emailColor = '#f59e0b';
             emailIcon = '⚠️';
-            emailTitle = `Your ${deposit.crypto_type} deposit has been reversed`;
+            emailTitle = `Your ${cryptoType} deposit has been reversed`;
             emailMessage = 'Your cryptocurrency deposit has been reversed and the funds have been deducted from your account.';
             break;
           case 'on_hold':
-            emailSubject = `⏸️ Crypto Deposit On Hold - ${deposit.crypto_type}`;
+            emailSubject = `⏸️ Crypto Deposit On Hold - ${cryptoType}`;
             emailColor = '#f59e0b';
             emailIcon = '⏸️';
-            emailTitle = `Your ${deposit.crypto_type} deposit is on hold`;
+            emailTitle = `Your ${cryptoType} deposit is on hold`;
             emailMessage = 'Your cryptocurrency deposit is currently on hold and under review.';
             break;
           case 'processing':
-            emailSubject = `⏳ Crypto Deposit Processing - ${deposit.crypto_type}`;
+            emailSubject = `⏳ Crypto Deposit Processing - ${cryptoType}`;
             emailColor = '#3b82f6';
             emailIcon = '⏳';
-            emailTitle = `Your ${deposit.crypto_type} deposit is being processed`;
+            emailTitle = `Your ${cryptoType} deposit is being processed`;
             emailMessage = 'Your cryptocurrency deposit is currently being processed.';
             break;
           case 'awaiting_confirmations':
-            emailSubject = `⏳ Crypto Deposit Awaiting Confirmations - ${deposit.crypto_type}`;
+            emailSubject = `⏳ Crypto Deposit Awaiting Confirmations - ${cryptoType}`;
             emailColor = '#f59e0b';
             emailIcon = '⏳';
-            emailTitle = `Your ${deposit.crypto_type} deposit is awaiting confirmations`;
+            emailTitle = `Your ${cryptoType} deposit is awaiting confirmations`;
             emailMessage = 'Your cryptocurrency deposit is awaiting blockchain confirmations.';
             break;
           default:
-            emailSubject = `📝 Crypto Deposit Status Update - ${deposit.crypto_type}`;
+            emailSubject = `📝 Crypto Deposit Status Update - ${cryptoType}`;
             emailColor = '#64748b';
             emailIcon = '📝';
-            emailTitle = `Your ${deposit.crypto_type} deposit status has been updated`;
+            emailTitle = `Your ${cryptoType} deposit status has been updated`;
             emailMessage = `Your cryptocurrency deposit status has been changed to ${newStatus}.`;
         }
 
@@ -366,16 +405,22 @@ export default async function handler(req, res) {
                       ` : ''}
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Crypto Type:</td>
-                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${deposit.crypto_type}</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${cryptoType}</td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Network:</td>
-                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${deposit.network_type || 'N/A'}</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${networkType}</td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Wallet Address:</td>
-                        <td style="padding: 8px 0; color: #1e293b; font-size: 12px; font-family: monospace; text-align: right; word-break: break-all;">${deposit.wallet_address}</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 12px; font-family: monospace; text-align: right; word-break: break-all;">${walletAddress}</td>
                       </tr>
+                      ${walletMemo ? `
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Memo:</td>
+                        <td style="padding: 8px 0; color: #1e293b; font-size: 12px; font-family: monospace; text-align: right; word-break: break-all;">${walletMemo}</td>
+                      </tr>
+                      ` : ''}
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Amount:</td>
                         <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">$${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
