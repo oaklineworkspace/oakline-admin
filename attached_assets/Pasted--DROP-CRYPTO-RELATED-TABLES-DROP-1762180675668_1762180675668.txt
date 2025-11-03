@@ -1,0 +1,210 @@
+-- =============================
+-- DROP CRYPTO-RELATED TABLES
+-- =============================
+DROP TABLE IF EXISTS public.crypto_deposit_audit_logs CASCADE;
+DROP TABLE IF EXISTS public.crypto_deposits CASCADE;
+DROP TABLE IF EXISTS public.loan_crypto_wallets CASCADE;
+DROP TABLE IF EXISTS public.admin_assigned_wallets CASCADE;
+DROP TABLE IF EXISTS public.crypto_assets CASCADE;
+
+-- =============================
+-- RECREATE CRYPTO ASSETS TABLE
+-- =============================
+CREATE TABLE IF NOT EXISTS public.crypto_assets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  crypto_type text NOT NULL CHECK (crypto_type = ANY (ARRAY[
+    'Bitcoin','Ethereum','Tether USD','USD Coin','BNB','Cardano','Solana','Polygon','Avalanche','Litecoin','XRP','TON'
+  ])),
+  symbol text NOT NULL,
+  network_type text NOT NULL CHECK (network_type = ANY (ARRAY[
+    'Bitcoin',
+    'BNB Smart Chain (BEP20)',
+    'Ethereum (ERC20)',
+    'Arbitrum One',
+    'Optimism',
+    'Base',
+    'Tron (TRC20)',
+    'Solana (SOL)',
+    'Polygon (MATIC)',
+    'Avalanche (C-Chain)',
+    'Litecoin',
+    'XRP Ledger',
+    'The Open Network (TON)',
+    'Cardano'           -- added
+  ])),
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active','disabled'])),
+  is_stablecoin boolean DEFAULT false,
+  decimals integer DEFAULT 8,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT crypto_assets_pkey PRIMARY KEY (id),
+  CONSTRAINT crypto_assets_unique UNIQUE (crypto_type, symbol, network_type)
+);
+
+-- =============================
+-- RECREATE LOAN CRYPTO WALLETS
+-- =============================
+CREATE TABLE IF NOT EXISTS public.loan_crypto_wallets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  admin_id uuid,
+  crypto_asset_id uuid,
+  wallet_address text NOT NULL UNIQUE,
+  memo text, -- for networks that require destination tags / memos
+  purpose text DEFAULT 'loan_requirement'::text CHECK (purpose = ANY (ARRAY['loan_requirement','general_deposit'])),
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active','inactive','archived'])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT loan_crypto_wallets_pkey PRIMARY KEY (id),
+  CONSTRAINT loan_crypto_wallets_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id),
+  CONSTRAINT loan_crypto_wallets_crypto_asset_id_fkey FOREIGN KEY (crypto_asset_id) REFERENCES public.crypto_assets(id)
+);
+
+-- =============================
+-- RECREATE ADMIN ASSIGNED WALLETS
+-- =============================
+CREATE TABLE IF NOT EXISTS public.admin_assigned_wallets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  admin_id uuid,
+  user_id uuid,
+  crypto_type text NOT NULL CHECK (crypto_type = ANY (ARRAY[
+    'Bitcoin','Ethereum','Tether USD','USD Coin','BNB','Cardano','Solana','Polygon','Avalanche','Litecoin','XRP','TON'
+  ])),
+  network_type text NOT NULL CHECK (network_type = ANY (ARRAY[
+    'Bitcoin',
+    'BNB Smart Chain (BEP20)',
+    'Ethereum (ERC20)',
+    'Arbitrum One',
+    'Optimism',
+    'Base',
+    'Tron (TRC20)',
+    'Solana (SOL)',
+    'Polygon (MATIC)',
+    'Avalanche (C-Chain)',
+    'Litecoin',
+    'XRP Ledger',
+    'The Open Network (TON)',
+    'Cardano'           -- added
+  ])),
+  wallet_address text NOT NULL,
+  memo text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_assigned_wallets_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_assigned_wallets_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id),
+  CONSTRAINT admin_assigned_wallets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+
+-- =============================
+-- RECREATE CRYPTO DEPOSITS
+-- =============================
+CREATE TABLE IF NOT EXISTS public.crypto_deposits (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  account_id uuid,
+  crypto_asset_id uuid,
+  loan_wallet_id uuid,
+  amount numeric DEFAULT 0 CHECK (amount >= 0),
+  approved_amount numeric DEFAULT 0 CHECK (approved_amount >= 0),
+  status text DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending','on_hold','awaiting_confirmations','confirmed','processing','completed','failed','reversed'])),
+  confirmations integer DEFAULT 0 CHECK (confirmations >= 0),
+  required_confirmations integer DEFAULT 3 CHECK (required_confirmations >= 0),
+  tx_hash text UNIQUE,
+  memo text,
+  purpose text DEFAULT 'general_deposit' CHECK (purpose = ANY (ARRAY['general_deposit','loan_requirement'])),
+  fee numeric DEFAULT 0 CHECK (fee >= 0),
+  net_amount numeric GENERATED ALWAYS AS (amount - fee) STORED,
+  hold_reason text,
+  rejection_reason text,
+  approved_by uuid,
+  rejected_by uuid,
+  approved_at timestamp with time zone,
+  rejected_at timestamp with time zone,
+  completed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT crypto_deposits_pkey PRIMARY KEY (id),
+  CONSTRAINT crypto_deposits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT crypto_deposits_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id),
+  CONSTRAINT crypto_deposits_crypto_asset_id_fkey FOREIGN KEY (crypto_asset_id) REFERENCES public.crypto_assets(id),
+  CONSTRAINT crypto_deposits_loan_wallet_id_fkey FOREIGN KEY (loan_wallet_id) REFERENCES public.loan_crypto_wallets(id),
+  CONSTRAINT crypto_deposits_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id),
+  CONSTRAINT crypto_deposits_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES auth.users(id)
+);
+
+-- =============================
+-- RECREATE CRYPTO DEPOSIT AUDIT LOGS
+-- =============================
+CREATE TABLE IF NOT EXISTS public.crypto_deposit_audit_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  deposit_id uuid,
+  changed_by uuid,
+  old_status text,
+  new_status text,
+  old_amount numeric,
+  new_amount numeric,
+  old_confirmations integer,
+  new_confirmations integer,
+  old_wallet_address text,
+  new_wallet_address text,
+  old_memo text,
+  new_memo text,
+  note text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT crypto_deposit_audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT crypto_deposit_audit_logs_deposit_id_fkey FOREIGN KEY (deposit_id) REFERENCES public.crypto_deposits(id),
+  CONSTRAINT crypto_deposit_audit_logs_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES auth.users(id)
+);
+
+-- =============================
+-- SEED STANDARD CRYPTO ASSETS
+-- =============================
+INSERT INTO public.crypto_assets (crypto_type, symbol, network_type, is_stablecoin, decimals)
+VALUES
+-- Bitcoin
+('Bitcoin', 'BTC', 'Bitcoin', false, 8),
+('Bitcoin', 'BTC', 'BNB Smart Chain (BEP20)', false, 8),
+
+-- Ethereum
+('Ethereum', 'ETH', 'Ethereum (ERC20)', false, 18),
+('Ethereum', 'ETH', 'Arbitrum One', false, 18),
+('Ethereum', 'ETH', 'Optimism', false, 18),
+('Ethereum', 'ETH', 'Base', false, 18),
+
+-- Tether USD
+('Tether USD', 'USDT', 'Ethereum (ERC20)', true, 6),
+('Tether USD', 'USDT', 'Tron (TRC20)', true, 6),
+('Tether USD', 'USDT', 'BNB Smart Chain (BEP20)', true, 6),
+('Tether USD', 'USDT', 'Solana (SOL)', true, 6),
+('Tether USD', 'USDT', 'Polygon (MATIC)', true, 6),
+
+-- USD Coin
+('USD Coin', 'USDC', 'Ethereum (ERC20)', true, 6),
+('USD Coin', 'USDC', 'Solana (SOL)', true, 6),
+('USD Coin', 'USDC', 'Base', true, 6),
+('USD Coin', 'USDC', 'Polygon (MATIC)', true, 6),
+
+-- Binance Coin
+('BNB', 'BNB', 'BNB Smart Chain (BEP20)', false, 18),
+
+-- Cardano
+('Cardano', 'ADA', 'Cardano', false, 6),
+
+-- Solana
+('Solana', 'SOL', 'Solana (SOL)', false, 9),
+
+-- Polygon
+('Polygon', 'MATIC', 'Polygon (MATIC)', false, 18),
+
+-- Avalanche
+('Avalanche', 'AVAX', 'Avalanche (C-Chain)', false, 18),
+
+-- Litecoin
+('Litecoin', 'LTC', 'Litecoin', false, 8),
+
+-- XRP
+('XRP', 'XRP', 'XRP Ledger', false, 6),
+
+-- TON
+('TON', 'TON', 'The Open Network (TON)', false, 9)
+ON CONFLICT (crypto_type, symbol, network_type) DO NOTHING;
