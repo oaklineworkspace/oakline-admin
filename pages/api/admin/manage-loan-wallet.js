@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
       // Validate crypto and network types
       const validCryptoTypes = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'TRX', 'SOL'];
-      const validNetworkTypes = ['BTC', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON'];
+      const validNetworkTypes = ['Bitcoin Mainnet', 'BSC (BEP20)', 'ERC20', 'TRC20', 'BEP20', 'SOLANA', 'POLYGON', 'Arbitrum', 'Base', 'BSC', 'SOL', 'TON'];
 
       if (!validCryptoTypes.includes(cryptoType)) {
         return res.status(400).json({ 

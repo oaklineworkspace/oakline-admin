@@ -24,13 +24,13 @@ export default function ManageLoanWallets() {
   });
 
   const cryptoNetworks = {
-    'BTC': ['BTC'],
-    'ETH': ['ERC20'],
-    'USDT': ['ERC20', 'TRC20', 'BEP20', 'POLYGON'],
+    'BTC': ['Bitcoin Mainnet', 'BSC (BEP20)'],
+    'ETH': ['ERC20', 'Arbitrum', 'Base'],
+    'USDT': ['BSC', 'ERC20', 'TRC20', 'SOL', 'TON'],
     'USDC': ['ERC20', 'BEP20', 'POLYGON', 'SOLANA'],
     'BNB': ['BEP20'],
     'TRX': ['TRC20'],
-    'SOL': ['SOLANA']
+    'SOL': ['SOL']
   };
 
   useEffect(() => {
