@@ -138,6 +138,43 @@ export default async function handler(req, res) {
         }
       },
 
+      // 8b. Crypto deposits linked to loans (before deleting loans)
+      async () => {
+        const { data: userLoans } = await supabaseAdmin
+          .from('loans')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userLoans && userLoans.length > 0) {
+          const loanIds = userLoans.map(l => l.id);
+          
+          // Get crypto deposits linked to these loans
+          const { data: loanDeposits } = await supabaseAdmin
+            .from('crypto_deposits')
+            .select('id')
+            .in('loan_id', loanIds)
+            .eq('purpose', 'loan_requirement');
+          
+          if (loanDeposits && loanDeposits.length > 0) {
+            const depositIds = loanDeposits.map(d => d.id);
+            
+            // Delete audit logs first
+            await supabaseAdmin
+              .from('crypto_deposit_audit_logs')
+              .delete()
+              .in('deposit_id', depositIds);
+            
+            // Then delete the deposits
+            await supabaseAdmin
+              .from('crypto_deposits')
+              .delete()
+              .in('id', depositIds);
+            
+            console.log('✅ Deleted loan-linked crypto deposits');
+          }
+        }
+      },
+
       // 9. Loans
       async () => {
         await supabaseAdmin
