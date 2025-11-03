@@ -83,11 +83,12 @@ export default function AdminDropdown() {
       ]
     },
     {
-      category: '💼 Financial Services',
+      category: '💼 Banking Services',
       links: [
         { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
         { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
+        { name: 'Manage Loan Wallets', path: '/admin/manage-loan-wallets', icon: '💰' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
         { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },

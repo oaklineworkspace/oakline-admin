@@ -104,6 +104,7 @@ export default function AdminNavDropdown() {
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
         { name: 'Loan Detail', path: '/admin/loans/[loanId]', icon: '📄' },
         { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
+        { name: 'Manage Loan Wallets', path: '/admin/manage-loan-wallets', icon: '💰' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
         { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },

@@ -77,6 +77,7 @@ export default function AdminStickyDropdown() {
         { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
         { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
+        { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
         { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
         { name: 'Crypto Dashboard', href: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', href: '/admin/manage-crypto-wallets', icon: '🔑' },
