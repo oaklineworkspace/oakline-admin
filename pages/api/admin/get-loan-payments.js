@@ -25,16 +25,18 @@ export default async function handler(req, res) {
 
     const loanIds = [...new Set(payments.map(p => p.loan_id).filter(Boolean))];
     const userIds = [...new Set(payments.map(p => p.loans?.user_id).filter(Boolean))];
+    const accountIds = [...new Set(payments.map(p => p.loans?.account_id).filter(Boolean))];
 
+    // Fetch profiles with first_name and last_name
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, full_name')
+      .select('id, email, first_name, last_name')
       .in('id', userIds);
 
     const { data: accounts } = await supabaseAdmin
       .from('accounts')
       .select('id, account_number, account_type')
-      .in('id', payments.map(p => p.loans?.account_id).filter(Boolean));
+      .in('id', accountIds);
 
     const profileMap = (profiles || []).reduce((acc, profile) => {
       acc[profile.id] = profile;
@@ -46,14 +48,21 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
-    const enrichedPayments = payments.map(payment => ({
-      ...payment,
-      user_email: profileMap[payment.loans?.user_id]?.email || 'N/A',
-      user_name: profileMap[payment.loans?.user_id]?.full_name || 'N/A',
-      account_number: accountMap[payment.loans?.account_id]?.account_number || 'N/A',
-      account_type: accountMap[payment.loans?.account_id]?.account_type || 'N/A',
-      loan_type: payment.loans?.loan_type || 'N/A'
-    }));
+    const enrichedPayments = payments.map(payment => {
+      const profile = profileMap[payment.loans?.user_id];
+      const fullName = profile 
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
+        : 'Unknown User';
+      
+      return {
+        ...payment,
+        user_email: profile?.email || 'N/A',
+        user_name: fullName,
+        account_number: accountMap[payment.loans?.account_id]?.account_number || 'N/A',
+        account_type: accountMap[payment.loans?.account_id]?.account_type || 'N/A',
+        loan_type: payment.loans?.loan_type || 'N/A'
+      };
+    });
 
     const stats = {
       totalPayments: payments.length,

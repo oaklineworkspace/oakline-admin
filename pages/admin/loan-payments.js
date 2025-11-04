@@ -157,10 +157,11 @@ export default function LoanPayments() {
       payment.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.account_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      payment.account_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.loans?.loan_type?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === 'all' || payment.status === filterStatus;
-    const matchesType = filterType === 'all' || payment.payment_type === filterType;
+    const matchesType = filterType === 'all' || payment.payment_type === filterType || payment.loan_type === filterType;
 
     return matchesSearch && matchesStatus && matchesType;
   });
