@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       .from('loans')
       .select(`
         *,
-        accounts (
+        accounts!loans_account_id_fkey (
           id,
           user_id,
           account_number,
