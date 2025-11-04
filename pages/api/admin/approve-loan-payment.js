@@ -215,13 +215,22 @@ export default async function handler(req, res) {
     const principalPaid = parseFloat(payment.principal_amount);
     const newLoanBalance = Math.max(0, remainingBalance - principalPaid);
 
-    // Calculate how many months this payment covers
+    // Calculate how many months this payment covers (matching atomic function logic)
     const monthlyPayment = parseFloat(payment.loans.monthly_payment_amount) || 0;
     const monthsCovered = monthlyPayment > 0 ? Math.floor(paymentAmount / monthlyPayment) : 1;
     
-    // Set next payment date based on months covered
-    const nextPaymentDate = new Date();
+    // Set next payment date based on months covered (30-day months for consistency)
+    const currentNextPaymentDate = new Date(payment.loans.next_payment_date || new Date());
+    const nextPaymentDate = new Date(currentNextPaymentDate);
     nextPaymentDate.setDate(nextPaymentDate.getDate() + (30 * monthsCovered));
+
+    // Determine new loan status with proper logic
+    let newLoanStatus = payment.loans.status;
+    if (newLoanBalance === 0) {
+      newLoanStatus = 'closed';
+    } else if (payment.loans.status === 'approved' || payment.loans.status === 'pending') {
+      newLoanStatus = 'active';
+    }
 
     const { error: loanUpdateError } = await supabaseAdmin
       .from('loans')
@@ -231,7 +240,7 @@ export default async function handler(req, res) {
         next_payment_date: nextPaymentDate.toISOString().split('T')[0],
         payments_made: (payment.loans.payments_made || 0) + monthsCovered,
         is_late: false,
-        status: newLoanBalance === 0 ? 'closed' : 'active',
+        status: newLoanStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', payment.loan_id);
@@ -240,7 +249,7 @@ export default async function handler(req, res) {
       console.error('Error updating loan:', loanUpdateError);
     }
 
-    // Update payment status to completed
+    // Update payment status to completed with comprehensive metadata
     const { error: updateError } = await supabaseAdmin
       .from('loan_payments')
       .update({
@@ -248,12 +257,18 @@ export default async function handler(req, res) {
         balance_after: newLoanBalance,
         processed_by: authResult.adminId,
         updated_at: new Date().toISOString(),
+        notes: `${payment.notes || ''}\nApproved: ${new Date().toISOString()}\nMonths covered: ${monthsCovered}\nNew balance: $${newLoanBalance.toLocaleString()}`,
         metadata: {
           ...payment.metadata,
           approved_at: new Date().toISOString(),
           approved_by: authResult.adminId,
           transaction_id: transactionId,
-          treasury_transaction_id: treasuryTransactionId
+          treasury_transaction_id: treasuryTransactionId,
+          months_covered: monthsCovered,
+          payment_method: paymentMethod,
+          previous_balance: remainingBalance,
+          new_balance: newLoanBalance,
+          next_payment_date: nextPaymentDate.toISOString().split('T')[0]
         }
       })
       .eq('id', paymentId);
@@ -264,12 +279,27 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Payment approved and processed successfully',
-      payment_id: paymentId,
-      status: 'completed',
-      loan_balance_updated: newLoanBalance,
-      transaction_id: transactionId,
-      treasury_transaction_id: treasuryTransactionId
+      message: `Payment approved successfully. ${monthsCovered} month${monthsCovered > 1 ? 's' : ''} covered.`,
+      payment: {
+        id: paymentId,
+        status: 'completed',
+        amount: paymentAmount,
+        months_covered: monthsCovered,
+        processed_at: new Date().toISOString()
+      },
+      loan: {
+        id: payment.loan_id,
+        previous_balance: remainingBalance,
+        new_balance: newLoanBalance,
+        next_payment_date: nextPaymentDate.toISOString().split('T')[0],
+        payments_made: (payment.loans.payments_made || 0) + monthsCovered,
+        status: newLoanStatus,
+        is_closed: newLoanBalance === 0
+      },
+      transactions: {
+        user_transaction_id: transactionId,
+        treasury_transaction_id: treasuryTransactionId
+      }
     });
 
   } catch (error) {

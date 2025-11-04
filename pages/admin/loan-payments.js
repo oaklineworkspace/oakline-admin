@@ -76,7 +76,11 @@ export default function LoanPayments() {
         throw new Error(result.error || 'Failed to approve payment');
       }
 
-      alert('✅ Payment approved successfully!');
+      const successMsg = result.loan?.is_closed 
+        ? `✅ Payment approved! Loan has been paid off completely!`
+        : `✅ Payment approved! ${result.payment?.months_covered || 1} month(s) covered. New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`;
+      
+      alert(successMsg);
       fetchPayments();
     } catch (err) {
       console.error('Error approving payment:', err);
@@ -291,6 +295,14 @@ export default function LoanPayments() {
                             </span>
                           </div>
                         )}
+                        {payment.metadata?.months_covered && payment.metadata.months_covered > 1 && (
+                          <div style={{...styles.breakdownItem, background: '#dbeafe', padding: '8px', borderRadius: '6px', marginTop: '8px'}}>
+                            <span style={{fontWeight: '700', color: '#1e40af'}}>⚡ Prepayment:</span>
+                            <span style={{fontWeight: '700', color: '#1e40af'}}>
+                              {payment.metadata.months_covered} months covered
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -307,6 +319,14 @@ export default function LoanPayments() {
                           {payment.payment_type?.replace(/_/g, ' ').toUpperCase()}
                         </span>
                       </div>
+                      {payment.metadata?.payment_method && (
+                        <div style={styles.detailItem}>
+                          <span style={styles.detailLabel}>Payment Method</span>
+                          <span style={styles.detailValue}>
+                            {payment.metadata.payment_method === 'account_balance' ? '💳 Account Balance' : '💰 Manual Payment'}
+                          </span>
+                        </div>
+                      )}
                       <div style={styles.detailItem}>
                         <span style={styles.detailLabel}>Loan Type</span>
                         <span style={styles.detailValue}>
