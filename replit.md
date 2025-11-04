@@ -4,6 +4,8 @@
 Oakline Bank Admin Panel is a secure, full-stack banking administration platform built with Next.js 14. Its primary purpose is to provide comprehensive administrative functionality for managing users, accounts, transactions, cards, applications, and loans. The platform aims to streamline bank operations, enhance security, and offer robust tools for financial oversight and customer service.
 
 ## Recent Changes (November 2025)
+- **Loan Payment Approval Workflow (Nov 4, 2025):** Implemented secure loan payment approval system with atomic database transactions. Users can now submit loan payments with 'pending' status through `/api/submit-loan-payment`. Admins approve/reject payments via atomic PostgreSQL function `approve_loan_payment_atomic()` which prevents race conditions, uses optimistic locking, and ensures data integrity. Admin UI updated to show approve/reject buttons for pending payments.
+- **Transaction Deletion Security (Nov 4, 2025):** Enhanced transaction deletion endpoint with proper admin authorization using `verifyAdminAuth()` and added comprehensive audit logging for all deletion actions.
 - **Database Constraint Alignment (Nov 3, 2025):** Fixed crypto wallet creation for loan requirements by aligning frontend and API network type values with database CHECK constraints. The `loan_crypto_wallets` table only accepts specific network types: BTC, ERC20, TRC20, BEP20, SOLANA, POLYGON. Updated both POST and PUT handlers to validate before insertion.
 - **Loan Deposit Status Tracking:** Modified to use `loans.deposit_status` database field as single source of truth instead of calculating from crypto_deposits table.
 - **Loan Approval Workflow:** Separated approval action from disbursement - approve button now only sets status to 'approved' without automatically disbursing funds.
@@ -41,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 6.  **Reporting & Audit:** System logs, audit trails, and transaction reports.
 7.  **Bank Details Management:** Manage bank information, contact details, and dynamically add/update email fields.
 8.  **Crypto Wallet & Deposit Management:** Assign crypto wallet addresses (BTC, USDT, ETH, BNB), review/manage crypto deposit requests, approve/reject deposits with automatic balance crediting and email notifications.
-9.  **Loan Management System:** Comprehensive dashboard, detailed loan view, payment tracking, deposit verification workflow, secure approval process with automatic disbursement, transaction integrity (optimistic locking, automatic rollback), audit logging, and email notifications. Includes integration with a treasury account system for loan requirement deposits.
+9.  **Loan Management System:** Comprehensive dashboard, detailed loan view, payment tracking with user-submitted payments requiring admin approval, deposit verification workflow, secure atomic approval process using PostgreSQL RPC functions to prevent race conditions and ensure data integrity, automatic balance updates, audit logging, and email notifications. Includes integration with a treasury account system for loan requirement deposits.
 10. **Transfers Management:** Dedicated page for managing all user transfers (internal, between accounts, wire).
 
 ## External Dependencies
