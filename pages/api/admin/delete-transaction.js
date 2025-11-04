@@ -11,13 +11,53 @@ export default async function handler(req, res) {
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
-  const { transactionId } = req.body;
+  const { transactionId, accountId, transactionType, amount, status } = req.body;
 
   if (!transactionId) {
     return res.status(400).json({ error: 'Transaction ID is required' });
   }
 
   try {
+    let balanceReverted = false;
+
+    // If transaction was completed, we need to reverse the balance
+    if (status === 'completed' && accountId && transactionType && amount) {
+      const { data: account } = await supabaseAdmin
+        .from('accounts')
+        .select('balance')
+        .eq('id', accountId)
+        .single();
+
+      if (account) {
+        const currentBalance = parseFloat(account.balance);
+        let newBalance;
+
+        // Reverse the transaction effect
+        if (transactionType === 'credit') {
+          // Reverting a credit means subtracting from balance
+          newBalance = currentBalance - parseFloat(amount);
+        } else {
+          // Reverting a debit means adding to balance
+          newBalance = currentBalance + parseFloat(amount);
+        }
+
+        // Update account balance
+        const { error: balanceError } = await supabaseAdmin
+          .from('accounts')
+          .update({ 
+            balance: newBalance,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', accountId);
+
+        if (balanceError) {
+          console.error('Error updating account balance:', balanceError);
+          return res.status(500).json({ error: 'Failed to revert account balance' });
+        }
+
+        balanceReverted = true;
+      }
+    }
 
     // Delete the transaction
     const { error: deleteError } = await supabaseAdmin
@@ -30,15 +70,25 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to delete transaction' });
     }
 
+    // Log the deletion
     await supabaseAdmin.from('audit_logs').insert({
       action: 'transaction_deleted',
       admin_id: authResult.adminId,
       details: {
-        transaction_id: transactionId
+        transaction_id: transactionId,
+        account_id: accountId,
+        type: transactionType,
+        amount: amount,
+        status: status,
+        balance_reverted: balanceReverted
       }
     });
 
-    return res.status(200).json({ success: true, message: 'Transaction deleted successfully' });
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Transaction deleted successfully',
+      balanceReverted
+    });
   } catch (error) {
     console.error('Error deleting transaction:', error);
     return res.status(500).json({ error: error.message || 'Failed to delete transaction' });

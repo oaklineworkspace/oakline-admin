@@ -57,11 +57,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Payment submitted successfully. Awaiting admin approval.',
+      message: 'Payment submitted successfully and is awaiting admin approval. Your loan balance will be updated once approved.',
       payment: {
         id: payment.id,
         amount: payment.amount,
-        status: payment.status,
+        status: 'pending',
         payment_date: payment.payment_date
       }
     });

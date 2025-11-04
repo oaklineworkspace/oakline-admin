@@ -36,7 +36,7 @@ export default function LoanPayments() {
       });
 
       if (!response.ok) throw new Error('Failed to fetch loan payments');
-      
+
       const data = await response.json();
       setPayments(data.payments || []);
       setStats(data.stats);
@@ -127,16 +127,41 @@ export default function LoanPayments() {
     }
   };
 
+  const getStatusBadge = (status) => {
+    const styles = {
+      completed: { bg: '#2ECC71', color: 'white', text: 'Approved' },
+      pending: { bg: '#F1C40F', color: '#333', text: 'Pending Approval' },
+      failed: { bg: '#E74C3C', color: 'white', text: 'Rejected' }
+    };
+
+    const style = styles[status?.toLowerCase()] || styles.pending;
+
+    return (
+      <span style={{
+        padding: '0.4rem 0.8rem',
+        borderRadius: '20px',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        backgroundColor: style.bg,
+        color: style.color,
+        textTransform: 'uppercase'
+      }}>
+        {style.text}
+      </span>
+    );
+  };
+
+
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = 
       payment.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.account_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || payment.status === filterStatus;
     const matchesType = filterType === 'all' || payment.payment_type === filterType;
-    
+
     return matchesSearch && matchesStatus && matchesType;
   });
 
@@ -237,15 +262,7 @@ export default function LoanPayments() {
                       <h3 style={styles.paymentUser}>{payment.user_name || payment.user_email}</h3>
                       <p style={styles.paymentEmail}>{payment.user_email}</p>
                     </div>
-                    <span style={{
-                      ...styles.statusBadge,
-                      background: payment.status === 'completed' ? '#d1fae5' :
-                                payment.status === 'pending' ? '#fef3c7' : '#fee2e2',
-                      color: payment.status === 'completed' ? '#065f46' :
-                            payment.status === 'pending' ? '#92400e' : '#991b1b'
-                    }}>
-                      {payment.status?.toUpperCase()}
-                    </span>
+                    {getStatusBadge(payment.status)}
                   </div>
 
                   <div style={styles.paymentBody}>

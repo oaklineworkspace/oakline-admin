@@ -342,12 +342,17 @@ export default function AdminTransactions() {
   };
 
   const handleDeleteTransaction = async (transaction) => {
-    const confirmMessage = `Are you sure you want to delete this transaction?\n\n` +
+    let confirmMessage = `Are you sure you want to delete this transaction?\n\n` +
       `User: ${transaction.accounts?.applications?.first_name} ${transaction.accounts?.applications?.last_name}\n` +
       `Amount: ${formatCurrency(transaction.amount)}\n` +
       `Type: ${transaction.type}\n` +
-      `Status: ${transaction.status}\n\n` +
-      `This action cannot be undone!`;
+      `Status: ${transaction.status}\n\n`;
+    
+    if (transaction.status === 'completed') {
+      confirmMessage += `⚠️ WARNING: This is a completed transaction. Deleting it will reverse the account balance by ${formatCurrency(transaction.amount)}.\n\n`;
+    }
+    
+    confirmMessage += `This action cannot be undone!`;
 
     if (!confirm(confirmMessage)) {
       return;
@@ -367,7 +372,11 @@ export default function AdminTransactions() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          transactionId: transaction.id
+          transactionId: transaction.id,
+          accountId: transaction.account_id,
+          transactionType: transaction.type,
+          amount: transaction.amount,
+          status: transaction.status
         })
       });
 
@@ -377,7 +386,12 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to delete transaction');
       }
 
-      alert('✅ Transaction deleted successfully!');
+      let successMessage = '✅ Transaction deleted successfully!';
+      if (result.balanceReverted) {
+        successMessage += `\n\n💰 Account balance reverted by ${formatCurrency(transaction.amount)}`;
+      }
+
+      alert(successMessage);
       fetchTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
