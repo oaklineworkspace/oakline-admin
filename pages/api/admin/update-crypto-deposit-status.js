@@ -57,69 +57,81 @@ export default async function handler(req, res) {
     let balanceChanged = false;
 
     if (newStatus === 'confirmed' || newStatus === 'completed') {
-      const { data: account, error: accountError } = await supabaseAdmin
-        .from('accounts')
-        .select('*')
-        .eq('id', deposit.account_id)
-        .single();
+      const alreadyCredited = deposit.approved_by && deposit.approved_at;
+      
+      if (alreadyCredited && oldStatus === 'approved') {
+        console.log('Deposit already credited when approved. Skipping duplicate credit.');
+        const { data: account } = await supabaseAdmin
+          .from('accounts')
+          .select('balance')
+          .eq('id', deposit.account_id)
+          .single();
+        newBalance = parseFloat(account?.balance || 0);
+      } else {
+        const { data: account, error: accountError } = await supabaseAdmin
+          .from('accounts')
+          .select('*')
+          .eq('id', deposit.account_id)
+          .single();
 
-      if (accountError || !account) {
-        console.error('Error fetching account:', accountError);
-        return res.status(404).json({ error: 'Account not found' });
-      }
-
-      const balanceBefore = parseFloat(account.balance || 0);
-      const depositAmount = parseFloat(deposit.net_amount || deposit.amount);
-      newBalance = balanceBefore + depositAmount;
-
-      const { error: balanceUpdateError } = await supabaseAdmin
-        .from('accounts')
-        .update({ balance: newBalance })
-        .eq('id', account.id);
-
-      if (balanceUpdateError) {
-        console.error('Error updating account balance:', balanceUpdateError);
-        return res.status(500).json({ error: 'Failed to credit account balance. Deposit status not changed.' });
-      }
-
-      // Check if transaction already exists
-      const txReference = deposit.tx_hash || deposit.id;
-      const { data: existingTx } = await supabaseAdmin
-        .from('transactions')
-        .select('id')
-        .eq('reference', txReference)
-        .eq('account_id', deposit.account_id)
-        .single();
-
-      if (!existingTx) {
-        // Create transaction record only if it doesn't exist
-        const { error: transactionError } = await supabaseAdmin
-          .from('transactions')
-          .insert({
-            user_id: deposit.user_id,
-            account_id: deposit.account_id,
-            type: 'deposit',
-            amount: depositAmount,
-            status: 'completed',
-            description: 'Crypto deposit approved',
-            balance_before: balanceBefore,
-            balance_after: newBalance,
-            reference: txReference,
-            created_at: new Date().toISOString()
-          });
-
-        if (transactionError) {
-          console.error('Error creating transaction record:', transactionError);
-          // Rollback balance update
-          await supabaseAdmin
-            .from('accounts')
-            .update({ balance: balanceBefore })
-            .eq('id', account.id);
-          return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
+        if (accountError || !account) {
+          console.error('Error fetching account:', accountError);
+          return res.status(404).json({ error: 'Account not found' });
         }
-      }
 
-      balanceChanged = true;
+        const balanceBefore = parseFloat(account.balance || 0);
+        const depositAmount = parseFloat(deposit.net_amount || deposit.amount);
+        newBalance = balanceBefore + depositAmount;
+
+        const { error: balanceUpdateError } = await supabaseAdmin
+          .from('accounts')
+          .update({ balance: newBalance })
+          .eq('id', account.id);
+
+        if (balanceUpdateError) {
+          console.error('Error updating account balance:', balanceUpdateError);
+          return res.status(500).json({ error: 'Failed to credit account balance. Deposit status not changed.' });
+        }
+
+        // Check if transaction already exists
+        const txReference = deposit.tx_hash || deposit.id;
+        const { data: existingTx } = await supabaseAdmin
+          .from('transactions')
+          .select('id')
+          .eq('reference', txReference)
+          .eq('account_id', deposit.account_id)
+          .single();
+
+        if (!existingTx) {
+          // Create transaction record only if it doesn't exist
+          const { error: transactionError } = await supabaseAdmin
+            .from('transactions')
+            .insert({
+              user_id: deposit.user_id,
+              account_id: deposit.account_id,
+              type: 'deposit',
+              amount: depositAmount,
+              status: 'completed',
+              description: 'Crypto deposit approved',
+              balance_before: balanceBefore,
+              balance_after: newBalance,
+              reference: txReference,
+              created_at: new Date().toISOString()
+            });
+
+          if (transactionError) {
+            console.error('Error creating transaction record:', transactionError);
+            // Rollback balance update
+            await supabaseAdmin
+              .from('accounts')
+              .update({ balance: balanceBefore })
+              .eq('id', account.id);
+            return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
+          }
+        }
+
+        balanceChanged = true;
+      }
     }
 
     if (newStatus === 'reversed') {
@@ -322,7 +334,13 @@ export default async function handler(req, res) {
             emailColor = '#10b981';
             emailIcon = '✅';
             emailTitle = `Your ${cryptoType} deposit has been ${newStatus}!`;
-            emailMessage = `Good news! Your cryptocurrency deposit has been successfully processed and ${balanceChanged ? 'credited to your account' : 'confirmed'}.`;
+            if (oldStatus === 'approved' && newStatus === 'completed') {
+              emailMessage = deposit.purpose === 'loan_requirement'
+                ? `Your loan requirement deposit transaction has been fully completed and finalized. The funds were previously credited to our bank treasury to secure your loan application.`
+                : `Your cryptocurrency deposit transaction has been fully completed and finalized. The funds were previously credited to your account.`;
+            } else {
+              emailMessage = `Good news! Your cryptocurrency deposit has been successfully processed and ${balanceChanged ? 'credited to your account' : 'confirmed'}.`;
+            }
             break;
           case 'rejected':
           case 'failed':

@@ -59,7 +59,7 @@ export default function AdminBalance() {
       setAccounts(accountsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError(error.message);
+      setError(error?.message || 'An unexpected error occurred while loading data');
     } finally {
       setLoading(false);
     }
@@ -180,6 +180,9 @@ export default function AdminBalance() {
   };
 
   const getUserAccounts = (userId) => {
+    if (!accounts || !Array.isArray(accounts)) {
+      return [];
+    }
     return accounts.filter(acc => 
       acc.application_id === userId || acc.user_id === userId
     );
@@ -341,31 +344,35 @@ export default function AdminBalance() {
       {/* Display all accounts with an option to manually update balance */}
       <div style={styles.card}>
         <h2 style={styles.cardTitle}>All Accounts</h2>
-        <div style={styles.accountList}>
-          {accounts.map(account => (
-            <div key={account.id} style={styles.accountItem}>
-              <div style={styles.accountDetails}>
-                <span style={styles.accountName}>
-                  {account.applications?.first_name || 'N/A'} {account.applications?.last_name || 'N/A'}
-                </span>
-                <span style={styles.accountEmail}>{account.applications?.email || 'N/A'}</span>
-                <span style={styles.accountType}>{account.account_type} - ****{account.account_number?.slice(-4)}</span>
+        {loading && <p style={{textAlign: 'center', color: '#64748b'}}>Loading accounts...</p>}
+        {!loading && accounts.length === 0 && <p style={{textAlign: 'center', color: '#64748b'}}>No accounts found.</p>}
+        {!loading && accounts.length > 0 && (
+          <div style={styles.accountList}>
+            {accounts.map(account => (
+              <div key={account.id} style={styles.accountItem}>
+                <div style={styles.accountDetails}>
+                  <span style={styles.accountName}>
+                    {account.applications?.first_name || 'N/A'} {account.applications?.last_name || 'N/A'}
+                  </span>
+                  <span style={styles.accountEmail}>{account.applications?.email || 'N/A'}</span>
+                  <span style={styles.accountType}>{account.account_type} - ****{account.account_number?.slice(-4)}</span>
+                </div>
+                <div style={styles.accountBalanceContainer}>
+                  <span style={styles.accountBalance}>
+                    ${parseFloat(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <button 
+                    onClick={() => handleUpdateBalance(account.id)}
+                    style={styles.updateButton}
+                    disabled={loading}
+                  >
+                    Update Balance
+                  </button>
+                </div>
               </div>
-              <div style={styles.accountBalanceContainer}>
-                <span style={styles.accountBalance}>
-                  ${parseFloat(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <button 
-                  onClick={() => handleUpdateBalance(account.id)}
-                  style={styles.updateButton}
-                  disabled={loading}
-                >
-                  Update Balance
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   

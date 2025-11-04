@@ -113,10 +113,9 @@ export default async function handler(req, res) {
     const { error: depositUpdateError } = await supabaseAdmin
       .from('crypto_deposits')
       .update({ 
-        status: 'completed',
+        status: 'approved',
         approved_by: authResult.user.id,
-        approved_at: new Date().toISOString(),
-        completed_at: new Date().toISOString()
+        approved_at: new Date().toISOString()
       })
       .eq('id', depositId);
 
@@ -132,8 +131,8 @@ export default async function handler(req, res) {
         deposit_id: depositId,
         changed_by: authResult.user.id,
         old_status: deposit.status,
-        new_status: 'completed',
-        note: `Deposit approved and credited to ${isLoanDeposit ? 'treasury' : 'user account'}`,
+        new_status: 'approved',
+        note: `Deposit approved and credited to ${isLoanDeposit ? 'treasury account' : 'user account'}`,
         metadata: {
           credited_amount: parseFloat(deposit.amount),
           account_id: targetAccount.id,
@@ -198,18 +197,24 @@ export default async function handler(req, res) {
                   </h2>
 
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                    Great news! Your 10% loan requirement deposit has been successfully processed and received by our treasury. Your loan application can now proceed to the next stage.
+                    Great news! Your 10% loan requirement deposit has been successfully processed and <strong style="color: #059669;">credited to the bank's treasury account</strong> (not your personal account balance). Your loan application can now proceed to the next stage.
                   </p>
+
+                  <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0;">
+                    <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">
+                      <strong>⚠️ Important:</strong> This deposit has been credited to our bank treasury to secure your loan application. These funds were not added to your personal account balance. Once your loan is approved and disbursed, the loan amount will be credited to your account.
+                    </p>
+                  </div>
 
                   <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
                     <p style="color: #065f46; font-size: 16px; margin: 0 0 12px 0;"><strong>Deposit Details:</strong></p>
-                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Purpose:</strong> Loan Requirement Deposit</p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Purpose:</strong> Loan Requirement Deposit (Treasury Account)</p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Cryptocurrency:</strong> ${deposit.crypto_type}</p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Amount:</strong> $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
 
                   <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
-                    Your loan application is now eligible for approval. You'll receive a notification once your loan has been reviewed.
+                    Your loan application is now eligible for approval. You'll receive a notification once your loan has been reviewed and approved.
                   </p>
                 </div>
 
