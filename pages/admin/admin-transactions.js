@@ -341,6 +341,50 @@ export default function AdminTransactions() {
     }
   };
 
+  const handleDeleteTransaction = async (transaction) => {
+    const confirmMessage = `Are you sure you want to delete this transaction?\n\n` +
+      `User: ${transaction.accounts?.applications?.first_name} ${transaction.accounts?.applications?.last_name}\n` +
+      `Amount: ${formatCurrency(transaction.amount)}\n` +
+      `Type: ${transaction.type}\n` +
+      `Status: ${transaction.status}\n\n` +
+      `This action cannot be undone!`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/delete-transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          transactionId: transaction.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete transaction');
+      }
+
+      alert('✅ Transaction deleted successfully!');
+      fetchTransactions();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('❌ Failed to delete transaction: ' + error.message);
+    }
+  };
+
   const maskAccountNumber = (accountNumber) => {
     if (!accountNumber) return 'N/A';
     const str = String(accountNumber);
@@ -617,6 +661,13 @@ export default function AdminTransactions() {
                             title="Edit Transaction"
                           >
                             ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTransaction(tx)}
+                            style={{ ...styles.actionBtn, ...styles.deleteBtn }}
+                            title="Delete Transaction"
+                          >
+                            🗑️
                           </button>
                         </div>
                       </td>
@@ -1068,6 +1119,10 @@ const styles = {
   },
   editBtn: {
     backgroundColor: '#3b82f6',
+    color: 'white'
+  },
+  deleteBtn: {
+    backgroundColor: '#ef4444',
     color: 'white'
   },
   modalOverlay: {

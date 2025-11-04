@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import AdminPageDropdown from '../../components/AdminPageDropdown';
+import AdminFooter from '../../components/AdminFooter';
 
 export default function ManageBankDetails() {
   const router = useRouter();
@@ -594,6 +595,7 @@ export default function ManageBankDetails() {
           </div>
         </div>
       </main>
+      <AdminFooter />
     </div>
   );
 }
