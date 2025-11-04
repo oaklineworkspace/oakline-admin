@@ -79,42 +79,40 @@ export default async function handler(req, res) {
         // Check if this is a loan deposit
         const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_wallet_id;
 
-        // Update loan status if completing a loan deposit
-        if (newStatus === 'completed' && isLoanDeposit && deposit.status !== 'completed') {
-          const { data: loanWallet } = await supabaseAdmin
-            .from('loan_crypto_wallets')
+        // Update loan status if completing a loan deposit (DO THIS BEFORE marking as completed)
+        if ((newStatus === 'completed' || newStatus === 'confirmed') && isLoanDeposit) {
+          // Find the loan associated with this deposit
+          const { data: loans } = await supabaseAdmin
+            .from('loans')
             .select('*')
-            .eq('id', deposit.loan_wallet_id)
-            .single();
+            .eq('user_id', deposit.user_id)
+            .in('deposit_status', ['pending', 'not_required'])
+            .order('created_at', { ascending: false })
+            .limit(1);
 
-          if (loanWallet) {
-            // Find the loan associated with this deposit
-            const { data: loans } = await supabaseAdmin
+          if (loans && loans.length > 0) {
+            const loan = loans[0];
+            console.log('Updating loan deposit status for loan:', loan.id);
+            
+            const { error: loanUpdateError } = await supabaseAdmin
               .from('loans')
-              .select('*')
-              .eq('user_id', deposit.user_id)
-              .eq('deposit_status', 'pending')
-              .order('created_at', { ascending: false })
-              .limit(1);
+              .update({
+                deposit_status: 'completed',
+                deposit_paid: true,
+                deposit_amount: parseFloat(deposit.amount),
+                deposit_date: new Date().toISOString(),
+                deposit_method: 'crypto',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', loan.id);
 
-            if (loans && loans.length > 0) {
-              const loan = loans[0];
-              const { error: loanUpdateError } = await supabaseAdmin
-                .from('loans')
-                .update({
-                  deposit_status: 'completed',
-                  deposit_paid: true,
-                  deposit_amount: parseFloat(deposit.amount),
-                  deposit_date: new Date().toISOString(),
-                  deposit_method: 'crypto',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', loan.id);
-
-              if (loanUpdateError) {
-                console.error('Error updating loan deposit status:', loanUpdateError);
-              }
+            if (loanUpdateError) {
+              console.error('Error updating loan deposit status:', loanUpdateError);
+            } else {
+              console.log('Successfully updated loan deposit status');
             }
+          } else {
+            console.log('No pending loan found for this deposit');
           }
         }
 
@@ -379,28 +377,26 @@ export default async function handler(req, res) {
           console.error('Error fetching bank details:', bankDetailsError);
         }
 
-        const emailAlias = bankDetails?.email_alias || 'noreply@oaklinebank.com'; // Fallback email alias
+        // Use loan email for loan deposits, regular email alias for others
+        const isLoanDeposit = deposit.purpose === 'loan_requirement';
+        const emailAlias = isLoanDeposit 
+          ? (bankDetails?.email_loans || 'loans@theoaklinebank.com')
+          : (bankDetails?.email_notify || 'noreply@oaklinebank.com');
 
         switch (newStatus) {
           case 'confirmed':
           case 'completed':
-            emailSubject = `✅ Crypto Deposit ${newStatus === 'completed' ? 'Completed' : 'Confirmed'} - ${cryptoType}`;
+            emailSubject = isLoanDeposit
+              ? `✅ Loan Requirement Deposit ${newStatus === 'completed' ? 'Completed' : 'Confirmed'} - ${cryptoType}`
+              : `✅ Crypto Deposit ${newStatus === 'completed' ? 'Completed' : 'Confirmed'} - ${cryptoType}`;
             emailColor = '#10b981';
             emailIcon = '✅';
-            emailTitle = `Your ${cryptoType} deposit has been ${newStatus}!`;
+            emailTitle = isLoanDeposit
+              ? `Your loan requirement deposit has been ${newStatus}!`
+              : `Your ${cryptoType} deposit has been ${newStatus}!`;
 
-            if (deposit.purpose === 'loan_requirement') {
-              // Use specific loan completion message from bank details if available
-              emailMessage = bankDetails?.email_template_loan_completed
-                ? bankDetails.email_template_loan_completed
-                    .replace('{{crypto_type}}', cryptoType)
-                    .replace('{{network}}', networkType)
-                    .replace('{{wallet_address}}', walletAddress)
-                    .replace('{{amount}}', parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }))
-                    .replace('{{net_amount}}', parseFloat(deposit.net_amount || deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }))
-                    .replace('{{status}}', newStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
-                    .replace('{{new_balance}}', (newBalance !== null ? newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 }) : 'N/A'))
-                : `Your loan requirement deposit transaction has been fully completed and finalized. The funds were previously credited to our bank treasury to secure your loan application.`;
+            if (isLoanDeposit) {
+              emailMessage = `Great news! Your loan requirement deposit has been successfully verified and credited to the bank's treasury account. Your loan application is now ready for final approval.`;
             } else {
               emailMessage = `Good news! Your cryptocurrency deposit has been successfully processed and ${balanceChanged ? 'credited to your account' : 'confirmed'}.`;
             }
@@ -476,13 +472,21 @@ export default async function handler(req, res) {
                     ${emailMessage}
                   </p>
 
+                  ${isLoanDeposit ? `
+                  <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0;">
+                    <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">
+                      <strong>⚠️ Important:</strong> This deposit has been credited to our bank treasury to secure your loan application. These funds are <strong>NOT</strong> added to your personal account balance.
+                    </p>
+                  </div>
+                  ` : ''}
+
                   <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 24px 0;">
                     <h3 style="color: #1e293b; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Transaction Details:</h3>
                     <table style="width: 100%; border-collapse: collapse;">
-                      ${deposit.purpose === 'loan_requirement' ? `
+                      ${isLoanDeposit ? `
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Purpose:</td>
-                        <td style="padding: 8px 0; color: #f59e0b; font-size: 14px; font-weight: 600; text-align: right;">Loan Requirement Deposit</td>
+                        <td style="padding: 8px 0; color: #f59e0b; font-size: 14px; font-weight: 600; text-align: right;">Loan Requirement Deposit (Treasury)</td>
                       </tr>
                       ` : ''}
                       <tr>
@@ -529,7 +533,7 @@ export default async function handler(req, res) {
                         <td style="padding: 8px 0; color: #1e293b; font-size: 14px; text-align: right;">${reason}</td>
                       </tr>
                       ` : ''}
-                      ${balanceChanged && newBalance !== null ? `
+                      ${!isLoanDeposit && balanceChanged && newBalance !== null ? `
                       <tr>
                         <td style="padding: 8px 0; color: #64748b; font-size: 14px;">New Balance:</td>
                         <td style="padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600; text-align: right;">$${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>

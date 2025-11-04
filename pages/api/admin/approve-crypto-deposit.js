@@ -92,7 +92,9 @@ export default async function handler(req, res) {
     }
 
     // Update loan table if it's a loan deposit
-    if (isLoanDeposit) {
+    if (isLoanDeposit && deposit.loan_id) {
+      console.log('Updating loan deposit status for loan:', deposit.loan_id);
+      
       const { error: loanUpdateError } = await supabaseAdmin
         .from('loans')
         .update({ 
@@ -111,6 +113,36 @@ export default async function handler(req, res) {
           error: 'Failed to update loan deposit status', 
           details: loanUpdateError.message 
         });
+      }
+      
+      console.log('Successfully updated loan deposit status');
+    } else if (isLoanDeposit && !deposit.loan_id) {
+      console.warn('Loan deposit detected but no loan_id found. Searching for pending loan...');
+      
+      // Try to find the loan
+      const { data: loans } = await supabaseAdmin
+        .from('loans')
+        .select('*')
+        .eq('user_id', deposit.user_id)
+        .in('deposit_status', ['pending', 'not_required'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (loans && loans.length > 0) {
+        const loan = loans[0];
+        console.log('Found pending loan:', loan.id, '- updating deposit status');
+        
+        await supabaseAdmin
+          .from('loans')
+          .update({ 
+            deposit_status: 'completed',
+            deposit_paid: true,
+            deposit_amount: parseFloat(deposit.amount),
+            deposit_date: new Date().toISOString(),
+            deposit_method: 'crypto',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', loan.id);
       }
     }
 
