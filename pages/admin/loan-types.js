@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
@@ -12,27 +13,20 @@ export default function LoanTypes() {
   const [success, setSuccess] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingType, setEditingType] = useState(null);
-  const [includeInactive, setIncludeInactive] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
     description: '',
-    default_interest_rate: '',
-    min_interest_rate: '',
-    max_interest_rate: '',
-    min_term_months: '',
-    max_term_months: '',
     min_amount: '',
     max_amount: '',
-    min_credit_score: '',
-    required_documents: [],
-    is_active: true
+    rate: '',
+    apr: '',
+    min_term_months: '',
+    max_term_months: ''
   });
-  const [documentInput, setDocumentInput] = useState('');
 
   useEffect(() => {
     fetchLoanTypes();
-  }, [includeInactive]);
+  }, []);
 
   const fetchLoanTypes = async () => {
     setLoading(true);
@@ -44,7 +38,7 @@ export default function LoanTypes() {
         return;
       }
 
-      const response = await fetch(`/api/admin/get-loan-types?includeInactive=${includeInactive}`, {
+      const response = await fetch('/api/admin/get-loan-types-with-rates', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -66,18 +60,13 @@ export default function LoanTypes() {
     setEditingType(loanType);
     setFormData({
       name: loanType.name,
-      code: loanType.code,
       description: loanType.description || '',
-      default_interest_rate: loanType.default_interest_rate,
-      min_interest_rate: loanType.min_interest_rate,
-      max_interest_rate: loanType.max_interest_rate,
-      min_term_months: loanType.min_term_months,
-      max_term_months: loanType.max_term_months,
       min_amount: loanType.min_amount,
       max_amount: loanType.max_amount || '',
-      min_credit_score: loanType.min_credit_score || '',
-      required_documents: loanType.required_documents || [],
-      is_active: loanType.is_active
+      rate: loanType.rate || '',
+      apr: loanType.apr || '',
+      min_term_months: loanType.min_term_months || '',
+      max_term_months: loanType.max_term_months || ''
     });
     setShowModal(true);
   };
@@ -86,38 +75,15 @@ export default function LoanTypes() {
     setEditingType(null);
     setFormData({
       name: '',
-      code: '',
       description: '',
-      default_interest_rate: '',
-      min_interest_rate: '',
-      max_interest_rate: '',
-      min_term_months: '12',
-      max_term_months: '60',
       min_amount: '',
       max_amount: '',
-      min_credit_score: '580',
-      required_documents: [],
-      is_active: true
+      rate: '',
+      apr: '',
+      min_term_months: '12',
+      max_term_months: '60'
     });
-    setDocumentInput('');
     setShowModal(true);
-  };
-
-  const handleAddDocument = () => {
-    if (documentInput.trim() && !formData.required_documents.includes(documentInput.trim())) {
-      setFormData({
-        ...formData,
-        required_documents: [...formData.required_documents, documentInput.trim()]
-      });
-      setDocumentInput('');
-    }
-  };
-
-  const handleRemoveDocument = (doc) => {
-    setFormData({
-      ...formData,
-      required_documents: formData.required_documents.filter(d => d !== doc)
-    });
   };
 
   const handleSubmit = async (e) => {
@@ -135,10 +101,11 @@ export default function LoanTypes() {
 
       const payload = {
         ...formData,
-        id: editingType?.id
+        id: editingType?.id,
+        rate_id: editingType?.rate_id
       };
 
-      const response = await fetch('/api/admin/save-loan-type', {
+      const response = await fetch('/api/admin/save-loan-type-with-rate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +147,7 @@ export default function LoanTypes() {
         return;
       }
 
-      const response = await fetch('/api/admin/delete-loan-type', {
+      const response = await fetch('/api/admin/delete-loan-type-with-rate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,41 +173,6 @@ export default function LoanTypes() {
     }
   };
 
-  const toggleActive = async (id, currentStatus, name) => {
-    if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} "${name}"?`)) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const loanType = loanTypes.find(lt => lt.id === id);
-      const response = await fetch('/api/admin/save-loan-type', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          ...loanType,
-          is_active: !currentStatus
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to update status');
-
-      setSuccess(`Loan type ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      fetchLoanTypes();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <AdminAuth>
       <div style={styles.container}>
@@ -250,7 +182,7 @@ export default function LoanTypes() {
               ← Back to Dashboard
             </Link>
             <h1 style={styles.title}>💼 Loan Types Configuration</h1>
-            <p style={styles.subtitle}>Manage loan types, interest rates, and requirements</p>
+            <p style={styles.subtitle}>Manage loan types and interest rates</p>
           </div>
           <AdminNavDropdown />
         </div>
@@ -272,15 +204,6 @@ export default function LoanTypes() {
             <button onClick={handleAddNew} style={styles.addButton}>
               ➕ Add New Loan Type
             </button>
-            <label style={styles.toggleLabel}>
-              <input
-                type="checkbox"
-                checked={includeInactive}
-                onChange={(e) => setIncludeInactive(e.target.checked)}
-                style={styles.checkbox}
-              />
-              Show Inactive
-            </label>
           </div>
 
           {loading && !showModal ? (
@@ -302,12 +225,11 @@ export default function LoanTypes() {
                 <thead>
                   <tr>
                     <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Code</th>
-                    <th style={styles.th}>Interest Rate Range</th>
-                    <th style={styles.th}>Term Range</th>
+                    <th style={styles.th}>Description</th>
                     <th style={styles.th}>Amount Range</th>
-                    <th style={styles.th}>Min Credit Score</th>
-                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Interest Rate</th>
+                    <th style={styles.th}>APR</th>
+                    <th style={styles.th}>Term Range</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
@@ -315,37 +237,25 @@ export default function LoanTypes() {
                   {loanTypes.map((loanType) => (
                     <tr key={loanType.id} style={styles.tr}>
                       <td style={styles.td}>
-                        <div style={styles.nameCell}>
-                          <strong>{loanType.name}</strong>
-                          {loanType.description && (
-                            <div style={styles.description}>{loanType.description}</div>
-                          )}
-                        </div>
+                        <strong>{loanType.name}</strong>
                       </td>
                       <td style={styles.td}>
-                        <code style={styles.code}>{loanType.code}</code>
+                        <div style={styles.description}>{loanType.description || 'N/A'}</div>
                       </td>
                       <td style={styles.td}>
-                        <div>{loanType.min_interest_rate}% - {loanType.max_interest_rate}%</div>
-                        <div style={styles.defaultRate}>Default: {loanType.default_interest_rate}%</div>
-                      </td>
-                      <td style={styles.td}>
-                        {loanType.min_term_months} - {loanType.max_term_months} months
-                      </td>
-                      <td style={styles.td}>
-                        ${loanType.min_amount.toLocaleString()} - 
+                        ${loanType.min_amount?.toLocaleString() || 0} - 
                         {loanType.max_amount ? ` $${loanType.max_amount.toLocaleString()}` : ' No limit'}
                       </td>
                       <td style={styles.td}>
-                        {loanType.min_credit_score || 'None'}
+                        {loanType.rate ? `${loanType.rate}%` : 'N/A'}
                       </td>
                       <td style={styles.td}>
-                        <span style={{
-                          ...styles.statusBadge,
-                          ...(loanType.is_active ? styles.statusActive : styles.statusInactive)
-                        }}>
-                          {loanType.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        {loanType.apr ? `${loanType.apr}%` : 'N/A'}
+                      </td>
+                      <td style={styles.td}>
+                        {loanType.min_term_months && loanType.max_term_months
+                          ? `${loanType.min_term_months} - ${loanType.max_term_months} months`
+                          : 'N/A'}
                       </td>
                       <td style={styles.td}>
                         <div style={styles.actionButtons}>
@@ -355,13 +265,6 @@ export default function LoanTypes() {
                             title="Edit"
                           >
                             ✏️
-                          </button>
-                          <button
-                            onClick={() => toggleActive(loanType.id, loanType.is_active, loanType.name)}
-                            style={styles.toggleButton}
-                            title={loanType.is_active ? 'Deactivate' : 'Activate'}
-                          >
-                            {loanType.is_active ? '🔴' : '🟢'}
                           </button>
                           <button
                             onClick={() => handleDelete(loanType.id, loanType.name)}
@@ -392,7 +295,7 @@ export default function LoanTypes() {
 
               <form onSubmit={handleSubmit} style={styles.form}>
                 <div style={styles.formGrid}>
-                  <div style={styles.formGroup}>
+                  <div style={{ ...styles.formGroup, gridColumn: '1 / -1' }}>
                     <label style={styles.label}>Loan Type Name *</label>
                     <input
                       type="text"
@@ -404,19 +307,6 @@ export default function LoanTypes() {
                     />
                   </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Code *</label>
-                    <input
-                      type="text"
-                      value={formData.code}
-                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                      style={styles.input}
-                      placeholder="e.g., personal"
-                      required
-                    />
-                    <small style={styles.hint}>Lowercase, no spaces (use underscores)</small>
-                  </div>
-
                   <div style={{ ...styles.formGroup, gridColumn: '1 / -1' }}>
                     <label style={styles.label}>Description</label>
                     <textarea
@@ -425,69 +315,6 @@ export default function LoanTypes() {
                       style={styles.textarea}
                       placeholder="Brief description of this loan type"
                       rows="2"
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Default Interest Rate (%) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.default_interest_rate}
-                      onChange={(e) => setFormData({ ...formData, default_interest_rate: e.target.value })}
-                      style={styles.input}
-                      placeholder="5.50"
-                      required
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Min Interest Rate (%) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.min_interest_rate}
-                      onChange={(e) => setFormData({ ...formData, min_interest_rate: e.target.value })}
-                      style={styles.input}
-                      placeholder="3.50"
-                      required
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Max Interest Rate (%) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.max_interest_rate}
-                      onChange={(e) => setFormData({ ...formData, max_interest_rate: e.target.value })}
-                      style={styles.input}
-                      placeholder="12.00"
-                      required
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Min Term (months) *</label>
-                    <input
-                      type="number"
-                      value={formData.min_term_months}
-                      onChange={(e) => setFormData({ ...formData, min_term_months: e.target.value })}
-                      style={styles.input}
-                      placeholder="12"
-                      required
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Max Term (months) *</label>
-                    <input
-                      type="number"
-                      value={formData.max_term_months}
-                      onChange={(e) => setFormData({ ...formData, max_term_months: e.target.value })}
-                      style={styles.input}
-                      placeholder="60"
-                      required
                     />
                   </div>
 
@@ -517,63 +344,53 @@ export default function LoanTypes() {
                   </div>
 
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Min Credit Score</label>
+                    <label style={styles.label}>Interest Rate (%) *</label>
                     <input
                       type="number"
-                      value={formData.min_credit_score}
-                      onChange={(e) => setFormData({ ...formData, min_credit_score: e.target.value })}
+                      step="0.01"
+                      value={formData.rate}
+                      onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
                       style={styles.input}
-                      placeholder="580 (optional)"
-                      min="300"
-                      max="850"
+                      placeholder="5.50"
+                      required
                     />
                   </div>
 
-                  <div style={{ ...styles.formGroup, gridColumn: '1 / -1' }}>
-                    <label style={styles.label}>Required Documents</label>
-                    <div style={styles.documentInput}>
-                      <input
-                        type="text"
-                        value={documentInput}
-                        onChange={(e) => setDocumentInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDocument())}
-                        style={styles.input}
-                        placeholder="Add required document"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddDocument}
-                        style={styles.addDocButton}
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div style={styles.documentList}>
-                      {formData.required_documents.map((doc, idx) => (
-                        <div key={idx} style={styles.documentTag}>
-                          {doc}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDocument(doc)}
-                            style={styles.removeDocButton}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>APR (%) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.apr}
+                      onChange={(e) => setFormData({ ...formData, apr: e.target.value })}
+                      style={styles.input}
+                      placeholder="5.75"
+                      required
+                    />
                   </div>
 
-                  <div style={{ ...styles.formGroup, gridColumn: '1 / -1' }}>
-                    <label style={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={formData.is_active}
-                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                        style={styles.checkbox}
-                      />
-                      Active (available for new loans)
-                    </label>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Min Term (months) *</label>
+                    <input
+                      type="number"
+                      value={formData.min_term_months}
+                      onChange={(e) => setFormData({ ...formData, min_term_months: e.target.value })}
+                      style={styles.input}
+                      placeholder="12"
+                      required
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Max Term (months) *</label>
+                    <input
+                      type="number"
+                      value={formData.max_term_months}
+                      onChange={(e) => setFormData({ ...formData, max_term_months: e.target.value })}
+                      style={styles.input}
+                      placeholder="60"
+                      required
+                    />
                   </div>
                 </div>
 
@@ -702,16 +519,6 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
   },
-  toggleLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    color: '#666'
-  },
-  checkbox: {
-    cursor: 'pointer'
-  },
   loadingState: {
     textAlign: 'center',
     padding: '60px 20px',
@@ -772,40 +579,9 @@ const styles = {
     padding: '12px',
     color: '#334155'
   },
-  nameCell: {
-    minWidth: '150px'
-  },
   description: {
-    fontSize: '11px',
-    color: '#64748b',
-    marginTop: '4px'
-  },
-  code: {
-    background: '#f1f5f9',
-    padding: '4px 8px',
-    borderRadius: '4px',
     fontSize: '12px',
-    fontFamily: 'monospace'
-  },
-  defaultRate: {
-    fontSize: '11px',
-    color: '#667eea',
-    marginTop: '4px'
-  },
-  statusBadge: {
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '11px',
-    fontWeight: '600',
-    display: 'inline-block'
-  },
-  statusActive: {
-    background: '#d1fae5',
-    color: '#065f46'
-  },
-  statusInactive: {
-    background: '#fee2e2',
-    color: '#991b1b'
+    color: '#64748b'
   },
   actionButtons: {
     display: 'flex',
@@ -813,13 +589,6 @@ const styles = {
     justifyContent: 'center'
   },
   editButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
-    padding: '4px 8px'
-  },
-  toggleButton: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -915,58 +684,6 @@ const styles = {
     fontSize: '14px',
     fontFamily: 'inherit',
     resize: 'vertical'
-  },
-  hint: {
-    fontSize: '11px',
-    color: '#64748b'
-  },
-  documentInput: {
-    display: 'flex',
-    gap: '8px'
-  },
-  addDocButton: {
-    padding: '10px 20px',
-    background: '#667eea',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap'
-  },
-  documentList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-    marginTop: '8px'
-  },
-  documentTag: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    background: '#f1f5f9',
-    padding: '6px 12px',
-    borderRadius: '6px',
-    fontSize: '12px',
-    color: '#334155'
-  },
-  removeDocButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#ef4444',
-    fontSize: '14px',
-    padding: '0',
-    marginLeft: '4px'
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    color: '#1e3c72',
-    fontWeight: '500'
   },
   modalFooter: {
     display: 'flex',
