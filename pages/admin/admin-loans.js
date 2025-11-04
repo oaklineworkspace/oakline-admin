@@ -129,9 +129,14 @@ export default function AdminLoans() {
     }
   };
 
-  const handleApprove = async (loanId) => {
+  const handleApprove = async () => {
+    if (!loanToApprove) {
+      setError('No loan selected for approval');
+      return;
+    }
+
     try {
-      const loan = loans.find(l => l.id === loanId);
+      const loan = loanToApprove;
 
       // Validation checks
       if (loan.deposit_required > 0 && !loan.deposit_info?.verified) {
@@ -176,7 +181,7 @@ export default function AdminLoans() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          loanId: loanId,
+          loanId: loan.id,
           userId: loan.user_id,
           userEmail: loan.user_email,
           status: 'approved',
@@ -914,7 +919,7 @@ export default function AdminLoans() {
                 </p>
 
                 <button
-                  onClick={() => handleApprove(loanToApprove.id)}
+                  onClick={handleApprove}
                   style={{
                     width: '100%',
                     padding: '14px',
