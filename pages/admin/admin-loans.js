@@ -133,32 +133,42 @@ export default function AdminLoans() {
     try {
       const loan = loans.find(l => l.id === loanId);
 
+      // Validation checks
       if (loan.deposit_required > 0 && !loan.deposit_info?.verified) {
-        alert(`Cannot approve loan: User must first pay the required deposit of $${loan.deposit_required.toFixed(2)}`);
+        setError(`Cannot approve: Required deposit of $${loan.deposit_required.toFixed(2)} not verified`);
         return;
       }
 
-      // Check treasury balance before approving
       if (parseFloat(loan.principal) > treasuryBalance) {
-        alert('Cannot approve loan: Insufficient treasury balance.');
+        setError('Cannot approve: Insufficient treasury balance');
         return;
       }
 
       if (!formData.adminPassword) {
-        setError('Admin password is required to approve loans');
-        return;
-      }
-
-      // Get the session token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in to approve loans');
+        setError('Admin password is required');
         return;
       }
 
       setLoading(true);
       setError('');
 
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Session expired. Please login again.');
+      }
+
+      // Verify admin password first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: session.user.email,
+        password: formData.adminPassword
+      });
+
+      if (signInError) {
+        throw new Error('Invalid admin password');
+      }
+
+      // Approve the loan
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
         headers: {
@@ -180,14 +190,14 @@ export default function AdminLoans() {
         throw new Error(data.error || 'Failed to approve loan');
       }
 
-      setSuccess('Loan approved successfully! You can now disburse the funds.');
+      setSuccess('Loan approved successfully! Click "Disburse Loan" to transfer funds.');
       setShowModal(null);
       setLoanToApprove(null);
       setFormData({...formData, adminPassword: ''});
       await fetchLoans();
       await fetchTreasuryBalance();
     } catch (error) {
-      console.error('Error approving loan:', error);
+      console.error('Loan approval error:', error);
       setError(error.message || 'Failed to approve loan');
     } finally {
       setLoading(false);
@@ -195,14 +205,27 @@ export default function AdminLoans() {
   };
 
   const handleDisburse = async (loanId) => {
-    if (!confirm('Are you sure you want to disburse this loan? This will transfer funds from the treasury to the user account.')) {
+    const loan = loans.find(l => l.id === loanId);
+    
+    if (!confirm(`Disburse $${parseFloat(loan.principal).toLocaleString()} to user account? This will deduct from treasury balance.`)) {
       return;
     }
 
     try {
+      setLoading(true);
+      setError('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Session expired. Please login again.');
+      }
+
       const response = await fetch('/api/admin/approve-loan-with-disbursement', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ loanId })
       });
 
@@ -212,12 +235,14 @@ export default function AdminLoans() {
         throw new Error(data.error || 'Failed to disburse loan');
       }
 
-      alert('Loan disbursed successfully! Funds have been credited to user account.');
-      fetchLoans();
-      fetchTreasuryBalance(); // Update treasury balance after disbursement
+      setSuccess(`Loan disbursed! $${parseFloat(loan.principal).toLocaleString()} transferred to user account.`);
+      await fetchLoans();
+      await fetchTreasuryBalance();
     } catch (error) {
-      console.error('Error disbursing loan:', error);
+      console.error('Disbursement error:', error);
       setError(error.message || 'Failed to disburse loan');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -534,19 +559,19 @@ export default function AdminLoans() {
                         }}
                         style={{
                           ...styles.approveButton,
-                          opacity: (loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 0.6 : 1,
-                          cursor: (loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 'not-allowed' : 'pointer'
+                          opacity: (loan.deposit_required > 0 && !loan.deposit_info?.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 0.6 : 1,
+                          cursor: (loan.deposit_required > 0 && !loan.deposit_info?.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 'not-allowed' : 'pointer'
                         }}
                         title={
-                          loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified
-                            ? loan.deposit_info.has_pending
-                              ? 'Deposit pending admin approval in Manage Crypto Deposits'
-                              : `Deposit of $${parseFloat(loan.deposit_required).toLocaleString()} not received`
+                          loan.deposit_required > 0 && !loan.deposit_info?.verified
+                            ? loan.deposit_info?.has_pending
+                              ? 'Deposit pending - check Manage Crypto Deposits'
+                              : `Required deposit: $${parseFloat(loan.deposit_required).toLocaleString()}`
                             : parseFloat(loan.principal) > treasuryBalance
                               ? 'Insufficient treasury balance'
-                              : 'Approve loan'
+                              : 'Approve this loan'
                         }
-                        disabled={(loan.deposit_required > 0 && loan.deposit_info && !loan.deposit_info.verified) || parseFloat(loan.principal) > treasuryBalance}
+                        disabled={(loan.deposit_required > 0 && !loan.deposit_info?.verified) || parseFloat(loan.principal) > treasuryBalance}
                       >
                         ✅ Approve
                       </button>
@@ -808,7 +833,7 @@ export default function AdminLoans() {
           }}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Confirm Loan Approval</h2>
+                <h2 style={styles.modalTitle}>✅ Approve Loan</h2>
                 <button onClick={() => {
                   setShowModal(null);
                   setLoanToApprove(null);
@@ -816,128 +841,107 @@ export default function AdminLoans() {
                 }} style={styles.closeButton}>×</button>
               </div>
               <div style={styles.modalBody}>
-                <div style={{...styles.detailsGrid, marginBottom: '20px'}}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Borrower:</span>
-                    <span style={styles.detailValue}>{loanToApprove.user_email}</span>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Loan Type:</span>
-                    <span style={styles.detailValue}>{loanToApprove.loan_type}</span>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Principal Amount:</span>
-                    <span style={styles.detailValue}>${parseFloat(loanToApprove.principal).toLocaleString()}</span>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Treasury Balance:</span>
-                    <span style={styles.detailValue}>
-                      ${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  {loanToApprove.deposit_required && loanToApprove.deposit_required > 0 && (
-                    <div style={styles.detailItem}>
-                      <span style={styles.detailLabel}>Deposit Status:</span>
-                      <span style={styles.detailValue}>
-                        {loanToApprove.deposit_info?.verified ? (
-                          <span style={{color: '#10b981', fontWeight: '700'}}>
-                            ✓ Paid ($${parseFloat(loanToApprove.deposit_info.amount || 0).toLocaleString()})
-                          </span>
-                        ) : loanToApprove.deposit_info?.has_pending ? (
-                          <span style={{color: '#f59e0b', fontWeight: '700'}}>
-                            ⏳ Pending Review ($${parseFloat(loanToApprove.deposit_info.pending_amount || 0).toLocaleString()})
-                          </span>
-                        ) : (
-                          <span style={{color: '#dc2626', fontWeight: '700'}}>
-                            ✗ Not Received (Required: ${parseFloat(loanToApprove.deposit_required).toLocaleString()})
-                          </span>
-                        )}
-                      </span>
+                <div style={{background: '#f0fdf4', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #10b981'}}>
+                  <h3 style={{margin: '0 0 12px 0', color: '#065f46', fontSize: '16px'}}>Loan Summary</h3>
+                  <div style={{display: 'grid', gap: '8px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <span style={{color: '#4a5568'}}>Borrower:</span>
+                      <strong style={{color: '#065f46'}}>{loanToApprove.user_email}</strong>
                     </div>
-                  )}
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <span style={{color: '#4a5568'}}>Loan Type:</span>
+                      <strong style={{color: '#065f46', textTransform: 'capitalize'}}>{loanToApprove.loan_type}</strong>
+                    </div>
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <span style={{color: '#4a5568'}}>Principal:</span>
+                      <strong style={{color: '#065f46', fontSize: '18px'}}>${parseFloat(loanToApprove.principal).toLocaleString()}</strong>
+                    </div>
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <span style={{color: '#4a5568'}}>Treasury Balance:</span>
+                      <strong style={{color: parseFloat(loanToApprove.principal) > treasuryBalance ? '#dc2626' : '#065f46'}}>
+                        ${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    {loanToApprove.deposit_required > 0 && (
+                      <div style={{display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #d1fae5'}}>
+                        <span style={{color: '#4a5568'}}>Deposit Status:</span>
+                        <strong style={{color: loanToApprove.deposit_info?.verified ? '#10b981' : '#dc2626'}}>
+                          {loanToApprove.deposit_info?.verified ? '✓ Verified' : '✗ Not Verified'}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified && !loanToApprove.deposit_info.has_pending && (
-                  <div style={{
-                    background: '#fef2f2',
-                    border: '2px solid #dc2626',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '16px'
-                  }}>
+
+                {loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified && (
+                  <div style={{background: '#fef2f2', border: '2px solid #dc2626', borderRadius: '8px', padding: '16px', marginBottom: '16px'}}>
                     <p style={{color: '#991b1b', fontWeight: '600', margin: '0 0 8px 0', fontSize: '14px'}}>
-                      ⚠️ Deposit Not Received
+                      ⚠️ Deposit Required: ${parseFloat(loanToApprove.deposit_required).toLocaleString()}
                     </p>
                     <p style={{color: '#4a5568', fontSize: '13px', margin: 0}}>
-                      The borrower has not paid the required deposit of ${parseFloat(loanToApprove.deposit_required).toLocaleString()}.
-                      Please ensure the deposit is received and approved before approving this loan.
+                      {loanToApprove.deposit_info?.has_pending 
+                        ? 'A deposit is pending approval. Check Manage Crypto Deposits to verify it first.'
+                        : 'The required deposit has not been received yet. Approval is blocked until deposit is verified.'}
                     </p>
                   </div>
                 )}
-                {loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && loanToApprove.deposit_info.has_pending && !loanToApprove.deposit_info.verified && (
-                  <div style={{
-                    background: '#fef3c7',
-                    border: '2px solid #f59e0b',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '16px'
-                  }}>
+
+                {parseFloat(loanToApprove.principal) > treasuryBalance && (
+                  <div style={{background: '#fef3c7', border: '2px solid #d97706', borderRadius: '8px', padding: '16px', marginBottom: '16px'}}>
                     <p style={{color: '#92400e', fontWeight: '600', margin: '0 0 8px 0', fontSize: '14px'}}>
-                      ⏳ Deposit Pending Admin Review
+                      ⚠️ Insufficient Treasury Balance
                     </p>
                     <p style={{color: '#4a5568', fontSize: '13px', margin: 0}}>
-                      A deposit of ${parseFloat(loanToApprove.deposit_info.pending_amount).toLocaleString()} is awaiting approval in the Manage Crypto Deposits page.
-                      Please approve the deposit first before approving this loan.
+                      Loan amount exceeds available treasury funds. Please add funds to treasury before approving.
                     </p>
                   </div>
                 )}
-                 {parseFloat(loanToApprove.principal) > treasuryBalance && (
-                  <div style={{
-                    background: '#fef3c7',
-                    border: '2px solid #d97706',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '16px'
-                  }}>
-                    <p style={{color: '#92400e', fontWeight: '600', margin: '0 0 8px 0', fontSize: '14px'}}>
-                      ⚠️ Insufficient Treasury Funds
-                    </p>
-                    <p style={{color: '#4a5568', fontSize: '13px', margin: 0}}>
-                      The principal amount of this loan (${parseFloat(loanToApprove.principal).toLocaleString()}) exceeds the current treasury balance (${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).
-                      Please ensure sufficient funds are available before approving.
-                    </p>
-                  </div>
-                )}
+
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Admin Password *</label>
+                  <label style={styles.label}>Confirm with Admin Password *</label>
                   <input
                     type="password"
                     value={formData.adminPassword}
                     onChange={(e) => setFormData({...formData, adminPassword: e.target.value})}
                     style={styles.input}
-                    placeholder="Enter your password to confirm"
+                    placeholder="Enter your password"
+                    autoFocus
                   />
                 </div>
-                <p style={{color: '#64748b', fontSize: '14px', marginBottom: '16px'}}>
-                  The borrower will receive an email notification once approved.
+
+                <p style={{color: '#64748b', fontSize: '13px', marginBottom: '16px', fontStyle: 'italic'}}>
+                  ℹ️ Approval notification will be sent to {loanToApprove.user_email}
                 </p>
+
                 <button
                   onClick={() => handleApprove(loanToApprove.id)}
                   style={{
-                    ...styles.approveButton,
-                    opacity: (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
-                            (parseFloat(loanToApprove.principal) > treasuryBalance) ||
-                            !formData.adminPassword ? 0.5 : 1,
-                    cursor: (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
+                    width: '100%',
+                    padding: '14px',
+                    background: (loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified) ||
+                              (parseFloat(loanToApprove.principal) > treasuryBalance) ||
+                              !formData.adminPassword 
+                              ? '#9ca3af' 
+                              : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: (loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified) ||
                            (parseFloat(loanToApprove.principal) > treasuryBalance) ||
-                           !formData.adminPassword ? 'not-allowed' : 'pointer'
+                           !formData.adminPassword 
+                           ? 'not-allowed' 
+                           : 'pointer'
                   }}
                   disabled={
-                    (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
+                    (loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified) ||
                     (parseFloat(loanToApprove.principal) > treasuryBalance) ||
-                    !formData.adminPassword
+                    !formData.adminPassword ||
+                    loading
                   }
                 >
-                  {loading ? 'Processing...' : 'Confirm Approval'}
+                  {loading ? '⏳ Processing...' : '✅ Approve Loan'}
                 </button>
               </div>
             </div>
