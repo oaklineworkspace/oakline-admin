@@ -38,7 +38,19 @@ export default async function handler(req, res) {
       }
     }
 
-    // Update loan status
+    // Get admin user ID for tracking
+    const authHeader = req.headers.authorization;
+    let adminUserId = null;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (user) {
+        adminUserId = user.id;
+      }
+    }
+
+    // Update loan status with proper tracking fields
     const { data: updatedLoan, error: updateError } = await supabaseAdmin
       .from('loans')
       .update({
@@ -47,7 +59,9 @@ export default async function handler(req, res) {
         ...(status === 'approved' && {
           approved_at: new Date().toISOString()
         }),
-        ...(status === 'rejected' && { rejection_reason: reason })
+        ...(status === 'rejected' && { 
+          rejection_reason: reason
+        })
       })
       .eq('id', loanId)
       .select()

@@ -12,10 +12,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch all loans first
+    // Fetch all loans with all current schema fields
     const { data: loans, error: loansError } = await supabaseAdmin
       .from('loans')
-      .select('*')
+      .select(`
+        *,
+        accounts!loans_account_id_fkey(id, account_number, account_type, user_id, application_id)
+      `)
       .order('created_at', { ascending: false });
 
     if (loansError) {
@@ -62,21 +65,43 @@ export default async function handler(req, res) {
     let depositVerificationMap = {};
 
     if (loansData.length > 0) {
-      // For each loan that requires a deposit, check if it's been paid
+      // For each loan that requires a deposit, check deposit status
       const loansWithDeposits = await Promise.all(loansData.map(async (loan) => {
         if (!loan.deposit_required || loan.deposit_required <= 0) {
-          return { ...loan, deposit_info: null };
+          return { 
+            ...loan, 
+            deposit_info: { 
+              verified: true, 
+              amount: 0, 
+              type: 'not_required', 
+              status: 'not_required' 
+            } 
+          };
         }
 
         const requiredAmount = parseFloat(loan.deposit_required);
 
-        // First check for loan-specific deposits (purpose = 'loan_requirement' and loan_id matches)
+        // Check deposit_status field from loans table
+        if (loan.deposit_status === 'completed' && loan.deposit_paid) {
+          return {
+            ...loan,
+            deposit_info: {
+              verified: true,
+              amount: parseFloat(loan.deposit_amount || 0),
+              type: loan.deposit_method || 'balance',
+              date: loan.deposit_date,
+              status: 'completed'
+            }
+          };
+        }
+
+        // Check for loan-specific crypto deposits
         const { data: loanDeposits } = await supabaseAdmin
           .from('crypto_deposits')
           .select('*')
-          .eq('loan_id', loan.id)
           .eq('purpose', 'loan_requirement')
           .in('status', ['confirmed', 'completed'])
+          .gte('amount', requiredAmount)
           .order('created_at', { ascending: false })
           .limit(1);
 

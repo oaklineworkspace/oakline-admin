@@ -617,30 +617,40 @@ export default function AdminLoans() {
                         </span>
                       </div>
                     )}
-                    {loan.deposit_required && loan.deposit_required > 0 && (
+                    {loan.deposit_required && parseFloat(loan.deposit_required) > 0 && (
                       <div style={styles.loanInfo}>
                         <span style={styles.infoLabel}>Deposit Required:</span>
                         <span style={styles.infoValue}>
-                          ${parseFloat(loan.deposit_required).toLocaleString()}
-                          {loan.deposit_info ? (
-                            loan.deposit_info.verified ? (
-                              <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
-                                ✓ Paid (${parseFloat(loan.deposit_info.amount).toLocaleString()})
-                              </span>
-                            ) : loan.deposit_info.has_pending ? (
-                              <span style={{...styles.depositBadge, background: '#fef3c7', color: '#92400e', marginLeft: '8px'}}>
-                                ⏳ Pending Review (${parseFloat(loan.deposit_info.pending_amount).toLocaleString()})
-                              </span>
-                            ) : (
-                              <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
-                                ✗ Not Received
-                              </span>
-                            )
+                          ${parseFloat(loan.deposit_required).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {loan.deposit_status === 'completed' && loan.deposit_paid ? (
+                            <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
+                              ✓ Paid via {loan.deposit_method || 'Unknown'} (${parseFloat(loan.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                            </span>
+                          ) : loan.deposit_status === 'pending' ? (
+                            <span style={{...styles.depositBadge, background: '#fef3c7', color: '#92400e', marginLeft: '8px'}}>
+                              ⏳ Pending Verification
+                            </span>
                           ) : (
                             <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
                               ✗ Not Received
                             </span>
                           )}
+                        </span>
+                      </div>
+                    )}
+                    {loan.disbursed_at && (
+                      <div style={styles.loanInfo}>
+                        <span style={styles.infoLabel}>Disbursed:</span>
+                        <span style={styles.infoValue}>
+                          {new Date(loan.disbursed_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                    {loan.approved_at && (
+                      <div style={styles.loanInfo}>
+                        <span style={styles.infoLabel}>Approved:</span>
+                        <span style={styles.infoValue}>
+                          {new Date(loan.approved_at).toLocaleDateString()}
                         </span>
                       </div>
                     )}

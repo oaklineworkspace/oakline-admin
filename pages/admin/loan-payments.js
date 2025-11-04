@@ -275,23 +275,23 @@ export default function LoanPayments() {
                       <div style={styles.mainAmount}>
                         <span style={styles.amountLabel}>Payment Amount</span>
                         <span style={styles.amountValue}>
-                          ${parseFloat(payment.amount || 0).toLocaleString()}
+                          ${parseFloat(payment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div style={styles.breakdown}>
                         <div style={styles.breakdownItem}>
                           <span>Principal:</span>
-                          <span>${parseFloat(payment.principal_amount || 0).toLocaleString()}</span>
+                          <span>${parseFloat(payment.principal_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div style={styles.breakdownItem}>
                           <span>Interest:</span>
-                          <span>${parseFloat(payment.interest_amount || 0).toLocaleString()}</span>
+                          <span>${parseFloat(payment.interest_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
-                        {payment.late_fee > 0 && (
+                        {payment.late_fee && parseFloat(payment.late_fee) > 0 && (
                           <div style={styles.breakdownItem}>
                             <span>Late Fee:</span>
                             <span style={{color: '#ef4444'}}>
-                              ${parseFloat(payment.late_fee).toLocaleString()}
+                              ${parseFloat(payment.late_fee).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
                         )}
@@ -347,12 +347,18 @@ export default function LoanPayments() {
                           </span>
                         </div>
                       )}
-                      {payment.balance_after !== null && (
+                      {payment.balance_after !== null && payment.balance_after !== undefined && (
                         <div style={styles.detailItem}>
                           <span style={styles.detailLabel}>Balance After</span>
                           <span style={{...styles.detailValue, color: '#059669', fontWeight: '700'}}>
-                            ${parseFloat(payment.balance_after).toLocaleString()}
+                            ${parseFloat(payment.balance_after).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
+                        </div>
+                      )}
+                      {payment.processed_by && (
+                        <div style={styles.detailItem}>
+                          <span style={styles.detailLabel}>Processed By</span>
+                          <span style={styles.detailValue}>Admin</span>
                         </div>
                       )}
                     </div>

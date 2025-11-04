@@ -29,7 +29,16 @@ export default async function handler(req, res) {
     const principalAmount = parseFloat(amount) - interestAmount;
     const newBalance = Math.max(0, parseFloat(loan.remaining_balance) - principalAmount);
 
-    // Create loan payment record
+    // Get admin user for tracking
+    const authHeader = req.headers.authorization;
+    let processedBy = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (user) processedBy = user.id;
+    }
+
+    // Create loan payment record with all schema fields
     const { data: payment, error: paymentError } = await supabaseAdmin
       .from('loan_payments')
       .insert({
@@ -37,11 +46,13 @@ export default async function handler(req, res) {
         amount: parseFloat(amount),
         principal_amount: principalAmount,
         interest_amount: interestAmount,
+        late_fee: 0,
         balance_after: newBalance,
         payment_type: 'manual',
         status: 'completed',
         notes: note,
-        payment_date: new Date().toISOString()
+        payment_date: new Date().toISOString().split('T')[0],
+        processed_by: processedBy
       })
       .select()
       .single();

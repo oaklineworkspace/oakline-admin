@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -56,14 +55,14 @@ export default async function handler(req, res) {
 
     // Check if already processed
     if (payment.status === 'completed') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Payment already completed',
         details: 'This payment has already been approved and processed'
       });
     }
 
     if (payment.status === 'failed') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Payment already rejected',
         details: 'This payment has already been rejected'
       });
@@ -218,7 +217,7 @@ export default async function handler(req, res) {
     // Calculate how many months this payment covers (matching atomic function logic)
     const monthlyPayment = parseFloat(payment.loans.monthly_payment_amount) || 0;
     const monthsCovered = monthlyPayment > 0 ? Math.floor(paymentAmount / monthlyPayment) : 1;
-    
+
     // Set next payment date based on months covered (30-day months for consistency)
     const currentNextPaymentDate = new Date(payment.loans.next_payment_date || new Date());
     const nextPaymentDate = new Date(currentNextPaymentDate);

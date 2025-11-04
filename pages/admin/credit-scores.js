@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
@@ -60,7 +59,7 @@ export default function CreditScores() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     const scoreValue = parseInt(formData.score);
     if (isNaN(scoreValue) || scoreValue < 300 || scoreValue > 850) {
