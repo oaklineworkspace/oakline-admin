@@ -114,6 +114,7 @@ export default function AdminPageDropdown() {
       items: [
         { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Types', href: '/admin/loan-types', icon: '💼' },
         { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
         { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
         { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
