@@ -33,27 +33,38 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Name and code are required' });
     }
 
-    if (!default_interest_rate || !min_interest_rate || !max_interest_rate) {
+    const isValueMissing = (val) => val === undefined || val === null || val === '';
+
+    if (isValueMissing(default_interest_rate) || isValueMissing(min_interest_rate) || isValueMissing(max_interest_rate)) {
       return res.status(400).json({ error: 'Interest rates are required' });
     }
 
-    if (!min_term_months || !max_term_months) {
+    if (isValueMissing(min_term_months) || isValueMissing(max_term_months)) {
       return res.status(400).json({ error: 'Term months are required' });
     }
 
-    if (!min_amount) {
+    if (isValueMissing(min_amount)) {
       return res.status(400).json({ error: 'Minimum amount is required' });
     }
 
-    if (min_interest_rate > default_interest_rate || default_interest_rate > max_interest_rate) {
+    const parsedDefaultRate = parseFloat(default_interest_rate);
+    const parsedMinRate = parseFloat(min_interest_rate);
+    const parsedMaxRate = parseFloat(max_interest_rate);
+    const parsedMinTerm = parseInt(min_term_months);
+    const parsedMaxTerm = parseInt(max_term_months);
+    const parsedMinAmount = parseFloat(min_amount);
+    const parsedMaxAmount = !isValueMissing(max_amount) ? parseFloat(max_amount) : null;
+    const parsedMinCreditScore = !isValueMissing(min_credit_score) ? parseInt(min_credit_score) : null;
+
+    if (parsedMinRate > parsedDefaultRate || parsedDefaultRate > parsedMaxRate) {
       return res.status(400).json({ error: 'Interest rates must be: min ≤ default ≤ max' });
     }
 
-    if (min_term_months > max_term_months) {
+    if (parsedMinTerm > parsedMaxTerm) {
       return res.status(400).json({ error: 'Minimum term cannot exceed maximum term' });
     }
 
-    if (max_amount && min_amount > max_amount) {
+    if (parsedMaxAmount !== null && parsedMinAmount > parsedMaxAmount) {
       return res.status(400).json({ error: 'Minimum amount cannot exceed maximum amount' });
     }
 
@@ -61,14 +72,14 @@ export default async function handler(req, res) {
       name,
       code: code.toLowerCase().replace(/\s+/g, '_'),
       description,
-      default_interest_rate: parseFloat(default_interest_rate),
-      min_interest_rate: parseFloat(min_interest_rate),
-      max_interest_rate: parseFloat(max_interest_rate),
-      min_term_months: parseInt(min_term_months),
-      max_term_months: parseInt(max_term_months),
-      min_amount: parseFloat(min_amount),
-      max_amount: max_amount ? parseFloat(max_amount) : null,
-      min_credit_score: min_credit_score ? parseInt(min_credit_score) : null,
+      default_interest_rate: parsedDefaultRate,
+      min_interest_rate: parsedMinRate,
+      max_interest_rate: parsedMaxRate,
+      min_term_months: parsedMinTerm,
+      max_term_months: parsedMaxTerm,
+      min_amount: parsedMinAmount,
+      max_amount: parsedMaxAmount,
+      min_credit_score: parsedMinCreditScore,
       required_documents: required_documents || [],
       is_active: is_active !== false,
       updated_at: new Date().toISOString()
