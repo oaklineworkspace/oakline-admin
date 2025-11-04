@@ -10,11 +10,13 @@ const TREASURY_USER_ID = '7f62c3ec-31fe-4952-aa00-2c922064d56a';
 
 export default function Treasury() {
   const [treasuryAccount, setTreasuryAccount] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchTreasuryAccount();
+    fetchTransactions();
   }, []);
 
   const fetchTreasuryAccount = async () => {
@@ -46,6 +48,26 @@ export default function Treasury() {
       setError(err.message || 'Failed to load treasury account');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', TREASURY_USER_ID)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (fetchError) {
+        console.error('Error fetching transactions:', fetchError);
+        throw new Error('Failed to fetch transactions');
+      }
+
+      setTransactions(data || []);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
     }
   };
 
@@ -219,11 +241,65 @@ export default function Treasury() {
                   <div style={styles.actionIcon}>💰</div>
                   <div style={styles.actionText}>Manage Balance</div>
                 </Link>
-                <button onClick={fetchTreasuryAccount} style={styles.actionButton}>
+                <button onClick={() => { fetchTreasuryAccount(); fetchTransactions(); }} style={styles.actionButton}>
                   <div style={styles.actionIcon}>🔄</div>
                   <div style={styles.actionText}>Refresh Data</div>
                 </button>
               </div>
+            </div>
+
+            <div style={styles.transactionsCard}>
+              <h3 style={styles.cardTitle}>Recent Transactions (Last 100)</h3>
+              {transactions.length === 0 ? (
+                <div style={styles.emptyTransactions}>
+                  <div style={styles.emptyIcon}>📋</div>
+                  <p style={styles.emptyText}>No transactions found</p>
+                </div>
+              ) : (
+                <div style={styles.transactionsList}>
+                  {transactions.map((tx) => (
+                    <div key={tx.id} style={styles.transactionItem}>
+                      <div style={styles.transactionHeader}>
+                        <span style={{
+                          ...styles.transactionType,
+                          color: tx.type === 'credit' || tx.type === 'treasury_credit' ? '#10b981' : '#ef4444'
+                        }}>
+                          {tx.type === 'credit' || tx.type === 'treasury_credit' ? '↑' : '↓'} {tx.type?.toUpperCase()}
+                        </span>
+                        <span style={styles.transactionStatus}>
+                          {tx.status?.toUpperCase()}
+                        </span>
+                      </div>
+                      <div style={styles.transactionDetails}>
+                        <div style={styles.transactionDescription}>{tx.description || 'No description'}</div>
+                        <div style={styles.transactionAmount}>
+                          {tx.type === 'credit' || tx.type === 'treasury_credit' ? '+' : '-'}
+                          {formatCurrency(Math.abs(tx.amount))}
+                        </div>
+                      </div>
+                      <div style={styles.transactionMeta}>
+                        <span style={styles.transactionDate}>
+                          {new Date(tx.created_at).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                        {tx.reference && (
+                          <span style={styles.transactionReference}>Ref: {tx.reference}</span>
+                        )}
+                      </div>
+                      {(tx.balance_before !== null || tx.balance_after !== null) && (
+                        <div style={styles.balanceInfo}>
+                          <span>Balance: {formatCurrency(tx.balance_before || 0)} → {formatCurrency(tx.balance_after || 0)}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -539,5 +615,95 @@ const styles = {
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: '1.1'
+  },
+  transactionsCard: {
+    background: 'white',
+    padding: '30px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    marginBottom: '25px'
+  },
+  transactionsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  transactionItem: {
+    background: '#f8fafc',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    transition: 'all 0.2s ease'
+  },
+  transactionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px'
+  },
+  transactionType: {
+    fontSize: '13px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  transactionStatus: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase'
+  },
+  transactionDetails: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px'
+  },
+  transactionDescription: {
+    fontSize: '14px',
+    color: '#1e3c72',
+    fontWeight: '500'
+  },
+  transactionAmount: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#1e3c72'
+  },
+  transactionMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '12px',
+    color: '#6b7280'
+  },
+  transactionDate: {
+    fontWeight: '500'
+  },
+  transactionReference: {
+    fontFamily: 'monospace',
+    background: '#e5e7eb',
+    padding: '2px 6px',
+    borderRadius: '4px'
+  },
+  balanceInfo: {
+    marginTop: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid #e5e7eb',
+    fontSize: '12px',
+    color: '#4b5563',
+    fontFamily: 'monospace'
+  },
+  emptyTransactions: {
+    textAlign: 'center',
+    padding: '40px 20px',
+    color: '#6b7280'
+  },
+  emptyIcon: {
+    fontSize: '48px',
+    marginBottom: '12px'
+  },
+  emptyText: {
+    fontSize: '14px',
+    fontWeight: '500'
   }
 };
