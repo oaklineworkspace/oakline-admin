@@ -100,13 +100,17 @@ export default async function handler(req, res) {
           deposit_paid: true,
           deposit_amount: parseFloat(deposit.amount),
           deposit_date: new Date().toISOString(),
+          deposit_method: 'crypto',
           updated_at: new Date().toISOString()
         })
         .eq('id', deposit.loan_id);
 
       if (loanUpdateError) {
         console.error('Error updating loan deposit status:', loanUpdateError);
-        // Depending on criticality, you might want to return an error or just log it
+        return res.status(500).json({ 
+          error: 'Failed to update loan deposit status', 
+          details: loanUpdateError.message 
+        });
       }
     }
 
@@ -168,12 +172,21 @@ export default async function handler(req, res) {
         }
       });
 
+    // Fetch bank details for email configuration
+    const { data: bankDetails } = await supabaseAdmin
+      .from('bank_details')
+      .select('email_loans, email_info, name')
+      .single();
+
+    const loanEmail = bankDetails?.email_loans || bankDetails?.email_info || 'loans@theoaklinebank.com';
+    const bankName = bankDetails?.name || 'Oakline Bank';
+
     const { data: user } = await supabaseAdmin.auth.admin.getUserById(deposit.user_id);
 
     if (user && user.user.email) {
       try {
         const emailSubject = isLoanDeposit 
-          ? `✅ Loan Deposit Received - ${deposit.crypto_type}`
+          ? `✅ Loan Requirement Deposit Confirmed - ${deposit.crypto_type}`
           : `✅ Crypto Deposit Approved - ${deposit.crypto_type}`;
 
         const emailBody = isLoanDeposit 
@@ -187,40 +200,48 @@ export default async function handler(req, res) {
             <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
                 <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 24px; text-align: center;">
-                  <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Loan Deposit Received</h1>
-                  <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
+                  <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Loan Deposit Confirmed</h1>
+                  <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">${bankName}</p>
                 </div>
 
                 <div style="padding: 40px 32px;">
                   <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
-                    Your loan requirement deposit has been received!
+                    Your 10% loan requirement deposit has been confirmed!
                   </h2>
 
                   <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                    Great news! Your 10% loan requirement deposit has been successfully processed and <strong style="color: #059669;">credited to the bank's treasury account</strong> (not your personal account balance). Your loan application can now proceed to the next stage.
+                    Great news! Your loan requirement deposit has been successfully verified and <strong style="color: #059669;">credited to the bank's treasury account</strong>. Your loan application is now ready for final approval.
                   </p>
 
                   <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0;">
                     <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">
-                      <strong>⚠️ Important:</strong> This deposit has been credited to our bank treasury to secure your loan application. These funds were not added to your personal account balance. Once your loan is approved and disbursed, the loan amount will be credited to your account.
+                      <strong>⚠️ Important:</strong> This deposit has been credited to our bank treasury to secure your loan application. These funds are <strong>NOT</strong> added to your personal account balance. Once your loan is approved and disbursed, the loan principal will be credited to your account.
                     </p>
                   </div>
 
                   <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
-                    <p style="color: #065f46; font-size: 16px; margin: 0 0 12px 0;"><strong>Deposit Details:</strong></p>
-                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Purpose:</strong> Loan Requirement Deposit (Treasury Account)</p>
+                    <p style="color: #065f46; font-size: 16px; margin: 0 0 12px 0;"><strong>Transaction Details:</strong></p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Purpose:</strong> Loan Requirement Deposit (Treasury)</p>
                     <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Cryptocurrency:</strong> ${deposit.crypto_type}</p>
-                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Amount:</strong> $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Amount Deposited:</strong> $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p style="color: #065f46; font-size: 14px; margin: 4px 0;"><strong>Status:</strong> Confirmed & Verified</p>
+                  </div>
+
+                  <div style="background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0;">
+                    <p style="color: #1e40af; font-size: 14px; margin: 0 0 8px 0;"><strong>📋 Next Steps:</strong></p>
+                    <p style="color: #1e40af; font-size: 14px; margin: 4px 0;">• Your loan application will be reviewed by our team</p>
+                    <p style="color: #1e40af; font-size: 14px; margin: 4px 0;">• You'll receive an approval notification via email</p>
+                    <p style="color: #1e40af; font-size: 14px; margin: 4px 0;">• Once approved, funds will be disbursed to your account</p>
                   </div>
 
                   <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
-                    Your loan application is now eligible for approval. You'll receive a notification once your loan has been reviewed and approved.
+                    If you have any questions, please contact our loan department at <strong>${loanEmail}</strong>
                   </p>
                 </div>
 
                 <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
                   <p style="color: #718096; font-size: 12px; margin: 0;">
-                    © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+                    © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
                     Member FDIC | Routing: 075915826
                   </p>
                 </div>
@@ -275,11 +296,15 @@ export default async function handler(req, res) {
             </html>
           `;
 
+        // Use loan email for loan deposits, notify email for general deposits
+        const fromEmail = isLoanDeposit ? loanEmail : undefined;
+        
         await sendEmail({
           to: user.user.email,
           subject: emailSubject,
           html: emailBody,
-          type: EMAIL_TYPES.NOTIFY
+          type: EMAIL_TYPES.NOTIFY,
+          ...(fromEmail && { from: `${bankName} Loans <${fromEmail}>` })
         });
       } catch (emailError) {
         console.error('Error sending approval email:', emailError);

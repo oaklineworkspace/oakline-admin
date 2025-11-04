@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         .single();
 
       const alreadyCredited = (deposit.approved_by && deposit.approved_at) || existingTx;
-      
+
       if (alreadyCredited) {
         console.log('Deposit already credited. Skipping duplicate credit. Transaction exists:', !!existingTx);
         const { data: account } = await supabaseAdmin
@@ -75,23 +75,51 @@ export default async function handler(req, res) {
           .eq('id', deposit.account_id)
           .single();
         newBalance = parseFloat(account?.balance || 0);
-        
-        // Update loan table if this is a loan deposit and status is changing to completed
-        if (newStatus === 'completed' && deposit.purpose === 'loan_requirement' && deposit.loan_id) {
-          const { error: loanUpdateError } = await supabaseAdmin
-            .from('loans')
-            .update({ 
-              deposit_status: 'completed',
-              deposit_paid: true,
-              deposit_amount: parseFloat(deposit.amount),
-              deposit_date: deposit.approved_at || new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', deposit.loan_id);
 
-          if (loanUpdateError) {
-            console.error('Error updating loan deposit status:', loanUpdateError);
+        // Check if this is a loan deposit
+        const isLoanDeposit = deposit.purpose === 'loan_requirement' && deposit.loan_wallet_id;
+
+        // Update loan status if completing a loan deposit
+        if (newStatus === 'completed' && isLoanDeposit && deposit.status !== 'completed') {
+          const { data: loanWallet } = await supabaseAdmin
+            .from('loan_crypto_wallets')
+            .select('*')
+            .eq('id', deposit.loan_wallet_id)
+            .single();
+
+          if (loanWallet) {
+            // Find the loan associated with this deposit
+            const { data: loans } = await supabaseAdmin
+              .from('loans')
+              .select('*')
+              .eq('user_id', deposit.user_id)
+              .eq('deposit_status', 'pending')
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (loans && loans.length > 0) {
+              const loan = loans[0];
+              const { error: loanUpdateError } = await supabaseAdmin
+                .from('loans')
+                .update({
+                  deposit_status: 'completed',
+                  deposit_paid: true,
+                  deposit_amount: parseFloat(deposit.amount),
+                  deposit_date: new Date().toISOString(),
+                  deposit_method: 'crypto',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', loan.id);
+
+              if (loanUpdateError) {
+                console.error('Error updating loan deposit status:', loanUpdateError);
+              }
+            }
           }
+        }
+
+        // If the new status is 'completed', credit the account
+        if (newStatus === 'completed' && (deposit.status !== 'completed')) {
         }
       } else {
         const { data: account, error: accountError } = await supabaseAdmin
@@ -318,7 +346,7 @@ export default async function handler(req, res) {
           old_rejected_by: deposit.rejected_by,
           new_rejected_by: updateData.rejected_by || deposit.rejected_by,
           old_rejected_at: deposit.rejected_at,
-          new_rejected_at: updateData.rejected_at || deposit.rejected_at,
+          new_rejected_at: updateData.rejected_at || deposit.rejected_by,
           old_completed_at: deposit.completed_at,
           new_completed_at: updateData.completed_at || deposit.completed_at,
           old_rejection_reason: deposit.rejection_reason,
@@ -341,6 +369,18 @@ export default async function handler(req, res) {
         let emailTitle = '';
         let emailMessage = '';
 
+        // Retrieve bank details for email alias and specific messages
+        const { data: bankDetails, error: bankDetailsError } = await supabaseAdmin
+          .from('bank_details')
+          .select('email_alias, email_template_loan_completed')
+          .single();
+
+        if (bankDetailsError) {
+          console.error('Error fetching bank details:', bankDetailsError);
+        }
+
+        const emailAlias = bankDetails?.email_alias || 'noreply@oaklinebank.com'; // Fallback email alias
+
         switch (newStatus) {
           case 'confirmed':
           case 'completed':
@@ -348,10 +388,19 @@ export default async function handler(req, res) {
             emailColor = '#10b981';
             emailIcon = '✅';
             emailTitle = `Your ${cryptoType} deposit has been ${newStatus}!`;
-            if (oldStatus === 'approved' && newStatus === 'completed') {
-              emailMessage = deposit.purpose === 'loan_requirement'
-                ? `Your loan requirement deposit transaction has been fully completed and finalized. The funds were previously credited to our bank treasury to secure your loan application.`
-                : `Your cryptocurrency deposit transaction has been fully completed and finalized. The funds were previously credited to your account.`;
+
+            if (deposit.purpose === 'loan_requirement') {
+              // Use specific loan completion message from bank details if available
+              emailMessage = bankDetails?.email_template_loan_completed
+                ? bankDetails.email_template_loan_completed
+                    .replace('{{crypto_type}}', cryptoType)
+                    .replace('{{network}}', networkType)
+                    .replace('{{wallet_address}}', walletAddress)
+                    .replace('{{amount}}', parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }))
+                    .replace('{{net_amount}}', parseFloat(deposit.net_amount || deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }))
+                    .replace('{{status}}', newStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
+                    .replace('{{new_balance}}', (newBalance !== null ? newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 }) : 'N/A'))
+                : `Your loan requirement deposit transaction has been fully completed and finalized. The funds were previously credited to our bank treasury to secure your loan application.`;
             } else {
               emailMessage = `Good news! Your cryptocurrency deposit has been successfully processed and ${balanceChanged ? 'credited to your account' : 'confirmed'}.`;
             }
@@ -402,6 +451,7 @@ export default async function handler(req, res) {
 
         await sendEmail({
           to: user.user.email,
+          from: emailAlias, // Use the email alias from bank details
           subject: emailSubject,
           html: `
             <!DOCTYPE html>
