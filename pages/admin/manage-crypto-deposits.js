@@ -10,6 +10,7 @@ export default function ManageCryptoDeposits() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   
   const [statusFilter, setStatusFilter] = useState('all');
   const [userSearchFilter, setUserSearchFilter] = useState('');
@@ -36,9 +37,12 @@ export default function ManageCryptoDeposits() {
       setLoading(true);
       setError('');
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Refresh the session to get a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
       if (sessionError || !session) {
-        throw new Error('No active session. Please log in again.');
+        setError('Session expired. Please log in again.');
+        setIsAuthenticated(false);
+        return;
       }
 
       const response = await fetch('/api/admin/get-crypto-deposits?status=all', {
@@ -135,9 +139,12 @@ export default function ManageCryptoDeposits() {
       setError('');
       setMessage('');
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Refresh the session to get a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
       if (sessionError || !session) {
-        throw new Error('No active session. Please log in again.');
+        setError('Session expired. Please log in again.');
+        setIsAuthenticated(false);
+        return;
       }
 
       const response = await fetch('/api/admin/update-crypto-deposit-status', {
