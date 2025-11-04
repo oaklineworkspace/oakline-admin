@@ -298,7 +298,7 @@ export default function LoanPayments() {
                       <div style={styles.detailItem}>
                         <span style={styles.detailLabel}>Payment Date</span>
                         <span style={styles.detailValue}>
-                          {new Date(payment.payment_date).toLocaleDateString()}
+                          {new Date(payment.payment_date).toLocaleString()}
                         </span>
                       </div>
                       <div style={styles.detailItem}>
