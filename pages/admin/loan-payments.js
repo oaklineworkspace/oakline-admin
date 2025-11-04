@@ -13,6 +13,7 @@ export default function LoanPayments() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -44,6 +45,85 @@ export default function LoanPayments() {
       console.error('Error fetching payments:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApprovePayment = async (paymentId) => {
+    if (!confirm('Are you sure you want to approve this payment? This will update the loan balance.')) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/approve-loan-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ paymentId, action: 'approve' })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to approve payment');
+      }
+
+      alert('✅ Payment approved successfully!');
+      fetchPayments();
+    } catch (err) {
+      console.error('Error approving payment:', err);
+      alert('❌ Failed to approve payment: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectPayment = async (paymentId) => {
+    const reason = prompt('Please enter rejection reason:');
+    if (!reason) return;
+
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/approve-loan-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          paymentId, 
+          action: 'reject',
+          rejectionReason: reason
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reject payment');
+      }
+
+      alert('✅ Payment rejected successfully');
+      fetchPayments();
+    } catch (err) {
+      console.error('Error rejecting payment:', err);
+      alert('❌ Failed to reject payment: ' + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -248,12 +328,32 @@ export default function LoanPayments() {
                   </div>
 
                   <div style={styles.paymentFooter}>
-                    <Link 
-                      href={`/admin/loans/${payment.loan_id}`}
-                      style={styles.viewLoanButton}
-                    >
-                      👁️ View Loan
-                    </Link>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <Link 
+                        href={`/admin/loans/${payment.loan_id}`}
+                        style={styles.viewLoanButton}
+                      >
+                        👁️ View Loan
+                      </Link>
+                      {payment.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleApprovePayment(payment.id)}
+                            disabled={actionLoading}
+                            style={styles.approveButton}
+                          >
+                            ✅ Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectPayment(payment.id)}
+                            disabled={actionLoading}
+                            style={styles.rejectButton}
+                          >
+                            ❌ Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
                     <span style={styles.timestamp}>
                       {new Date(payment.created_at).toLocaleString()}
                     </span>
@@ -502,6 +602,30 @@ const styles = {
     borderRadius: '6px',
     fontSize: '14px',
     fontWeight: '600',
+    transition: 'all 0.2s',
+    border: 'none',
+    cursor: 'pointer'
+  },
+  approveButton: {
+    padding: '8px 16px',
+    background: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  rejectButton: {
+    padding: '8px 16px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
     transition: 'all 0.2s'
   },
   timestamp: {

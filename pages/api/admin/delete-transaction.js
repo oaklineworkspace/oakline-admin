@@ -1,8 +1,14 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const authResult = await verifyAdminAuth(req);
+  if (authResult.error) {
+    return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
   const { transactionId } = req.body;
@@ -12,18 +18,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get the session token for authentication
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
 
     // Delete the transaction
     const { error: deleteError } = await supabaseAdmin
@@ -35,6 +29,14 @@ export default async function handler(req, res) {
       console.error('Error deleting transaction:', deleteError);
       return res.status(500).json({ error: 'Failed to delete transaction' });
     }
+
+    await supabaseAdmin.from('audit_logs').insert({
+      action: 'transaction_deleted',
+      admin_id: authResult.adminId,
+      details: {
+        transaction_id: transactionId
+      }
+    });
 
     return res.status(200).json({ success: true, message: 'Transaction deleted successfully' });
   } catch (error) {
