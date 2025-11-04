@@ -153,7 +153,7 @@ export default async function handler(req, res) {
                   </p>
 
                   <div style="text-align: center; margin: 32px 0;">
-                    <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
+                    <a href="https://www.theoaklinebank.com/login" 
                        style="display: inline-block; background-color: #10b981; color: #ffffff; 
                               padding: 14px 32px; text-decoration: none; border-radius: 8px; 
                               font-weight: 600; font-size: 16px;">
@@ -240,7 +240,7 @@ export default async function handler(req, res) {
                   </p>
 
                   <div style="text-align: center; margin: 32px 0;">
-                    <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
+                    <a href="https://www.theoaklinebank.com/login" 
                        style="display: inline-block; background-color: #3b82f6; color: #ffffff; 
                               padding: 14px 32px; text-decoration: none; border-radius: 8px; 
                               font-weight: 600; font-size: 16px;">
@@ -326,7 +326,7 @@ export default async function handler(req, res) {
                 </p>
 
                 <div style="text-align: center; margin: 32px 0;">
-                  <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/login" 
+                  <a href="https://www.theoaklinebank.com/login" 
                      style="display: inline-block; background-color: #10b981; color: #ffffff; 
                             padding: 14px 32px; text-decoration: none; border-radius: 8px; 
                             font-weight: 600; font-size: 16px;">
