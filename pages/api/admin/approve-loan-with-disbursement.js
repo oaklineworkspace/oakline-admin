@@ -14,17 +14,49 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Loan ID is required' });
   }
 
+  // Verify admin authentication
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized - No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid token' });
+  }
+
   try {
-    // 1. Fetch the loan details
+    console.log('Attempting to disburse loan:', loanId);
+
+    // 1. Fetch the loan details with user information
     const { data: loan, error: loanError } = await supabaseAdmin
       .from('loans')
-      .select('*, accounts(*)')
+      .select(`
+        *,
+        accounts (
+          id,
+          user_id,
+          account_number,
+          balance,
+          application_id
+        )
+      `)
       .eq('id', loanId)
       .single();
 
-    if (loanError || !loan) {
+    if (loanError) {
+      console.error('Error fetching loan:', loanError);
+      return res.status(500).json({ error: 'Database error fetching loan', details: loanError.message });
+    }
+
+    if (!loan) {
+      console.error('Loan not found for ID:', loanId);
       return res.status(404).json({ error: 'Loan not found' });
     }
+
+    console.log('Loan found:', { id: loan.id, status: loan.status, principal: loan.principal });
 
     // Check if loan is approved but not yet disbursed
     if (loan.status !== 'approved') {
@@ -50,7 +82,10 @@ export default async function handler(req, res) {
     const treasuryBalance = parseFloat(treasuryAccount.balance || 0);
     const requiredAmount = parseFloat(loan.principal);
     
+    console.log('Treasury check:', { treasuryBalance, requiredAmount });
+    
     if (treasuryBalance < requiredAmount) {
+      console.error('Insufficient treasury balance');
       return res.status(400).json({ 
         error: `Treasury balance insufficient for disbursement. Available: $${treasuryBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, Required: $${requiredAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Please fund the treasury account before disbursing this loan.`
       });

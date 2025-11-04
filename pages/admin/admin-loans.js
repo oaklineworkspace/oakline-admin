@@ -212,6 +212,11 @@ export default function AdminLoans() {
   const handleDisburse = async (loanId) => {
     const loan = loans.find(l => l.id === loanId);
     
+    if (!loan) {
+      setError('Loan not found');
+      return;
+    }
+    
     if (!confirm(`Disburse $${parseFloat(loan.principal).toLocaleString()} to user account? This will deduct from treasury balance.`)) {
       return;
     }
@@ -225,6 +230,8 @@ export default function AdminLoans() {
         throw new Error('Session expired. Please login again.');
       }
 
+      console.log('Disbursing loan:', loanId);
+
       const response = await fetch('/api/admin/approve-loan-with-disbursement', {
         method: 'POST',
         headers: { 
@@ -235,9 +242,10 @@ export default function AdminLoans() {
       });
 
       const data = await response.json();
+      console.log('Disbursement response:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to disburse loan');
+        throw new Error(data.error || data.details || 'Failed to disburse loan');
       }
 
       setSuccess(`Loan disbursed! $${parseFloat(loan.principal).toLocaleString()} transferred to user account.`);
