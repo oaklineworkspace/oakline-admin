@@ -57,10 +57,18 @@ export default async function handler(req, res) {
     let balanceChanged = false;
 
     if (newStatus === 'confirmed' || newStatus === 'completed') {
-      const alreadyCredited = deposit.approved_by && deposit.approved_at;
+      const txReference = deposit.tx_hash || deposit.id;
+      const { data: existingTx } = await supabaseAdmin
+        .from('transactions')
+        .select('id')
+        .eq('reference', txReference)
+        .eq('account_id', deposit.account_id)
+        .single();
+
+      const alreadyCredited = (deposit.approved_by && deposit.approved_at) || existingTx;
       
-      if (alreadyCredited && oldStatus === 'approved') {
-        console.log('Deposit already credited when approved. Skipping duplicate credit.');
+      if (alreadyCredited) {
+        console.log('Deposit already credited. Skipping duplicate credit. Transaction exists:', !!existingTx);
         const { data: account } = await supabaseAdmin
           .from('accounts')
           .select('balance')
@@ -93,41 +101,29 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Failed to credit account balance. Deposit status not changed.' });
         }
 
-        // Check if transaction already exists
-        const txReference = deposit.tx_hash || deposit.id;
-        const { data: existingTx } = await supabaseAdmin
+        const { error: transactionError } = await supabaseAdmin
           .from('transactions')
-          .select('id')
-          .eq('reference', txReference)
-          .eq('account_id', deposit.account_id)
-          .single();
+          .insert({
+            user_id: deposit.user_id,
+            account_id: deposit.account_id,
+            type: 'deposit',
+            amount: depositAmount,
+            status: 'completed',
+            description: 'Crypto deposit approved',
+            balance_before: balanceBefore,
+            balance_after: newBalance,
+            reference: txReference,
+            created_at: new Date().toISOString()
+          });
 
-        if (!existingTx) {
-          // Create transaction record only if it doesn't exist
-          const { error: transactionError } = await supabaseAdmin
-            .from('transactions')
-            .insert({
-              user_id: deposit.user_id,
-              account_id: deposit.account_id,
-              type: 'deposit',
-              amount: depositAmount,
-              status: 'completed',
-              description: 'Crypto deposit approved',
-              balance_before: balanceBefore,
-              balance_after: newBalance,
-              reference: txReference,
-              created_at: new Date().toISOString()
-            });
-
-          if (transactionError) {
-            console.error('Error creating transaction record:', transactionError);
-            // Rollback balance update
-            await supabaseAdmin
-              .from('accounts')
-              .update({ balance: balanceBefore })
-              .eq('id', account.id);
-            return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
-          }
+        if (transactionError) {
+          console.error('Error creating transaction record:', transactionError);
+          // Rollback balance update
+          await supabaseAdmin
+            .from('accounts')
+            .update({ balance: balanceBefore })
+            .eq('id', account.id);
+          return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
         }
 
         balanceChanged = true;

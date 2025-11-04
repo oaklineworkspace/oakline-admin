@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminBalance() {
@@ -23,40 +22,15 @@ export default function AdminBalance() {
     setLoading(true);
     setError('');
     try {
-      // Fetch applications with user data
-      const { data: applicationsData, error: appError } = await supabaseAdmin
-        .from('applications')
-        .select('*')
-        .order('submitted_at', { ascending: false });
+      const response = await fetch('/api/admin/balance/get-accounts');
+      const data = await response.json();
 
-      if (appError) {
-        console.error('Error fetching applications:', appError);
-        throw new Error('Failed to fetch applications: ' + appError.message);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch data');
       }
 
-      setUsers(applicationsData || []);
-
-      // Fetch all accounts with application data
-      const { data: accountsData, error: accountsError } = await supabaseAdmin
-        .from('accounts')
-        .select(`
-          *,
-          applications!accounts_application_id_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            user_id
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (accountsError) {
-        console.error('Error fetching accounts:', accountsError);
-        throw new Error('Failed to fetch accounts: ' + accountsError.message);
-      }
-
-      setAccounts(accountsData || []);
+      setUsers(data.users || []);
+      setAccounts(data.accounts || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError(error?.message || 'An unexpected error occurred while loading data');
@@ -92,85 +66,31 @@ export default function AdminBalance() {
     setError('');
 
     try {
-      // Get current account with user info
-      const { data: currentAccount, error: fetchError } = await supabaseAdmin
-        .from('accounts')
-        .select('balance, account_number, account_type, application_id')
-        .eq('id', selectedAccount)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      let newBalance;
       const amount = parseFloat(balanceAmount);
-      const currentBalance = parseFloat(currentAccount.balance) || 0;
 
-      switch (operation) {
-        case 'set':
-          newBalance = amount;
-          break;
-        case 'add':
-          newBalance = currentBalance + amount;
-          break;
-        case 'subtract':
-          newBalance = Math.max(0, currentBalance - amount); // Prevent negative balance
-          break;
-        default:
-          newBalance = amount;
-      }
-
-      // Update balance in accounts table
-      const { error: updateError } = await supabaseAdmin
-        .from('accounts')
-        .update({ 
-          balance: newBalance.toFixed(2),
-          updated_at: new Date().toISOString()
+      const response = await fetch('/api/admin/balance/update-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: selectedAccount,
+          operation: operation,
+          amount: amount
         })
-        .eq('id', selectedAccount);
+      });
 
-      if (updateError) throw updateError;
+      const data = await response.json();
 
-      // Create transaction record
-      const transactionAmount = operation === 'set' ? newBalance : Math.abs(amount);
-      const { error: transactionError } = await supabaseAdmin
-        .from('transactions')
-        .insert({
-          account_id: selectedAccount,
-          account_number: currentAccount.account_number,
-          type: operation === 'subtract' ? 'debit' : 'credit',
-          amount: transactionAmount,
-          description: `Admin ${operation} balance: ${operation === 'set' ? 'Set to' : operation === 'add' ? 'Added' : 'Subtracted'} $${amount.toFixed(2)}`,
-          status: 'completed',
-          balance_after: newBalance.toFixed(2),
-          created_at: new Date().toISOString()
-        });
-
-      if (transactionError) {
-        console.error('Transaction record error:', transactionError);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update balance');
       }
-
-      // Log the admin action for audit trail
-      const adminAction = {
-        action: 'balance_update',
-        account_id: selectedAccount,
-        account_number: currentAccount.account_number,
-        operation: operation,
-        amount: amount,
-        previous_balance: currentBalance,
-        new_balance: newBalance,
-        admin_timestamp: new Date().toISOString()
-      };
-
-      // You can also insert into an audit_logs table if you have one
-      console.log('Admin Action:', adminAction);
 
       setMessage(`✅ Balance updated successfully! 
-        Previous: $${currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
-        New: $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        Previous: $${data.previousBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+        New: $${data.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
       setBalanceAmount('');
       setSelectedAccount('');
       setSelectedUser('');
-      await fetchData(); // Refresh data
+      await fetchData();
     } catch (error) {
       console.error('Error updating balance:', error);
       setError(`❌ Failed to update balance: ${error.message}`);
@@ -188,23 +108,22 @@ export default function AdminBalance() {
     );
   };
 
-  // Function to handle manual balance updates via API
   const handleUpdateBalance = async (accountId) => {
-    const newBalance = prompt('Enter new balance:');
-    if (!newBalance || isNaN(newBalance)) {
-      alert('Invalid balance amount');
+    const amount = prompt('Enter amount to add:');
+    if (!amount || isNaN(amount)) {
+      alert('Invalid amount');
       return;
     }
 
+    setLoading(true);
     try {
-      const response = await fetch('/api/admin/manual-transaction', {
+      const response = await fetch('/api/admin/balance/update-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           accountId: accountId,
-          amount: parseFloat(newBalance),
-          type: 'balance_update',
-          description: 'Admin balance update'
+          operation: 'add',
+          amount: parseFloat(amount)
         })
       });
 
@@ -214,11 +133,13 @@ export default function AdminBalance() {
         throw new Error(result.error || 'Failed to update balance');
       }
 
-      alert('Balance updated successfully!');
-      fetchData(); // Refresh data after successful update
+      alert(`Balance updated successfully!\nPrevious: $${result.previousBalance.toFixed(2)}\nNew: $${result.newBalance.toFixed(2)}`);
+      await fetchData();
     } catch (error) {
       console.error('Error updating balance:', error);
       alert('Failed to update balance: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
