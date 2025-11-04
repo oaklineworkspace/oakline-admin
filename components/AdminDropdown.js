@@ -87,6 +87,7 @@ export default function AdminDropdown() {
       links: [
         { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Types Config', path: '/admin/loan-types', icon: '💼' },
         { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
         { name: 'Manage Loan Wallets', path: '/admin/manage-loan-wallets', icon: '💰' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },

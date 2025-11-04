@@ -76,6 +76,7 @@ export default function AdminStickyDropdown() {
       pages: [
         { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Types Config', href: '/admin/loan-types', icon: '💼' },
         { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
         { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
         { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
@@ -92,6 +93,7 @@ export default function AdminStickyDropdown() {
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
         { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
         { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
+        { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' },
         { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
         { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
