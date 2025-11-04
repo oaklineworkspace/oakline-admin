@@ -1,0 +1,193 @@
+Prompt for Replit AI — Admin Repository: Update Loan & Payment Approval System
+
+Goal (short):
+Update the admin panel so loan approvals, fund disbursements, repayments, and crypto payments follow a professional real-bank logic.
+Admins should be able to:
+	1.	Approve or reject pending loans (especially those that meet the 10% requirement).
+	2.	Approve disbursed loan repayments (both account and crypto payments).
+	3.	View and confirm funds movement between user accounts and the treasury account.
+	4.	See accurate timestamps, full payment history, and generate receipts.
+	5.	Ensure every transaction and loan update affects the correct account balances and loan schedules.
+
+⸻
+
+High-Level Features to Implement
+
+1. Loan Approval System
+	•	Show all pending loan requests in a “Loans Pending Approval” table.
+	•	Each row should include:
+	•	User name and ID
+	•	Loan amount
+	•	Loan type
+	•	Date of request
+	•	Status (Pending admin approval)
+	•	Buttons: Approve / Reject
+	•	On Approve:
+	•	Update loan status → Approved
+	•	Trigger backend endpoint to disburse funds (/api/admin/loans/:loanId/disburse)
+	•	Record disbursement timestamp and update treasury account (funds leaving treasury → credited to user’s account).
+	•	Show confirmation modal with details of the disbursement (amount, account credited, date/time).
+	•	On Reject:
+	•	Mark loan as Rejected
+	•	Send notification to user (via backend or frontend event).
+
+⸻
+
+2. Repayment Approval System (Core New Feature)
+
+When users make repayments (either via bank account or crypto), the payment should appear in the Repayments Pending Confirmation section.
+
+Each repayment entry should display:
+	•	User info
+	•	Loan ID
+	•	Payment ID
+	•	Payment amount
+	•	Method: Account or Crypto
+	•	Source (account ID or crypto wallet)
+	•	Payment timestamp (exact time user made it)
+	•	Status: Pending admin confirmation
+
+Admin Actions:
+	•	Approve: confirms the payment, finalizes the transaction.
+	•	If payment method = account:
+	•	Mark user’s account debit as confirmed.
+	•	Credit treasury account balance.
+	•	Update the corresponding loan’s remaining balance and payment schedule.
+	•	If payment method = crypto:
+	•	Verify crypto transaction (mock or real verification, depending on your logic).
+	•	Mark as confirmed once verified.
+	•	Credit treasury account.
+	•	Generate/refresh receipt (status: Confirmed).
+	•	Reject:
+	•	Reverse the payment (refund or mark invalid).
+	•	Update user and loan history with Rejected status.
+	•	Add admin note for rejection reason.
+
+⸻
+
+3. Treasury Accounting View
+
+Create or improve a Treasury Dashboard with:
+	•	Total Treasury Balance (sum of confirmed inflows – outflows).
+	•	Pending Treasury Transactions (waiting for admin confirmation):
+	•	Loan disbursements
+	•	Loan repayments (incoming funds)
+	•	For each transaction:
+	•	ID, type (Disbursement, Repayment), status, amount, date.
+	•	Admin can filter by status (Pending, Confirmed, Rejected).
+	•	Confirm/Reject button for pending ones (confirmation updates both user and treasury records).
+
+⸻
+
+4. Transaction & Loan History
+	•	Admins should have a unified “Activity Log” showing:
+	•	All actions done by users and admins (loan requests, repayments, approvals).
+	•	Each log entry should show: entity_type (loan/payment), entity_id, user, action, timestamp, and status.
+	•	Filter logs by date range, user, or status.
+	•	Add export (CSV or PDF) button for audit records.
+
+⸻
+
+5. Receipts & Audit Trail
+
+For every approved or confirmed transaction, generate a receipt (PDF or downloadable file) that includes:
+	•	Transaction type (Loan approval / Repayment)
+	•	Amount
+	•	From / To accounts
+	•	Status
+	•	Timestamp (actual, from backend)
+	•	Approved by (admin name or ID)
+	•	Signature area (optional)
+	•	Unique receipt ID
+
+If a payment is still pending admin approval, the receipt should show:
+
+“Pending — awaiting admin confirmation”
+
+All receipts should be accessible from both user and admin sides.
+
+⸻
+
+6. Correct Timestamp Handling
+	•	Replace all hardcoded timestamps with actual server timestamps (created_at, approved_at, disbursed_at, confirmed_at).
+	•	When admin confirms a transaction, store and display approved_at = current UTC time.
+	•	Show human-readable format in admin panel (e.g., Nov 3, 2025, 14:35 UTC).
+
+⸻
+
+7. Notification Triggers
+
+Whenever admin actions occur:
+	•	Loan approval/disbursement: Notify user that their loan has been approved and funds disbursed.
+	•	Repayment approval: Notify user that payment was confirmed and loan balance updated.
+	•	Rejection: Notify user with reason.
+
+⸻
+
+8. Admin Security & Workflow Controls
+	•	Only admins with role LoanManager or TreasuryManager can approve/disburse/confirm transactions.
+	•	Log all actions in admin_activity for audit.
+	•	Prevent duplicate confirmation (idempotency).
+
+⸻
+
+API Endpoints Admin Should Call / Expose
+
+1. Loan Approvals
+
+
+UI Behaviors
+	•	All confirmation/rejection buttons must show a modal with summary (amount, from, to, date, user) before action.
+	•	Confirmation modals should require clicking “Confirm and Record Transaction” before finalizing.
+	•	Show loading spinner and disable buttons during API calls.
+	•	Refresh tables automatically after approval or rejection.
+	•	Provide clear color indicators:
+	•	Green = Confirmed
+	•	Orange = Pending
+	•	Red = Rejected
+
+⸻
+
+Admin Dashboard KPIs
+
+Add top summary cards:
+	•	Pending Loans: X
+	•	Pending Payments: Y
+	•	Treasury Balance: $Z
+	•	Total Approved Loans: N
+	•	Total Repaid Amounts: M
+
+⸻
+
+Acceptance Criteria (for QA)
+
+✅ Loan requests >= 10% requirement appear as “Pending admin approval”.
+✅ Admin can approve/reject loans and disburse funds to user accounts.
+✅ Pending repayments appear in “Pending Payments” with accurate timestamps.
+✅ Admin can confirm/reject repayments and funds move correctly between user account and treasury.
+✅ Part payments properly reduce due amounts and are reflected in payment history.
+✅ Crypto payments follow same pending-confirmation workflow.
+✅ All receipts show correct amounts, timestamps, and status.
+✅ Treasury dashboard updates immediately after confirmations.
+✅ Every admin action is logged in admin_activity.
+
+⸻
+
+Developer Notes
+	•	Follow consistent API naming and status values (pending_admin_confirmation, confirmed, rejected).
+	•	Use real timestamps from the server when recording approvals/disbursements.
+	•	Add optional websocket listener or polling for new pending items.
+	•	Ensure admin confirmations update the frontend dashboard via broadcast or refetch.
+
+⸻
+
+Summary
+
+Purpose: make admin side behave like a real financial operations panel:
+	•	Admins manually approve loans & payments
+	•	System tracks all funds between accounts & treasury
+	•	Accurate timestamps and receipts
+	•	Secure audit logs
+	•	Crypto and account payments follow same logic with confirmation workflow
+
+
