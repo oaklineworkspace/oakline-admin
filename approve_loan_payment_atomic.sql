@@ -20,6 +20,8 @@ DECLARE
   v_new_balance numeric;
   v_principal numeric;
   v_next_payment_date date;
+  v_months_covered integer;
+  v_monthly_payment numeric;
   v_result jsonb;
 BEGIN
   IF p_action NOT IN ('approve', 'reject') THEN
@@ -81,12 +83,19 @@ BEGIN
   v_principal := v_payment.principal_amount;
   v_new_balance := GREATEST(0, v_current_balance - v_principal);
 
-  v_next_payment_date := (now() + INTERVAL '30 days')::date;
+  -- Calculate months covered by this payment
+  v_monthly_payment := v_loan.monthly_payment_amount;
+  v_months_covered := CASE 
+    WHEN v_monthly_payment > 0 THEN FLOOR(v_payment.amount / v_monthly_payment)
+    ELSE 1
+  END;
+
+  v_next_payment_date := (now() + (v_months_covered || ' months')::INTERVAL)::date;
 
   UPDATE loans
   SET remaining_balance = v_new_balance,
       last_payment_date = now(),
-      payments_made = COALESCE(payments_made, 0) + 1,
+      payments_made = COALESCE(payments_made, 0) + v_months_covered,
       is_late = false,
       next_payment_date = v_next_payment_date,
       status = CASE WHEN v_new_balance = 0 THEN 'closed' ELSE status END,

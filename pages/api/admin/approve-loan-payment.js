@@ -215,8 +215,13 @@ export default async function handler(req, res) {
     const principalPaid = parseFloat(payment.principal_amount);
     const newLoanBalance = Math.max(0, remainingBalance - principalPaid);
 
+    // Calculate how many months this payment covers
+    const monthlyPayment = parseFloat(payment.loans.monthly_payment_amount) || 0;
+    const monthsCovered = monthlyPayment > 0 ? Math.floor(paymentAmount / monthlyPayment) : 1;
+    
+    // Set next payment date based on months covered
     const nextPaymentDate = new Date();
-    nextPaymentDate.setDate(nextPaymentDate.getDate() + 30);
+    nextPaymentDate.setDate(nextPaymentDate.getDate() + (30 * monthsCovered));
 
     const { error: loanUpdateError } = await supabaseAdmin
       .from('loans')
@@ -224,7 +229,7 @@ export default async function handler(req, res) {
         remaining_balance: newLoanBalance,
         last_payment_date: new Date().toISOString(),
         next_payment_date: nextPaymentDate.toISOString().split('T')[0],
-        payments_made: (payment.loans.payments_made || 0) + 1,
+        payments_made: (payment.loans.payments_made || 0) + monthsCovered,
         is_late: false,
         status: newLoanBalance === 0 ? 'closed' : 'active',
         updated_at: new Date().toISOString()
