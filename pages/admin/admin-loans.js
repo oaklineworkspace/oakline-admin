@@ -144,12 +144,20 @@ export default function AdminLoans() {
         return;
       }
 
+      if (!formData.adminPassword) {
+        setError('Admin password is required to approve loans');
+        return;
+      }
+
       // Get the session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in to approve loans');
         return;
       }
+
+      setLoading(true);
+      setError('');
 
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
@@ -162,7 +170,7 @@ export default function AdminLoans() {
           userId: loan.user_id,
           userEmail: loan.user_email,
           status: 'approved',
-          adminPassword: formData.adminPassword // Include password for approval
+          adminPassword: formData.adminPassword
         })
       });
 
@@ -172,15 +180,17 @@ export default function AdminLoans() {
         throw new Error(data.error || 'Failed to approve loan');
       }
 
-      alert('Loan approved successfully! You can now disburse the funds.');
+      setSuccess('Loan approved successfully! You can now disburse the funds.');
       setShowModal(null);
       setLoanToApprove(null);
       setFormData({...formData, adminPassword: ''});
       await fetchLoans();
-      fetchTreasuryBalance(); // Update treasury balance after approval
+      await fetchTreasuryBalance();
     } catch (error) {
       console.error('Error approving loan:', error);
       setError(error.message || 'Failed to approve loan');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -912,14 +922,22 @@ export default function AdminLoans() {
                 </p>
                 <button
                   onClick={() => handleApprove(loanToApprove.id)}
-                  style={styles.approveButton}
+                  style={{
+                    ...styles.approveButton,
+                    opacity: (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
+                            (parseFloat(loanToApprove.principal) > treasuryBalance) ||
+                            !formData.adminPassword ? 0.5 : 1,
+                    cursor: (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
+                           (parseFloat(loanToApprove.principal) > treasuryBalance) ||
+                           !formData.adminPassword ? 'not-allowed' : 'pointer'
+                  }}
                   disabled={
                     (loanToApprove.deposit_required > 0 && loanToApprove.deposit_info && !loanToApprove.deposit_info.verified) ||
                     (parseFloat(loanToApprove.principal) > treasuryBalance) ||
                     !formData.adminPassword
                   }
                 >
-                  Confirm Approval
+                  {loading ? 'Processing...' : 'Confirm Approval'}
                 </button>
               </div>
             </div>
