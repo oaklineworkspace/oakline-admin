@@ -32,11 +32,14 @@ export default function AdminLoans() {
     adminPassword: ''
   });
   const [loanToApprove, setLoanToApprove] = useState(null);
-  const [treasuryBalance, setTreasuryBalance] = useState(0); // State for treasury balance
+  const [treasuryBalance, setTreasuryBalance] = useState(0);
+  const [recentPayments, setRecentPayments] = useState([]);
+  const [showPaymentsSection, setShowPaymentsSection] = useState(false);
 
   useEffect(() => {
     fetchLoans();
-    fetchTreasuryBalance(); // Fetch treasury balance on component mount
+    fetchTreasuryBalance();
+    fetchRecentPayments();
   }, []);
 
   const fetchTreasuryBalance = async () => {
@@ -59,6 +62,28 @@ export default function AdminLoans() {
     } catch (err) {
       setError(err.message);
       console.error('Error fetching treasury balance:', err);
+    }
+  };
+
+  const fetchRecentPayments = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-loan-payments', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch loan payments');
+      const data = await response.json();
+      
+      // Get the 10 most recent payments
+      const recent = (data.payments || []).slice(0, 10);
+      setRecentPayments(recent);
+    } catch (err) {
+      console.error('Error fetching recent payments:', err);
     }
   };
 
@@ -457,6 +482,70 @@ export default function AdminLoans() {
             <option value="rejected">Rejected</option>
             <option value="closed">Closed</option>
           </select>
+        </div>
+
+        {/* Loan Payments Section */}
+        <div style={styles.paymentsSection}>
+          <div style={styles.paymentsSectionHeader}>
+            <h2 style={styles.paymentsSectionTitle}>📊 Recent Loan Payments</h2>
+            <div style={styles.paymentsActions}>
+              <button 
+                onClick={() => setShowPaymentsSection(!showPaymentsSection)} 
+                style={styles.toggleButton}
+              >
+                {showPaymentsSection ? '▼ Hide' : '▶ Show'} Payments
+              </button>
+              <Link href="/admin/loan-payments" style={styles.viewAllButton}>
+                View All Payments →
+              </Link>
+            </div>
+          </div>
+
+          {showPaymentsSection && (
+            <div style={styles.paymentsTable}>
+              {recentPayments.length === 0 ? (
+                <div style={styles.emptyPayments}>
+                  <p>No recent payments found</p>
+                </div>
+              ) : (
+                <div style={styles.paymentsGrid}>
+                  {recentPayments.map(payment => (
+                    <div key={payment.id} style={styles.paymentRow}>
+                      <div style={styles.paymentInfo}>
+                        <div style={styles.paymentUser}>
+                          <strong>{payment.user_name || payment.user_email}</strong>
+                          <span style={styles.paymentEmail}>{payment.user_email}</span>
+                        </div>
+                        <div style={styles.paymentDetails}>
+                          <span style={styles.paymentAmount}>
+                            ${parseFloat(payment.amount || 0).toLocaleString()}
+                          </span>
+                          <span style={styles.paymentDate}>
+                            {new Date(payment.payment_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={styles.paymentStatus}>
+                        <span style={{
+                          ...styles.paymentStatusBadge,
+                          background: payment.status === 'completed' ? '#d1fae5' :
+                                    payment.status === 'pending' ? '#fef3c7' : '#fee2e2',
+                          color: payment.status === 'completed' ? '#065f46' :
+                                payment.status === 'pending' ? '#92400e' : '#991b1b'
+                        }}>
+                          {payment.status === 'completed' ? 'Approved' : 
+                           payment.status === 'pending' ? 'Pending' : 'Rejected'}
+                        </span>
+                        <span style={styles.paymentType}>
+                          {payment.loan_type?.toUpperCase() || 'LOAN'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Loans Table */}
@@ -1447,4 +1536,134 @@ const styles = {
     fontSize: '2rem',
     fontWeight: 'bold'
   },
+  paymentsSection: {
+    background: 'white',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    overflow: 'hidden'
+  },
+  paymentsSectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 24px',
+    borderBottom: '2px solid #e2e8f0',
+    flexWrap: 'wrap',
+    gap: '12px'
+  },
+  paymentsSectionTitle: {
+    margin: 0,
+    fontSize: 'clamp(1.25rem, 3.5vw, 22px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  paymentsActions: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    flexWrap: 'wrap'
+  },
+  toggleButton: {
+    padding: '10px 20px',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  viewAllButton: {
+    padding: '10px 20px',
+    background: 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
+  },
+  paymentsTable: {
+    padding: '0'
+  },
+  emptyPayments: {
+    padding: '40px',
+    textAlign: 'center',
+    color: '#718096',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)'
+  },
+  paymentsGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0'
+  },
+  paymentRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 24px',
+    borderBottom: '1px solid #f7fafc',
+    transition: 'background 0.2s',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  paymentInfo: {
+    display: 'flex',
+    gap: '24px',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: '250px',
+    flexWrap: 'wrap'
+  },
+  paymentUser: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    minWidth: '150px'
+  },
+  paymentEmail: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    color: '#718096'
+  },
+  paymentDetails: {
+    display: 'flex',
+    gap: '16px',
+    alignItems: 'center',
+    flexWrap: 'wrap'
+  },
+  paymentAmount: {
+    fontSize: 'clamp(1rem, 2.5vw, 18px)',
+    fontWeight: '700',
+    color: '#059669'
+  },
+  paymentDate: {
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    color: '#4a5568'
+  },
+  paymentStatus: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    flexWrap: 'wrap'
+  },
+  paymentStatusBadge: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  paymentType: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    color: '#4a5568',
+    fontWeight: '600',
+    padding: '4px 10px',
+    background: '#f7fafc',
+    borderRadius: '6px'
+  }
 };
