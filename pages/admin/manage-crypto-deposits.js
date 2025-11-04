@@ -36,20 +36,23 @@ export default function ManageCryptoDeposits() {
       setLoading(true);
       setError('');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('No active session. Please log in again.');
       }
 
       const response = await fetch('/api/admin/get-crypto-deposits?status=all', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
+      
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch deposits');
+        throw new Error(result.error || `Failed to fetch deposits: ${response.status}`);
       }
 
       setDeposits(result.deposits || []);
@@ -132,9 +135,9 @@ export default function ManageCryptoDeposits() {
       setError('');
       setMessage('');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('No active session. Please log in again.');
       }
 
       const response = await fetch('/api/admin/update-crypto-deposit-status', {

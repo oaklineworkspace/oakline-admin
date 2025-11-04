@@ -8,6 +8,7 @@ export default async function handler(req, res) {
 
   const authResult = await verifyAdminAuth(req);
   if (authResult.error) {
+    console.error('Admin auth failed:', authResult.error);
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
