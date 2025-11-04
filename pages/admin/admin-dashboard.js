@@ -198,6 +198,12 @@ export default function AdminDashboard() {
                 <h3 style={styles.cardTitle}>Credit Scores</h3>
                 <p style={styles.cardDescription}>Manually manage user credit scores</p>
               </Link>
+
+              <Link href="/admin/database-explorer" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>🗄️</div>
+                <h3 style={styles.cardTitle}>Database Explorer</h3>
+                <p style={styles.cardDescription}>Browse and analyze database tables</p>
+              </Link>
             </div>
 
             <div style={styles.bottomNav}>
