@@ -1,0 +1,42 @@
+18:08:48.428 Running build in Washington, D.C., USA (East) – iad1
+18:08:48.428 Build machine configuration: 2 cores, 8 GB
+18:08:48.563 Cloning github.com/oaklineworkspace/oakline-admin (Branch: main, Commit: 15f1d0f)
+18:08:49.697 Cloning completed: 1.134s
+18:08:49.914 Restored build cache from previous deployment (CSj2fZwbTwbjsZt3ySGN1Ww3ioYh)
+18:08:50.434 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+18:08:50.435 Running "vercel build"
+18:08:50.830 Vercel CLI 48.8.2
+18:08:51.177 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+18:08:51.186 Running "install" command: `npm install`...
+18:08:52.617 
+18:08:52.618 up to date, audited 383 packages in 1s
+18:08:52.618 
+18:08:52.618 144 packages are looking for funding
+18:08:52.619   run `npm fund` for details
+18:08:52.623 
+18:08:52.623 2 moderate severity vulnerabilities
+18:08:52.623 
+18:08:52.623 To address all issues (including breaking changes), run:
+18:08:52.624   npm audit fix --force
+18:08:52.624 
+18:08:52.624 Run `npm audit` for details.
+18:08:52.635 Detected Next.js version: 14.2.33
+18:08:52.635 Running "npm run build"
+18:08:52.763 
+18:08:52.763 > oakline-bank@1.0.0 build
+18:08:52.764 > next build
+18:08:52.764 
+18:08:53.420   ▲ Next.js 14.2.33
+18:08:53.421 
+18:08:53.422    Linting and checking validity of types ...
+18:08:53.985    Creating an optimized production build ...
+18:08:58.251 Failed to compile.
+18:08:58.251 
+18:08:58.251 ./pages/api/admin/delete-transaction.js
+18:08:58.251 Module not found: Can't resolve '../../lib/supabaseAdmin'
+18:08:58.251 
+18:08:58.252 https://nextjs.org/docs/messages/module-not-found
+18:08:58.252 
+18:08:58.252 
+18:08:58.253 > Build failed because of webpack errors
+18:08:58.282 Error: Command "npm run build" exited with 1
