@@ -75,6 +75,24 @@ export default async function handler(req, res) {
           .eq('id', deposit.account_id)
           .single();
         newBalance = parseFloat(account?.balance || 0);
+        
+        // Update loan table if this is a loan deposit and status is changing to completed
+        if (newStatus === 'completed' && deposit.purpose === 'loan_requirement' && deposit.loan_id) {
+          const { error: loanUpdateError } = await supabaseAdmin
+            .from('loans')
+            .update({ 
+              deposit_status: 'completed',
+              deposit_paid: true,
+              deposit_amount: parseFloat(deposit.amount),
+              deposit_date: deposit.approved_at || new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', deposit.loan_id);
+
+          if (loanUpdateError) {
+            console.error('Error updating loan deposit status:', loanUpdateError);
+          }
+        }
       } else {
         const { data: account, error: accountError } = await supabaseAdmin
           .from('accounts')
