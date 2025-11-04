@@ -13,19 +13,33 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Query to get all tables in the public schema
-    const { data, error } = await supabaseAdmin
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .order('table_name');
+    // Query to get all tables in the public schema using raw SQL
+    const { data, error } = await supabaseAdmin.rpc('get_public_tables', {});
 
     if (error) {
-      console.error('Error fetching tables:', error);
-      throw error;
+      // Fallback: Try direct SQL query if RPC function doesn't exist
+      const { data: tablesData, error: sqlError } = await supabaseAdmin
+        .from('pg_tables')
+        .select('tablename')
+        .eq('schemaname', 'public')
+        .order('tablename');
+
+      if (sqlError) {
+        console.error('Error fetching tables:', sqlError);
+        throw new Error('Unable to fetch database tables');
+      }
+
+      const tables = (tablesData || [])
+        .map(row => row.tablename)
+        .filter(name => !name.startsWith('pg_') && !name.startsWith('sql_'));
+
+      return res.status(200).json({
+        success: true,
+        tables
+      });
     }
 
-    const tables = data.map(row => row.table_name).filter(name => 
+    const tables = (data || []).filter(name => 
       !name.startsWith('pg_') && !name.startsWith('sql_')
     );
 
