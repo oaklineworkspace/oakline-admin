@@ -143,6 +143,19 @@ export default function AdminNavDropdown() {
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🔍' },
         { name: 'Delete User Loans', path: '/admin/delete-user-loans', icon: '🏠' },
       ]
+    },
+    {
+      category: '💬 Communications',
+      links: [
+        { name: 'User Messages', path: '/admin/messages', icon: '💬' },
+        { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
+      ]
+    },
+    {
+      category: '📁 System Tools',
+      links: [
+        { name: 'File Browser', path: '/admin/file-browser', icon: '📁' },
+      ]
     }
   ];
 

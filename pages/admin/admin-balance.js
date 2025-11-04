@@ -146,7 +146,6 @@ export default function AdminBalance() {
   
 
   return (
-    <AdminAuth>
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>💰 Admin Balance Management</h1>
@@ -296,8 +295,6 @@ export default function AdminBalance() {
         )}
       </div>
     </div>
-  
-    </AdminAuth>
   );
 }
 

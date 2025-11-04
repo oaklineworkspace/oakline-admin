@@ -132,7 +132,8 @@ export default function AdminPageDropdown() {
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🔑' },
         { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
         { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📣' },
-        { name: 'File Browser', path: '/admin/file-browser', icon: '📁'}
+        { name: 'User Messages', href: '/admin/messages', icon: '💬' },
+        { name: 'File Browser', href: '/admin/file-browser', icon: '📁' }
       ]
     }
   ];

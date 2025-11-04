@@ -89,14 +89,14 @@ export default function AdminStickyDropdown() {
     {
       category: '🔧 System & Security',
       pages: [
-        { name: 'Bank Details', path: '/admin/manage-bank-details' },
-        { name: 'System Logs', path: '/admin/admin-logs' },
-        { name: 'Settings', path: '/admin/admin-settings' },
-        { name: 'Roles & Permissions', path: '/admin/admin-roles' },
-        { name: 'Notifications', path: '/admin/admin-notifications' },
-        { name: 'Broadcast Messages', path: '/admin/broadcast-messages' },
-        { name: 'User Messages', path: '/admin/messages' },
-        { name: 'File Browser', path: '/admin/file-browser' }
+        { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
+        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
+        { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
+        { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
+        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📢' },
+        { name: 'User Messages', href: '/admin/messages', icon: '💬' },
+        { name: 'File Browser', href: '/admin/file-browser', icon: '📁' }
       ]
     }
   ];
