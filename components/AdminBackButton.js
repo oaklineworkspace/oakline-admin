@@ -1,13 +1,25 @@
 
 import { useRouter } from 'next/router';
 
-export default function AdminBackButton({ text = '← Back to Dashboard', href = '/admin/admin-dashboard' }) {
+export default function AdminBackButton({ text = '← Back', href = null, useBrowserHistory = false }) {
   const router = useRouter();
+
+  const handleClick = () => {
+    if (useBrowserHistory) {
+      router.back();
+    } else if (href) {
+      router.push(href);
+    } else {
+      router.push('/admin/admin-dashboard');
+    }
+  };
 
   return (
     <button 
-      onClick={() => router.push(href)}
+      onClick={handleClick}
       style={styles.backButton}
+      onMouseEnter={(e) => e.target.style.background = '#5a6268'}
+      onMouseLeave={(e) => e.target.style.background = '#6c757d'}
     >
       {text}
     </button>
