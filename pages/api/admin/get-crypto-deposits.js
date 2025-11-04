@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     let query = supabaseAdmin
       .from('crypto_deposits')
-      .select('*, accounts!inner(*)') // Select all columns from crypto_deposits and join with accounts
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
@@ -40,32 +40,90 @@ export default async function handler(req, res) {
     // Fetch user emails from profiles table
     const userIds = [...new Set(deposits.map(d => d.user_id).filter(Boolean))];
     let userEmailMap = {};
+    let accountMap = {};
 
     if (userIds.length > 0) {
+      // Fetch user profiles
       const { data: profiles, error: profilesError } = await supabaseAdmin
         .from('profiles')
-        .select('id, email')
+        .select('id, email, first_name, last_name')
         .in('id', userIds);
 
       if (profilesError) {
         console.error('Error fetching user profiles:', profilesError);
-        return res.status(500).json({
-          error: 'Failed to fetch user profiles',
-          details: profilesError.message
+      } else {
+        profiles?.forEach(profile => {
+          userEmailMap[profile.id] = {
+            email: profile.email || 'N/A',
+            name: profile.first_name && profile.last_name 
+              ? `${profile.first_name} ${profile.last_name}` 
+              : 'N/A'
+          };
         });
       }
 
-      profiles.forEach(profile => {
-        userEmailMap[profile.id] = profile.email;
+      // Fetch accounts for all users
+      const { data: accounts, error: accountsError } = await supabaseAdmin
+        .from('accounts')
+        .select('id, user_id, account_number, account_type, balance')
+        .in('user_id', userIds);
+
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+      } else {
+        accounts?.forEach(account => {
+          if (!accountMap[account.user_id]) {
+            accountMap[account.user_id] = [];
+          }
+          accountMap[account.user_id].push(account);
+        });
+      }
+    }
+
+    // Fetch assigned wallet addresses for deposits
+    const { data: wallets, error: walletsError } = await supabaseAdmin
+      .from('admin_assigned_wallets')
+      .select('user_id, crypto_type, network_type, wallet_address')
+      .in('user_id', userIds);
+
+    let walletMap = {};
+    if (!walletsError && wallets) {
+      wallets.forEach(wallet => {
+        const key = `${wallet.user_id}_${wallet.crypto_type}_${wallet.network_type}`;
+        walletMap[key] = wallet.wallet_address;
       });
     }
 
-    // Enrich deposits with user emails and account numbers
-    const enrichedDeposits = deposits.map(deposit => ({
-      ...deposit,
-      user_email: userEmailMap[deposit.user_id] || 'N/A',
-      account_number: deposit.accounts?.account_number || 'N/A' // Safely access account_number from nested accounts
-    }));
+    // Enrich deposits with user emails, account numbers, and wallet addresses
+    const enrichedDeposits = deposits.map(deposit => {
+      const userInfo = userEmailMap[deposit.user_id] || { email: 'N/A', name: 'N/A' };
+      const userAccounts = accountMap[deposit.user_id] || [];
+      
+      // Find the account that matches this deposit
+      let accountNumber = 'N/A';
+      if (deposit.account_id) {
+        const matchingAccount = userAccounts.find(acc => acc.id === deposit.account_id);
+        accountNumber = matchingAccount?.account_number || 'N/A';
+      } else if (userAccounts.length > 0) {
+        // Fallback to first account if no specific account_id
+        accountNumber = userAccounts[0].account_number;
+      }
+
+      // Get assigned wallet address if not present
+      let walletAddress = deposit.wallet_address;
+      if (!walletAddress || walletAddress === 'N/A') {
+        const walletKey = `${deposit.user_id}_${deposit.crypto_type}_${deposit.network_type}`;
+        walletAddress = walletMap[walletKey] || 'N/A';
+      }
+
+      return {
+        ...deposit,
+        user_email: userInfo.email,
+        user_name: userInfo.name,
+        account_number: accountNumber,
+        wallet_address: walletAddress
+      };
+    });
 
     const summary = {
       total: deposits.length,

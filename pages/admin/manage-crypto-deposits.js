@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import { supabase } from '../../lib/supabaseClient';
@@ -495,8 +495,8 @@ export default function ManageCryptoDeposits() {
                 </tr>
               ) : (
                 currentItems.map((deposit) => (
-                  <>
-                    <tr key={deposit.id} style={styles.tableRow}>
+                  <React.Fragment key={deposit.id}>
+                    <tr style={styles.tableRow}>
                       <td style={styles.td}>
                         <button
                           onClick={() => setExpandedRow(expandedRow === deposit.id ? null : deposit.id)}
@@ -660,7 +660,7 @@ export default function ManageCryptoDeposits() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))
               )}
             </tbody>
