@@ -14,6 +14,20 @@ export default async function handler(req, res) {
   try {
     const { paymentId, action, rejectionReason } = req.body;
 
+    // Check if payment is already completed (from account balance)
+    const { data: existingPayment } = await supabaseAdmin
+      .from('loan_payments')
+      .select('status, payment_method')
+      .eq('id', paymentId)
+      .single();
+
+    if (existingPayment?.status === 'completed') {
+      return res.status(400).json({ 
+        error: 'Payment already completed',
+        details: 'This payment was automatically processed from account balance'
+      });
+    }
+
     if (!paymentId || !action) {
       return res.status(400).json({ error: 'Payment ID and action are required' });
     }

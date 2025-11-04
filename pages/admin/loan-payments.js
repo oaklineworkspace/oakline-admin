@@ -390,15 +390,15 @@ const styles = {
   container: {
     minHeight: '100vh',
     background: '#f9fafb',
-    padding: '24px'
+    padding: 'clamp(12px, 3vw, 24px)'
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '32px',
+    marginBottom: 'clamp(16px, 4vw, 32px)',
     flexWrap: 'wrap',
-    gap: '16px'
+    gap: '12px'
   },
   title: {
     fontSize: '32px',
@@ -496,7 +496,7 @@ const styles = {
     gridTemplateColumns: '1fr'
   },
   paymentCard: {
-    padding: '24px',
+    padding: 'clamp(12px, 3vw, 24px)',
     borderBottom: '1px solid #e5e7eb',
     transition: 'background 0.2s'
   },
@@ -532,9 +532,9 @@ const styles = {
   },
   amountSection: {
     display: 'flex',
-    gap: '24px',
-    alignItems: 'center',
-    padding: '20px',
+    flexDirection: 'column',
+    gap: 'clamp(12px, 3vw, 24px)',
+    padding: 'clamp(12px, 3vw, 20px)',
     background: '#f9fafb',
     borderRadius: '8px',
     border: '1px solid #e5e7eb'
@@ -545,31 +545,32 @@ const styles = {
     gap: '8px'
   },
   amountLabel: {
-    fontSize: '13px',
+    fontSize: 'clamp(11px, 2.5vw, 13px)',
     color: '#6b7280',
     fontWeight: '600',
     textTransform: 'uppercase'
   },
   amountValue: {
-    fontSize: '28px',
+    fontSize: 'clamp(20px, 5vw, 28px)',
     fontWeight: '700',
     color: '#059669'
   },
   breakdown: {
-    display: 'flex',
-    gap: '20px',
-    marginLeft: 'auto'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+    gap: 'clamp(8px, 2vw, 20px)',
+    width: '100%'
   },
   breakdownItem: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
-    fontSize: '14px'
+    fontSize: 'clamp(12px, 2.5vw, 14px)'
   },
   detailsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: 'clamp(12px, 3vw, 16px)'
   },
   detailItem: {
     display: 'flex',
@@ -577,14 +578,15 @@ const styles = {
     gap: '6px'
   },
   detailLabel: {
-    fontSize: '13px',
+    fontSize: 'clamp(11px, 2.5vw, 13px)',
     color: '#6b7280',
     fontWeight: '500'
   },
   detailValue: {
-    fontSize: '15px',
+    fontSize: 'clamp(13px, 3vw, 15px)',
     color: '#111827',
-    fontWeight: '600'
+    fontWeight: '600',
+    wordBreak: 'break-word'
   },
   notesSection: {
     padding: '16px',
@@ -606,45 +608,50 @@ const styles = {
   },
   paymentFooter: {
     display: 'flex',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #e5e7eb'
+    marginTop: 'clamp(12px, 3vw, 16px)',
+    paddingTop: 'clamp(12px, 3vw, 16px)',
+    borderTop: '1px solid #e5e7eb',
+    gap: '8px'
   },
   viewLoanButton: {
-    padding: '8px 16px',
+    padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
     background: '#3b82f6',
     color: 'white',
     textDecoration: 'none',
     borderRadius: '6px',
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
     fontWeight: '600',
     transition: 'all 0.2s',
     border: 'none',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
   },
   approveButton: {
-    padding: '8px 16px',
+    padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
     background: '#10b981',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
   },
   rejectButton: {
-    padding: '8px 16px',
+    padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
     background: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
   },
   timestamp: {
     fontSize: '13px',
