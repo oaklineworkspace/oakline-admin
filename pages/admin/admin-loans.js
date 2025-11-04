@@ -559,6 +559,7 @@ export default function AdminLoans() {
                     {loan.status === 'pending' && (
                       <button
                         onClick={() => {
+                          console.log('Approve button clicked for loan:', loan.id);
                           setLoanToApprove(loan);
                           setShowModal('approve');
                         }}
@@ -576,7 +577,6 @@ export default function AdminLoans() {
                               ? 'Insufficient treasury balance'
                               : 'Approve this loan'
                         }
-                        disabled={(loan.deposit_required > 0 && !loan.deposit_info?.verified) || parseFloat(loan.principal) > treasuryBalance}
                       >
                         ✅ Approve
                       </button>
