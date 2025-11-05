@@ -23,7 +23,8 @@ export default function AdminPageDropdown() {
       icon: '🛡️',
       color: '#8B5CF6',
       items: [
-        { name: 'Admin Dashboard', href: '/admin/dashboard', icon: '📊' },
+        { name: 'Admin Dashboard', href: '/admin/admin-dashboard', icon: '🏠' },
+        { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
         { name: 'Create Admin', href: '/admin/register', icon: '➕' },
         { name: 'Admin Login', href: '/admin/login', icon: '🔐' }
       ]
@@ -34,9 +35,13 @@ export default function AdminPageDropdown() {
       color: '#1A3E6F',
       items: [
         { name: 'All Users', href: '/admin/manage-all-users', icon: '👥' },
+        { name: 'Customer Users', href: '/admin/admin-users', icon: '👨‍💼' },
         { name: 'Create User', href: '/admin/create-user', icon: '➕' },
         { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '🔑' },
-        { name: 'Delete Users', href: '/admin/delete-user-by-id', icon: '🗑️' }
+        { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '📧' },
+        { name: 'Delete User by ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' },
+        { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '🏠' }
       ]
     },
     {
@@ -60,39 +65,22 @@ export default function AdminPageDropdown() {
         { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
         { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
+        { name: 'Cards Dashboard', href: '/admin/admin-cards-dashboard', icon: '📊' },
         { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
-        { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' }
+        { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' },
+        { name: 'Assign Card', href: '/admin/admin-assign-card', icon: '🔗' }
       ]
     },
     {
-      title: 'System & Settings',
-      icon: '⚙️',
-      color: '#8B5CF6',
+      title: 'Loans & Investments',
+      icon: '🏠',
+      color: '#14b8a6',
       items: [
-        { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
-        { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️' },
-        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
-        { name: 'Audit Trail', href: '/admin/admin-audit', icon: '🔍' }
-      ]
-    },
-    {
-      title: 'User Management',
-      icon: '👥',
-      color: '#EC4899',
-      items: [
-        { name: 'Manage Enrollment', href: '/admin/manage-user-enrollment', icon: '📧' },
-        { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '🔄' },
-        { name: 'Delete User by ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
-        { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' },
-        { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '🏠' }
-      ]
-    },
-    {
-      title: 'Testing & Tools',
-      icon: '🛠️',
-      color: '#6366F1',
-      items: [
-        { name: 'Test Card Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
+        { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
+        { name: 'Loan Types', href: '/admin/loan-types', icon: '💼' },
+        { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
+        { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
+        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' }
       ]
     },
     {
@@ -108,18 +96,16 @@ export default function AdminPageDropdown() {
       ]
     },
     {
-      title: 'Banking Services',
-      icon: '🏦',
-      color: '#14b8a6',
+      title: 'Reports & Analytics',
+      icon: '📊',
+      color: '#8B5CF6',
       items: [
-        { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
-        { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
-        { name: 'Loan Types', href: '/admin/loan-types', icon: '💼' },
-        { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
-        { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
-        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
+        { name: 'Admin Reports', href: '/admin/admin-reports', icon: '📈' },
+        { name: 'Audit Trail', href: '/admin/admin-audit', icon: '🔍' },
+        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
         { name: 'Account Balances', href: '/admin/admin-balance', icon: '💰' },
-        { name: 'Manage Bank Details', href: '/admin/manage-bank-details', icon: '🏦' }
+        { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
+        { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' }
       ]
     },
     {
@@ -128,13 +114,28 @@ export default function AdminPageDropdown() {
       color: '#94a3b8',
       items: [
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
-        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
-        { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🔑' },
         { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
-        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📣' },
-        { name: 'User Messages', href: '/admin/messages', icon: '💬' },
+        { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
         { name: 'File Browser', href: '/admin/file-browser', icon: '📁' }
+      ]
+    },
+    {
+      title: 'Communications',
+      icon: '💬',
+      color: '#EC4899',
+      items: [
+        { name: 'User Messages', href: '/admin/messages', icon: '💬' },
+        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📣' }
+      ]
+    },
+    {
+      title: 'Testing & Tools',
+      icon: '🛠️',
+      color: '#6366F1',
+      items: [
+        { name: 'Test Card Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
       ]
     }
   ];

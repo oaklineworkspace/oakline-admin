@@ -29,6 +29,13 @@ export default function AdminStickyDropdown() {
       ]
     },
     {
+      category: '🔐 Admin Control',
+      pages: [
+        { name: 'Admin Login', href: '/admin/login', icon: '🔐' },
+        { name: 'Create Admin', href: '/admin/register', icon: '➕' }
+      ]
+    },
+    {
       category: '👥 User Management',
       pages: [
         { name: 'All Users', href: '/admin/manage-all-users', icon: '👥' },
@@ -60,7 +67,8 @@ export default function AdminStickyDropdown() {
         { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
         { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✍️' },
         { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
-        { name: 'Account Balances', href: '/admin/admin-balance', icon: '💵' }
+        { name: 'Account Balances', href: '/admin/admin-balance', icon: '💵' },
+        { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' }
       ]
     },
     {
@@ -72,14 +80,18 @@ export default function AdminStickyDropdown() {
       ]
     },
     {
-      category: '🏦 Banking Services',
+      category: '🏠 Loans & Investments',
       pages: [
-        { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
         { name: 'Loans Management', href: '/admin/admin-loans', icon: '🏠' },
         { name: 'Loan Types', href: '/admin/loan-types', icon: '💼' },
         { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
         { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
-        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
+        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' }
+      ]
+    },
+    {
+      category: '₿ Crypto Management',
+      pages: [
         { name: 'Crypto Dashboard', href: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', href: '/admin/manage-crypto-wallets', icon: '🔑' },
         { name: 'Manage Crypto Deposits', href: '/admin/manage-crypto-deposits', icon: '💰' },
@@ -91,15 +103,19 @@ export default function AdminStickyDropdown() {
       category: '🔧 System & Security',
       pages: [
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
-        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
         { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
         { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' },
         { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
         { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
-        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📢' },
-        { name: 'User Messages', href: '/admin/messages', icon: '💬' },
         { name: 'File Browser', href: '/admin/file-browser', icon: '📁' }
+      ]
+    },
+    {
+      category: '💬 Communications',
+      pages: [
+        { name: 'User Messages', href: '/admin/messages', icon: '💬' },
+        { name: 'Broadcast Messages', href: '/admin/broadcast-messages', icon: '📢' }
       ]
     }
   ];
