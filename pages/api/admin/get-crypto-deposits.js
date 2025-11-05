@@ -75,19 +75,23 @@ export default async function handler(req, res) {
       }
 
       // Fetch accounts for all users
+      const accountIds = [...new Set(deposits.map(d => d.account_id).filter(Boolean))];
       const { data: accounts, error: accountsError } = await supabaseAdmin
         .from('accounts')
         .select('id, user_id, account_number, account_type, balance')
-        .in('user_id', userIds);
+        .or(`id.in.(${accountIds.join(',')}),user_id.in.(${userIds.join(',')})`);
 
       if (accountsError) {
         console.error('Error fetching accounts:', accountsError);
       } else {
         accounts?.forEach(account => {
-          if (!accountMap[account.user_id]) {
-            accountMap[account.user_id] = [];
+          // Map by account ID
+          accountMap[account.id] = account;
+          // Also maintain user_id mapping for fallback
+          if (!accountMap[`user_${account.user_id}`]) {
+            accountMap[`user_${account.user_id}`] = [];
           }
-          accountMap[account.user_id].push(account);
+          accountMap[`user_${account.user_id}`].push(account);
         });
       }
     }
@@ -109,16 +113,21 @@ export default async function handler(req, res) {
     // Enrich deposits with user emails, account numbers, and wallet addresses
     const enrichedDeposits = deposits.map(deposit => {
       const userInfo = userEmailMap[deposit.user_id] || { email: 'N/A', name: 'N/A' };
-      const userAccounts = accountMap[deposit.user_id] || [];
       
       // Find the account that matches this deposit
       let accountNumber = 'N/A';
-      if (deposit.account_id) {
-        const matchingAccount = userAccounts.find(acc => acc.id === deposit.account_id);
-        accountNumber = matchingAccount?.account_number || 'N/A';
-      } else if (userAccounts.length > 0) {
-        // Fallback to first account if no specific account_id
-        accountNumber = userAccounts[0].account_number;
+      let accountId = deposit.account_id;
+      
+      if (deposit.account_id && accountMap[deposit.account_id]) {
+        // Direct lookup by account_id
+        accountNumber = accountMap[deposit.account_id].account_number;
+      } else {
+        // Fallback to user's first account
+        const userAccounts = accountMap[`user_${deposit.user_id}`] || [];
+        if (userAccounts.length > 0) {
+          accountNumber = userAccounts[0].account_number;
+          accountId = userAccounts[0].id;
+        }
       }
 
       // Extract crypto asset data from the join
@@ -139,6 +148,7 @@ export default async function handler(req, res) {
         ...deposit,
         user_email: userInfo.email,
         user_name: userInfo.name,
+        account_id: accountId,
         account_number: accountNumber,
         crypto_type: cryptoType,
         network_type: networkType,
