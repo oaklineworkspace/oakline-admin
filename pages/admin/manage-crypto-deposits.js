@@ -517,6 +517,9 @@ export default function ManageCryptoDeposits() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.userCell}>
+                          {deposit.user_name && deposit.user_name !== 'N/A' && (
+                            <div style={styles.userName}>{deposit.user_name}</div>
+                          )}
                           <div style={styles.userEmail}>{deposit.user_email}</div>
                           <div style={styles.userId}>ID: {deposit.user_id?.substring(0, 8)}...</div>
                         </div>
@@ -608,6 +611,14 @@ export default function ManageCryptoDeposits() {
                             <h4 style={styles.expandedTitle}>Full Deposit Details</h4>
                             <div style={styles.detailsGrid}>
                               <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>User Name:</span>
+                                <span style={styles.detailValue}>{deposit.user_name || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <span style={styles.detailLabel}>User Email:</span>
+                                <span style={styles.detailValue}>{deposit.user_email || 'N/A'}</span>
+                              </div>
+                              <div style={styles.detailItem}>
                                 <span style={styles.detailLabel}>ID:</span>
                                 <span style={styles.detailValue}>{deposit.id}</span>
                               </div>
@@ -659,6 +670,12 @@ export default function ManageCryptoDeposits() {
                                 <span style={styles.detailLabel}>Full Wallet Address:</span>
                                 <span style={{...styles.detailValue, wordBreak: 'break-all'}}>{deposit.wallet_address}</span>
                               </div>
+                              {deposit.wallet_memo && (
+                                <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                  <span style={styles.detailLabel}>Wallet Memo:</span>
+                                  <span style={{...styles.detailValue, wordBreak: 'break-all'}}>{deposit.wallet_memo}</span>
+                                </div>
+                              )}
                               {deposit.metadata && Object.keys(deposit.metadata).length > 0 && (
                                 <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
                                   <span style={styles.detailLabel}>Metadata:</span>
@@ -892,13 +909,19 @@ const styles = {
     flexDirection: 'column',
     gap: '2px',
   },
+  userName: {
+    fontWeight: '700',
+    fontSize: '14px',
+    color: '#1e293b',
+  },
   userEmail: {
-    fontWeight: '600',
-    fontSize: '13px',
+    fontWeight: '500',
+    fontSize: '12px',
+    color: '#64748b',
   },
   userId: {
     fontSize: '11px',
-    color: '#64748b',
+    color: '#94a3b8',
   },
   accountNumber: {
     fontFamily: 'monospace',

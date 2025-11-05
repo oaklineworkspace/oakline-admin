@@ -17,7 +17,18 @@ export default async function handler(req, res) {
 
     let query = supabaseAdmin
       .from('crypto_deposits')
-      .select('*')
+      .select(`
+        *,
+        crypto_asset:crypto_asset_id (
+          crypto_type,
+          network_type,
+          symbol
+        ),
+        loan_wallet:loan_wallet_id (
+          wallet_address,
+          memo
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
@@ -57,8 +68,8 @@ export default async function handler(req, res) {
           userEmailMap[profile.id] = {
             email: profile.email || 'N/A',
             name: profile.first_name && profile.last_name 
-              ? `${profile.first_name} ${profile.last_name}` 
-              : 'N/A'
+              ? `${profile.first_name} ${profile.last_name}`.trim()
+              : (profile.first_name || profile.last_name || 'N/A')
           };
         });
       }
@@ -110,10 +121,17 @@ export default async function handler(req, res) {
         accountNumber = userAccounts[0].account_number;
       }
 
-      // Get assigned wallet address if not present
-      let walletAddress = deposit.wallet_address;
-      if (!walletAddress || walletAddress === 'N/A') {
-        const walletKey = `${deposit.user_id}_${deposit.crypto_type}_${deposit.network_type}`;
+      // Extract crypto asset data from the join
+      const cryptoType = deposit.crypto_asset?.crypto_type || 'Unknown';
+      const networkType = deposit.crypto_asset?.network_type || 'N/A';
+      const symbol = deposit.crypto_asset?.symbol || '';
+
+      // Extract wallet address from loan_wallet join or fall back to assigned wallets
+      let walletAddress = deposit.loan_wallet?.wallet_address || 'N/A';
+      let walletMemo = deposit.loan_wallet?.memo || null;
+      
+      if (walletAddress === 'N/A') {
+        const walletKey = `${deposit.user_id}_${cryptoType}_${networkType}`;
         walletAddress = walletMap[walletKey] || 'N/A';
       }
 
@@ -122,7 +140,11 @@ export default async function handler(req, res) {
         user_email: userInfo.email,
         user_name: userInfo.name,
         account_number: accountNumber,
-        wallet_address: walletAddress
+        crypto_type: cryptoType,
+        network_type: networkType,
+        symbol: symbol,
+        wallet_address: walletAddress,
+        wallet_memo: walletMemo
       };
     });
 
