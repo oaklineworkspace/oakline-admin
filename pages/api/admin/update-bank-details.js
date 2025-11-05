@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       routing_number,
       swift_code,
       nmls_id,
+      custom_emails: req.body.custom_emails || null,
       updated_at: new Date().toISOString()
     };
 
