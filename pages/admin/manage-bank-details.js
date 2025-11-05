@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function ManageBankDetails() {
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,17 @@ export default function ManageBankDetails() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-bank-details');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('/api/admin/get-bank-details', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const result = await response.json();
 
       if (!response.ok) {
@@ -74,9 +85,18 @@ export default function ManageBankDetails() {
     setSuccess('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch('/api/admin/update-bank-details', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(formData)
       });
 
