@@ -55,7 +55,7 @@ export default function AdminLoans() {
           'Authorization': `Bearer ${session.access_token}`
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch treasury balance');
       const data = await response.json();
       setTreasuryBalance(data.balance);
@@ -78,7 +78,7 @@ export default function AdminLoans() {
 
       if (!response.ok) throw new Error('Failed to fetch loan payments');
       const data = await response.json();
-      
+
       // Get the 10 most recent payments
       const recent = (data.payments || []).slice(0, 10);
       setRecentPayments(recent);
@@ -236,12 +236,12 @@ export default function AdminLoans() {
 
   const handleDisburse = async (loanId) => {
     const loan = loans.find(l => l.id === loanId);
-    
+
     if (!loan) {
       setError('Loan not found');
       return;
     }
-    
+
     if (!confirm(`Disburse $${parseFloat(loan.principal).toLocaleString()} to user account? This will deduct from treasury balance.`)) {
       return;
     }
@@ -1304,11 +1304,13 @@ const styles = {
     gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
   },
   loanCard: {
-    border: '2px solid #e2e8f0',
-    borderRadius: '12px',
-    padding: 'clamp(1rem, 3vw, 20px)',
-    background: 'white',
-    transition: 'all 0.3s ease'
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: 'clamp(6px, 1.5vw, 12px)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    marginBottom: 'clamp(10px, 2vw, 15px)',
+    cursor: 'pointer',
+    transition: 'transform 0.2s, box-shadow 0.2s',
   },
   loanHeader: {
     display: 'flex',

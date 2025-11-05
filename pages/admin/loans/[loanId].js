@@ -1,884 +1,826 @@
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
-import AdminAuth from '../../../components/AdminAuth';
-import AdminFooter from '../../../components/AdminFooter';
 import { supabase } from '../../../lib/supabaseClient';
+import AdminProtectedRoute from '../../../components/AdminProtectedRoute';
+import AdminBackButton from '../../../components/AdminBackButton';
 
-export default function LoanDetail() {
+export default function LoanDetailPage() {
+  return (
+    <AdminProtectedRoute>
+      <LoanDetail />
+    </AdminProtectedRoute>
+  );
+}
+
+function LoanDetail() {
   const router = useRouter();
   const { loanId } = router.query;
   const [loading, setLoading] = useState(true);
   const [loan, setLoan] = useState(null);
+  const [idDocuments, setIdDocuments] = useState([]);
+  const [collaterals, setCollaterals] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [depositInfo, setDepositInfo] = useState(null);
-  const [auditLogs, setAuditLogs] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [approvalNotes, setApprovalNotes] = useState('');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [message, setMessage] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const steps = ['Loan Details', 'ID Verification', 'Collateral', 'Review & Approve'];
 
   useEffect(() => {
     if (loanId) {
-      fetchLoanDetail();
+      fetchLoanDetails();
     }
   }, [loanId]);
 
-  const fetchLoanDetail = async () => {
-    setLoading(true);
-    setError('');
+  const fetchLoanDetails = async () => {
     try {
+      setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in');
-        return;
-      }
+      if (!session) throw new Error('No session');
 
       const response = await fetch(`/api/admin/get-loan-detail?loanId=${loanId}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
-      if (!response.ok) throw new Error('Failed to fetch loan details');
-      
-      const data = await response.json();
-      setLoan(data.loan);
-      setPayments(data.payments);
-      setDepositInfo(data.depositInfo);
-      setAuditLogs(data.auditLogs);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      setLoan(result.loan);
+      setIdDocuments(result.idDocuments);
+      setCollaterals(result.collaterals);
+      setPayments(result.payments);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching loan details:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApproveLoan = async () => {
+  const handleVerifyDocument = async (documentId, status, rejectionReason = '') => {
     try {
+      setActionLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in');
-        return;
-      }
+      
+      const response = await fetch('/api/admin/verify-id-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ documentId, status, rejectionReason }),
+      });
 
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      setMessage(`✅ Document ${status} successfully`);
+      await fetchLoanDetails();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleVerifyCollateral = async (collateralId, data) => {
+    try {
+      setActionLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch('/api/admin/verify-collateral', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ collateralId, ...data }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      setMessage('✅ Collateral updated successfully');
+      await fetchLoanDetails();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApproveLoan = async () => {
+    if (!confirm('Are you sure you want to approve this loan?')) return;
+
+    try {
+      setActionLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch('/api/admin/approve-loan-with-disbursement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          loanId,
-          approvalNotes
-        })
+        body: JSON.stringify({ loanId }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to approve loan');
-      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
 
-      setSuccess('Loan approved and funds disbursed successfully!');
-      setShowApproveModal(false);
-      setApprovalNotes('');
-      await fetchLoanDetail();
+      setMessage('✅ Loan approved successfully');
+      await fetchLoanDetails();
+      setTimeout(() => router.push('/admin/admin-loans'), 2000);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleRejectLoan = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in');
-        return;
-      }
+    const reason = prompt('Please enter rejection reason:');
+    if (!reason) return;
 
+    try {
+      setActionLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch('/api/admin/update-loan-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          loanId,
+        body: JSON.stringify({ 
+          loanId, 
           status: 'rejected',
-          reason: rejectionReason
-        })
+          rejectionReason: reason 
+        }),
       });
 
-      if (!response.ok) throw new Error('Failed to reject loan');
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
 
-      setSuccess('Loan rejected successfully');
-      setShowRejectModal(false);
-      setRejectionReason('');
-      await fetchLoanDetail();
+      setMessage('✅ Loan rejected');
+      setTimeout(() => router.push('/admin/admin-loans'), 2000);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <AdminAuth>
-        <div style={styles.container}>
-          <div style={styles.loadingState}>
-            <div style={styles.spinner}></div>
-            <p>Loading loan details...</p>
-          </div>
-        </div>
-      </AdminAuth>
+      <div style={styles.container}>
+        <p style={styles.loading}>Loading loan details...</p>
+      </div>
     );
   }
 
   if (!loan) {
     return (
-      <AdminAuth>
-        <div style={styles.container}>
-          <div style={styles.errorState}>
-            <p>Loan not found</p>
-            <Link href="/admin/admin-loans" style={styles.backLink}>← Back to Loans</Link>
-          </div>
-        </div>
-      </AdminAuth>
+      <div style={styles.container}>
+        <p style={styles.error}>Loan not found</p>
+      </div>
     );
   }
 
   return (
-    <AdminAuth>
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <div>
-            <h1 style={styles.title}>Loan Details</h1>
-            <p style={styles.subtitle}>Comprehensive loan information and management</p>
+    <div style={styles.container}>
+      <AdminBackButton href="/admin/admin-loans" />
+      
+      <h1 style={styles.title}>Loan Application Review</h1>
+      
+      {error && <div style={styles.errorBox}>{error}</div>}
+      {message && <div style={styles.messageBox}>{message}</div>}
+
+      {/* Step Indicators */}
+      <div style={styles.stepIndicators}>
+        {steps.map((step, index) => (
+          <div
+            key={index}
+            style={{
+              ...styles.stepIndicator,
+              ...(currentStep === index ? styles.stepActive : {}),
+              ...(currentStep > index ? styles.stepCompleted : {}),
+            }}
+            onClick={() => setCurrentStep(index)}
+          >
+            <div style={styles.stepNumber}>{index + 1}</div>
+            <div style={styles.stepLabel}>{step}</div>
           </div>
-          <div style={styles.headerActions}>
-            <Link href="/admin/admin-loans" style={styles.backButton}>
-              ← Back to Loans
-            </Link>
+        ))}
+      </div>
+
+      {/* Step 0: Loan Details */}
+      {currentStep === 0 && (
+        <div style={styles.stepContent}>
+          <h2 style={styles.stepTitle}>Loan Details</h2>
+          <div style={styles.detailsGrid}>
+            <DetailItem label="Applicant" value={loan.user_name} />
+            <DetailItem label="Email" value={loan.profiles?.email} />
+            <DetailItem label="Phone" value={loan.profiles?.phone || 'N/A'} />
+            <DetailItem label="Loan Type" value={loan.loan_type?.toUpperCase()} />
+            <DetailItem label="Principal" value={`$${parseFloat(loan.principal).toLocaleString()}`} />
+            <DetailItem label="Interest Rate" value={`${loan.interest_rate}%`} />
+            <DetailItem label="Term" value={`${loan.term_months} months`} />
+            <DetailItem label="Monthly Payment" value={`$${parseFloat(loan.monthly_payment_amount).toLocaleString()}`} />
+            <DetailItem label="Total Amount" value={`$${parseFloat(loan.total_amount).toLocaleString()}`} />
+            <DetailItem label="Purpose" value={loan.purpose || 'N/A'} />
+            <DetailItem label="Status" value={<StatusBadge status={loan.status} />} />
+            <DetailItem label="Submitted" value={new Date(loan.created_at).toLocaleDateString()} />
           </div>
         </div>
+      )}
 
-        {error && <div style={styles.errorBanner}>{error}</div>}
-        {success && <div style={styles.successBanner}>{success}</div>}
-
-        <div style={styles.grid}>
-          <div style={styles.mainSection}>
-            <div style={styles.card}>
-              <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Loan Information</h2>
-                <span style={{
-                  ...styles.statusBadge,
-                  background: loan.status === 'active' ? '#d1fae5' :
-                            loan.status === 'pending' ? '#fef3c7' :
-                            loan.status === 'approved' ? '#dbeafe' :
-                            loan.status === 'rejected' ? '#fee2e2' :
-                            loan.status === 'closed' ? '#e5e7eb' : '#f3f4f6',
-                  color: loan.status === 'active' ? '#065f46' :
-                        loan.status === 'pending' ? '#92400e' :
-                        loan.status === 'approved' ? '#1e40af' :
-                        loan.status === 'rejected' ? '#991b1b' :
-                        loan.status === 'closed' ? '#374151' : '#6b7280'
-                }}>
-                  {loan.status?.toUpperCase()}
-                </span>
-              </div>
-              <div style={styles.cardBody}>
-                <div style={styles.infoGrid}>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Loan ID</span>
-                    <span style={styles.infoValue}>{loan.id}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Loan Type</span>
-                    <span style={styles.infoValue}>{loan.loan_type?.toUpperCase()}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Principal Amount</span>
-                    <span style={styles.infoValue}>${parseFloat(loan.principal).toLocaleString()}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Remaining Balance</span>
-                    <span style={{...styles.infoValue, color: '#059669', fontWeight: '700'}}>
-                      ${parseFloat(loan.remaining_balance || 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Interest Rate</span>
-                    <span style={styles.infoValue}>{loan.interest_rate}% APR</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Term</span>
-                    <span style={styles.infoValue}>{loan.term_months} months</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Monthly Payment</span>
-                    <span style={styles.infoValue}>${parseFloat(loan.monthly_payment_amount || 0).toLocaleString()}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Payments Made</span>
-                    <span style={styles.infoValue}>{loan.payments_made || 0} of {loan.term_months}</span>
-                  </div>
-                  {loan.next_payment_date && (
-                    <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Next Payment Due</span>
-                      <span style={styles.infoValue}>
-                        {new Date(loan.next_payment_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                  {loan.disbursed_at && (
-                    <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Disbursed On</span>
-                      <span style={styles.infoValue}>
-                        {new Date(loan.disbursed_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                  {loan.purpose && (
-                    <div style={{...styles.infoItem, gridColumn: '1 / -1'}}>
-                      <span style={styles.infoLabel}>Purpose</span>
-                      <span style={styles.infoValue}>{loan.purpose}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div style={styles.card}>
-              <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Borrower Information</h2>
-              </div>
-              <div style={styles.cardBody}>
-                <div style={styles.infoGrid}>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Name</span>
-                    <span style={styles.infoValue}>{loan.user_name}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Email</span>
-                    <span style={styles.infoValue}>{loan.user_email}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Account Number</span>
-                    <span style={styles.infoValue}>{loan.account_number}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Account Type</span>
-                    <span style={styles.infoValue}>{loan.account_type?.toUpperCase()}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Account Balance</span>
-                    <span style={styles.infoValue}>${parseFloat(loan.account_balance || 0).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {depositInfo && loan.deposit_required && loan.deposit_required > 0 && (
-              <div style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <h2 style={styles.cardTitle}>Deposit Verification</h2>
-                  {depositInfo.verified ? (
-                    <span style={{...styles.statusBadge, background: '#d1fae5', color: '#065f46'}}>
-                      ✓ VERIFIED
-                    </span>
-                  ) : (
-                    <span style={{...styles.statusBadge, background: '#fee2e2', color: '#991b1b'}}>
-                      ✗ NOT VERIFIED
-                    </span>
-                  )}
-                </div>
-                <div style={styles.cardBody}>
-                  <div style={styles.infoGrid}>
-                    <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Required Deposit</span>
-                      <span style={styles.infoValue}>${parseFloat(loan.deposit_required).toLocaleString()}</span>
-                    </div>
-                    {depositInfo.verified && (
-                      <>
-                        <div style={styles.infoItem}>
-                          <span style={styles.infoLabel}>Deposit Type</span>
-                          <span style={styles.infoValue}>
-                            {depositInfo.type === 'crypto' ? 'Crypto Deposit' : 'Bank Transfer'}
-                          </span>
-                        </div>
-                        <div style={styles.infoItem}>
-                          <span style={styles.infoLabel}>Amount Deposited</span>
-                          <span style={styles.infoValue}>${parseFloat(depositInfo.amount).toLocaleString()}</span>
-                        </div>
-                        <div style={styles.infoItem}>
-                          <span style={styles.infoLabel}>Deposit Date</span>
-                          <span style={styles.infoValue}>
-                            {new Date(depositInfo.date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </>
+      {/* Step 1: ID Verification */}
+      {currentStep === 1 && (
+        <div style={styles.stepContent}>
+          <h2 style={styles.stepTitle}>ID Document Verification</h2>
+          {idDocuments.length === 0 ? (
+            <p style={styles.noData}>No ID documents uploaded</p>
+          ) : (
+            idDocuments.map((doc) => (
+              <div key={doc.id} style={styles.documentCard}>
+                <h3 style={styles.documentType}>{doc.document_type}</h3>
+                <div style={styles.documentImages}>
+                  <div style={styles.imageContainer}>
+                    <p style={styles.imageLabel}>Front</p>
+                    {doc.front_signed_url ? (
+                      <img src={doc.front_signed_url} alt="Front" style={styles.documentImage} />
+                    ) : (
+                      <p>No preview available</p>
                     )}
                   </div>
-                  {!depositInfo.verified && (
-                    <div style={styles.warningBox}>
-                      ⚠️ Required deposit of ${parseFloat(loan.deposit_required).toLocaleString()} has not been verified. 
-                      Loan approval is blocked until deposit is confirmed.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div style={styles.card}>
-              <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Payment History</h2>
-                <span style={styles.badge}>{payments.length} Payments</span>
-              </div>
-              <div style={styles.cardBody}>
-                {payments.length === 0 ? (
-                  <div style={styles.emptyState}>
-                    <p>No payments recorded yet</p>
+                  <div style={styles.imageContainer}>
+                    <p style={styles.imageLabel}>Back</p>
+                    {doc.back_signed_url ? (
+                      <img src={doc.back_signed_url} alt="Back" style={styles.documentImage} />
+                    ) : (
+                      <p>No preview available</p>
+                    )}
                   </div>
-                ) : (
-                  <div style={styles.paymentsTable}>
-                    {payments.map((payment) => (
-                      <div key={payment.id} style={styles.paymentRow}>
-                        <div style={styles.paymentInfo}>
-                          <span style={styles.paymentDate}>
-                            {new Date(payment.payment_date).toLocaleDateString()}
-                          </span>
-                          <span style={styles.paymentType}>{payment.payment_type}</span>
-                        </div>
-                        <div style={styles.paymentAmounts}>
-                          <div style={styles.paymentDetail}>
-                            <span>Total: ${parseFloat(payment.amount).toLocaleString()}</span>
-                          </div>
-                          <div style={styles.paymentDetail}>
-                            <span>Principal: ${parseFloat(payment.principal_amount || 0).toLocaleString()}</span>
-                          </div>
-                          <div style={styles.paymentDetail}>
-                            <span>Interest: ${parseFloat(payment.interest_amount || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                        <span style={{
-                          ...styles.paymentStatus,
-                          background: payment.status === 'completed' ? '#d1fae5' :
-                                    payment.status === 'pending' ? '#fef3c7' : '#fee2e2',
-                          color: payment.status === 'completed' ? '#065f46' :
-                                payment.status === 'pending' ? '#92400e' : '#991b1b'
-                        }}>
-                          {payment.status}
-                        </span>
-                      </div>
-                    ))}
+                </div>
+                <div style={styles.documentStatus}>
+                  <p>Status: <StatusBadge status={doc.status} /></p>
+                  {doc.verified_at && <p>Verified: {new Date(doc.verified_at).toLocaleString()}</p>}
+                  {doc.rejection_reason && <p style={styles.rejectionReason}>Reason: {doc.rejection_reason}</p>}
+                </div>
+                {doc.status === 'pending' && (
+                  <div style={styles.documentActions}>
+                    <button
+                      onClick={() => handleVerifyDocument(doc.id, 'verified')}
+                      disabled={actionLoading}
+                      style={styles.approveButton}
+                    >
+                      ✓ Verify
+                    </button>
+                    <button
+                      onClick={() => {
+                        const reason = prompt('Enter rejection reason:');
+                        if (reason) handleVerifyDocument(doc.id, 'rejected', reason);
+                      }}
+                      disabled={actionLoading}
+                      style={styles.rejectButton}
+                    >
+                      ✗ Reject
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          <div style={styles.sidebar}>
-            {loan.status === 'pending' && (
-              <div style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <h2 style={styles.cardTitle}>Actions</h2>
-                </div>
-                <div style={styles.cardBody}>
-                  <button
-                    onClick={() => setShowApproveModal(true)}
-                    style={{
-                      ...styles.actionButton,
-                      background: depositInfo?.verified || !loan.deposit_required ? '#10b981' : '#9ca3af',
-                      cursor: depositInfo?.verified || !loan.deposit_required ? 'pointer' : 'not-allowed'
-                    }}
-                    disabled={loan.deposit_required && !depositInfo?.verified}
-                  >
-                    ✓ Approve & Disburse
-                  </button>
-                  <button
-                    onClick={() => setShowRejectModal(true)}
-                    style={{...styles.actionButton, background: '#ef4444'}}
-                  >
-                    ✗ Reject Loan
-                  </button>
-                  {loan.deposit_required && !depositInfo?.verified && (
-                    <div style={styles.actionWarning}>
-                      Approval requires deposit verification
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div style={styles.card}>
-              <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Audit Trail</h2>
-              </div>
-              <div style={styles.cardBody}>
-                {auditLogs.length === 0 ? (
-                  <p style={styles.emptyText}>No audit logs</p>
-                ) : (
-                  <div style={styles.auditList}>
-                    {auditLogs.slice(0, 5).map((log) => (
-                      <div key={log.id} style={styles.auditItem}>
-                        <div style={styles.auditAction}>{log.action}</div>
-                        <div style={styles.auditDate}>
-                          {new Date(log.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+            ))
+          )}
         </div>
+      )}
 
-        {showApproveModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowApproveModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Approve Loan & Disburse Funds</h2>
-                <button onClick={() => setShowApproveModal(false)} style={styles.closeButton}>×</button>
-              </div>
-              <div style={styles.modalBody}>
-                <p style={styles.modalText}>
-                  This will approve the loan and automatically disburse ${parseFloat(loan.principal).toLocaleString()} 
-                  to the borrower's account. The loan will become active and the first payment will be due in 30 days.
-                </p>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Approval Notes (Optional)</label>
-                  <textarea
-                    value={approvalNotes}
-                    onChange={(e) => setApprovalNotes(e.target.value)}
-                    style={styles.textarea}
-                    placeholder="Add any notes about this approval..."
-                    rows="4"
-                  />
-                </div>
-              </div>
-              <div style={styles.modalFooter}>
-                <button onClick={() => setShowApproveModal(false)} style={styles.cancelButton}>
-                  Cancel
-                </button>
-                <button onClick={handleApproveLoan} style={styles.confirmButton}>
-                  Approve & Disburse
-                </button>
-              </div>
+      {/* Step 2: Collateral */}
+      {currentStep === 2 && (
+        <div style={styles.stepContent}>
+          <h2 style={styles.stepTitle}>Collateral Verification</h2>
+          {collaterals.length === 0 ? (
+            <p style={styles.noData}>No collateral provided</p>
+          ) : (
+            collaterals.map((collateral) => (
+              <CollateralCard
+                key={collateral.id}
+                collateral={collateral}
+                onVerify={handleVerifyCollateral}
+                actionLoading={actionLoading}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Step 3: Review & Approve */}
+      {currentStep === 3 && (
+        <div style={styles.stepContent}>
+          <h2 style={styles.stepTitle}>Review & Final Decision</h2>
+          
+          <div style={styles.summarySection}>
+            <h3>Application Summary</h3>
+            <div style={styles.summaryGrid}>
+              <SummaryItem label="Applicant" value={loan.user_name} />
+              <SummaryItem label="Loan Amount" value={`$${parseFloat(loan.principal).toLocaleString()}`} />
+              <SummaryItem label="Term" value={`${loan.term_months} months`} />
+              <SummaryItem label="Interest Rate" value={`${loan.interest_rate}%`} />
+              <SummaryItem label="ID Verification" value={
+                <StatusBadge status={idDocuments.every(d => d.status === 'verified') ? 'verified' : 'pending'} />
+              } />
+              <SummaryItem label="Collateral Status" value={
+                collaterals.length === 0 ? 'N/A' :
+                <StatusBadge status={collaterals.every(c => c.verification_status === 'Verified') ? 'verified' : 'pending'} />
+              } />
             </div>
           </div>
+
+          {loan.status === 'pending' && (
+            <div style={styles.finalActions}>
+              <button
+                onClick={handleApproveLoan}
+                disabled={actionLoading}
+                style={styles.approveLoanButton}
+              >
+                ✓ Approve Loan
+              </button>
+              <button
+                onClick={handleRejectLoan}
+                disabled={actionLoading}
+                style={styles.rejectLoanButton}
+              >
+                ✗ Reject Loan
+              </button>
+            </div>
+          )}
+
+          {loan.status !== 'pending' && (
+            <div style={styles.statusInfo}>
+              <p>This loan has been <strong>{loan.status}</strong></p>
+              {loan.approved_at && <p>Approved: {new Date(loan.approved_at).toLocaleString()}</p>}
+              {loan.rejection_reason && <p>Rejection Reason: {loan.rejection_reason}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      <div style={styles.navigation}>
+        {currentStep > 0 && (
+          <button onClick={() => setCurrentStep(currentStep - 1)} style={styles.navButton}>
+            ← Previous
+          </button>
         )}
-
-        {showRejectModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowRejectModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Reject Loan Application</h2>
-                <button onClick={() => setShowRejectModal(false)} style={styles.closeButton}>×</button>
-              </div>
-              <div style={styles.modalBody}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Rejection Reason</label>
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    style={styles.textarea}
-                    placeholder="Explain why this loan is being rejected..."
-                    rows="4"
-                    required
-                  />
-                </div>
-              </div>
-              <div style={styles.modalFooter}>
-                <button onClick={() => setShowRejectModal(false)} style={styles.cancelButton}>
-                  Cancel
-                </button>
-                <button onClick={handleRejectLoan} style={styles.rejectButton}>
-                  Reject Loan
-                </button>
-              </div>
-            </div>
-          </div>
+        {currentStep < steps.length - 1 && (
+          <button onClick={() => setCurrentStep(currentStep + 1)} style={styles.navButton}>
+            Next →
+          </button>
         )}
       </div>
-      <AdminFooter />
-    </AdminAuth>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div style={styles.detailItem}>
+      <span style={styles.detailLabel}>{label}:</span>
+      <span style={styles.detailValue}>{value}</span>
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }) {
+  return (
+    <div style={styles.summaryItem}>
+      <span style={styles.summaryLabel}>{label}</span>
+      <span style={styles.summaryValue}>{value}</span>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const getStatusColor = () => {
+    switch (status?.toLowerCase()) {
+      case 'verified':
+      case 'approved':
+      case 'completed':
+      case 'active':
+        return '#10b981';
+      case 'pending':
+        return '#f59e0b';
+      case 'rejected':
+      case 'failed':
+        return '#ef4444';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  return (
+    <span style={{ ...styles.statusBadge, backgroundColor: getStatusColor() }}>
+      {status}
+    </span>
+  );
+}
+
+function CollateralCard({ collateral, onVerify, actionLoading }) {
+  const [appraisedValue, setAppraisedValue] = useState(collateral.appraised_value || '');
+  const [notes, setNotes] = useState(collateral.notes || '');
+
+  return (
+    <div style={styles.collateralCard}>
+      <h3 style={styles.collateralType}>{collateral.collateral_type}</h3>
+      <div style={styles.collateralDetails}>
+        <p><strong>Ownership:</strong> {collateral.ownership_type}</p>
+        <p><strong>Estimated Value:</strong> ${parseFloat(collateral.estimated_value || 0).toLocaleString()}</p>
+        <p><strong>Condition:</strong> {collateral.condition}</p>
+        <p><strong>Location:</strong> {collateral.location || 'N/A'}</p>
+        <p><strong>Description:</strong> {collateral.description || 'N/A'}</p>
+      </div>
+
+      {collateral.signed_photos && collateral.signed_photos.length > 0 && (
+        <div style={styles.collateralPhotos}>
+          <p><strong>Photos:</strong></p>
+          <div style={styles.photoGrid}>
+            {collateral.signed_photos.map((photo, idx) => (
+              <img key={idx} src={photo.signed_url} alt={`Photo ${idx + 1}`} style={styles.collateralPhoto} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={styles.collateralStatus}>
+        <p>Verification: <StatusBadge status={collateral.verification_status} /></p>
+        <p>Appraisal: <StatusBadge status={collateral.appraisal_status} /></p>
+      </div>
+
+      {collateral.verification_status !== 'Verified' && (
+        <div style={styles.collateralForm}>
+          <input
+            type="number"
+            placeholder="Appraised Value"
+            value={appraisedValue}
+            onChange={(e) => setAppraisedValue(e.target.value)}
+            style={styles.input}
+          />
+          <textarea
+            placeholder="Notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            style={styles.textarea}
+          />
+          <div style={styles.collateralActions}>
+            <button
+              onClick={() => onVerify(collateral.id, {
+                verificationStatus: 'Verified',
+                appraisalStatus: 'Approved',
+                appraisedValue,
+                notes
+              })}
+              disabled={actionLoading}
+              style={styles.approveButton}
+            >
+              ✓ Verify & Approve
+            </button>
+            <button
+              onClick={() => onVerify(collateral.id, {
+                verificationStatus: 'Rejected',
+                appraisalStatus: 'Rejected',
+                notes
+              })}
+              disabled={actionLoading}
+              style={styles.rejectButton}
+            >
+              ✗ Reject
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 const styles = {
   container: {
-    minHeight: '100vh',
-    background: '#f9fafb',
-    padding: '24px'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '32px',
-    flexWrap: 'wrap',
-    gap: '16px'
+    padding: '20px',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    fontFamily: 'Arial, sans-serif',
   },
   title: {
-    fontSize: '32px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: '0 0 8px 0'
+    fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+    marginBottom: '20px',
+    color: '#1f2937',
   },
-  subtitle: {
-    fontSize: '16px',
-    color: '#6b7280',
-    margin: 0
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'center'
-  },
-  backButton: {
-    padding: '10px 20px',
-    background: '#6b7280',
-    color: 'white',
-    textDecoration: 'none',
-    borderRadius: '8px',
-    fontWeight: '600',
-    transition: 'all 0.2s'
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 350px',
-    gap: '24px',
-    '@media (max-width: 1024px)': {
-      gridTemplateColumns: '1fr'
-    }
-  },
-  mainSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px'
-  },
-  sidebar: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px'
-  },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'hidden'
-  },
-  cardHeader: {
-    padding: '20px 24px',
-    borderBottom: '1px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0
-  },
-  cardBody: {
-    padding: '24px'
-  },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '20px'
-  },
-  infoItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px'
-  },
-  infoLabel: {
-    fontSize: '14px',
-    color: '#6b7280',
-    fontWeight: '500'
-  },
-  infoValue: {
-    fontSize: '16px',
-    color: '#111827',
-    fontWeight: '600'
-  },
-  statusBadge: {
-    padding: '6px 12px',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  badge: {
-    padding: '4px 12px',
-    background: '#e5e7eb',
-    color: '#374151',
-    borderRadius: '12px',
-    fontSize: '14px',
-    fontWeight: '600'
-  },
-  warningBox: {
-    marginTop: '16px',
-    padding: '16px',
-    background: '#fef3c7',
-    border: '1px solid #fbbf24',
-    borderRadius: '8px',
-    color: '#92400e',
-    fontSize: '14px',
-    lineHeight: '1.5'
-  },
-  paymentsTable: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
-  },
-  paymentRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px',
-    background: '#f9fafb',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb'
-  },
-  paymentInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  },
-  paymentDate: {
-    fontSize: '14px',
-    color: '#111827',
-    fontWeight: '600'
-  },
-  paymentType: {
-    fontSize: '12px',
-    color: '#6b7280'
-  },
-  paymentAmounts: {
-    display: 'flex',
-    gap: '16px',
-    fontSize: '13px'
-  },
-  paymentDetail: {
-    color: '#4b5563'
-  },
-  paymentStatus: {
-    padding: '4px 10px',
-    borderRadius: '6px',
-    fontSize: '11px',
-    fontWeight: '600',
-    textTransform: 'uppercase'
-  },
-  actionButton: {
-    width: '100%',
-    padding: '14px',
-    border: 'none',
-    borderRadius: '8px',
-    color: 'white',
-    fontSize: '16px',
-    fontWeight: '600',
-    marginBottom: '12px',
-    transition: 'all 0.2s'
-  },
-  actionWarning: {
-    padding: '12px',
-    background: '#fef3c7',
-    borderRadius: '6px',
-    fontSize: '13px',
-    color: '#92400e',
-    textAlign: 'center'
-  },
-  auditList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
-  },
-  auditItem: {
-    padding: '12px',
-    background: '#f9fafb',
-    borderRadius: '6px',
-    borderLeft: '3px solid #3b82f6'
-  },
-  auditAction: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: '4px'
-  },
-  auditDate: {
-    fontSize: '12px',
-    color: '#6b7280'
-  },
-  errorBanner: {
-    padding: '16px',
-    background: '#fee2e2',
-    color: '#991b1b',
-    borderRadius: '8px',
-    marginBottom: '24px',
-    border: '1px solid #fca5a5'
-  },
-  successBanner: {
-    padding: '16px',
-    background: '#d1fae5',
-    color: '#065f46',
-    borderRadius: '8px',
-    marginBottom: '24px',
-    border: '1px solid #6ee7b7'
-  },
-  loadingState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-    gap: '16px'
-  },
-  spinner: {
-    width: '48px',
-    height: '48px',
-    border: '4px solid #e5e7eb',
-    borderTop: '4px solid #3b82f6',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  },
-  errorState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-    gap: '16px',
-    fontSize: '18px',
-    color: '#6b7280'
-  },
-  backLink: {
-    color: '#3b82f6',
-    textDecoration: 'none',
-    fontWeight: '600'
-  },
-  emptyState: {
+  loading: {
     textAlign: 'center',
     padding: '40px',
-    color: '#6b7280'
+    fontSize: '18px',
+    color: '#6b7280',
   },
-  emptyText: {
-    color: '#9ca3af',
-    fontSize: '14px',
-    textAlign: 'center'
+  error: {
+    color: '#ef4444',
+    textAlign: 'center',
+    padding: '20px',
   },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
+  errorBox: {
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+    padding: '12px',
+    borderRadius: '6px',
+    marginBottom: '20px',
   },
-  modal: {
-    background: 'white',
-    borderRadius: '12px',
-    maxWidth: '500px',
-    width: '90%',
-    maxHeight: '90vh',
-    overflow: 'auto'
+  messageBox: {
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+    padding: '12px',
+    borderRadius: '6px',
+    marginBottom: '20px',
   },
-  modalHeader: {
-    padding: '20px 24px',
-    borderBottom: '1px solid #e5e7eb',
+  stepIndicators: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    marginBottom: '30px',
+    flexWrap: 'wrap',
+    gap: '10px',
   },
-  modalTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '28px',
-    color: '#6b7280',
-    cursor: 'pointer',
-    padding: 0,
-    width: '32px',
-    height: '32px'
-  },
-  modalBody: {
-    padding: '24px'
-  },
-  modalText: {
-    fontSize: '15px',
-    color: '#4b5563',
-    lineHeight: '1.6',
-    marginBottom: '20px'
-  },
-  formGroup: {
-    marginBottom: '20px'
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '8px'
-  },
-  textarea: {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    resize: 'vertical'
-  },
-  modalFooter: {
-    padding: '20px 24px',
-    borderTop: '1px solid #e5e7eb',
+  stepIndicator: {
+    flex: '1',
+    minWidth: '150px',
     display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px'
-  },
-  cancelButton: {
-    padding: '10px 20px',
-    background: '#e5e7eb',
-    border: 'none',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '15px',
     borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    cursor: 'pointer'
+    backgroundColor: '#f3f4f6',
+    cursor: 'pointer',
+    transition: 'all 0.3s',
   },
-  confirmButton: {
-    padding: '10px 20px',
-    background: '#10b981',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
+  stepActive: {
+    backgroundColor: '#3b82f6',
     color: 'white',
-    cursor: 'pointer'
+  },
+  stepCompleted: {
+    backgroundColor: '#10b981',
+    color: 'white',
+  },
+  stepNumber: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    marginBottom: '5px',
+  },
+  stepLabel: {
+    fontSize: '14px',
+    textAlign: 'center',
+  },
+  stepContent: {
+    backgroundColor: 'white',
+    padding: '30px',
+    borderRadius: '8px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    marginBottom: '20px',
+  },
+  stepTitle: {
+    fontSize: '1.5rem',
+    marginBottom: '20px',
+    color: '#1f2937',
+  },
+  detailsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '15px',
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+  },
+  detailLabel: {
+    fontSize: '14px',
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: '16px',
+    color: '#1f2937',
+  },
+  statusBadge: {
+    display: 'inline-block',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    color: 'white',
+    fontSize: '12px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  noData: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#6b7280',
+  },
+  documentCard: {
+    backgroundColor: '#f9fafb',
+    padding: '20px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+  },
+  documentType: {
+    fontSize: '1.2rem',
+    marginBottom: '15px',
+    color: '#1f2937',
+  },
+  documentImages: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '20px',
+    marginBottom: '15px',
+  },
+  imageContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  imageLabel: {
+    fontSize: '14px',
+    fontWeight: '500',
+    marginBottom: '8px',
+    color: '#4b5563',
+  },
+  documentImage: {
+    width: '100%',
+    maxWidth: '400px',
+    height: 'auto',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb',
+  },
+  documentStatus: {
+    marginBottom: '15px',
+  },
+  rejectionReason: {
+    color: '#ef4444',
+    fontStyle: 'italic',
+    marginTop: '5px',
+  },
+  documentActions: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+  },
+  approveButton: {
+    padding: '10px 20px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
   },
   rejectButton: {
     padding: '10px 20px',
-    background: '#ef4444',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
+  collateralCard: {
+    backgroundColor: '#f9fafb',
+    padding: '20px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+  },
+  collateralType: {
+    fontSize: '1.2rem',
+    marginBottom: '15px',
+    color: '#1f2937',
+  },
+  collateralDetails: {
+    marginBottom: '15px',
+  },
+  collateralPhotos: {
+    marginTop: '15px',
+  },
+  photoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+    gap: '10px',
+    marginTop: '10px',
+  },
+  collateralPhoto: {
+    width: '100%',
+    height: '150px',
+    objectFit: 'cover',
+    borderRadius: '6px',
+    border: '1px solid #e5e7eb',
+  },
+  collateralStatus: {
+    marginTop: '15px',
+    marginBottom: '15px',
+  },
+  collateralForm: {
+    marginTop: '15px',
+  },
+  input: {
+    width: '100%',
+    padding: '10px',
+    marginBottom: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+  },
+  textarea: {
+    width: '100%',
+    padding: '10px',
+    marginBottom: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    minHeight: '80px',
+    resize: 'vertical',
+  },
+  collateralActions: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+  },
+  summarySection: {
+    marginBottom: '30px',
+  },
+  summaryGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '15px',
+    marginTop: '15px',
+  },
+  summaryItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+  },
+  summaryLabel: {
+    fontSize: '14px',
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: '16px',
+    color: '#1f2937',
+    fontWeight: '600',
+  },
+  finalActions: {
+    display: 'flex',
+    gap: '15px',
+    justifyContent: 'center',
+    marginTop: '30px',
+    flexWrap: 'wrap',
+  },
+  approveLoanButton: {
+    padding: '15px 40px',
+    backgroundColor: '#10b981',
+    color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    cursor: 'pointer',
+    fontSize: '16px',
     fontWeight: '600',
+  },
+  rejectLoanButton: {
+    padding: '15px 40px',
+    backgroundColor: '#ef4444',
     color: 'white',
-    cursor: 'pointer'
-  }
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: '600',
+  },
+  statusInfo: {
+    textAlign: 'center',
+    padding: '20px',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '8px',
+    marginTop: '20px',
+  },
+  navigation: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginTop: '20px',
+  },
+  navButton: {
+    padding: '10px 30px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
 };
