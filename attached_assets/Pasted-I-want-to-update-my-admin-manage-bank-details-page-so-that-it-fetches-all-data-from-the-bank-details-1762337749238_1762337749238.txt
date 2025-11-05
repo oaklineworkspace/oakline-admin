@@ -1,0 +1,47 @@
+I want to update my admin/manage-bank-details page so that it fetches all data from the bank_details table and allows an admin to update it.
+
+Requirements:
+	1.	Fetch real data from the bank_details table, including:
+	•	name, branch_name, address, phone, fax, website, logo_url, customer_service_hours, additional_info
+	•	All standard email fields: email_info, email_contact, email_support, email_loans, email_notify, email_updates, email_welcome, email_security, email_verify, email_crypto
+	•	Banking codes: routing_number, swift_code, nmls_id
+	2.	Make all fields editable by the admin. When the admin updates a field, it should run a SQL UPDATE on the bank_details table.
+	3.	Ensure the table can add missing columns if they don’t exist (like email_security, email_verify, email_crypto) using:
+
+ALTER TABLE public.bank_details
+ADD COLUMN IF NOT EXISTS email_security text,
+ADD COLUMN IF NOT EXISTS email_verify text,
+ADD COLUMN IF NOT EXISTS email_crypto text;
+
+4.	When saving changes, the backend should update all emails and bank details like this:
+
+UPDATE public.bank_details
+SET 
+    email_info = '<value_from_form>',
+    email_contact = '<value_from_form>',
+    email_support = '<value_from_form>',
+    email_loans = '<value_from_form>',
+    email_notify = '<value_from_form>',
+    email_updates = '<value_from_form>',
+    email_welcome = '<value_from_form>',
+    email_security = '<value_from_form>',
+    email_verify = '<value_from_form>',
+    email_crypto = '<value_from_form>',
+    name = '<value_from_form>',
+    branch_name = '<value_from_form>',
+    address = '<value_from_form>',
+    phone = '<value_from_form>',
+    fax = '<value_from_form>',
+    website = '<value_from_form>',
+    logo_url = '<value_from_form>',
+    customer_service_hours = '<value_from_form>',
+    additional_info = '<value_from_form>',
+    routing_number = '<value_from_form>',
+    swift_code = '<value_from_form>',
+    nmls_id = '<value_from_form>'
+WHERE name = 'Oakline Bank';
+
+.	UI Requirements:
+	•	Show a form with all fields pre-filled with current values from the table.
+	•	Include a “Save Changes” button that triggers the update.
+	•	Optional: show success/failure messages after saving.
