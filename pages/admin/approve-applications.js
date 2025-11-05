@@ -4,6 +4,7 @@ import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminButton from '../../components/AdminButton';
 import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 // Note: This page uses API routes, not direct Supabase client
 
@@ -24,6 +25,8 @@ export default function ApproveApplications() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [applicationToReject, setApplicationToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [viewingDocuments, setViewingDocuments] = useState(null);
+  const [documentUrls, setDocumentUrls] = useState({ front: null, back: null });
 
   useEffect(() => {
     fetchApplications();
@@ -188,6 +191,42 @@ export default function ApproveApplications() {
       setTimeout(() => setError(''), 5000);
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleViewDocuments = async (app) => {
+    setViewingDocuments(app);
+    setDocumentUrls({ front: null, back: null });
+
+    try {
+      // Fetch documents from user_id_documents table
+      const { data: docs, error } = await supabase
+        .from('user_id_documents')
+        .select('*')
+        .eq('user_id', app.user_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching documents:', error);
+        setError('Failed to load documents');
+        return;
+      }
+
+      if (docs) {
+        setDocumentUrls({
+          front: docs.front_url,
+          back: docs.back_url,
+          type: docs.document_type,
+          status: docs.status
+        });
+      } else {
+        setError('No documents found for this applicant');
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      setError('Failed to load documents');
     }
   };
 
@@ -423,6 +462,20 @@ export default function ApproveApplications() {
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
                     <button
+                      onClick={() => handleViewDocuments(app)}
+                      style={styles.viewDocsButton}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.5)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.4)';
+                      }}
+                    >
+                      📄 View Documents
+                    </button>
+                    <button
                       onClick={() => {
                         setApplicationToReject(app);
                         setShowRejectModal(true);
@@ -602,6 +655,61 @@ export default function ApproveApplications() {
                     {processing === applicationToReject.id ? '⏳ Rejecting...' : '❌ Confirm Rejection'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewingDocuments && (
+          <div style={styles.modalOverlay} onClick={() => setViewingDocuments(null)}>
+            <div style={styles.documentsModal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.documentsHeader}>
+                <h2 style={styles.documentsTitle}>📄 ID Documents</h2>
+                <button onClick={() => setViewingDocuments(null)} style={styles.closeButton}>✕</button>
+              </div>
+              
+              <div style={styles.documentsContent}>
+                <p style={styles.documentsSubtitle}>
+                  {viewingDocuments.first_name} {viewingDocuments.last_name} - {viewingDocuments.email}
+                </p>
+
+                {documentUrls.type && (
+                  <div style={styles.documentInfo}>
+                    <p><strong>Document Type:</strong> {documentUrls.type}</p>
+                    <p><strong>Verification Status:</strong> <span style={{
+                      color: documentUrls.status === 'verified' ? '#10b981' : 
+                             documentUrls.status === 'rejected' ? '#ef4444' : '#f59e0b'
+                    }}>{documentUrls.status?.toUpperCase()}</span></p>
+                  </div>
+                )}
+
+                {documentUrls.front || documentUrls.back ? (
+                  <div style={styles.documentsGrid}>
+                    {documentUrls.front && (
+                      <div style={styles.documentImageContainer}>
+                        <h4 style={styles.documentLabel}>Front Side</h4>
+                        <img src={documentUrls.front} alt="ID Front" style={styles.documentImage} />
+                        <a href={documentUrls.front} target="_blank" rel="noopener noreferrer" style={styles.downloadLink}>
+                          📥 Download Front
+                        </a>
+                      </div>
+                    )}
+                    {documentUrls.back && (
+                      <div style={styles.documentImageContainer}>
+                        <h4 style={styles.documentLabel}>Back Side</h4>
+                        <img src={documentUrls.back} alt="ID Back" style={styles.documentImage} />
+                        <a href={documentUrls.back} target="_blank" rel="noopener noreferrer" style={styles.downloadLink}>
+                          📥 Download Back
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={styles.noDocuments}>
+                    <p style={styles.noDocumentsIcon}>📭</p>
+                    <p style={styles.noDocumentsText}>No documents uploaded yet</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1192,5 +1300,108 @@ const styles = {
     transition: 'all 0.2s ease',
     boxShadow: '0 8px 20px rgba(30, 60, 114, 0.3)',
     minWidth: '120px'
+  },
+  viewDocsButton: {
+    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
+    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(139, 92, 246, 0.4)',
+  },
+  documentsModal: {
+    backgroundColor: 'white',
+    borderRadius: '20px',
+    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+    maxWidth: '900px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  documentsHeader: {
+    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+    color: 'white',
+    padding: 'clamp(2rem, 6vw, 2.5rem) clamp(1.5rem, 4vw, 2rem)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: '20px 20px 0 0'
+  },
+  documentsTitle: {
+    fontSize: 'clamp(1.5rem, 5vw, 1.75rem)',
+    fontWeight: '700',
+    margin: 0
+  },
+  documentsContent: {
+    padding: 'clamp(1.5rem, 4vw, 2rem)',
+  },
+  documentsSubtitle: {
+    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+    color: '#64748b',
+    marginBottom: '1.5rem'
+  },
+  documentInfo: {
+    backgroundColor: '#f8fafc',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    padding: '1rem',
+    marginBottom: '1.5rem',
+    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)'
+  },
+  documentsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '1.5rem',
+  },
+  documentImageContainer: {
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    padding: '1rem',
+    textAlign: 'center'
+  },
+  documentLabel: {
+    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: '1rem'
+  },
+  documentImage: {
+    width: '100%',
+    height: 'auto',
+    maxHeight: '400px',
+    objectFit: 'contain',
+    borderRadius: '8px',
+    marginBottom: '1rem',
+    border: '1px solid #e2e8f0'
+  },
+  downloadLink: {
+    display: 'inline-block',
+    padding: '0.75rem 1.5rem',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    fontWeight: '600',
+    transition: 'all 0.2s ease'
+  },
+  noDocuments: {
+    textAlign: 'center',
+    padding: '3rem 1rem',
+  },
+  noDocumentsIcon: {
+    fontSize: 'clamp(3rem, 8vw, 4rem)',
+    marginBottom: '1rem'
+  },
+  noDocumentsText: {
+    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+    color: '#64748b',
+    fontWeight: '500'
   }
 };
