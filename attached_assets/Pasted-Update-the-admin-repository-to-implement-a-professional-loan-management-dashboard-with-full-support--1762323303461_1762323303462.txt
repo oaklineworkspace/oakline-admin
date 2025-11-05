@@ -1,0 +1,48 @@
+Update the admin repository to implement a professional loan management dashboard with full support for multi-step loan applications. Include the following features:
+
+1. Loan Applications List:
+   - Display all submitted loans from the loans table
+   - Show key info: user name, loan type, principal, term, status, submitted date
+   - Include filters: status (pending, approved, rejected), loan type, date range
+   - Include search functionality by user name or loan ID
+
+2. Loan Application Details:
+   - When admin clicks a loan, show full multi-step submission:
+       • Step 1: Loan Details (loan_type, principal, term, interest_rate, purpose)
+       • Step 2: User ID Documents (front_url, back_url, status)
+           - Allow preview of images using signed URLs
+           - Buttons to verify or reject each document
+           - Add rejection reason if rejected
+       • Step 3: Collateral (if any)
+           - Show collateral type, ownership, estimated value
+           - Show uploaded collateral photos
+           - Option to verify or reject collateral, add appraisal notes and appraised_value
+       • Step 4: Review & Submit
+           - Show full loan summary
+           - Buttons to approve or reject the loan
+           - If approved, update loans table status to 'approved' or From False to True depends on my supabase Schema structure and features and record approved_at and approved_by
+           - If rejected, update loans table status to 'rejected' and save rejection reason
+
+3. Integration & Backend API:
+   - Fetch loans, user info, ID document URLs, and collateral data from Supabase/PostgreSQL
+   - Use signed URLs for displaying uploaded images
+   - Ensure updates (approve/reject) update all relevant tables:
+       • loans (status, approved_at, approved_by, rejection_reason)
+       • user_id_documents (status, verified_by, verified_at, rejection_reason)
+       • loan_collaterals (verification_status, appraisal_status, appraised_value)
+   - Log all admin actions in audit_logs for tracking
+
+4. UI/UX:
+   - Professional, clean, and responsive design
+   - Step indicators or tabs to navigate multi-step loan details
+   - Highlight pending approvals for quick action
+   - Provide inline validation when entering appraisal values or rejection reasons
+   - Mobile and desktop friendly
+
+5. Optional Enhancements:
+   - Bulk approve/reject pending loans
+   - Filter loans based on ID verification status
+   - Send notification/email to users upon loan approval/rejection
+   - Include notes/comments section for each loan
+
+Ensure that the dashboard works seamlessly with existing authentication, only allowing admins to perform actions based on their role (admin, super_admin, manager).
