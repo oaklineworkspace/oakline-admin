@@ -149,6 +149,49 @@ export default function ApproveApplications() {
     }
   };
 
+  const handleReject = async (applicationId) => {
+    const rejectionReason = prompt('Please enter the reason for rejecting this application:');
+    
+    if (!rejectionReason || rejectionReason.trim() === '') {
+      return; // User cancelled or didn't provide a reason
+    }
+
+    if (!confirm(`Are you sure you want to reject this application? This will permanently delete the application from the database.\n\nReason: ${rejectionReason}`)) {
+      return;
+    }
+
+    setProcessing(applicationId);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/admin/reject-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId,
+          rejectionReason: rejectionReason.trim()
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reject application');
+      }
+
+      setSuccessMessage(`✅ Application rejected and removed from database. Reason: ${rejectionReason}`);
+      
+      // Refresh applications list
+      await fetchApplications();
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+      setError('Failed to reject application: ' + error.message);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const toggleExpanded = (appId) => {
     setExpandedApp(expandedApp === appId ? null : appId);
   };
@@ -369,6 +412,26 @@ export default function ApproveApplications() {
                       }}
                     >
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
+                    </button>
+                    <button
+                      onClick={() => handleReject(app.id)}
+                      disabled={processing === app.id}
+                      style={{
+                        ...styles.rejectButton,
+                        ...(processing === app.id ? styles.buttonDisabled : {})
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!processing) {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 8px 24px rgba(239, 68, 68, 0.5)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.4)';
+                      }}
+                    >
+                      {processing === app.id ? '⏳ Processing...' : '❌ Reject Application'}
                     </button>
                     <button
                       onClick={() => openApprovalModal(app)}
@@ -800,6 +863,21 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  rejectButton: {
+    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
+    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
