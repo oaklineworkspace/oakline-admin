@@ -17,6 +17,8 @@ export default function AdminLoans() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [formData, setFormData] = useState({
     amount: '',
     note: '',
@@ -362,6 +364,7 @@ export default function AdminLoans() {
 
   const filteredLoans = loans.filter(loan => {
     const matchesSearch = loan.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         loan.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          loan.id?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || loan.loan_type === filterType;
     const matchesStatus = filterStatus === 'all' || loan.status === filterStatus;
@@ -369,7 +372,26 @@ export default function AdminLoans() {
                       (activeTab === 'pending' && loan.status === 'pending') ||
                       (activeTab === 'active' && loan.status === 'active') ||
                       (activeTab === 'overdue' && loan.is_late);
-    return matchesSearch && matchesType && matchesStatus && matchesTab;
+    
+    // Date range filtering
+    let matchesDateRange = true;
+    if (startDate || endDate) {
+      const loanDate = new Date(loan.created_at);
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include the entire end date
+        matchesDateRange = loanDate >= start && loanDate <= end;
+      } else if (startDate) {
+        matchesDateRange = loanDate >= new Date(startDate);
+      } else if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchesDateRange = loanDate <= end;
+      }
+    }
+    
+    return matchesSearch && matchesType && matchesStatus && matchesTab && matchesDateRange;
   });
 
   const stats = {
@@ -461,7 +483,7 @@ export default function AdminLoans() {
         <div style={styles.filtersSection}>
           <input
             type="text"
-            placeholder="🔍 Search by email or loan ID..."
+            placeholder="🔍 Search by name, email or loan ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
@@ -482,6 +504,45 @@ export default function AdminLoans() {
             <option value="rejected">Rejected</option>
             <option value="closed">Closed</option>
           </select>
+        </div>
+
+        {/* Date Range Filters */}
+        <div style={styles.dateRangeSection}>
+          <div style={styles.dateRangeLabel}>
+            <span>📅</span>
+            <span>Filter by Date Range:</span>
+          </div>
+          <div style={styles.dateRangeInputs}>
+            <div style={styles.dateInputGroup}>
+              <label style={styles.dateLabel}>From:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                style={styles.dateInput}
+              />
+            </div>
+            <div style={styles.dateInputGroup}>
+              <label style={styles.dateLabel}>To:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                style={styles.dateInput}
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                style={styles.clearDateButton}
+              >
+                ✕ Clear Dates
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Loan Payments Section */}
@@ -665,8 +726,11 @@ export default function AdminLoans() {
                   </div>
 
                   <div style={styles.loanFooter}>
+                    <Link href={`/admin/loans/${loan.id}`} style={styles.reviewButton}>
+                      📋 Review Application
+                    </Link>
                     <button onClick={() => setSelectedLoan(loan)} style={styles.viewButton}>
-                      👁️ Details
+                      👁️ Quick View
                     </button>
                     {loan.status === 'pending' && (
                       <button
@@ -1264,6 +1328,71 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     cursor: 'pointer',
     outline: 'none'
+  },
+  dateRangeSection: {
+    background: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  dateRangeLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    fontSize: 'clamp(0.9rem, 2.2vw, 16px)',
+    fontWeight: '600',
+    color: '#1A3E6F'
+  },
+  dateRangeInputs: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end'
+  },
+  dateInputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+  dateLabel: {
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '500',
+    color: '#4a5568'
+  },
+  dateInput: {
+    padding: '10px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    minWidth: '150px'
+  },
+  clearDateButton: {
+    padding: '10px 16px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
+  },
+  reviewButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    textAlign: 'center',
+    display: 'inline-block'
   },
   tableContainer: {
     background: 'white',
