@@ -13,19 +13,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // First, ensure all email columns exist
-    await supabaseAdmin.rpc('exec_sql', {
-      sql: `
-        ALTER TABLE public.bank_details
-        ADD COLUMN IF NOT EXISTS email_security text,
-        ADD COLUMN IF NOT EXISTS email_verify text,
-        ADD COLUMN IF NOT EXISTS email_crypto text;
-      `
-    }).catch(() => {
-      // If rpc doesn't exist, try direct query
-      console.log('Using direct query for column creation');
-    });
-
     const { data: bankDetails, error } = await supabaseAdmin
       .from('bank_details')
       .select('*')
