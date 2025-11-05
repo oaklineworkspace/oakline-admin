@@ -21,6 +21,9 @@ export default function ApproveApplications() {
     cardTypes: {}
   });
   const [approvalResult, setApprovalResult] = useState(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [applicationToReject, setApplicationToReject] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
     fetchApplications();
@@ -149,29 +152,20 @@ export default function ApproveApplications() {
     }
   };
 
-  const handleReject = async (applicationId) => {
-    const rejectionReason = prompt('Please enter the reason for rejecting this application:');
-    
-    if (!rejectionReason || rejectionReason.trim() === '') {
-      return; // User cancelled or didn't provide a reason
-    }
+  const handleRejectApplication = async () => {
+    if (!applicationToReject) return;
 
-    if (!confirm(`Are you sure you want to reject this application? This will permanently delete the application from the database.\n\nReason: ${rejectionReason}`)) {
-      return;
-    }
-
-    setProcessing(applicationId);
+    setProcessing(applicationToReject.id);
     setError('');
-    setSuccessMessage('');
 
     try {
       const response = await fetch('/api/admin/reject-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          applicationId,
-          rejectionReason: rejectionReason.trim()
-        }),
+          applicationId: applicationToReject.id,
+          rejectionReason: rejectionReason || 'Application rejected by admin'
+        })
       });
 
       const result = await response.json();
@@ -180,15 +174,30 @@ export default function ApproveApplications() {
         throw new Error(result.error || 'Failed to reject application');
       }
 
-      setSuccessMessage(`✅ Application rejected and removed from database. Reason: ${rejectionReason}`);
-      
-      // Refresh applications list
+      setSuccessMessage('❌ Application rejected successfully');
+      setTimeout(() => setSuccessMessage(''), 5000);
+
+      setShowRejectModal(false);
+      setApplicationToReject(null);
+      setRejectionReason('');
+
       await fetchApplications();
     } catch (error) {
       console.error('Error rejecting application:', error);
-      setError('Failed to reject application: ' + error.message);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      await supabase.auth.signOut();
+      router.push('/admin');
+    } catch (err) {
+      console.error('Logout error:', err);
     }
   };
 
@@ -414,7 +423,10 @@ export default function ApproveApplications() {
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
                     <button
-                      onClick={() => handleReject(app.id)}
+                      onClick={() => {
+                        setApplicationToReject(app);
+                        setShowRejectModal(true);
+                      }}
                       disabled={processing === app.id}
                       style={{
                         ...styles.rejectButton,
@@ -535,6 +547,61 @@ export default function ApproveApplications() {
                 >
                   {processing ? '⏳ Processing...' : '✅ Approve & Create'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRejectModal && applicationToReject && (
+          <div style={styles.modalOverlay} onClick={() => {
+            setShowRejectModal(false);
+            setApplicationToReject(null);
+            setRejectionReason('');
+          }}>
+            <div style={styles.rejectModal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.rejectHeader}>
+                <h2 style={styles.rejectTitle}>❌ Reject Application</h2>
+                <p style={styles.rejectSubtitle}>
+                  Application ID: {applicationToReject.id}
+                </p>
+              </div>
+
+              <div style={styles.rejectContent}>
+                <p style={styles.rejectWarning}>
+                  ⚠️ This will permanently reject the application and clear the applicant from the system.
+                </p>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Rejection Reason (Optional)</label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter reason for rejection..."
+                    style={styles.textarea}
+                    rows="4"
+                  />
+                </div>
+
+                <div style={styles.modalActions}>
+                  <button
+                    onClick={() => {
+                      setShowRejectModal(false);
+                      setApplicationToReject(null);
+                      setRejectionReason('');
+                    }}
+                    style={styles.cancelButton}
+                    disabled={processing === applicationToReject.id}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRejectApplication}
+                    style={styles.confirmRejectButton}
+                    disabled={processing === applicationToReject.id}
+                  >
+                    {processing === applicationToReject.id ? '⏳ Rejecting...' : '❌ Confirm Rejection'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1004,4 +1071,126 @@ const styles = {
     transition: 'all 0.3s ease',
     boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
   },
+  actionButtons: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '0.75rem'
+  },
+  rejectModal: {
+    backgroundColor: 'white',
+    borderRadius: '20px',
+    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+    maxWidth: '500px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    margin: 'auto'
+  },
+  rejectHeader: {
+    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+    color: 'white',
+    padding: 'clamp(2rem, 6vw, 2.5rem) clamp(1.5rem, 4vw, 2rem)',
+    textAlign: 'center'
+  },
+  rejectTitle: {
+    fontSize: 'clamp(1.5rem, 5vw, 1.75rem)',
+    fontWeight: '700',
+    margin: '0 0 0.5rem 0'
+  },
+  rejectSubtitle: {
+    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+    opacity: 0.9,
+    margin: 0
+  },
+  rejectContent: {
+    padding: 'clamp(1.5rem, 4vw, 2rem)',
+    overflowY: 'auto'
+  },
+  rejectWarning: {
+    backgroundColor: '#fef2f2',
+    border: '2px solid #fecaca',
+    borderRadius: '12px',
+    padding: '1rem',
+    color: '#991b1b',
+    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    fontWeight: '600',
+    marginBottom: '1.5rem'
+  },
+  formGroup: {
+    marginBottom: '1.5rem'
+  },
+  textarea: {
+    width: '100%',
+    padding: '0.75rem',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    fontFamily: 'inherit',
+    resize: 'vertical',
+    transition: 'border-color 0.2s ease',
+    boxSizing: 'border-box'
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '1rem',
+    justifyContent: 'flex-end',
+    marginTop: '1.5rem'
+  },
+  confirmRejectButton: {
+    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+    color: 'white',
+    border: 'none',
+    padding: 'clamp(0.75rem, 3vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+  },
+  successModal: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '30px',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '15px',
+    maxWidth: '450px',
+    width: '100%',
+    textAlign: 'center',
+  },
+  successIcon: {
+    fontSize: '60px',
+    color: '#2e7d32',
+    marginBottom: '10px',
+  },
+  successTitle: {
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#1b5e20',
+    margin: '0',
+  },
+  successMessage: {
+    fontSize: '16px',
+    color: '#333',
+    lineHeight: '1.6',
+    margin: '10px 0',
+  },
+  successCloseButton: {
+    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+    color: 'white',
+    border: 'none',
+    padding: 'clamp(0.75rem, 3vw, 1rem) clamp(2rem, 6vw, 3rem)',
+    borderRadius: '12px',
+    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 8px 20px rgba(30, 60, 114, 0.3)',
+    minWidth: '120px'
+  }
 };
