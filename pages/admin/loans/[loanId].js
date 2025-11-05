@@ -507,7 +507,7 @@ function CollateralCard({ collateral, onVerify, actionLoading }) {
 
 const styles = {
   container: {
-    padding: '20px',
+    padding: 'clamp(12px, 3vw, 20px)',
     maxWidth: '1200px',
     margin: '0 auto',
     fontFamily: 'Arial, sans-serif',
@@ -656,6 +656,7 @@ const styles = {
     height: 'auto',
     borderRadius: '8px',
     border: '1px solid #e5e7eb',
+    cursor: 'zoom-in',
   },
   documentStatus: {
     marginBottom: '15px',
