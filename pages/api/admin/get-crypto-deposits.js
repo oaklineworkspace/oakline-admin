@@ -56,27 +56,26 @@ export default async function handler(req, res) {
 
     if (userIds.length > 0) {
       // Fetch user profiles for email and name mapping
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email, first_name, last_name')
-      .in('id', userIds);
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
 
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-    }
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
 
-    // Create user email map with full names
-    const userEmailMap = {};
-    profiles?.forEach(profile => {
-      const fullName = profile.first_name && profile.last_name 
-        ? `${profile.first_name} ${profile.last_name}`.trim()
-        : profile.first_name || profile.last_name || profile.email || 'N/A';
+      // Create user email map with full names
+      profiles?.forEach(profile => {
+        const fullName = profile.first_name && profile.last_name 
+          ? `${profile.first_name} ${profile.last_name}`.trim()
+          : profile.first_name || profile.last_name || profile.email || 'N/A';
 
-      userEmailMap[profile.id] = { 
-        email: profile.email || 'N/A', 
-        name: fullName 
-      };
-    });
+        userEmailMap[profile.id] = { 
+          email: profile.email || 'N/A', 
+          name: fullName 
+        };
+      });
 
 
       // Fetch accounts for all users
