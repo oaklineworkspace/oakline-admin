@@ -55,24 +55,29 @@ export default async function handler(req, res) {
     let accountMap = {};
 
     if (userIds.length > 0) {
-      // Fetch user profiles
-      const { data: profiles, error: profilesError } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, first_name, last_name')
-        .in('id', userIds);
+      // Fetch user profiles for email and name mapping
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, first_name, last_name')
+      .in('id', userIds);
 
-      if (profilesError) {
-        console.error('Error fetching user profiles:', profilesError);
-      } else {
-        profiles?.forEach(profile => {
-          userEmailMap[profile.id] = {
-            email: profile.email || 'N/A',
-            name: profile.first_name && profile.last_name 
-              ? `${profile.first_name} ${profile.last_name}`.trim()
-              : (profile.first_name || profile.last_name || 'N/A')
-          };
-        });
-      }
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
+    // Create user email map with full names
+    const userEmailMap = {};
+    profiles?.forEach(profile => {
+      const fullName = profile.first_name && profile.last_name 
+        ? `${profile.first_name} ${profile.last_name}`.trim()
+        : profile.first_name || profile.last_name || profile.email || 'N/A';
+
+      userEmailMap[profile.id] = { 
+        email: profile.email || 'N/A', 
+        name: fullName 
+      };
+    });
+
 
       // Fetch accounts for all users
       const accountIds = [...new Set(deposits.map(d => d.account_id).filter(Boolean))];
@@ -113,11 +118,11 @@ export default async function handler(req, res) {
     // Enrich deposits with user emails, account numbers, and wallet addresses
     const enrichedDeposits = deposits.map(deposit => {
       const userInfo = userEmailMap[deposit.user_id] || { email: 'N/A', name: 'N/A' };
-      
+
       // Find the account that matches this deposit
       let accountNumber = 'N/A';
       let accountId = deposit.account_id;
-      
+
       if (deposit.account_id && accountMap[deposit.account_id]) {
         // Direct lookup by account_id
         accountNumber = accountMap[deposit.account_id].account_number;
@@ -138,7 +143,7 @@ export default async function handler(req, res) {
       // Extract wallet address from loan_wallet join or fall back to assigned wallets
       let walletAddress = deposit.loan_wallet?.wallet_address || 'N/A';
       let walletMemo = deposit.loan_wallet?.memo || null;
-      
+
       if (walletAddress === 'N/A') {
         const walletKey = `${deposit.user_id}_${cryptoType}_${networkType}`;
         walletAddress = walletMap[walletKey] || 'N/A';

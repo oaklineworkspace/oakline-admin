@@ -11,7 +11,7 @@ export default function ManageCryptoDeposits() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  
+
   const [statusFilter, setStatusFilter] = useState('all');
   const [userSearchFilter, setUserSearchFilter] = useState('');
   const [cryptoTypeFilter, setCryptoTypeFilter] = useState('all');
@@ -19,7 +19,7 @@ export default function ManageCryptoDeposits() {
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('all');
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [expandedRow, setExpandedRow] = useState(null);
@@ -52,7 +52,7 @@ export default function ManageCryptoDeposits() {
           'Content-Type': 'application/json'
         }
       });
-      
+
       const result = await response.json();
 
       if (!response.ok) {
@@ -166,7 +166,7 @@ export default function ManageCryptoDeposits() {
       if (result.newBalance !== undefined && result.newBalance !== null) {
         setMessage(prev => `${prev} - New balance: $${result.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
       }
-      
+
       await fetchDeposits();
       setTimeout(() => setMessage(''), 5000);
     } catch (error) {
@@ -231,7 +231,7 @@ export default function ManageCryptoDeposits() {
     ];
 
     let optionsHtml = statusOptions.map(s => `<option value="${s}" ${s === deposit.status ? 'selected' : ''}>${s}</option>`).join('');
-    
+
     const newStatus = window.prompt(
       `Edit Status for Deposit ${deposit.id.substring(0, 8)}...\n\nCurrent Status: ${deposit.status}\n\nEnter new status (${statusOptions.join(', ')}):`,
       deposit.status
@@ -459,7 +459,7 @@ export default function ManageCryptoDeposits() {
               />
             </div>
           </div>
-          
+
           <button
             onClick={() => {
               setStatusFilter('all');
@@ -706,7 +706,7 @@ export default function ManageCryptoDeposits() {
             >
               Previous
             </button>
-            
+
             <div style={styles.paginationNumbers}>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
                 <button
