@@ -57,6 +57,13 @@ export default function AdminDropdown() {
         { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
       ]
     },
+    {
+      category: '⚙️ Configuration & Tools',
+      links: [
+        { name: 'Manage Account Types', path: '/admin/manage-account-types', icon: '💳' },
+        { name: 'User Details Lookup', path: '/admin/user-details', icon: '🔍' },
+      ]
+    },
   ];
 
   const advancedFeatures = [

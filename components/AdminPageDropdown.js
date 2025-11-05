@@ -52,7 +52,9 @@ export default function AdminPageDropdown() {
         { name: 'Approve Applications', href: '/admin/approve-applications', icon: '✅' },
         { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️' },
         { name: 'Manage Accounts', href: '/admin/manage-accounts', icon: '🏦' },
-        { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '💳' }
+        { name: 'Manage Account Types', href: '/admin/manage-account-types', icon: '💳' },
+        { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '💳' },
+        { name: 'User Details Lookup', href: '/admin/user-details', icon: '🔍' }
       ]
     },
     {

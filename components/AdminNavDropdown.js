@@ -77,6 +77,13 @@ export default function AdminNavDropdown() {
       ]
     },
     {
+      category: '⚙️ Configuration',
+      links: [
+        { name: 'Manage Account Types', path: '/admin/manage-account-types', icon: '💳' },
+        { name: 'User Details Lookup', path: '/admin/user-details', icon: '🔍' },
+      ]
+    },
+    {
       category: '💳 Card Management',
       links: [
         { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
