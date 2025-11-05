@@ -1,0 +1,40 @@
+I want you to update the admin repository to implement a dual-admin account opening workflow. Here are the requirements:
+
+1. **Application Approval Admin**:
+   - Admin can view all user-submitted applications.
+   - Show all details including:
+     - Personal info
+     - ID documents from Supabase storage (front and back)
+     - Chosen account type and card preferences
+   - Admin can approve or reject the application.
+     - Approving creates a pending account in the database with status `pending_application`.
+     - If the account type has a minimum deposit, record the min_deposit in the account.
+   - Rejection allows admin to input a rejection reason.
+
+2. **Account Approval & Activation Admin**:
+   - Admin can view all accounts in `pending_application` or `pending_funding`.
+   - Display:
+     - User info
+     - Account type
+     - Min deposit amount (if required)
+     - Current balance deposited
+     - Status of minimum deposit
+   - Actions:
+     - **Approve account**: For accounts without min deposit, immediately set status → `active`. For accounts with min deposit, set status → `pending_funding`.
+     - **Activate account**: Only enabled when min deposit is fully received. Sets status → `active` and marks funding confirmed.
+     - **Reject account**: Optional, marks account as `rejected` with reason.
+   - Update admin dashboard for crypto deposits:
+     - Show if the minimum deposit for opening an account has been received.
+     - Prevent activation until min deposit confirmed.
+
+3. **Audit & Logging**:
+   - Log all admin actions (approvals, rejections, activations) in `audit_logs` and relevant tables.
+   - Track who approved applications, accounts, and confirmed funding.
+
+4. **UI/UX Requirements**:
+   - Clearly separate Application Admin and Account Admin dashboards.
+   - Highlight accounts needing minimum deposit.
+   - Provide actionable buttons: Approve, Activate, Reject.
+   - Show dynamic status updates when crypto deposits are confirmed.
+
+Use the existing table schema for applications, accounts, admin_profiles, crypto_deposits, and audit_logs. Ensure proper foreign key references and status updates. The workflow should enforce that accounts with minimum deposits cannot be activated until the required deposit is fully received.
