@@ -1,108 +1,114 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const authResult = await verifyAdminAuth(req);
+  if (authResult.error) {
+    return res.status(authResult.status || 401).json({ error: authResult.error });
+  }
+
   try {
-    const supabaseServerClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      }
-    );
+    const {
+      name,
+      branch_name,
+      address,
+      phone,
+      fax,
+      website,
+      logo_url,
+      customer_service_hours,
+      additional_info,
+      email_info,
+      email_contact,
+      email_support,
+      email_loans,
+      email_notify,
+      email_updates,
+      email_welcome,
+      email_security,
+      email_verify,
+      email_crypto,
+      routing_number,
+      swift_code,
+      nmls_id
+    } = req.body;
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized - No authorization token' });
+    if (!name) {
+      return res.status(400).json({ error: 'Bank name is required' });
     }
 
-    const token = authHeader.substring(7);
-    
-    const { data: { user }, error: authError } = await supabaseServerClient.auth.getUser(token);
+    const updateData = {
+      name,
+      branch_name,
+      address,
+      phone,
+      fax,
+      website,
+      logo_url,
+      customer_service_hours,
+      additional_info,
+      email_info,
+      email_contact,
+      email_support,
+      email_loans,
+      email_notify,
+      email_updates,
+      email_welcome,
+      email_security,
+      email_verify,
+      email_crypto,
+      routing_number,
+      swift_code,
+      nmls_id,
+      updated_at: new Date().toISOString()
+    };
 
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized - Invalid or expired token' });
-    }
-
-    const { data: adminProfile, error: adminError } = await supabaseAdmin
-      .from('admin_profiles')
-      .select('id, role')
-      .eq('id', user.id)
-      .single();
-
-    if (adminError || !adminProfile) {
-      return res.status(403).json({ error: 'Forbidden - Admin access required' });
-    }
-
-    const { bankDetails } = req.body;
-
-    if (!bankDetails) {
-      return res.status(400).json({ error: 'Bank details are required' });
-    }
-
-    // Check if a record exists
-    const { data: existingRecord, error: fetchError } = await supabaseAdmin
+    // Check if bank details exist
+    const { data: existing } = await supabaseAdmin
       .from('bank_details')
       .select('id')
-      .limit(1)
+      .eq('name', 'Oakline Bank')
       .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      throw fetchError;
-    }
-
     let result;
-    if (existingRecord) {
-      const updateData = {
-        ...bankDetails,
-        updated_at: new Date().toISOString()
-      };
-
-      result = await supabaseAdmin
+    if (existing) {
+      // Update existing record
+      const { data, error } = await supabaseAdmin
         .from('bank_details')
         .update(updateData)
-        .eq('id', existingRecord.id)
+        .eq('name', 'Oakline Bank')
         .select()
         .single();
+
+      if (error) throw error;
+      result = data;
     } else {
-      const insertData = {
-        ...bankDetails,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      result = await supabaseAdmin
+      // Insert new record
+      const { data, error } = await supabaseAdmin
         .from('bank_details')
-        .insert([insertData])
+        .insert([updateData])
         .select()
         .single();
-    }
 
-    if (result.error) {
-      throw result.error;
+      if (error) throw error;
+      result = data;
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Bank details updated successfully',
-      data: result.data
+      bankDetails: result,
+      message: 'Bank details updated successfully'
     });
-
   } catch (error) {
     console.error('Error updating bank details:', error);
     return res.status(500).json({
       error: 'Failed to update bank details',
-      details: error?.message || 'Unknown error occurred',
-      code: error?.code,
-      hint: error?.hint
+      details: error.message
     });
   }
 }
