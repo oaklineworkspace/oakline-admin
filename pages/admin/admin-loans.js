@@ -569,7 +569,12 @@ export default function AdminLoans() {
                       <h3 style={styles.loanType}>
                         {loan.loan_type?.toUpperCase() || 'LOAN'}
                       </h3>
-                      <p style={styles.loanEmail}>{loan.user_email}</p>
+                      <p style={styles.loanEmail}>{loan.user_name || loan.user_email}</p>
+                      {loan.user_name && loan.user_name !== loan.user_email && (
+                        <p style={{...styles.loanEmail, fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '2px'}}>
+                          {loan.user_email}
+                        </p>
+                      )}
                     </div>
                     <span style={{
                       ...styles.statusBadge,

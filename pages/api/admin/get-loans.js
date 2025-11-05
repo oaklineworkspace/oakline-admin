@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     // Fetch user profiles
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, email')
+      .select('id, email, first_name, last_name')
       .in('id', userIds);
 
     // Fetch accounts
@@ -264,9 +264,15 @@ export default async function handler(req, res) {
         }
 
 
+        const profile = profileMap[loan.user_id];
+        const fullName = profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
+          : 'N/A';
+
         return {
           ...loan,
-          user_email: profileMap[loan.user_id]?.email || 'N/A',
+          user_email: profile?.email || 'N/A',
+          user_name: fullName,
           account_number: accountMap[loan.account_id]?.account_number || 'N/A',
           account_type: accountMap[loan.account_id]?.account_type || 'N/A',
           deposit_info: deposit_info

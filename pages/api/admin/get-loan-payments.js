@@ -50,9 +50,9 @@ export default async function handler(req, res) {
 
     const enrichedPayments = payments.map(payment => {
       const profile = profileMap[payment.loans?.user_id];
-      const fullName = profile 
-        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
-        : 'Unknown User';
+      const fullName = profile && (profile.first_name || profile.last_name)
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+        : profile?.email || 'N/A';
       
       return {
         ...payment,
