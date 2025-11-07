@@ -17,14 +17,7 @@ export default async function handler(req, res) {
   try {
     let query = supabaseAdmin
       .from('user_id_documents')
-      .select(`
-        *,
-        profiles!user_id_documents_user_id_fkey (
-          first_name,
-          last_name,
-          email
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
@@ -35,9 +28,25 @@ export default async function handler(req, res) {
 
     if (fetchError) throw fetchError;
 
+    // Fetch profile data separately for each document
+    const documentsWithProfiles = await Promise.all(
+      (data || []).map(async (doc) => {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', doc.user_id)
+          .single();
+        
+        return {
+          ...doc,
+          profiles: profile
+        };
+      })
+    );
+
     return res.status(200).json({
       success: true,
-      documents: data || []
+      documents: documentsWithProfiles
     });
   } catch (error) {
     console.error('Error fetching user documents:', error);
