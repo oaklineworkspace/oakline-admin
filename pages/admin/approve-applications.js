@@ -197,36 +197,31 @@ export default function ApproveApplications() {
   const handleViewDocuments = async (app) => {
     setViewingDocuments(app);
     setDocumentUrls({ front: null, back: null });
+    setError('');
+
+    if (!app.user_id) {
+      setError('No user ID found for this application');
+      return;
+    }
 
     try {
-      // Fetch documents from user_id_documents table
-      const { data: docs, error } = await supabase
-        .from('user_id_documents')
-        .select('*')
-        .eq('user_id', app.user_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const response = await fetch('/api/admin/get-document-urls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: app.user_id })
+      });
 
-      if (error) {
-        console.error('Error fetching documents:', error);
-        setError('Failed to load documents');
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to load documents');
         return;
       }
 
-      if (docs) {
-        setDocumentUrls({
-          front: docs.front_url,
-          back: docs.back_url,
-          type: docs.document_type,
-          status: docs.status
-        });
-      } else {
-        setError('No documents found for this applicant');
-      }
+      setDocumentUrls(result.documents);
     } catch (error) {
       console.error('Error loading documents:', error);
-      setError('Failed to load documents');
+      setError('Failed to load documents: ' + error.message);
     }
   };
 
