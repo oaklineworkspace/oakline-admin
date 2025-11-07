@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function ViewUserDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -21,9 +22,18 @@ export default function ViewUserDocuments() {
     setLoading(true);
     setError('');
     try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch(`/api/admin/get-user-documents?status=${filterStatus}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
       });
 
       const result = await response.json();
@@ -46,9 +56,18 @@ export default function ViewUserDocuments() {
     setError('');
 
     try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch('/api/admin/get-document-urls', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ userId: doc.user_id })
       });
 
@@ -67,9 +86,18 @@ export default function ViewUserDocuments() {
 
   const handleVerifyDocument = async (docId, status, reason = '') => {
     try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch('/api/admin/verify-id-document', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ docId, status, reason })
       });
 
