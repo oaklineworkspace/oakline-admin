@@ -31,25 +31,46 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'No documents found for this user' });
     }
 
-    // Extract file paths from URLs
-    const frontPath = docs.front_url?.split('/documents/').pop();
-    const backPath = docs.back_url?.split('/documents/').pop();
+    console.log('Document URLs from database:', { front: docs.front_url, back: docs.back_url });
 
-    let frontSignedUrl = docs.front_url;
-    let backSignedUrl = docs.back_url;
+    // Extract file paths from URLs - handle both full URLs and just filenames
+    let frontPath = docs.front_url;
+    let backPath = docs.back_url;
+    
+    if (frontPath?.includes('/storage/v1/object/public/documents/')) {
+      frontPath = frontPath.split('/storage/v1/object/public/documents/').pop();
+    } else if (frontPath?.includes('/documents/')) {
+      frontPath = frontPath.split('/documents/').pop();
+    }
+    
+    if (backPath?.includes('/storage/v1/object/public/documents/')) {
+      backPath = backPath.split('/storage/v1/object/public/documents/').pop();
+    } else if (backPath?.includes('/documents/')) {
+      backPath = backPath.split('/documents/').pop();
+    }
 
-    // Generate signed URLs if paths exist and are storage paths
+    console.log('Extracted paths:', { frontPath, backPath });
+
+    let frontSignedUrl = null;
+    let backSignedUrl = null;
+
+    // Generate signed URLs for both documents
     if (frontPath && !frontPath.startsWith('http')) {
       const { data: frontData, error: frontError } = await supabaseAdmin
         .storage
         .from('documents')
         .createSignedUrl(frontPath, 3600); // 1 hour expiry
 
-      if (!frontError && frontData) {
+      if (!frontError && frontData?.signedUrl) {
         frontSignedUrl = frontData.signedUrl;
-      } else if (frontError) {
-        console.error('Error generating signed URL for front:', frontError);
+        console.log('✅ Generated signed URL for front document');
+      } else {
+        console.error('❌ Error generating signed URL for front:', frontError);
+        // Try to use the original URL as fallback
+        frontSignedUrl = docs.front_url;
       }
+    } else if (frontPath?.startsWith('http')) {
+      frontSignedUrl = frontPath;
     }
 
     if (backPath && !backPath.startsWith('http')) {
@@ -58,12 +79,19 @@ export default async function handler(req, res) {
         .from('documents')
         .createSignedUrl(backPath, 3600); // 1 hour expiry
 
-      if (!backError && backData) {
+      if (!backError && backData?.signedUrl) {
         backSignedUrl = backData.signedUrl;
-      } else if (backError) {
-        console.error('Error generating signed URL for back:', backError);
+        console.log('✅ Generated signed URL for back document');
+      } else {
+        console.error('❌ Error generating signed URL for back:', backError);
+        // Try to use the original URL as fallback
+        backSignedUrl = docs.back_url;
       }
+    } else if (backPath?.startsWith('http')) {
+      backSignedUrl = backPath;
     }
+
+    console.log('Final signed URLs:', { front: !!frontSignedUrl, back: !!backSignedUrl });
 
     return res.status(200).json({
       success: true,

@@ -256,12 +256,12 @@ export default async function handler(req, res) {
 
       // Determine account status:
       // - If min_deposit > 0: 'pending_funding' (waiting for minimum deposit)
-      // - Otherwise: 'active' (ready to use immediately)
+      // - Otherwise: 'approved' (ready to be activated by admin after deposit confirmation)
       let accountStatus;
       if (minDeposit > 0) {
         accountStatus = 'pending_funding';
       } else {
-        accountStatus = 'active';
+        accountStatus = 'approved';
       }
 
       // Generate or use manual account number
@@ -306,7 +306,8 @@ export default async function handler(req, res) {
       createdAccounts.push(newAccount);
       
       // Categorize accounts by status
-      if (accountStatus === 'active') {
+      // 'approved' status means account is ready but admin needs to activate it
+      if (accountStatus === 'approved' || accountStatus === 'active') {
         activeAccounts.push(newAccount);
       } else if (accountStatus === 'pending_funding') {
         pendingFundingAccounts.push(newAccount);
@@ -428,9 +429,9 @@ export default async function handler(req, res) {
       // Don't fail the whole approval if email fails
     }
 
-    let message = `Application approved successfully. ${activeAccounts.length} active account(s) created.`;
+    let message = `Application approved successfully. ${activeAccounts.length} account(s) created and ready for admin activation.`;
     if (pendingFundingAccounts.length > 0) {
-      message += ` ${pendingFundingAccounts.length} account(s) approved and awaiting minimum deposit.`;
+      message += ` ${pendingFundingAccounts.length} account(s) pending funding - awaiting minimum deposit before activation.`;
     }
 
     return res.status(200).json({
