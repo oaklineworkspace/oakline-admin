@@ -167,6 +167,8 @@ export default function AdminNavDropdown() {
       category: '📁 System Tools',
       links: [
         { name: 'File Browser', path: '/admin/file-browser', icon: '📁' },
+        { name: 'Storage Diagnostics', path: '/admin/storage-diagnostics', icon: '🔍' },
+        { name: 'Database Explorer', path: '/admin/database-explorer', icon: '🗄️' },
       ]
     }
   ];

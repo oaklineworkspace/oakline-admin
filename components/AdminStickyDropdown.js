@@ -107,6 +107,7 @@ export default function AdminStickyDropdown() {
       pages: [
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
         { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
+        { name: 'Storage Diagnostics', href: '/admin/storage-diagnostics', icon: '🔍' },
         { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' },
         { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
