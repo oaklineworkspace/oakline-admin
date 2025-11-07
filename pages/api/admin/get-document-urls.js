@@ -13,6 +13,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('📄 Fetching documents for user:', userId);
+
     // Fetch documents from user_id_documents table
     const { data: docs, error } = await supabaseAdmin
       .from('user_id_documents')
@@ -23,20 +25,28 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching documents:', error);
+      console.error('❌ Database error fetching documents:', error);
       return res.status(500).json({ error: 'Failed to fetch documents', details: error.message });
     }
 
     if (!docs) {
+      console.log('📭 No documents found for user:', userId);
       return res.status(404).json({ error: 'No documents found for this user' });
     }
 
-    console.log('Document URLs from database:', { front: docs.front_url, back: docs.back_url });
+    console.log('📋 Document record found:', { 
+      id: docs.id, 
+      type: docs.document_type, 
+      status: docs.status,
+      hasFront: !!docs.front_url,
+      hasBack: !!docs.back_url
+    });
 
     // Extract file paths from URLs - handle both full URLs and just filenames
     let frontPath = docs.front_url;
     let backPath = docs.back_url;
     
+    // Clean up paths
     if (frontPath?.includes('/storage/v1/object/public/documents/')) {
       frontPath = frontPath.split('/storage/v1/object/public/documents/').pop();
     } else if (frontPath?.includes('/documents/')) {
@@ -49,12 +59,12 @@ export default async function handler(req, res) {
       backPath = backPath.split('/documents/').pop();
     }
 
-    console.log('Extracted paths:', { frontPath, backPath });
+    console.log('🔍 Cleaned file paths:', { frontPath, backPath });
 
     let frontSignedUrl = null;
     let backSignedUrl = null;
 
-    // Generate signed URLs for both documents
+    // Generate signed URLs for front document
     if (frontPath && !frontPath.startsWith('http')) {
       const { data: frontData, error: frontError } = await supabaseAdmin
         .storage
@@ -65,14 +75,22 @@ export default async function handler(req, res) {
         frontSignedUrl = frontData.signedUrl;
         console.log('✅ Generated signed URL for front document');
       } else {
-        console.error('❌ Error generating signed URL for front:', frontError);
-        // Try to use the original URL as fallback
-        frontSignedUrl = docs.front_url;
+        console.error('❌ Error generating signed URL for front:', frontError?.message || frontError);
+        // Try public URL as fallback
+        const { data: publicUrlData } = await supabaseAdmin
+          .storage
+          .from('documents')
+          .getPublicUrl(frontPath);
+        
+        frontSignedUrl = publicUrlData?.publicUrl || docs.front_url;
+        console.log('🔄 Using fallback URL for front:', frontSignedUrl ? 'success' : 'failed');
       }
     } else if (frontPath?.startsWith('http')) {
       frontSignedUrl = frontPath;
+      console.log('🌐 Using existing HTTP URL for front');
     }
 
+    // Generate signed URLs for back document
     if (backPath && !backPath.startsWith('http')) {
       const { data: backData, error: backError } = await supabaseAdmin
         .storage
@@ -83,15 +101,25 @@ export default async function handler(req, res) {
         backSignedUrl = backData.signedUrl;
         console.log('✅ Generated signed URL for back document');
       } else {
-        console.error('❌ Error generating signed URL for back:', backError);
-        // Try to use the original URL as fallback
-        backSignedUrl = docs.back_url;
+        console.error('❌ Error generating signed URL for back:', backError?.message || backError);
+        // Try public URL as fallback
+        const { data: publicUrlData } = await supabaseAdmin
+          .storage
+          .from('documents')
+          .getPublicUrl(backPath);
+        
+        backSignedUrl = publicUrlData?.publicUrl || docs.back_url;
+        console.log('🔄 Using fallback URL for back:', backSignedUrl ? 'success' : 'failed');
       }
     } else if (backPath?.startsWith('http')) {
       backSignedUrl = backPath;
+      console.log('🌐 Using existing HTTP URL for back');
     }
 
-    console.log('Final signed URLs:', { front: !!frontSignedUrl, back: !!backSignedUrl });
+    console.log('✨ Final URLs ready:', { 
+      front: frontSignedUrl ? '✓' : '✗', 
+      back: backSignedUrl ? '✓' : '✗' 
+    });
 
     return res.status(200).json({
       success: true,
@@ -103,7 +131,7 @@ export default async function handler(req, res) {
       }
     });
   } catch (error) {
-    console.error('Error in get-document-urls:', error);
+    console.error('💥 Unexpected error in get-document-urls:', error);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }
