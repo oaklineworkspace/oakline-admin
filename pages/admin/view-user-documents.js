@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function ViewUserDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -22,27 +21,18 @@ export default function ViewUserDocuments() {
     setLoading(true);
     setError('');
     try {
-      let query = supabaseAdmin
-        .from('user_id_documents')
-        .select(`
-          *,
-          profiles!user_id_documents_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const response = await fetch(`/api/admin/get-user-documents?status=${filterStatus}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load documents');
       }
 
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-
-      setDocuments(data || []);
+      setDocuments(result.documents || []);
     } catch (err) {
       console.error('Error fetching documents:', err);
       setError('Failed to load documents: ' + err.message);
@@ -77,16 +67,17 @@ export default function ViewUserDocuments() {
 
   const handleVerifyDocument = async (docId, status, reason = '') => {
     try {
-      const { error: updateError } = await supabaseAdmin
-        .from('user_id_documents')
-        .update({
-          status,
-          verified_at: status === 'verified' ? new Date().toISOString() : null,
-          rejection_reason: reason || null
-        })
-        .eq('id', docId);
+      const response = await fetch('/api/admin/verify-id-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docId, status, reason })
+      });
 
-      if (updateError) throw updateError;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update document');
+      }
 
       alert(`Document ${status} successfully!`);
       setSelectedDoc(null);
