@@ -44,8 +44,18 @@ export default function UserDetails() {
         userIdToFetch = profile.id;
       }
 
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       // Fetch comprehensive user data
-      const response = await fetch(`/api/admin/get-user-full-details?userId=${userIdToFetch}`);
+      const response = await fetch(`/api/admin/get-user-full-details?userId=${userIdToFetch}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const result = await response.json();
 
       if (!response.ok) {

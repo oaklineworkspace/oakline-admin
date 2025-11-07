@@ -30,6 +30,7 @@ export default function AdminNavDropdown() {
       links: [
         { name: 'Manage Enrollment', path: '/admin/manage-user-enrollment', icon: '📧' },
         { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '🔄' },
+        { name: 'View User Documents', path: '/admin/view-user-documents', icon: '📄' },
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
         { name: 'Delete Users', path: '/admin/delete-users', icon: '⚠️' },
       ]

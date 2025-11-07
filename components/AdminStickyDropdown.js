@@ -43,6 +43,7 @@ export default function AdminStickyDropdown() {
         { name: 'Create User', href: '/admin/create-user', icon: '➕' },
         { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '🔑' },
         { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '📧' },
+        { name: 'View User Documents', href: '/admin/view-user-documents', icon: '📄' },
         { name: 'Delete User By ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
         { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' },
         { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '💰' }
