@@ -127,6 +127,9 @@ export default function AdminNavDropdown() {
         { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
         { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
         { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
+        { name: 'Manage Crypto Investments', path: '/admin/manage-crypto-investments', icon: '📊' },
+        { name: 'Account Opening Deposits', path: '/admin/manage-account-opening-deposits', icon: '💳' },
+        { name: 'Approve Funding', path: '/admin/approve-funding', icon: '✅' },
       ]
     },
     {

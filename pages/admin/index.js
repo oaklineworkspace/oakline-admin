@@ -163,7 +163,9 @@ export default function AdminNavigationHub() {
       pages: [
         { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅', description: 'Review and approve user applications' },
         { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️', description: 'Approve pending account requests' },
+        { name: 'Approve Funding', path: '/admin/approve-funding', icon: '🎉', description: 'Confirm deposits and activate accounts' },
         { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦', description: 'Manage all bank accounts' },
+        { name: 'Account Opening Deposits', path: '/admin/manage-account-opening-deposits', icon: '💳', description: 'Assign wallets and track account deposits' },
         { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '📧', description: 'Resend enrollment emails to users' },
       ]
     },
@@ -174,6 +176,7 @@ export default function AdminNavigationHub() {
         { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠', description: 'Manage loan applications and approvals' },
         { name: 'Investments', path: '/admin/admin-investments', icon: '📈', description: 'Handle investment accounts' },
         { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿', description: 'Manage cryptocurrency operations' },
+        { name: 'Crypto Investments', path: '/admin/manage-crypto-investments', icon: '📊', description: 'Track user crypto investment activities' },
       ]
     },
     {
