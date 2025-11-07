@@ -1,0 +1,313 @@
+05:11:42.478 Running build in Washington, D.C., USA (East) – iad1
+05:11:42.479 Build machine configuration: 2 cores, 8 GB
+05:11:42.641 Cloning github.com/oaklineworkspace/oakline-admin (Branch: main, Commit: 6b79fe1)
+05:11:43.909 Cloning completed: 1.266s
+05:11:44.057 Restored build cache from previous deployment (Wso9Cinc7u5yCaV2wcqWccaFuZz5)
+05:11:44.591 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+05:11:44.591 Running "vercel build"
+05:11:44.991 Vercel CLI 48.8.2
+05:11:45.490 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+05:11:45.499 Running "install" command: `npm install`...
+05:11:47.073 
+05:11:47.074 up to date, audited 384 packages in 1s
+05:11:47.074 
+05:11:47.074 144 packages are looking for funding
+05:11:47.074   run `npm fund` for details
+05:11:47.078 
+05:11:47.078 2 moderate severity vulnerabilities
+05:11:47.079 
+05:11:47.079 To address all issues (including breaking changes), run:
+05:11:47.079   npm audit fix --force
+05:11:47.079 
+05:11:47.079 Run `npm audit` for details.
+05:11:47.097 Detected Next.js version: 14.2.33
+05:11:47.098 Running "npm run build"
+05:11:47.220 
+05:11:47.220 > oakline-bank@1.0.0 build
+05:11:47.221 > next build
+05:11:47.221 
+05:11:47.892   ▲ Next.js 14.2.33
+05:11:47.893 
+05:11:47.894    Linting and checking validity of types ...
+05:11:48.096    Creating an optimized production build ...
+05:11:53.276 Failed to compile.
+05:11:53.276 
+05:11:53.276 ./pages/api/admin/verify-id-document.js
+05:11:53.277 Error: 
+05:11:53.277   [31mx[0m the name `supabaseAdmin` is defined multiple times
+05:11:53.277     ,-[[36;1;4m/vercel/path0/pages/api/admin/verify-id-document.js[0m:1:1]
+05:11:53.277  [2m 1[0m | 
+05:11:53.278  [2m 2[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+05:11:53.278     : [31;1m         ^^^^^^|^^^^^^[0m
+05:11:53.278     :                [31;1m`-- [31;1mprevious definition of `supabaseAdmin` here[0m[0m
+05:11:53.279  [2m 3[0m | import { verifyAdminAuth } from '../../../lib/adminAuth';
+05:11:53.279  [2m 4[0m | 
+05:11:53.279  [2m 5[0m | export default async function handler(req, res) {
+05:11:53.279  [2m 6[0m |   const authResult = await verifyAdminAuth(req);
+05:11:53.279  [2m 7[0m |   if (authResult.error) {
+05:11:53.279  [2m 8[0m |     return res.status(authResult.status || 401).json({ error: authResult.error });
+05:11:53.280  [2m 9[0m |   }
+05:11:53.280  [2m10[0m | 
+05:11:53.280  [2m11[0m |   if (req.method !== 'POST') {
+05:11:53.280  [2m12[0m |     return res.status(405).json({ error: 'Method not allowed' });
+05:11:53.280  [2m13[0m |   }
+05:11:53.280  [2m14[0m | 
+05:11:53.281  [2m15[0m |   const { documentId, status, rejectionReason } = req.body;
+05:11:53.281  [2m16[0m | 
+05:11:53.281  [2m17[0m |   if (!documentId || !status) {
+05:11:53.281  [2m18[0m |     return res.status(400).json({ error: 'Document ID and status are required' });
+05:11:53.281  [2m19[0m |   }
+05:11:53.281  [2m20[0m | 
+05:11:53.282  [2m21[0m |   if (!['verified', 'rejected'].includes(status)) {
+05:11:53.282  [2m22[0m |     return res.status(400).json({ error: 'Status must be verified or rejected' });
+05:11:53.282  [2m23[0m |   }
+05:11:53.282  [2m24[0m | 
+05:11:53.282  [2m25[0m |   if (status === 'rejected' && !rejectionReason) {
+05:11:53.283  [2m26[0m |     return res.status(400).json({ error: 'Rejection reason is required' });
+05:11:53.283  [2m27[0m |   }
+05:11:53.283  [2m28[0m | 
+05:11:53.283  [2m29[0m |   try {
+05:11:53.283  [2m30[0m |     const updateData = {
+05:11:53.283  [2m31[0m |       status,
+05:11:53.284  [2m32[0m |       verified_by: authResult.user.id,
+05:11:53.284  [2m33[0m |       verified_at: new Date().toISOString(),
+05:11:53.284  [2m34[0m |     };
+05:11:53.284  [2m35[0m | 
+05:11:53.284  [2m36[0m |     if (status === 'rejected') {
+05:11:53.284  [2m37[0m |       updateData.rejection_reason = rejectionReason;
+05:11:53.285  [2m38[0m |     }
+05:11:53.285  [2m39[0m | 
+05:11:53.285  [2m40[0m |     const { data, error } = await supabaseAdmin
+05:11:53.285  [2m41[0m |       .from('user_id_documents')
+05:11:53.285  [2m42[0m |       .update(updateData)
+05:11:53.285  [2m43[0m |       .eq('id', documentId)
+05:11:53.286  [2m44[0m |       .select()
+05:11:53.286  [2m45[0m |       .single();
+05:11:53.286  [2m46[0m | 
+05:11:53.286  [2m47[0m |     if (error) {
+05:11:53.287  [2m48[0m |       console.error('Error updating document:', error);
+05:11:53.287  [2m49[0m |       return res.status(500).json({ error: error.message });
+05:11:53.293  [2m50[0m |     }
+05:11:53.294  [2m51[0m | 
+05:11:53.294  [2m52[0m |     // Log the action
+05:11:53.294  [2m53[0m |     await supabaseAdmin.from('audit_logs').insert({
+05:11:53.295  [2m54[0m |       user_id: authResult.user.id,
+05:11:53.295  [2m55[0m |       action: `ID Document ${status}`,
+05:11:53.295  [2m56[0m |       table_name: 'user_id_documents',
+05:11:53.295  [2m57[0m |       new_data: data,
+05:11:53.295  [2m58[0m |     });
+05:11:53.296  [2m59[0m | 
+05:11:53.296  [2m60[0m |     return res.status(200).json({ success: true, document: data });
+05:11:53.296  [2m61[0m |   } catch (error) {
+05:11:53.296  [2m62[0m |     console.error('Error in verify-id-document:', error);
+05:11:53.297  [2m63[0m |     return res.status(500).json({ error: error.message });
+05:11:53.297  [2m64[0m |   }
+05:11:53.297  [2m65[0m | }
+05:11:53.297  [2m66[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+05:11:53.297     : [33;1m         ^^^^^^|^^^^^^[0m
+05:11:53.298     :                [33;1m`-- [33;1m`supabaseAdmin` redefined here[0m[0m
+05:11:53.298  [2m67[0m | import { verifyAdminAuth } from '../../../lib/adminAuth';
+05:11:53.298  [2m68[0m | 
+05:11:53.298  [2m69[0m | export default async function handler(req, res) {
+05:11:53.299     `----
+05:11:53.299 
+05:11:53.299   [31mx[0m the name `verifyAdminAuth` is defined multiple times
+05:11:53.299     ,-[[36;1;4m/vercel/path0/pages/api/admin/verify-id-document.js[0m:1:1]
+05:11:53.300  [2m 1[0m | 
+05:11:53.300  [2m 2[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+05:11:53.300  [2m 3[0m | import { verifyAdminAuth } from '../../../lib/adminAuth';
+05:11:53.302     : [31;1m         ^^^^^^^|^^^^^^^[0m
+05:11:53.302     :                 [31;1m`-- [31;1mprevious definition of `verifyAdminAuth` here[0m[0m
+05:11:53.302  [2m 4[0m | 
+05:11:53.302  [2m 5[0m | export default async function handler(req, res) {
+05:11:53.302  [2m 6[0m |   const authResult = await verifyAdminAuth(req);
+05:11:53.302  [2m 7[0m |   if (authResult.error) {
+05:11:53.302  [2m 8[0m |     return res.status(authResult.status || 401).json({ error: authResult.error });
+05:11:53.302  [2m 9[0m |   }
+05:11:53.302  [2m10[0m | 
+05:11:53.303  [2m11[0m |   if (req.method !== 'POST') {
+05:11:53.303  [2m12[0m |     return res.status(405).json({ error: 'Method not allowed' });
+05:11:53.303  [2m13[0m |   }
+05:11:53.303  [2m14[0m | 
+05:11:53.303  [2m15[0m |   const { documentId, status, rejectionReason } = req.body;
+05:11:53.303  [2m16[0m | 
+05:11:53.303  [2m17[0m |   if (!documentId || !status) {
+05:11:53.303  [2m18[0m |     return res.status(400).json({ error: 'Document ID and status are required' });
+05:11:53.303  [2m19[0m |   }
+05:11:53.303  [2m20[0m | 
+05:11:53.303  [2m21[0m |   if (!['verified', 'rejected'].includes(status)) {
+05:11:53.303  [2m22[0m |     return res.status(400).json({ error: 'Status must be verified or rejected' });
+05:11:53.304  [2m23[0m |   }
+05:11:53.304  [2m24[0m | 
+05:11:53.304  [2m25[0m |   if (status === 'rejected' && !rejectionReason) {
+05:11:53.304  [2m26[0m |     return res.status(400).json({ error: 'Rejection reason is required' });
+05:11:53.304  [2m27[0m |   }
+05:11:53.304  [2m28[0m | 
+05:11:53.304  [2m29[0m |   try {
+05:11:53.304  [2m30[0m |     const updateData = {
+05:11:53.304  [2m31[0m |       status,
+05:11:53.304  [2m32[0m |       verified_by: authResult.user.id,
+05:11:53.304  [2m33[0m |       verified_at: new Date().toISOString(),
+05:11:53.304  [2m34[0m |     };
+05:11:53.304  [2m35[0m | 
+05:11:53.305  [2m36[0m |     if (status === 'rejected') {
+05:11:53.305  [2m37[0m |       updateData.rejection_reason = rejectionReason;
+05:11:53.305  [2m38[0m |     }
+05:11:53.306  [2m39[0m | 
+05:11:53.306  [2m40[0m |     const { data, error } = await supabaseAdmin
+05:11:53.306  [2m41[0m |       .from('user_id_documents')
+05:11:53.306  [2m42[0m |       .update(updateData)
+05:11:53.306  [2m43[0m |       .eq('id', documentId)
+05:11:53.306  [2m44[0m |       .select()
+05:11:53.307  [2m45[0m |       .single();
+05:11:53.312  [2m46[0m | 
+05:11:53.312  [2m47[0m |     if (error) {
+05:11:53.312  [2m48[0m |       console.error('Error updating document:', error);
+05:11:53.312  [2m49[0m |       return res.status(500).json({ error: error.message });
+05:11:53.312  [2m50[0m |     }
+05:11:53.312  [2m51[0m | 
+05:11:53.312  [2m52[0m |     // Log the action
+05:11:53.312  [2m53[0m |     await supabaseAdmin.from('audit_logs').insert({
+05:11:53.312  [2m54[0m |       user_id: authResult.user.id,
+05:11:53.313  [2m55[0m |       action: `ID Document ${status}`,
+05:11:53.313  [2m56[0m |       table_name: 'user_id_documents',
+05:11:53.313  [2m57[0m |       new_data: data,
+05:11:53.313  [2m58[0m |     });
+05:11:53.313  [2m59[0m | 
+05:11:53.313  [2m60[0m |     return res.status(200).json({ success: true, document: data });
+05:11:53.313  [2m61[0m |   } catch (error) {
+05:11:53.313  [2m62[0m |     console.error('Error in verify-id-document:', error);
+05:11:53.313  [2m63[0m |     return res.status(500).json({ error: error.message });
+05:11:53.313  [2m64[0m |   }
+05:11:53.313  [2m65[0m | }
+05:11:53.313  [2m66[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+05:11:53.313  [2m67[0m | import { verifyAdminAuth } from '../../../lib/adminAuth';
+05:11:53.313     : [33;1m         ^^^^^^^|^^^^^^^[0m
+05:11:53.313     :                 [33;1m`-- [33;1m`verifyAdminAuth` redefined here[0m[0m
+05:11:53.313  [2m68[0m | 
+05:11:53.313  [2m69[0m | export default async function handler(req, res) {
+05:11:53.313  [2m70[0m |   if (req.method !== 'POST') {
+05:11:53.313     `----
+05:11:53.313 
+05:11:53.313   [31mx[0m the name `handler` is defined multiple times
+05:11:53.313     ,-[[36;1;4m/vercel/path0/pages/api/admin/verify-id-document.js[0m:2:1]
+05:11:53.314  [2m 2[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+05:11:53.314  [2m 3[0m | import { verifyAdminAuth } from '../../../lib/adminAuth';
+05:11:53.314  [2m 4[0m | 
+05:11:53.314  [2m 5[0m | export default async function handler(req, res) {
+05:11:53.314     : [31;1m                              ^^^|^^^[0m
+05:11:53.314     :                                  [31;1m`-- [31;1mprevious definition of `handler` here[0m[0m
+05:11:53.314  [2m 6[0m |   const authResult = await verifyAdminAuth(req);
+05:11:53.314  [2m 7[0m |   if (authResult.error) {
+05:11:53.314  [2m 8[0m |     return res.status(authResult.status || 401).json({ error: authResult.error });
+05:11:53.314  [2m 9[0m |   }
+05:11:53.314  [2m10[0m | 
+05:11:53.314  [2m11[0m |   if (req.method !== 'POST') {
+05:11:53.314  [2m12[0m |     return res.status(405).json({ error: 'Method not allowed' });
+05:11:53.314  [2m13[0m |   }
+05:11:53.314  [2m14[0m | 
+05:11:53.315  [2m15[0m |   const { documentId, status, rejectionReason } = req.body;
+05:11:53.315  [2m16[0m | 
+05:11:53.315  [2m17[0m |   if (!documentId || !status) {
+05:11:53.315  [2m18[0m |     return res.status(400).json({ error: 'Document ID and status are required' });
+05:11:53.315  [2m19[0m |   }
+05:11:53.315  [2m20[0m | 
+05:11:53.315  [2m21[0m |   if (!['verified', 'rejected'].includes(status)) {
+05:11:53.315  [2m22[0m |     return res.status(400).json({ error: 'Status must be verified or rejected' });
+05:11:53.315  [2m23[0m |   }
+05:11:53.324  [2m 40[0m | [31;1m|[0m       const { data, error } = await supabaseAdmin
+05:11:53.324  [2m 41[0m | [31;1m|[0m         .from('user_id_documents')
+05:11:53.324  [2m 42[0m | [31;1m|[0m         .update(updateData)
+05:11:53.324  [2m 43[0m | [31;1m|[0m         .eq('id', documentId)
+05:11:53.324  [2m 44[0m | [31;1m|[0m         .select()
+05:11:53.324  [2m 45[0m | [31;1m|[0m         .single();
+05:11:53.324  [2m 46[0m | [31;1m|[0m   
+05:11:53.324  [2m 47[0m | [31;1m|[0m       if (error) {
+05:11:53.324  [2m 48[0m | [31;1m|[0m         console.error('Error updating document:', error);
+05:11:53.324  [2m 49[0m | [31;1m|[0m         return res.status(500).json({ error: error.message });
+05:11:53.324  [2m 50[0m | [31;1m|[0m       }
+05:11:53.324  [2m 51[0m | [31;1m|[0m   
+05:11:53.324  [2m 52[0m | [31;1m|[0m       // Log the action
+05:11:53.324  [2m 53[0m | [31;1m|[0m       await supabaseAdmin.from('audit_logs').insert({
+05:11:53.324  [2m 54[0m | [31;1m|[0m         user_id: authResult.user.id,
+05:11:53.324  [2m 55[0m | [31;1m|[0m         action: `ID Document ${status}`,
+05:11:53.324  [2m 56[0m | [31;1m|[0m         table_name: 'user_id_documents',
+05:11:53.324  [2m 57[0m | [31;1m|[0m         new_data: data,
+05:11:53.324  [2m 58[0m | [31;1m|[0m       });
+05:11:53.324  [2m 59[0m | [31;1m|[0m   
+05:11:53.324  [2m 60[0m | [31;1m|[0m       return res.status(200).json({ success: true, document: data });
+05:11:53.324  [2m 61[0m | [31;1m|[0m     } catch (error) {
+05:11:53.325  [2m 62[0m | [31;1m|[0m       console.error('Error in verify-id-document:', error);
+05:11:53.325  [2m 63[0m | [31;1m|[0m       return res.status(500).json({ error: error.message });
+05:11:53.325  [2m 64[0m | [31;1m|[0m     }
+05:11:53.325  [2m 65[0m | [31;1m|[0m[31;1m-[0m[31;1m>[0m }
+05:11:53.325      : [31;1m`[0m[31;1m---[0m[31;1m-[0m [31;1mprevious exported here[0m
+05:11:53.325  [2m 66[0m |     import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+05:11:53.325  [2m 67[0m |     import { verifyAdminAuth } from '../../../lib/adminAuth';
+05:11:53.325  [2m 68[0m |     
+05:11:53.325  [2m 69[0m | [33;1m,[0m[33;1m-[0m[33;1m>[0m export default async function handler(req, res) {
+05:11:53.325  [2m 70[0m | [33;1m|[0m     if (req.method !== 'POST') {
+05:11:53.325  [2m 71[0m | [33;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+05:11:53.325  [2m 72[0m | [33;1m|[0m     }
+05:11:53.325  [2m 73[0m | [33;1m|[0m   
+05:11:53.325  [2m 74[0m | [33;1m|[0m     const authResult = await verifyAdminAuth(req);
+05:11:53.326  [2m 75[0m | [33;1m|[0m     if (authResult.error) {
+05:11:53.326  [2m 76[0m | [33;1m|[0m       return res.status(authResult.status || 401).json({ error: authResult.error });
+05:11:53.326  [2m 77[0m | [33;1m|[0m     }
+05:11:53.326  [2m 78[0m | [33;1m|[0m   
+05:11:53.326  [2m 79[0m | [33;1m|[0m     const { docId, status, reason } = req.body;
+05:11:53.326  [2m 80[0m | [33;1m|[0m   
+05:11:53.326  [2m 81[0m | [33;1m|[0m     if (!docId || !status) {
+05:11:53.326  [2m 82[0m | [33;1m|[0m       return res.status(400).json({ error: 'Document ID and status are required' });
+05:11:53.326  [2m 83[0m | [33;1m|[0m     }
+05:11:53.326  [2m 84[0m | [33;1m|[0m   
+05:11:53.326  [2m 85[0m | [33;1m|[0m     if (!['verified', 'rejected'].includes(status)) {
+05:11:53.326  [2m 86[0m | [33;1m|[0m       return res.status(400).json({ error: 'Invalid status. Must be "verified" or "rejected"' });
+05:11:53.326  [2m 87[0m | [33;1m|[0m     }
+05:11:53.326  [2m 88[0m | [33;1m|[0m   
+05:11:53.327  [2m 89[0m | [33;1m|[0m     try {
+05:11:53.327  [2m 90[0m | [33;1m|[0m       const updateData = {
+05:11:53.327  [2m 91[0m | [33;1m|[0m         status,
+05:11:53.327  [2m 92[0m | [33;1m|[0m         verified_by: authResult.adminId,
+05:11:53.327  [2m 93[0m | [33;1m|[0m         updated_at: new Date().toISOString()
+05:11:53.327  [2m 94[0m | [33;1m|[0m       };
+05:11:53.327  [2m 95[0m | [33;1m|[0m   
+05:11:53.327  [2m 96[0m | [33;1m|[0m       if (status === 'verified') {
+05:11:53.327  [2m 97[0m | [33;1m|[0m         updateData.verified_at = new Date().toISOString();
+05:11:53.327  [2m 98[0m | [33;1m|[0m         updateData.rejection_reason = null;
+05:11:53.327  [2m 99[0m | [33;1m|[0m       } else if (status === 'rejected') {
+05:11:53.327  [2m100[0m | [33;1m|[0m         updateData.rejection_reason = reason || 'No reason provided';
+05:11:53.327  [2m101[0m | [33;1m|[0m         updateData.verified_at = null;
+05:11:53.327  [2m102[0m | [33;1m|[0m       }
+05:11:53.328  [2m103[0m | [33;1m|[0m   
+05:11:53.328  [2m104[0m | [33;1m|[0m       const { error: updateError } = await supabaseAdmin
+05:11:53.328  [2m105[0m | [33;1m|[0m         .from('user_id_documents')
+05:11:53.328  [2m106[0m | [33;1m|[0m         .update(updateData)
+05:11:53.328  [2m107[0m | [33;1m|[0m         .eq('id', docId);
+05:11:53.328  [2m108[0m | [33;1m|[0m   
+05:11:53.328  [2m109[0m | [33;1m|[0m       if (updateError) throw updateError;
+05:11:53.328  [2m110[0m | [33;1m|[0m   
+05:11:53.328  [2m111[0m | [33;1m|[0m       return res.status(200).json({
+05:11:53.328  [2m112[0m | [33;1m|[0m         success: true,
+05:11:53.328  [2m113[0m | [33;1m|[0m         message: `Document ${status} successfully`
+05:11:53.328  [2m114[0m | [33;1m|[0m       });
+05:11:53.328  [2m115[0m | [33;1m|[0m     } catch (error) {
+05:11:53.328  [2m116[0m | [33;1m|[0m       console.error('Error verifying document:', error);
+05:11:53.328  [2m117[0m | [33;1m|[0m       return res.status(500).json({
+05:11:53.328  [2m118[0m | [33;1m|[0m         error: 'Failed to verify document',
+05:11:53.328  [2m119[0m | [33;1m|[0m         details: error.message
+05:11:53.328  [2m120[0m | [33;1m|[0m       });
+05:11:53.328  [2m121[0m | [33;1m|[0m     }
+05:11:53.328  [2m122[0m | [33;1m|[0m[33;1m-[0m[33;1m>[0m }
+05:11:53.328      : [33;1m`[0m[33;1m---[0m[33;1m-[0m [33;1mexported more than once[0m
+05:11:53.328      `----
+05:11:53.328 
+05:11:53.328 Error: 
+05:11:53.328   [36m>[0m Exported identifiers must be unique
+05:11:53.329 
+05:11:53.329 Import trace for requested module:
+05:11:53.329 ./pages/api/admin/verify-id-document.js
+05:11:53.329 
+05:11:53.331 
+05:11:53.331 > Build failed because of webpack errors
+05:11:53.366 Error: Command "npm run build" exited with 1
