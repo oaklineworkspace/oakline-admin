@@ -215,7 +215,24 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Create accounts based on account_types array
+    // 5. Fetch account types to get minimum deposit requirements
+    const { data: accountTypesData, error: accountTypesError } = await supabaseAdmin
+      .from('account_types')
+      .select('*');
+
+    if (accountTypesError) {
+      console.error('Error fetching account types:', accountTypesError);
+    }
+
+    // Create a mapping of account type names to their details
+    const accountTypesMap = {};
+    if (accountTypesData) {
+      accountTypesData.forEach(type => {
+        accountTypesMap[type.name] = type;
+      });
+    }
+
+    // 6. Create accounts based on account_types array
     // Get all account types from the application (should be an array)
     let accountTypesToCreate = application.account_types || [];
     
@@ -228,13 +245,30 @@ export default async function handler(req, res) {
 
     const createdAccounts = [];
     const activeAccounts = [];
+    const pendingFundingAccounts = [];
     const pendingAccounts = [];
 
     // Create an account for EACH account type the user selected
     for (const accountType of accountTypesToCreate) {
-      // Determine account status based on type
-      // checking_account = active, all others = pending
-      const accountStatus = accountType === 'checking_account' ? 'active' : 'pending';
+      // Get account type details
+      const accountTypeDetails = accountTypesMap[accountType];
+      const minDeposit = accountTypeDetails?.min_deposit || 0;
+
+      // Determine account status:
+      // - If min_deposit > 0: 'pending_funding' (waiting for minimum deposit, regardless of account type)
+      // - If checking account with no min_deposit: 'active' (ready to use immediately)
+      // - All other accounts with no min_deposit: 'pending' (requires admin approval)
+      let accountStatus;
+      if (minDeposit > 0) {
+        // Any account with minimum deposit requirement: pending funding
+        accountStatus = 'pending_funding';
+      } else if (accountType === 'checking_account') {
+        // Checking accounts with no minimum deposit: active immediately
+        accountStatus = 'active';
+      } else {
+        // Other account types with no minimum deposit: pending admin approval
+        accountStatus = 'pending';
+      }
 
       // Generate or use manual account number
       let accountNumber;
@@ -253,9 +287,15 @@ export default async function handler(req, res) {
         account_type: accountType,
         balance: 0,
         status: accountStatus,
+        min_deposit: minDeposit,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+
+      // Set approved_by and approved_at for pending_funding accounts
+      if (accountStatus === 'pending_funding') {
+        accountData.approved_at = new Date().toISOString();
+      }
 
       const { data: newAccount, error: accountError } = await supabaseAdmin
         .from('accounts')
@@ -268,12 +308,14 @@ export default async function handler(req, res) {
         throw new Error(`Failed to create ${accountType} account: ${accountError.message}`);
       }
 
-      console.log('Created account:', accountType, 'with number:', accountNumber, 'status:', accountStatus);
+      console.log('Created account:', accountType, 'with number:', accountNumber, 'status:', accountStatus, 'min_deposit:', minDeposit);
       createdAccounts.push(newAccount);
       
       // Categorize accounts by status
       if (accountStatus === 'active') {
         activeAccounts.push(newAccount);
+      } else if (accountStatus === 'pending_funding') {
+        pendingFundingAccounts.push(newAccount);
       } else {
         pendingAccounts.push(newAccount);
       }
@@ -347,9 +389,17 @@ export default async function handler(req, res) {
       const accountNumbers = activeAccounts.map(acc => acc.account_number);
       const accountTypes = activeAccounts.map(acc => acc.account_type);
 
+      // Include pending funding accounts info
+      const pendingFundingInfo = pendingFundingAccounts.map(acc => ({
+        accountNumber: acc.account_number,
+        accountType: acc.account_type,
+        minDeposit: acc.min_deposit
+      }));
+
       console.log('Sending welcome email with credentials to:', application.email);
       console.log('Temporary password:', tempPassword);
       console.log('Active accounts:', accountNumbers);
+      console.log('Pending funding accounts:', pendingFundingInfo);
 
       const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
@@ -364,6 +414,8 @@ export default async function handler(req, res) {
           account_types: accountTypes,
           has_pending_accounts: pendingAccounts.length > 0,
           pending_account_types: pendingAccounts.map(acc => acc.account_type),
+          has_pending_funding_accounts: pendingFundingAccounts.length > 0,
+          pending_funding_accounts: pendingFundingInfo,
           application_id: applicationId,
           country: application.country || 'US',
           site_url: siteUrl,
@@ -386,15 +438,24 @@ export default async function handler(req, res) {
       // Don't fail the whole approval if email fails
     }
 
+    let message = `Application approved successfully. ${activeAccounts.length} active account(s) created.`;
+    if (pendingFundingAccounts.length > 0) {
+      message += ` ${pendingFundingAccounts.length} account(s) approved and awaiting minimum deposit.`;
+    }
+    if (pendingAccounts.length > 0) {
+      message += ` ${pendingAccounts.length} account(s) pending admin approval.`;
+    }
+
     return res.status(200).json({
       success: true,
-      message: `Application approved successfully. ${activeAccounts.length} active account(s) created. ${pendingAccounts.length > 0 ? `${pendingAccounts.length} account(s) pending admin approval.` : ''}`,
+      message: message,
       data: {
         userId: userId,
         email: application.email,
         tempPassword: isNewUser ? tempPassword : null,
         accountsCreated: createdAccounts.length,
         activeAccountsCount: activeAccounts.length,
+        pendingFundingAccountsCount: pendingFundingAccounts.length,
         pendingAccountsCount: pendingAccounts.length,
         cardsCreated: createdCards.length,
         accounts: createdAccounts.map(acc => ({
@@ -402,7 +463,14 @@ export default async function handler(req, res) {
           type: acc.account_type,
           number: acc.account_number,
           balance: acc.balance,
-          status: acc.status
+          status: acc.status,
+          minDeposit: acc.min_deposit || 0
+        })),
+        pendingFundingAccounts: pendingFundingAccounts.map(acc => ({
+          id: acc.id,
+          type: acc.account_type,
+          number: acc.account_number,
+          minDeposit: acc.min_deposit
         })),
         cards: createdCards.map(card => ({
           id: card.id,

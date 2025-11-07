@@ -70,6 +70,8 @@ export default async function handler(req, res) {
       account_types,
       has_pending_accounts,
       pending_account_types,
+      has_pending_funding_accounts,
+      pending_funding_accounts,
       application_id,
       country,
       site_url,
@@ -210,6 +212,36 @@ export default async function handler(req, res) {
                     </p>
 
                     ${accountDetailsHtml}
+
+                    ${has_pending_funding_accounts && pending_funding_accounts && pending_funding_accounts.length > 0 ? `
+                    <!-- Accounts Pending Minimum Deposit -->
+                    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 8px;">
+                      <h4 style="margin: 0 0 12px 0; color: #92400e; font-size: 16px; font-weight: 700;">
+                        💰 Accounts Awaiting Minimum Deposit
+                      </h4>
+                      <p style="margin: 0 0 12px 0; color: #78350f; font-size: 14px; line-height: 1.5;">
+                        The following account${pending_funding_accounts.length > 1 ? 's require' : ' requires'} a minimum deposit before activation:
+                      </p>
+                      <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 12px 0;">
+                        ${pending_funding_accounts.map(acc => `
+                          <tr>
+                            <td style="padding: 8px 0; color: #78350f; font-size: 14px;">
+                              <strong>${acc.accountType.replace(/_/g, ' ').toUpperCase()}</strong>
+                            </td>
+                            <td style="padding: 8px 0; color: #78350f; font-size: 14px; text-align: right;">
+                              Account: <code style="background-color: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: 4px;">****${acc.accountNumber.slice(-4)}</code>
+                            </td>
+                            <td style="padding: 8px 0; text-align: right;">
+                              <strong style="color: #92400e; font-size: 16px;">$${parseFloat(acc.minDeposit).toFixed(2)}</strong>
+                            </td>
+                          </tr>
+                        `).join('')}
+                      </table>
+                      <p style="margin: 12px 0 0 0; color: #78350f; font-size: 14px; line-height: 1.5;">
+                        <strong>Next Step:</strong> After logging in, our team will provide you with crypto wallet instructions to complete your minimum deposit. Once the deposit is confirmed, your account will be activated immediately.
+                      </p>
+                    </div>
+                    ` : ''}
 
                     ${has_pending_accounts && pendingAccounts.length > 0 ? `
                     <!-- Pending Accounts Notice -->
