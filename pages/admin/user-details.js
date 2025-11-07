@@ -64,21 +64,14 @@ export default function UserDetails() {
 
       setUserData(result.user);
 
-      // Fetch documents
-      const { data: docs } = await supabase
-        .from('user_id_documents')
-        .select('*')
-        .eq('user_id', userIdToFetch)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (docs) {
+      // Use documents from API response
+      if (result.user.documents && result.user.documents.length > 0) {
+        const latestDoc = result.user.documents[0];
         setDocumentUrls({
-          front: docs.front_url,
-          back: docs.back_url,
-          type: docs.document_type,
-          status: docs.status
+          front: latestDoc.front_url,
+          back: latestDoc.back_url,
+          type: latestDoc.document_type,
+          status: latestDoc.status
         });
       }
     } catch (err) {

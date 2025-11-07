@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -59,6 +58,13 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: false })
       .limit(50);
 
+    // Fetch user ID documents
+    const { data: documents } = await supabaseAdmin
+      .from('user_id_documents')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     return res.status(200).json({
       success: true,
       user: {
@@ -70,7 +76,8 @@ export default async function handler(req, res) {
         accounts: accounts || [],
         cards: cards || [],
         loans: loans || [],
-        transactions: transactions || []
+        transactions: transactions || [],
+        documents: documents || []
       }
     });
   } catch (error) {
@@ -79,72 +86,5 @@ export default async function handler(req, res) {
       error: 'Failed to fetch user details',
       details: error.message
     });
-  }
-}
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { verifyAdminAuth } from '../../../lib/adminAuth';
-
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const authResult = await verifyAdminAuth(req);
-  if (authResult.error) {
-    return res.status(authResult.status || 401).json({ error: authResult.error });
-  }
-
-  const { userId } = req.query;
-
-  if (!userId) {
-    return res.status(400).json({ error: 'User ID is required' });
-  }
-
-  try {
-    // Get user auth data
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (authError) throw authError;
-
-    // Get profile data
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    // Get accounts
-    const { data: accounts, error: accountsError } = await supabaseAdmin
-      .from('accounts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    // Get cards
-    const { data: cards, error: cardsError } = await supabaseAdmin
-      .from('cards')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    // Get loans
-    const { data: loans, error: loansError } = await supabaseAdmin
-      .from('loans')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    const user = {
-      id: authUser.user.id,
-      email: authUser.user.email,
-      profile: profile || null,
-      accounts: accounts || [],
-      cards: cards || [],
-      loans: loans || []
-    };
-
-    res.status(200).json({ user });
-  } catch (error) {
-    console.error('Error fetching user details:', error);
-    res.status(500).json({ error: 'Failed to fetch user details', details: error.message });
   }
 }
