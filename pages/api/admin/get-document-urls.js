@@ -24,11 +24,11 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error('Error fetching documents:', error);
-      return res.status(500).json({ error: 'Failed to fetch documents' });
+      return res.status(500).json({ error: 'Failed to fetch documents', details: error.message });
     }
 
     if (!docs) {
-      return res.status(404).json({ error: 'No documents found' });
+      return res.status(404).json({ error: 'No documents found for this user' });
     }
 
     // Extract file paths from URLs
@@ -38,15 +38,17 @@ export default async function handler(req, res) {
     let frontSignedUrl = docs.front_url;
     let backSignedUrl = docs.back_url;
 
-    // Generate signed URLs if paths exist
+    // Generate signed URLs if paths exist and are storage paths
     if (frontPath && !frontPath.startsWith('http')) {
       const { data: frontData, error: frontError } = await supabaseAdmin
         .storage
         .from('documents')
-        .createSignedUrl(frontPath, 3600);
+        .createSignedUrl(frontPath, 3600); // 1 hour expiry
 
       if (!frontError && frontData) {
         frontSignedUrl = frontData.signedUrl;
+      } else if (frontError) {
+        console.error('Error generating signed URL for front:', frontError);
       }
     }
 
@@ -54,10 +56,12 @@ export default async function handler(req, res) {
       const { data: backData, error: backError } = await supabaseAdmin
         .storage
         .from('documents')
-        .createSignedUrl(backPath, 3600);
+        .createSignedUrl(backPath, 3600); // 1 hour expiry
 
       if (!backError && backData) {
         backSignedUrl = backData.signedUrl;
+      } else if (backError) {
+        console.error('Error generating signed URL for back:', backError);
       }
     }
 
@@ -72,6 +76,6 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Error in get-document-urls:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }

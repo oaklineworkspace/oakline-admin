@@ -255,19 +255,13 @@ export default async function handler(req, res) {
       const minDeposit = accountTypeDetails?.min_deposit || 0;
 
       // Determine account status:
-      // - If min_deposit > 0: 'pending_funding' (waiting for minimum deposit, regardless of account type)
-      // - If checking account with no min_deposit: 'active' (ready to use immediately)
-      // - All other accounts with no min_deposit: 'pending' (requires admin approval)
+      // - If min_deposit > 0: 'pending_funding' (waiting for minimum deposit)
+      // - Otherwise: 'active' (ready to use immediately)
       let accountStatus;
       if (minDeposit > 0) {
-        // Any account with minimum deposit requirement: pending funding
         accountStatus = 'pending_funding';
-      } else if (accountType === 'checking_account') {
-        // Checking accounts with no minimum deposit: active immediately
-        accountStatus = 'active';
       } else {
-        // Other account types with no minimum deposit: pending admin approval
-        accountStatus = 'pending';
+        accountStatus = 'active';
       }
 
       // Generate or use manual account number
@@ -316,8 +310,6 @@ export default async function handler(req, res) {
         activeAccounts.push(newAccount);
       } else if (accountStatus === 'pending_funding') {
         pendingFundingAccounts.push(newAccount);
-      } else {
-        pendingAccounts.push(newAccount);
       }
     }
 
@@ -412,8 +404,6 @@ export default async function handler(req, res) {
           temp_password: tempPassword,
           account_numbers: accountNumbers,
           account_types: accountTypes,
-          has_pending_accounts: pendingAccounts.length > 0,
-          pending_account_types: pendingAccounts.map(acc => acc.account_type),
           has_pending_funding_accounts: pendingFundingAccounts.length > 0,
           pending_funding_accounts: pendingFundingInfo,
           application_id: applicationId,
@@ -442,9 +432,6 @@ export default async function handler(req, res) {
     if (pendingFundingAccounts.length > 0) {
       message += ` ${pendingFundingAccounts.length} account(s) approved and awaiting minimum deposit.`;
     }
-    if (pendingAccounts.length > 0) {
-      message += ` ${pendingAccounts.length} account(s) pending admin approval.`;
-    }
 
     return res.status(200).json({
       success: true,
@@ -456,7 +443,6 @@ export default async function handler(req, res) {
         accountsCreated: createdAccounts.length,
         activeAccountsCount: activeAccounts.length,
         pendingFundingAccountsCount: pendingFundingAccounts.length,
-        pendingAccountsCount: pendingAccounts.length,
         cardsCreated: createdCards.length,
         accounts: createdAccounts.map(acc => ({
           id: acc.id,
