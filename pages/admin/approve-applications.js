@@ -394,14 +394,14 @@ export default function ApproveApplications() {
                     {app.ssn && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>SSN:</span>
-                        <span style={styles.infoValue}>***-**-{app.ssn.slice(-4)}</span>
+                        <span style={styles.infoValue}>{app.ssn}</span>
                       </div>
                     )}
 
                     {app.id_number && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>ID Number:</span>
-                        <span style={styles.infoValue}>***{app.id_number.slice(-4)}</span>
+                        <span style={styles.infoValue}>{app.id_number}</span>
                       </div>
                     )}
 
