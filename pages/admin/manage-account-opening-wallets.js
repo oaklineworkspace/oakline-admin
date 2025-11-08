@@ -50,7 +50,9 @@ export default function ManageAccountOpeningWallets() {
         throw new Error(assetsResult.error || 'Failed to fetch crypto assets');
       }
 
-      setCryptoAssets(assetsResult.assets || []);
+      // Only use active assets
+      const activeAssets = (assetsResult.assets || []).filter(a => a.status === 'active');
+      setCryptoAssets(activeAssets);
 
       // Fetch existing wallets
       await fetchWallets();
@@ -140,8 +142,15 @@ export default function ManageAccountOpeningWallets() {
 
   const handleEdit = (wallet) => {
     setEditingWallet(wallet.id);
+    
+    // Find matching crypto asset by crypto_type and network_type
+    const matchingAsset = cryptoAssets.find(
+      asset => asset.crypto_type === wallet.crypto_type && 
+               asset.network_type === wallet.network_type
+    );
+    
     setEditFormData({
-      cryptoAssetId: wallet.crypto_asset_id || '',
+      cryptoAssetId: matchingAsset?.id || '',
       walletAddress: wallet.wallet_address || '',
       memo: wallet.memo || ''
     });
@@ -276,7 +285,7 @@ export default function ManageAccountOpeningWallets() {
                   required
                 >
                   <option value="">Select crypto asset</option>
-                  {cryptoAssets.filter(a => a.status === 'active').map(asset => (
+                  {cryptoAssets.map(asset => (
                     <option key={asset.id} value={asset.id}>
                       {asset.crypto_type} ({asset.symbol}) - {asset.network_type}
                     </option>
@@ -357,7 +366,7 @@ export default function ManageAccountOpeningWallets() {
                               onChange={(e) => setEditFormData(prev => ({ ...prev, cryptoAssetId: e.target.value }))}
                               style={styles.selectSmall}
                             >
-                              {cryptoAssets.filter(a => a.status === 'active').map(asset => (
+                              {cryptoAssets.map(asset => (
                                 <option key={asset.id} value={asset.id}>
                                   {asset.crypto_type} ({asset.symbol}) - {asset.network_type}
                                 </option>

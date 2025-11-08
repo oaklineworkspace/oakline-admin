@@ -48,7 +48,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Create new wallet
+      // Create new wallet with crypto_asset_id stored in metadata for reference
       const { data: wallet, error: walletError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .insert({

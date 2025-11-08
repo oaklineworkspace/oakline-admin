@@ -13,28 +13,45 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: wallets, error } = await supabaseAdmin
+    // First, fetch all wallets
+    const { data: wallets, error: walletsError } = await supabaseAdmin
       .from('admin_assigned_wallets')
-      .select(`
-        *,
-        crypto_assets:crypto_type (
-          id,
-          crypto_type,
-          symbol,
-          network_type,
-          status
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching account opening wallets:', error);
-      throw new Error(error.message);
+    if (walletsError) {
+      console.error('Error fetching account opening wallets:', walletsError);
+      throw new Error(walletsError.message);
     }
+
+    // Then fetch all crypto assets
+    const { data: cryptoAssets, error: assetsError } = await supabaseAdmin
+      .from('crypto_assets')
+      .select('*')
+      .eq('status', 'active');
+
+    if (assetsError) {
+      console.error('Error fetching crypto assets:', assetsError);
+      throw new Error(assetsError.message);
+    }
+
+    // Map crypto assets to wallets by matching crypto_type and network_type
+    const walletsWithAssets = wallets.map(wallet => {
+      const matchingAsset = cryptoAssets.find(
+        asset => asset.crypto_type === wallet.crypto_type && 
+                 asset.network_type === wallet.network_type
+      );
+
+      return {
+        ...wallet,
+        crypto_assets: matchingAsset || null,
+        crypto_asset_id: matchingAsset?.id || null
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      wallets: wallets || []
+      wallets: walletsWithAssets || []
     });
 
   } catch (error) {
