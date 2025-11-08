@@ -8,8 +8,6 @@ export default function ApproveAccounts() {
   const [pendingAccounts, setPendingAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [approvedAccount, setApprovedAccount] = useState(null);
   const [message, setMessage] = useState('');
   const router = useRouter();
 
@@ -21,16 +19,40 @@ export default function ApproveAccounts() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-accounts?status=pending_funding'); // Changed status to 'pending_funding'
-      const result = await response.json();
+      const [approveResponse, approvedResponse] = await Promise.all([
+        fetch('/api/admin/get-accounts?status=approve'),
+        fetch('/api/admin/get-accounts?status=approved')
+      ]);
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch pending accounts');
+      const [approveResult, approvedResult] = await Promise.all([
+        approveResponse.json(),
+        approvedResponse.json()
+      ]);
+
+      const errors = [];
+      if (!approveResponse.ok) {
+        console.error('Failed to fetch "approve" status accounts:', approveResult.error);
+        errors.push('"approve" status accounts');
+      }
+      if (!approvedResponse.ok) {
+        console.error('Failed to fetch "approved" status accounts:', approvedResult.error);
+        errors.push('"approved" status accounts');
       }
 
-      setPendingAccounts(result.accounts || []);
+      if (errors.length > 0) {
+        setError(`Warning: Failed to fetch ${errors.join(' and ')}. Showing partial results.`);
+      }
+
+      const approveAccounts = approveResponse.ok ? (approveResult.accounts || []) : [];
+      const approvedAccounts = approvedResponse.ok ? (approvedResult.accounts || []) : [];
+      
+      const allAccounts = [...approveAccounts, ...approvedAccounts];
+      
+      allAccounts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      setPendingAccounts(allAccounts);
     } catch (error) {
-      console.error('Error fetching pending accounts:', error);
+      console.error('Error fetching accounts:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -76,36 +98,8 @@ export default function ApproveAccounts() {
     }
   };
 
-  const approveAccount = async (accountId, accountNumber) => {
-    setProcessing(accountId);
-    setError('');
-
-    try {
-      const response = await fetch('/api/admin/approve-pending-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to approve account');
-      }
-
-      setApprovedAccount(result.data);
-      setShowSuccessModal(true);
-      setMessage('✅ Account approved and debit card created successfully!');
-      setTimeout(() => setMessage(''), 5000);
-
-      await fetchPendingAccounts();
-    } catch (error) {
-      console.error('Error approving account:', error);
-      setError(error.message);
-      setTimeout(() => setError(''), 5000);
-    } finally {
-      setProcessing(null);
-    }
+  const activateAccount = async (accountId, accountNumber) => {
+    await updateAccountStatus(accountId, accountNumber, 'active', 'activated');
   };
 
   const suspendAccount = async (accountId, accountNumber) => {
@@ -136,8 +130,8 @@ export default function ApproveAccounts() {
         <div style={styles.header}>
           <div style={styles.headerTop}>
             <div style={styles.headerContent}>
-              <h1 style={styles.title}>✅ Account Approval</h1>
-              <p style={styles.subtitle}>Approve or reject pending account applications</p>
+              <h1 style={styles.title}>✅ Activate Approved Accounts</h1>
+              <p style={styles.subtitle}>Activate accounts that have been approved</p>
             </div>
           </div>
           <div style={styles.headerActions}>
@@ -162,19 +156,18 @@ export default function ApproveAccounts() {
 
         <div style={styles.accountsSection}>
           <h2 style={styles.sectionTitle}>
-            Accounts Pending Approval ({pendingAccounts.length})
+            Approved Accounts Ready for Activation ({pendingAccounts.length})
           </h2>
           <p style={{color: '#64748b', fontSize: '14px', marginBottom: '20px'}}>
-            💡 Accounts with "AWAITING DEPOSIT" status require users to make their minimum deposit before they can be activated. 
-            Use the <strong>Approve Funding</strong> page to verify deposits and activate these accounts.
+            💡 These accounts have been approved and are ready to be activated. Click "Activate" to change the status to "active" and enable full account access.
           </p>
 
           {loading ? (
             <div style={styles.loading}>Loading pending accounts...</div>
           ) : pendingAccounts.length === 0 ? (
             <div style={styles.emptyState}>
-              <h3>No Accounts Pending Approval</h3>
-              <p>All accounts have been processed. Check the "Approve Funding" page for accounts awaiting minimum deposit confirmation.</p>
+              <h3>No Approved Accounts Waiting</h3>
+              <p>All approved accounts have been activated. Check the "Approve Applications" page for pending applications.</p>
             </div>
           ) : (
             <div style={styles.accountsGrid}>
@@ -187,9 +180,9 @@ export default function ApproveAccounts() {
                     </div>
                     <div style={{
                       ...styles.statusBadge,
-                      backgroundColor: account.status === 'pending_funding' ? '#dc2626' : '#f59e0b'
+                      backgroundColor: '#f59e0b'
                     }}>
-                      {account.status === 'pending_funding' ? 'AWAITING DEPOSIT' : 'PENDING ACTIVATION'}
+                      APPROVED - READY TO ACTIVATE
                     </div>
                   </div>
 
@@ -221,16 +214,13 @@ export default function ApproveAccounts() {
                     {account.min_deposit > 0 && (
                       <div style={styles.detail}>
                         <span style={styles.detailLabel}>Minimum Deposit Required:</span>
-                        <span style={{...styles.detailValue, color: '#dc2626', fontWeight: '700'}}>${parseFloat(account.min_deposit).toFixed(2)}</span>
+                        <span style={{...styles.detailValue, color: '#64748b', fontWeight: '600'}}>${parseFloat(account.min_deposit).toFixed(2)}</span>
                       </div>
                     )}
-                    {account.status === 'pending_funding' && (
-                      <div style={{...styles.detail, background: '#fef2f2', padding: '8px', borderRadius: '6px', marginTop: '8px'}}>
-                        <span style={{color: '#dc2626', fontSize: '14px', fontWeight: '600'}}>
-                          ⚠️ User must deposit ${parseFloat(account.min_deposit).toFixed(2)} before account can be activated
-                        </span>
-                      </div>
-                    )}
+                    <div style={styles.detail}>
+                      <span style={styles.detailLabel}>Status:</span>
+                      <span style={{...styles.detailValue, color: '#f59e0b', fontWeight: '700'}}>{account.status?.toUpperCase()}</span>
+                    </div>
                     <div style={styles.detail}>
                       <span style={styles.detailLabel}>Applied:</span>
                       <span style={styles.detailValue}>{new Date(account.created_at).toLocaleDateString()}</span>
@@ -239,19 +229,12 @@ export default function ApproveAccounts() {
 
                   <div style={styles.actionButtons}>
                     <button
-                      onClick={() => approveAccount(account.id, account.account_number)}
-                      disabled={processing === account.id || account.status === 'pending_funding'}
-                      style={{
-                        ...styles.approveButton,
-                        ...(account.status === 'pending_funding' ? {
-                          opacity: 0.5,
-                          cursor: 'not-allowed',
-                          background: '#9ca3af'
-                        } : {})
-                      }}
-                      title={account.status === 'pending_funding' ? 'User must make minimum deposit first' : 'Approve and activate account'}
+                      onClick={() => activateAccount(account.id, account.account_number)}
+                      disabled={processing === account.id}
+                      style={styles.activateButton}
+                      title="Activate account and enable full access"
                     >
-                      {processing === account.id ? '⏳' : '✅'} {account.status === 'pending_funding' ? 'Deposit Required' : 'Approve'}
+                      {processing === account.id ? '⏳ Processing...' : '🚀 Activate Account'}
                     </button>
                     <button
                       onClick={() => suspendAccount(account.id, account.account_number)}
@@ -281,71 +264,6 @@ export default function ApproveAccounts() {
           )}
         </div>
 
-        {showSuccessModal && approvedAccount && (
-          <div style={styles.modalOverlay} onClick={() => {
-            setShowSuccessModal(false);
-            setApprovedAccount(null);
-          }}>
-            <div style={styles.successModal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.successHeader}>
-                <div style={styles.successIcon}>✅</div>
-                <h2 style={styles.successTitle}>Account Approved Successfully!</h2>
-                <p style={styles.successSubtitle}>
-                  The customer has been notified and can now access their account
-                </p>
-              </div>
-
-              <div style={styles.successDetails}>
-                <div style={styles.successCard}>
-                  <h3 style={styles.successCardTitle}>Account Information</h3>
-                  <div style={styles.successInfo}>
-                    <div style={styles.successInfoRow}>
-                      <span style={styles.successLabel}>Account Number:</span>
-                      <span style={styles.successValue}>{approvedAccount.accountNumber}</span>
-                    </div>
-                    <div style={styles.successInfoRow}>
-                      <span style={styles.successLabel}>Account Type:</span>
-                      <span style={styles.successValue}>
-                        {approvedAccount.accountType?.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                    <div style={styles.successInfoRow}>
-                      <span style={styles.successLabel}>Status:</span>
-                      <span style={styles.successStatusActive}>{approvedAccount.status?.toUpperCase()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.successActions}>
-                  <div style={styles.successActionItem}>
-                    <span style={styles.successActionIcon}>📧</span>
-                    <span style={styles.successActionText}>Welcome email sent automatically</span>
-                  </div>
-                  <div style={styles.successActionItem}>
-                    <span style={styles.successActionIcon}>🔐</span>
-                    <span style={styles.successActionText}>Online banking access enabled</span>
-                  </div>
-                  <div style={styles.successActionItem}>
-                    <span style={styles.successActionIcon}>💳</span>
-                    <span style={styles.successActionText}>Debit card issued successfully</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style={styles.successFooter}>
-                <button
-                  onClick={() => {
-                    setShowSuccessModal(false);
-                    setApprovedAccount(null);
-                  }}
-                  style={styles.successCloseButton}
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </AdminAuth>
   );
@@ -565,7 +483,7 @@ const styles = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
     gap: '0.5rem'
   },
-  approveButton: {
+  activateButton: {
     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     color: 'white',
     border: 'none',
@@ -579,7 +497,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '0.5rem'
+    gap: '0.5rem',
+    gridColumn: '1 / -1'
   },
   suspendButton: {
     background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
