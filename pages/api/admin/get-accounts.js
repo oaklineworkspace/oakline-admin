@@ -37,17 +37,37 @@ export default async function handler(req, res) {
 
     // Filter accounts to only include those that match the user's selected account types
     const filteredAccounts = accounts ? accounts.filter(account => {
-      // If no application data, keep the account (edge case)
-      if (!account.applications) return true;
+      // If no application data, exclude the account
+      if (!account.applications) {
+        console.log('Account has no application data:', account.id);
+        return false;
+      }
 
       const selectedAccountTypes = account.applications.account_types || [];
 
-      // If no account types selected in application, keep it (edge case)
-      if (selectedAccountTypes.length === 0) return true;
+      // If no account types selected in application, exclude it
+      if (!Array.isArray(selectedAccountTypes) || selectedAccountTypes.length === 0) {
+        console.log('Application has no account types:', account.application_id);
+        return false;
+      }
+
+      // Ensure account_type exists
+      if (!account.account_type) {
+        console.log('Account has no account_type:', account.id);
+        return false;
+      }
 
       // Only include accounts whose type was actually selected by the user
-      return selectedAccountTypes.includes(account.account_type);
+      const isIncluded = selectedAccountTypes.includes(account.account_type);
+      
+      if (!isIncluded) {
+        console.log(`Filtering out account ${account.account_number} (${account.account_type}) - not in selected types:`, selectedAccountTypes);
+      }
+      
+      return isIncluded;
     }) : [];
+
+    console.log(`Filtered ${accounts?.length || 0} accounts down to ${filteredAccounts.length}`);
 
     return res.status(200).json({
       success: true,

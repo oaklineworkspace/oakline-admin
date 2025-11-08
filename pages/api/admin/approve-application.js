@@ -282,7 +282,15 @@ export default async function handler(req, res) {
       accountTypesToCreate = ['checking_account'];
     }
 
-    console.log('Creating accounts for types:', accountTypesToCreate);
+    console.log('==========================================');
+    console.log('ACCOUNT CREATION DEBUG');
+    console.log('==========================================');
+    console.log('Application ID:', applicationId);
+    console.log('User ID:', userId);
+    console.log('Account types from application.account_types:', application.account_types);
+    console.log('Account types to create (accountTypesToCreate):', accountTypesToCreate);
+    console.log('Number of accounts to create:', accountTypesToCreate.length);
+    console.log('==========================================');
 
     const createdAccounts = [];
     const activeAccounts = [];
