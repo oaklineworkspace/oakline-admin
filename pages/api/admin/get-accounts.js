@@ -12,27 +12,49 @@ export default async function handler(req, res) {
       .from('accounts')
       .select(`
         *,
+        user_id,
+        application_id,
         applications (
+          id,
           first_name,
           last_name,
-          email
+          email,
+          account_types
         )
-      `);
+      `)
+      .order('created_at', { ascending: false });
 
     if (status) {
       query = query.eq('status', status);
     }
 
-    const { data: accounts, error } = await query.order('created_at', { ascending: false });
+    const { data: accounts, error } = await query;
 
     if (error) {
       console.error('Error fetching accounts:', error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Failed to fetch accounts' });
     }
 
-    return res.status(200).json({ accounts });
+    // Filter accounts to only include those that match the user's selected account types
+    const filteredAccounts = accounts ? accounts.filter(account => {
+      // If no application data, keep the account (edge case)
+      if (!account.applications) return true;
+
+      const selectedAccountTypes = account.applications.account_types || [];
+
+      // If no account types selected in application, keep it (edge case)
+      if (selectedAccountTypes.length === 0) return true;
+
+      // Only include accounts whose type was actually selected by the user
+      return selectedAccountTypes.includes(account.account_type);
+    }) : [];
+
+    return res.status(200).json({
+      success: true,
+      accounts: filteredAccounts
+    });
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error in get-accounts:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
