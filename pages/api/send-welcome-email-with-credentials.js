@@ -42,20 +42,33 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  console.log('==========================================');
+  console.log('📧 WELCOME EMAIL API CALLED');
+  console.log('==========================================');
+  console.log('Request Body:', JSON.stringify(req.body, null, 2));
+  console.log('==========================================');
+
   const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
   console.log('🔍 Checking SMTP configuration...');
-  console.log('SMTP_HOST:', process.env.SMTP_HOST ? '✅ Set' : '❌ Missing');
-  console.log('SMTP_PORT:', process.env.SMTP_PORT ? '✅ Set' : '❌ Missing');
-  console.log('SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
-  console.log('SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
+  console.log('SMTP_HOST:', process.env.SMTP_HOST ? `✅ Set (${process.env.SMTP_HOST})` : '❌ Missing');
+  console.log('SMTP_PORT:', process.env.SMTP_PORT ? `✅ Set (${process.env.SMTP_PORT})` : '❌ Missing');
+  console.log('SMTP_USER:', process.env.SMTP_USER ? `✅ Set (${process.env.SMTP_USER})` : '❌ Missing');
+  console.log('SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set (hidden)' : '❌ Missing');
 
   if (missingVars.length > 0) {
-    console.error('❌ Missing SMTP environment variables:', missingVars);
+    console.error('==========================================');
+    console.error('❌ SMTP CONFIGURATION ERROR');
+    console.error('==========================================');
+    console.error('Missing variables:', missingVars);
+    console.error('Please configure these in Secrets:');
+    missingVars.forEach(v => console.error(`  - ${v}`));
+    console.error('==========================================');
     return res.status(500).json({
       error: 'Email service not configured',
-      message: `Missing environment variables: ${missingVars.join(', ')}`
+      message: `Missing environment variables: ${missingVars.join(', ')}. Please configure SMTP settings in Replit Secrets.`,
+      missingVars: missingVars
     });
   }
 

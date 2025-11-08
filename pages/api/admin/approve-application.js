@@ -440,6 +440,9 @@ export default async function handler(req, res) {
     }
 
     // 8. Send welcome email with credentials using dynamic bank details
+    let emailSent = false;
+    let emailError = null;
+    
     try {
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'theoaklinebank.com';
@@ -456,10 +459,18 @@ export default async function handler(req, res) {
         minDeposit: acc.min_deposit
       }));
 
-      console.log('Sending welcome email with credentials to:', application.email);
-      console.log('Temporary password:', tempPassword);
-      console.log('Active accounts:', accountNumbers);
-      console.log('Pending funding accounts:', pendingFundingInfo);
+      console.log('==========================================');
+      console.log('📧 ATTEMPTING TO SEND WELCOME EMAIL');
+      console.log('==========================================');
+      console.log('Recipient:', application.email);
+      console.log('First Name:', application.first_name);
+      console.log('Last Name:', application.last_name);
+      console.log('Temporary Password:', tempPassword);
+      console.log('Is New User:', isNewUser);
+      console.log('Active Accounts:', accountNumbers);
+      console.log('Pending Funding Accounts:', pendingFundingInfo);
+      console.log('Site URL:', siteUrl);
+      console.log('==========================================');
 
       const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
@@ -483,16 +494,31 @@ export default async function handler(req, res) {
 
       if (welcomeResponse.ok) {
         const emailResult = await welcomeResponse.json();
-        console.log('✅ Welcome email with credentials sent successfully to:', application.email);
+        emailSent = true;
+        console.log('==========================================');
+        console.log('✅ WELCOME EMAIL SENT SUCCESSFULLY');
+        console.log('==========================================');
         console.log('Email result:', emailResult);
+        console.log('Message ID:', emailResult.messageId);
+        console.log('==========================================');
       } else {
         const errorData = await welcomeResponse.json();
-        console.error('❌ Failed to send welcome email:', errorData);
-        console.error('Email API status:', welcomeResponse.status);
+        emailError = `Email API returned status ${welcomeResponse.status}: ${JSON.stringify(errorData)}`;
+        console.error('==========================================');
+        console.error('❌ FAILED TO SEND WELCOME EMAIL');
+        console.error('==========================================');
+        console.error('Status:', welcomeResponse.status);
+        console.error('Error Data:', errorData);
+        console.error('==========================================');
       }
-    } catch (emailError) {
-      console.error('❌ Error sending welcome email:', emailError);
-      console.error('Email error stack:', emailError.stack);
+    } catch (error) {
+      emailError = error.message;
+      console.error('==========================================');
+      console.error('❌ ERROR SENDING WELCOME EMAIL');
+      console.error('==========================================');
+      console.error('Error:', error);
+      console.error('Stack:', error.stack);
+      console.error('==========================================');
       // Don't fail the whole approval if email fails
     }
 
@@ -500,10 +526,22 @@ export default async function handler(req, res) {
     if (pendingFundingAccounts.length > 0) {
       message += ` ${pendingFundingAccounts.length} account(s) pending funding - awaiting minimum deposit before activation.`;
     }
+    
+    // Add email status to message
+    if (!emailSent && emailError) {
+      message += ` ⚠️ WARNING: Welcome email failed to send - ${emailError}. Please manually send credentials to user.`;
+      console.error('CRITICAL: User credentials not emailed. Manual intervention required.');
+      console.error('User Email:', application.email);
+      console.error('Temp Password:', tempPassword);
+    } else if (emailSent) {
+      message += ` ✅ Welcome email with login credentials sent to ${application.email}.`;
+    }
 
     return res.status(200).json({
       success: true,
       message: message,
+      emailSent: emailSent,
+      emailError: emailError,
       data: {
         userId: userId,
         email: application.email,
