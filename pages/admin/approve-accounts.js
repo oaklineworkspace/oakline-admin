@@ -20,15 +20,17 @@ export default function ApproveAccounts() {
     setLoading(true);
     setError('');
     try {
-      // Fetch both 'approve' and 'approved' status accounts
-      const [approveResponse, approvedResponse] = await Promise.all([
+      // Fetch accounts with 'approve', 'approved', and 'pending_funding' statuses (exclude 'active')
+      const [approveResponse, approvedResponse, pendingFundingResponse] = await Promise.all([
         fetch('/api/admin/get-accounts?status=approve'),
-        fetch('/api/admin/get-accounts?status=approved')
+        fetch('/api/admin/get-accounts?status=approved'),
+        fetch('/api/admin/get-accounts?status=pending_funding')
       ]);
 
-      const [approveResult, approvedResult] = await Promise.all([
+      const [approveResult, approvedResult, pendingFundingResult] = await Promise.all([
         approveResponse.json(),
-        approvedResponse.json()
+        approvedResponse.json(),
+        pendingFundingResponse.json()
       ]);
 
       const errors = [];
@@ -40,15 +42,20 @@ export default function ApproveAccounts() {
         console.error('Failed to fetch "approved" status accounts:', approvedResult.error);
         errors.push('"approved" status accounts');
       }
+      if (!pendingFundingResponse.ok) {
+        console.error('Failed to fetch "pending_funding" status accounts:', pendingFundingResult.error);
+        errors.push('"pending_funding" status accounts');
+      }
 
       if (errors.length > 0) {
-        setError(`Warning: Failed to fetch ${errors.join(' and ')}. Showing partial results.`);
+        setError(`Warning: Failed to fetch ${errors.join(', ')}. Showing partial results.`);
       }
 
       const approveAccounts = approveResponse.ok ? (approveResult.accounts || []) : [];
       const approvedAccounts = approvedResponse.ok ? (approvedResult.accounts || []) : [];
+      const pendingFundingAccounts = pendingFundingResponse.ok ? (pendingFundingResult.accounts || []) : [];
       
-      const allAccounts = [...approveAccounts, ...approvedAccounts];
+      const allAccounts = [...approveAccounts, ...approvedAccounts, ...pendingFundingAccounts];
       
       allAccounts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -159,18 +166,18 @@ export default function ApproveAccounts() {
 
         <div style={styles.accountsSection}>
           <h2 style={styles.sectionTitle}>
-            Approved Accounts Ready for Activation ({pendingAccounts.length})
+            Accounts Ready for Management ({pendingAccounts.length})
           </h2>
           <p style={{color: '#64748b', fontSize: '14px', marginBottom: '20px'}}>
-            💡 These accounts have been approved and are ready to be activated. Click "Activate" to change the status to "active" and enable full account access.
+            💡 These accounts include those with "approve", "approved", and "pending_funding" statuses. You can activate, suspend, close, or reject them. Active accounts are not shown here.
           </p>
 
           {loading ? (
             <div style={styles.loading}>Loading pending accounts...</div>
           ) : pendingAccounts.length === 0 ? (
             <div style={styles.emptyState}>
-              <h3>No Approved Accounts Waiting</h3>
-              <p>All approved accounts have been activated. Check the "Approve Applications" page for pending applications.</p>
+              <h3>No Accounts Requiring Action</h3>
+              <p>All accounts with "approve", "approved", or "pending_funding" status have been processed. Check the "Approve Applications" page for pending applications.</p>
             </div>
           ) : (
             <div style={styles.accountsGrid}>
