@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -15,8 +14,8 @@ export default async function handler(req, res) {
   const { userId, email, applicationId } = req.body;
 
   if (!userId && !email && !applicationId) {
-    return res.status(400).json({ 
-      error: 'User ID, email, or application ID is required' 
+    return res.status(400).json({
+      error: 'User ID, email, or application ID is required'
     });
   }
 
@@ -42,14 +41,14 @@ export default async function handler(req, res) {
     }
 
     if (!documents || documents.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'No documents found for this user',
         documents: { front: null, back: null }
       });
     }
 
     // Get the most recent document
-    const doc = documents.sort((a, b) => 
+    const doc = documents.sort((a, b) =>
       new Date(b.created_at) - new Date(a.created_at)
     )[0];
 
@@ -57,17 +56,8 @@ export default async function handler(req, res) {
     const signedUrls = {};
 
     if (doc.front_url) {
-      // Try the stored path first, then try common variations
-      let frontPath = doc.front_url;
-      
-      // If the path doesn't start with a user folder, try to construct it
-      if (!frontPath.includes('/')) {
-        // Extract email from document or use user_id
-        const emailPrefix = doc.email ? doc.email.replace('@', '_').replace(/\./g, '_') : '';
-        if (emailPrefix) {
-          frontPath = `${emailPrefix}/${frontPath}`;
-        }
-      }
+      // Remove 'documents/' prefix if present since we're already specifying the bucket
+      const frontPath = doc.front_url.replace(/^documents\//, '');
 
       const { data: frontData, error: frontError } = await supabaseAdmin
         .storage
@@ -78,22 +68,12 @@ export default async function handler(req, res) {
         signedUrls.front = frontData.signedUrl;
       } else {
         console.error('Error creating signed URL for front:', frontError);
-        console.error('Attempted path:', frontPath);
       }
     }
 
     if (doc.back_url) {
-      // Try the stored path first, then try common variations
-      let backPath = doc.back_url;
-      
-      // If the path doesn't start with a user folder, try to construct it
-      if (!backPath.includes('/')) {
-        // Extract email from document or use user_id
-        const emailPrefix = doc.email ? doc.email.replace('@', '_').replace(/\./g, '_') : '';
-        if (emailPrefix) {
-          backPath = `${emailPrefix}/${backPath}`;
-        }
-      }
+      // Remove 'documents/' prefix if present since we're already specifying the bucket
+      const backPath = doc.back_url.replace(/^documents\//, '');
 
       const { data: backData, error: backError } = await supabaseAdmin
         .storage
@@ -104,7 +84,6 @@ export default async function handler(req, res) {
         signedUrls.back = backData.signedUrl;
       } else {
         console.error('Error creating signed URL for back:', backError);
-        console.error('Attempted path:', backPath);
       }
     }
 
@@ -115,9 +94,9 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Unexpected error:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
     });
   }
 }
