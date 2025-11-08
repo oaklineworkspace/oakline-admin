@@ -59,6 +59,43 @@ export default async function handler(req, res) {
       new_data: data
     });
 
+    // Send email notification if status is 'active' or 'rejected'
+    if ((status === 'active' || status === 'rejected') && data.user_id) {
+      try {
+        // Fetch user details from profiles
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', data.user_id)
+          .single();
+
+        if (profile && profile.email) {
+          const protocol = req.headers['x-forwarded-proto'] || 'https';
+          const host = req.headers['x-forwarded-host'] || req.headers.host;
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+
+          await fetch(`${siteUrl}/api/send-account-status-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: profile.email,
+              firstName: profile.first_name,
+              lastName: profile.last_name,
+              accountNumber: data.account_number,
+              accountType: data.account_type,
+              status: status,
+              reason: reason || (status === 'rejected' ? 'Your account did not meet our requirements.' : '')
+            })
+          });
+
+          console.log(`✅ Account ${status} email sent to:`, profile.email);
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send account status email:', emailError);
+        // Don't fail the account status update if email fails
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Account status updated successfully',
