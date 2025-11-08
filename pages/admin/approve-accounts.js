@@ -162,15 +162,19 @@ export default function ApproveAccounts() {
 
         <div style={styles.accountsSection}>
           <h2 style={styles.sectionTitle}>
-            Pending Accounts ({pendingAccounts.length})
+            Accounts Pending Approval ({pendingAccounts.length})
           </h2>
+          <p style={{color: '#64748b', fontSize: '14px', marginBottom: '20px'}}>
+            💡 Accounts with "AWAITING DEPOSIT" status require users to make their minimum deposit before they can be activated. 
+            Use the <strong>Approve Funding</strong> page to verify deposits and activate these accounts.
+          </p>
 
           {loading ? (
             <div style={styles.loading}>Loading pending accounts...</div>
           ) : pendingAccounts.length === 0 ? (
             <div style={styles.emptyState}>
-              <h3>No Pending Accounts</h3>
-              <p>All accounts have been processed or no applications have been submitted yet.</p>
+              <h3>No Accounts Pending Approval</h3>
+              <p>All accounts have been processed. Check the "Approve Funding" page for accounts awaiting minimum deposit confirmation.</p>
             </div>
           ) : (
             <div style={styles.accountsGrid}>
@@ -181,8 +185,11 @@ export default function ApproveAccounts() {
                       <h3 style={styles.accountNumber}>Account: {account.account_number}</h3>
                       <span style={styles.accountType}>{account.account_type?.replace('_', ' ').toUpperCase()}</span>
                     </div>
-                    <div style={styles.statusBadge}>
-                      PENDING
+                    <div style={{
+                      ...styles.statusBadge,
+                      backgroundColor: account.status === 'pending_funding' ? '#dc2626' : '#f59e0b'
+                    }}>
+                      {account.status === 'pending_funding' ? 'AWAITING DEPOSIT' : 'PENDING ACTIVATION'}
                     </div>
                   </div>
 
@@ -208,9 +215,22 @@ export default function ApproveAccounts() {
                       </>
                     )}
                     <div style={styles.detail}>
-                      <span style={styles.detailLabel}>Initial Balance:</span>
+                      <span style={styles.detailLabel}>Current Balance:</span>
                       <span style={styles.detailValue}>${parseFloat(account.balance || 0).toFixed(2)}</span>
                     </div>
+                    {account.min_deposit > 0 && (
+                      <div style={styles.detail}>
+                        <span style={styles.detailLabel}>Minimum Deposit Required:</span>
+                        <span style={{...styles.detailValue, color: '#dc2626', fontWeight: '700'}}>${parseFloat(account.min_deposit).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {account.status === 'pending_funding' && (
+                      <div style={{...styles.detail, background: '#fef2f2', padding: '8px', borderRadius: '6px', marginTop: '8px'}}>
+                        <span style={{color: '#dc2626', fontSize: '14px', fontWeight: '600'}}>
+                          ⚠️ User must deposit ${parseFloat(account.min_deposit).toFixed(2)} before account can be activated
+                        </span>
+                      </div>
+                    )}
                     <div style={styles.detail}>
                       <span style={styles.detailLabel}>Applied:</span>
                       <span style={styles.detailValue}>{new Date(account.created_at).toLocaleDateString()}</span>
@@ -220,10 +240,18 @@ export default function ApproveAccounts() {
                   <div style={styles.actionButtons}>
                     <button
                       onClick={() => approveAccount(account.id, account.account_number)}
-                      disabled={processing === account.id}
-                      style={styles.approveButton}
+                      disabled={processing === account.id || account.status === 'pending_funding'}
+                      style={{
+                        ...styles.approveButton,
+                        ...(account.status === 'pending_funding' ? {
+                          opacity: 0.5,
+                          cursor: 'not-allowed',
+                          background: '#9ca3af'
+                        } : {})
+                      }}
+                      title={account.status === 'pending_funding' ? 'User must make minimum deposit first' : 'Approve and activate account'}
                     >
-                      {processing === account.id ? '⏳' : '✅'} Approve
+                      {processing === account.id ? '⏳' : '✅'} {account.status === 'pending_funding' ? 'Deposit Required' : 'Approve'}
                     </button>
                     <button
                       onClick={() => suspendAccount(account.id, account.account_number)}

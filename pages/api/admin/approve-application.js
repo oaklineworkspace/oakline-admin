@@ -252,16 +252,18 @@ export default async function handler(req, res) {
     for (const accountType of accountTypesToCreate) {
       // Get account type details
       const accountTypeDetails = accountTypesMap[accountType];
-      const minDeposit = accountTypeDetails?.min_deposit || 0;
+      const minDeposit = parseFloat(accountTypeDetails?.min_deposit || 0);
 
       // Determine account status:
       // - If min_deposit > 0: 'pending_funding' (waiting for minimum deposit)
-      // - Otherwise: 'approved' (ready to be activated by admin after deposit confirmation)
+      // - Otherwise: 'approved' (ready to be activated by admin - no deposit required)
       let accountStatus;
       if (minDeposit > 0) {
         accountStatus = 'pending_funding';
+        console.log(`Account type ${accountType} requires minimum deposit of $${minDeposit} - setting status to pending_funding`);
       } else {
         accountStatus = 'approved';
+        console.log(`Account type ${accountType} has no minimum deposit - setting status to approved`);
       }
 
       // Generate or use manual account number
@@ -306,15 +308,16 @@ export default async function handler(req, res) {
       createdAccounts.push(newAccount);
       
       // Categorize accounts by status
-      // 'approved' status means account is ready but admin needs to activate it
-      if (accountStatus === 'approved' || accountStatus === 'active') {
+      // 'approved' status means account is ready and can be activated by admin (no deposit required)
+      // 'pending_funding' status means account needs minimum deposit before it can be approved
+      if (accountStatus === 'approved') {
         activeAccounts.push(newAccount);
       } else if (accountStatus === 'pending_funding') {
         pendingFundingAccounts.push(newAccount);
       }
     }
 
-    // 6. Create cards only for active accounts
+    // 7. Create cards only for accounts with 'approved' status (no deposit required)
     const createdCards = [];
 
     for (const account of activeAccounts) {
