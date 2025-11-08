@@ -482,11 +482,11 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'theoaklinebank.com';
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
 
-      // Only send active accounts in welcome email
-      const accountNumbers = activeAccounts.map(acc => acc.account_number);
-      const accountTypes = activeAccounts.map(acc => acc.account_type);
+      // Send ALL account numbers in welcome email (both active and pending funding)
+      const accountNumbers = createdAccounts.map(acc => acc.account_number);
+      const accountTypes = createdAccounts.map(acc => acc.account_type);
 
-      // Include pending funding accounts info
+      // Include pending funding accounts info for detailed messaging
       const pendingFundingInfo = pendingFundingAccounts.map(acc => ({
         accountNumber: acc.account_number,
         accountType: acc.account_type,
