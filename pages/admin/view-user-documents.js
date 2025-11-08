@@ -65,8 +65,10 @@ export default function ViewUserDocuments() {
       // Prepare request body with available identifiers
       const requestBody = {};
       if (doc.user_id) requestBody.userId = doc.user_id;
-      if (doc.email) requestBody.email = doc.email;
+      if (doc.profiles?.email) requestBody.email = doc.profiles.email;
       if (doc.application_id) requestBody.applicationId = doc.application_id;
+
+      console.log('Fetching document URLs for:', requestBody);
 
       const response = await fetch('/api/admin/get-document-urls', {
         method: 'POST',
@@ -90,8 +92,10 @@ export default function ViewUserDocuments() {
     }
   };
 
-  const handleVerifyDocument = async (docId, status, reason = '') => {
+  const handleVerifyDocument = async (docId, newStatus, reason = '') => {
     try {
+      console.log('Verifying document:', { docId, newStatus, reason });
+
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -104,21 +108,27 @@ export default function ViewUserDocuments() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ docId, status, reason })
+        body: JSON.stringify({ 
+          docId: docId, 
+          status: newStatus, 
+          reason: reason 
+        })
       });
 
       const result = await response.json();
 
       if (!response.ok) {
+        console.error('Verify failed:', result);
         throw new Error(result.error || 'Failed to update document');
       }
 
-      alert(`Document ${status} successfully!`);
+      alert(`Document ${newStatus} successfully!`);
       setSelectedDoc(null);
       fetchDocuments();
     } catch (err) {
       console.error('Error updating document:', err);
       setError('Failed to update document: ' + err.message);
+      alert('Error: ' + err.message);
     }
   };
 

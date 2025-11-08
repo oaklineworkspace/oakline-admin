@@ -58,6 +58,8 @@ export default async function handler(req, res) {
     if (doc.front_url) {
       // Remove 'documents/' prefix if present since we're already specifying the bucket
       const frontPath = doc.front_url.replace(/^documents\//, '');
+      
+      console.log('Attempting to create signed URL for front:', frontPath);
 
       const { data: frontData, error: frontError } = await supabaseAdmin
         .storage
@@ -66,14 +68,19 @@ export default async function handler(req, res) {
 
       if (!frontError && frontData) {
         signedUrls.front = frontData.signedUrl;
+        console.log('Front URL created successfully');
       } else {
         console.error('Error creating signed URL for front:', frontError);
+        console.error('Attempted path:', frontPath);
+        console.error('Original path:', doc.front_url);
       }
     }
 
     if (doc.back_url) {
       // Remove 'documents/' prefix if present since we're already specifying the bucket
       const backPath = doc.back_url.replace(/^documents\//, '');
+      
+      console.log('Attempting to create signed URL for back:', backPath);
 
       const { data: backData, error: backError } = await supabaseAdmin
         .storage
@@ -82,8 +89,11 @@ export default async function handler(req, res) {
 
       if (!backError && backData) {
         signedUrls.back = backData.signedUrl;
+        console.log('Back URL created successfully');
       } else {
         console.error('Error creating signed URL for back:', backError);
+        console.error('Attempted path:', backPath);
+        console.error('Original path:', doc.back_url);
       }
     }
 

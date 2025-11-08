@@ -1,20 +1,22 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const authResult = await verifyAdminAuth(req);
   if (authResult.error) {
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const { docId, status, reason } = req.body;
 
-  const { documentId, status, rejectionReason } = req.body;
+  console.log('Verify document request:', { docId, status, reason });
 
-  if (!documentId || !status) {
+  if (!docId || !status) {
+    console.error('Missing required fields:', { docId, status });
     return res.status(400).json({ error: 'Document ID and status are required' });
   }
 
@@ -22,7 +24,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Status must be verified or rejected' });
   }
 
-  if (status === 'rejected' && !rejectionReason) {
+  if (status === 'rejected' && !reason) {
     return res.status(400).json({ error: 'Rejection reason is required' });
   }
 
@@ -34,13 +36,13 @@ export default async function handler(req, res) {
     };
 
     if (status === 'rejected') {
-      updateData.rejection_reason = rejectionReason;
+      updateData.rejection_reason = reason;
     }
 
     const { data, error } = await supabaseAdmin
       .from('user_id_documents')
       .update(updateData)
-      .eq('id', documentId)
+      .eq('id', docId)
       .select()
       .single();
 

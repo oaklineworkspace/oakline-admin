@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   try {
     let query = supabaseAdmin
       .from('user_id_documents')
-      .select('*, email')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
@@ -28,25 +28,49 @@ export default async function handler(req, res) {
 
     if (fetchError) throw fetchError;
 
-    // Fetch profile data separately for each document
-    const documentsWithProfiles = await Promise.all(
+    // Fetch profile and application data for each document
+    const documentsWithDetails = await Promise.all(
       (data || []).map(async (doc) => {
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('first_name, last_name, email')
-          .eq('id', doc.user_id)
-          .single();
+        let profile = null;
+        let application = null;
+
+        // Try to get profile from user_id
+        if (doc.user_id) {
+          const { data: profileData } = await supabaseAdmin
+            .from('profiles')
+            .select('first_name, last_name, email')
+            .eq('id', doc.user_id)
+            .single();
+          profile = profileData;
+        }
+
+        // Try to get application data
+        if (doc.application_id) {
+          const { data: appData } = await supabaseAdmin
+            .from('applications')
+            .select('first_name, last_name, email')
+            .eq('id', doc.application_id)
+            .single();
+          application = appData;
+        }
+
+        // Use application data as fallback if profile is missing
+        const finalProfile = profile || application || {
+          first_name: 'Unknown',
+          last_name: 'User',
+          email: doc.email || 'No email'
+        };
         
         return {
           ...doc,
-          profiles: profile
+          profiles: finalProfile
         };
       })
     );
 
     return res.status(200).json({
       success: true,
-      documents: documentsWithProfiles
+      documents: documentsWithDetails
     });
   } catch (error) {
     console.error('Error fetching user documents:', error);
