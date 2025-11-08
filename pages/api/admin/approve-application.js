@@ -233,12 +233,40 @@ export default async function handler(req, res) {
     // Create a mapping of account type names to their details
     // Normalize keys to handle different naming conventions
     const accountTypesMap = {};
+    
+    // Also create a reverse mapping from enum names to display names
+    const enumToDisplayName = {
+      'checking_account': 'Checking Account',
+      'savings_account': 'Savings Account',
+      'business_checking': 'Business Checking',
+      'business_savings': 'Business Savings',
+      'student_checking': 'Student Checking',
+      'money_market': 'Money Market Account',
+      'certificate_of_deposit': 'Certificate of Deposit (CD)',
+      'retirement_ira': 'Retirement Account (IRA)',
+      'joint_checking': 'Joint Checking Account',
+      'trust_account': 'Trust Account',
+      'investment_brokerage': 'Investment Brokerage Account',
+      'high_yield_savings': 'High-Yield Savings Account',
+      'international_checking': 'International Checking',
+      'foreign_currency': 'Foreign Currency Account',
+      'cryptocurrency_wallet': 'Cryptocurrency Wallet',
+      'loan_repayment': 'Loan Repayment Account',
+      'mortgage': 'Mortgage Account',
+      'auto_loan': 'Auto Loan Account',
+      'credit_card': 'Credit Card Account',
+      'prepaid_card': 'Prepaid Card Account',
+      'payroll_account': 'Payroll Account',
+      'nonprofit_charity': 'Nonprofit/Charity Account',
+      'escrow_account': 'Escrow Account'
+    };
+    
     if (accountTypesData) {
       accountTypesData.forEach(type => {
         // Store with original name
         accountTypesMap[type.name] = type;
-        // Also store with normalized name (lowercase, no spaces/underscores)
-        const normalizedName = type.name.toLowerCase().replace(/[_\s-]/g, '');
+        // Also store with normalized name (lowercase, no spaces/underscores/parentheses)
+        const normalizedName = type.name.toLowerCase().replace(/[_\s\-()]/g, '');
         accountTypesMap[normalizedName] = type;
       });
     }
@@ -263,20 +291,24 @@ export default async function handler(req, res) {
 
     // Create an account for EACH account type the user selected
     for (const accountType of accountTypesToCreate) {
-      // Get account type details - try exact match first, then normalized
-      let accountTypeDetails = accountTypesMap[accountType];
+      // First, try to map enum name to display name
+      const displayName = enumToDisplayName[accountType] || accountType;
+      
+      // Get account type details - try display name first, then enum name, then normalized
+      let accountTypeDetails = accountTypesMap[displayName] || accountTypesMap[accountType];
       
       if (!accountTypeDetails) {
-        // Try normalized lookup
-        const normalizedType = accountType.toLowerCase().replace(/[_\s-]/g, '');
+        // Try normalized lookup as fallback
+        const normalizedType = accountType.toLowerCase().replace(/[_\s\-()]/g, '');
         accountTypeDetails = accountTypesMap[normalizedType];
       }
 
       if (!accountTypeDetails) {
         console.error(`Account type '${accountType}' not found in database. Available types:`, Object.keys(accountTypesMap));
+        console.error(`Tried display name: '${displayName}', enum name: '${accountType}'`);
         return res.status(400).json({ 
           error: `Account type '${accountType}' is not configured in the system`,
-          details: `Please configure this account type in the database first`
+          details: `Please configure this account type in the database first. Expected display name: '${displayName}'`
         });
       }
 
