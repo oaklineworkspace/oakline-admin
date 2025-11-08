@@ -57,9 +57,58 @@ export default function ApproveAccounts() {
       
       const allAccounts = [...approveAccounts, ...approvedAccounts, ...pendingFundingAccounts];
       
-      allAccounts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Fetch deposit information for each account
+      const accountsWithDeposits = await Promise.all(
+        allAccounts.map(async (account) => {
+          try {
+            const depositsResponse = await fetch(`/api/admin/get-account-opening-deposits?account_id=${account.id}`);
+            if (depositsResponse.ok) {
+              const depositsData = await depositsResponse.json();
+              const deposits = depositsData.deposits || [];
+              
+              // Calculate total deposited (only approved/completed deposits)
+              const totalDeposited = deposits
+                .filter(d => ['approved', 'completed'].includes(d.status))
+                .reduce((sum, d) => sum + parseFloat(d.approved_amount || 0), 0);
+              
+              const minDeposit = parseFloat(account.min_deposit || 0);
+              const depositMet = minDeposit === 0 || totalDeposited >= minDeposit;
+              
+              return {
+                ...account,
+                deposits,
+                totalDeposited,
+                depositMet,
+                depositInfo: {
+                  required: minDeposit,
+                  deposited: totalDeposited,
+                  remaining: Math.max(0, minDeposit - totalDeposited)
+                }
+              };
+            }
+          } catch (err) {
+            console.error(`Failed to fetch deposits for account ${account.id}:`, err);
+          }
+          
+          // Fallback if deposit fetch fails
+          const minDeposit = parseFloat(account.min_deposit || 0);
+          return {
+            ...account,
+            deposits: [],
+            totalDeposited: 0,
+            depositMet: minDeposit === 0,
+            depositInfo: {
+              required: minDeposit,
+              deposited: 0,
+              remaining: minDeposit
+            }
+          };
+        })
+      );
+      
+      accountsWithDeposits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      setPendingAccounts(allAccounts);
+      setPendingAccounts(accountsWithDeposits);
     } catch (error) {
       console.error('Error fetching accounts:', error);
       setError(error.message);
@@ -221,11 +270,56 @@ export default function ApproveAccounts() {
                       <span style={styles.detailLabel}>Current Balance:</span>
                       <span style={styles.detailValue}>${parseFloat(account.balance || 0).toFixed(2)}</span>
                     </div>
-                    {account.min_deposit > 0 && (
-                      <div style={styles.detail}>
-                        <span style={styles.detailLabel}>Minimum Deposit Required:</span>
-                        <span style={{...styles.detailValue, color: '#64748b', fontWeight: '600'}}>${parseFloat(account.min_deposit).toFixed(2)}</span>
-                      </div>
+                    {account.depositInfo && account.depositInfo.required > 0 && (
+                      <>
+                        <div style={{
+                          ...styles.detail,
+                          borderTop: '2px solid #e2e8f0',
+                          paddingTop: '12px',
+                          marginTop: '8px'
+                        }}>
+                          <span style={styles.detailLabel}>Minimum Deposit Required:</span>
+                          <span style={{...styles.detailValue, color: '#64748b', fontWeight: '700'}}>${account.depositInfo.required.toFixed(2)}</span>
+                        </div>
+                        <div style={styles.detail}>
+                          <span style={styles.detailLabel}>Total Deposited:</span>
+                          <span style={{
+                            ...styles.detailValue,
+                            color: account.depositMet ? '#059669' : '#f59e0b',
+                            fontWeight: '700'
+                          }}>
+                            ${account.depositInfo.deposited.toFixed(2)}
+                          </span>
+                        </div>
+                        {!account.depositMet && (
+                          <div style={styles.detail}>
+                            <span style={styles.detailLabel}>Remaining:</span>
+                            <span style={{...styles.detailValue, color: '#dc2626', fontWeight: '700'}}>
+                              ${account.depositInfo.remaining.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        <div style={{
+                          background: account.depositMet ? '#d1fae5' : '#fef2f2',
+                          border: `2px solid ${account.depositMet ? '#059669' : '#dc2626'}`,
+                          borderRadius: '8px',
+                          padding: '12px',
+                          marginTop: '8px'
+                        }}>
+                          <p style={{
+                            margin: 0,
+                            fontSize: '13px',
+                            color: account.depositMet ? '#065f46' : '#991b1b',
+                            fontWeight: '600'
+                          }}>
+                            {account.depositMet ? (
+                              <>✅ Deposit requirement met - Account ready for activation</>
+                            ) : (
+                              <>⚠️ Waiting for ${account.depositInfo.remaining.toFixed(2)} deposit to activate</>
+                            )}
+                          </p>
+                        </div>
+                      </>
                     )}
                     <div style={styles.detail}>
                       <span style={styles.detailLabel}>Status:</span>
@@ -240,11 +334,24 @@ export default function ApproveAccounts() {
                   <div style={styles.actionButtons}>
                     <button
                       onClick={() => activateAccount(account.id, account.account_number)}
-                      disabled={processing === account.id}
-                      style={styles.activateButton}
-                      title="Activate account and enable full access"
+                      disabled={processing === account.id || !account.depositMet}
+                      style={{
+                        ...styles.activateButton,
+                        ...((!account.depositMet) && {
+                          background: '#9ca3af',
+                          cursor: 'not-allowed',
+                          boxShadow: 'none'
+                        })
+                      }}
+                      title={
+                        !account.depositMet
+                          ? `Minimum deposit of $${account.depositInfo?.required.toFixed(2)} required before activation`
+                          : 'Activate account and enable full access'
+                      }
                     >
-                      {processing === account.id ? '⏳ Processing...' : '🚀 Activate Account'}
+                      {processing === account.id ? '⏳ Processing...' : 
+                       !account.depositMet ? '🔒 Deposit Required' :
+                       '🚀 Activate Account'}
                     </button>
                     <button
                       onClick={() => suspendAccount(account.id, account.account_number)}
