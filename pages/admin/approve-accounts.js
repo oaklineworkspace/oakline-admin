@@ -57,11 +57,20 @@ export default function ApproveAccounts() {
       
       const allAccounts = [...approveAccounts, ...approvedAccounts, ...pendingFundingAccounts];
       
+      // Get auth token for admin API calls
+      const { supabase } = await import('../../lib/supabaseClient');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       // Fetch deposit information for each account
       const accountsWithDeposits = await Promise.all(
         allAccounts.map(async (account) => {
           try {
-            const depositsResponse = await fetch(`/api/admin/get-account-opening-deposits?account_id=${account.id}`);
+            const depositsResponse = await fetch(`/api/admin/get-account-opening-deposits?account_id=${account.id}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
             if (depositsResponse.ok) {
               const depositsData = await depositsResponse.json();
               const deposits = depositsData.deposits || [];
@@ -122,9 +131,16 @@ export default function ApproveAccounts() {
     setError('');
     setMessage('');
     try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const response = await fetch('/api/admin/update-account-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           accountId: accountId,
           status: newStatus
