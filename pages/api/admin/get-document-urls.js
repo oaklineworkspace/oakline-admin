@@ -57,28 +57,54 @@ export default async function handler(req, res) {
     const signedUrls = {};
 
     if (doc.front_url) {
+      // Try the stored path first, then try common variations
+      let frontPath = doc.front_url;
+      
+      // If the path doesn't start with a user folder, try to construct it
+      if (!frontPath.includes('/')) {
+        // Extract email from document or use user_id
+        const emailPrefix = doc.email ? doc.email.replace('@', '_').replace(/\./g, '_') : '';
+        if (emailPrefix) {
+          frontPath = `${emailPrefix}/${frontPath}`;
+        }
+      }
+
       const { data: frontData, error: frontError } = await supabaseAdmin
         .storage
         .from('documents')
-        .createSignedUrl(doc.front_url, 3600); // 1 hour expiry
+        .createSignedUrl(frontPath, 3600); // 1 hour expiry
 
       if (!frontError && frontData) {
         signedUrls.front = frontData.signedUrl;
       } else {
         console.error('Error creating signed URL for front:', frontError);
+        console.error('Attempted path:', frontPath);
       }
     }
 
     if (doc.back_url) {
+      // Try the stored path first, then try common variations
+      let backPath = doc.back_url;
+      
+      // If the path doesn't start with a user folder, try to construct it
+      if (!backPath.includes('/')) {
+        // Extract email from document or use user_id
+        const emailPrefix = doc.email ? doc.email.replace('@', '_').replace(/\./g, '_') : '';
+        if (emailPrefix) {
+          backPath = `${emailPrefix}/${backPath}`;
+        }
+      }
+
       const { data: backData, error: backError } = await supabaseAdmin
         .storage
         .from('documents')
-        .createSignedUrl(doc.back_url, 3600); // 1 hour expiry
+        .createSignedUrl(backPath, 3600); // 1 hour expiry
 
       if (!backError && backData) {
         signedUrls.back = backData.signedUrl;
       } else {
         console.error('Error creating signed URL for back:', backError);
+        console.error('Attempted path:', backPath);
       }
     }
 
