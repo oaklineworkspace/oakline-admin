@@ -7,19 +7,22 @@ import { supabase } from '../../lib/supabaseClient';
 export default function ManageAccountOpeningWallets() {
   const [wallets, setWallets] = useState([]);
   const [cryptoAssets, setCryptoAssets] = useState([]);
+  const [availableCryptoAssets, setAvailableCryptoAssets] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [editingWallet, setEditingWallet] = useState(null);
   
   const [formData, setFormData] = useState({
-    cryptoAssetId: '',
+    cryptoType: '',
+    networkType: '',
     walletAddress: '',
     memo: ''
   });
 
   const [editFormData, setEditFormData] = useState({
-    cryptoAssetId: '',
+    cryptoType: '',
+    networkType: '',
     walletAddress: '',
     memo: ''
   });
@@ -54,6 +57,21 @@ export default function ManageAccountOpeningWallets() {
       const activeAssets = (assetsResult.assets || []).filter(a => a.status === 'active');
       setCryptoAssets(activeAssets);
 
+      // Group assets by crypto type
+      if (assetsResult.grouped) {
+        setAvailableCryptoAssets(assetsResult.grouped);
+        // Set initial form data
+        const firstCrypto = Object.keys(assetsResult.grouped)[0];
+        if (firstCrypto) {
+          setFormData({
+            cryptoType: firstCrypto,
+            networkType: assetsResult.grouped[firstCrypto][0] || '',
+            walletAddress: '',
+            memo: ''
+          });
+        }
+      }
+
       // Fetch existing wallets
       await fetchWallets();
 
@@ -64,6 +82,27 @@ export default function ManageAccountOpeningWallets() {
       setLoading(false);
     }
   };
+
+  // Update network type when crypto type changes
+  useEffect(() => {
+    const networks = availableCryptoAssets[formData.cryptoType] || [];
+    if (networks.length > 0 && !networks.includes(formData.networkType)) {
+      setFormData(prev => ({
+        ...prev,
+        networkType: networks[0]
+      }));
+    }
+  }, [formData.cryptoType, availableCryptoAssets]);
+
+  useEffect(() => {
+    const networks = availableCryptoAssets[editFormData.cryptoType] || [];
+    if (networks.length > 0 && !networks.includes(editFormData.networkType)) {
+      setEditFormData(prev => ({
+        ...prev,
+        networkType: networks[0]
+      }));
+    }
+  }, [editFormData.cryptoType, availableCryptoAssets]);
 
   const fetchWallets = async () => {
     try {
@@ -93,8 +132,8 @@ export default function ManageAccountOpeningWallets() {
     setError('');
     setMessage('');
 
-    if (!formData.cryptoAssetId || !formData.walletAddress.trim()) {
-      setError('Crypto asset and wallet address are required');
+    if (!formData.cryptoType || !formData.networkType || !formData.walletAddress.trim()) {
+      setError('Crypto type, network type and wallet address are required');
       return;
     }
 
@@ -105,6 +144,16 @@ export default function ManageAccountOpeningWallets() {
         throw new Error('No active session');
       }
 
+      // Find matching crypto asset
+      const matchingAsset = cryptoAssets.find(
+        asset => asset.crypto_type === formData.cryptoType && 
+                 asset.network_type === formData.networkType
+      );
+
+      if (!matchingAsset) {
+        throw new Error('No matching crypto asset found');
+      }
+
       const response = await fetch('/api/admin/manage-account-opening-wallet', {
         method: 'POST',
         headers: {
@@ -112,7 +161,7 @@ export default function ManageAccountOpeningWallets() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          cryptoAssetId: formData.cryptoAssetId,
+          cryptoAssetId: matchingAsset.id,
           walletAddress: formData.walletAddress.trim(),
           memo: formData.memo.trim() || null
         })
@@ -124,8 +173,11 @@ export default function ManageAccountOpeningWallets() {
       }
 
       setMessage('✅ Wallet added successfully!');
+      // Reset to first available crypto type
+      const firstCrypto = Object.keys(availableCryptoAssets)[0];
       setFormData({
-        cryptoAssetId: '',
+        cryptoType: firstCrypto,
+        networkType: availableCryptoAssets[firstCrypto]?.[0] || '',
         walletAddress: '',
         memo: ''
       });
@@ -143,14 +195,12 @@ export default function ManageAccountOpeningWallets() {
   const handleEdit = (wallet) => {
     setEditingWallet(wallet.id);
     
-    // Find matching crypto asset by crypto_type and network_type
-    const matchingAsset = cryptoAssets.find(
-      asset => asset.crypto_type === wallet.crypto_type && 
-               asset.network_type === wallet.network_type
-    );
+    const cryptoType = wallet.crypto_assets?.crypto_type || wallet.crypto_type || '';
+    const networkType = wallet.crypto_assets?.network_type || wallet.network_type || '';
     
     setEditFormData({
-      cryptoAssetId: matchingAsset?.id || '',
+      cryptoType: cryptoType,
+      networkType: networkType,
       walletAddress: wallet.wallet_address || '',
       memo: wallet.memo || ''
     });
@@ -159,7 +209,8 @@ export default function ManageAccountOpeningWallets() {
   const handleCancelEdit = () => {
     setEditingWallet(null);
     setEditFormData({
-      cryptoAssetId: '',
+      cryptoType: '',
+      networkType: '',
       walletAddress: '',
       memo: ''
     });
@@ -169,8 +220,8 @@ export default function ManageAccountOpeningWallets() {
     setError('');
     setMessage('');
 
-    if (!editFormData.cryptoAssetId || !editFormData.walletAddress.trim()) {
-      setError('Crypto asset and wallet address are required');
+    if (!editFormData.cryptoType || !editFormData.networkType || !editFormData.walletAddress.trim()) {
+      setError('Crypto type, network type and wallet address are required');
       return;
     }
 
@@ -181,6 +232,16 @@ export default function ManageAccountOpeningWallets() {
         throw new Error('No active session');
       }
 
+      // Find matching crypto asset
+      const matchingAsset = cryptoAssets.find(
+        asset => asset.crypto_type === editFormData.cryptoType && 
+                 asset.network_type === editFormData.networkType
+      );
+
+      if (!matchingAsset) {
+        throw new Error('No matching crypto asset found');
+      }
+
       const response = await fetch('/api/admin/manage-account-opening-wallet', {
         method: 'PUT',
         headers: {
@@ -189,7 +250,7 @@ export default function ManageAccountOpeningWallets() {
         },
         body: JSON.stringify({
           walletId,
-          cryptoAssetId: editFormData.cryptoAssetId,
+          cryptoAssetId: matchingAsset.id,
           walletAddress: editFormData.walletAddress.trim(),
           memo: editFormData.memo.trim() || null
         })
@@ -277,18 +338,33 @@ export default function ManageAccountOpeningWallets() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Crypto Asset *</label>
+                <label style={styles.label}>Crypto Type *</label>
                 <select
-                  value={formData.cryptoAssetId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cryptoAssetId: e.target.value }))}
+                  value={formData.cryptoType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cryptoType: e.target.value }))}
                   style={styles.select}
                   required
                 >
-                  <option value="">Select crypto asset</option>
-                  {cryptoAssets.map(asset => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.crypto_type} ({asset.symbol}) - {asset.network_type}
-                    </option>
+                  {Object.keys(availableCryptoAssets).length > 0 ? (
+                    Object.keys(availableCryptoAssets).map(crypto => (
+                      <option key={crypto} value={crypto}>{crypto}</option>
+                    ))
+                  ) : (
+                    <option value="">Loading...</option>
+                  )}
+                </select>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Network Type *</label>
+                <select
+                  value={formData.networkType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, networkType: e.target.value }))}
+                  style={styles.select}
+                  required
+                >
+                  {(availableCryptoAssets[formData.cryptoType] || []).map(network => (
+                    <option key={network} value={network}>{network}</option>
                   ))}
                 </select>
               </div>
@@ -336,7 +412,7 @@ export default function ManageAccountOpeningWallets() {
             <table style={styles.table}>
               <thead>
                 <tr style={styles.tableHeader}>
-                  <th style={styles.th}>Crypto Asset</th>
+                  <th style={styles.th}>Crypto Type</th>
                   <th style={styles.th}>Network</th>
                   <th style={styles.th}>Wallet Address</th>
                   <th style={styles.th}>Memo/Tag</th>
@@ -353,8 +429,8 @@ export default function ManageAccountOpeningWallets() {
                   </tr>
                 ) : (
                   wallets.map(wallet => {
-                    const cryptoType = wallet.crypto_assets?.crypto_type || 'N/A';
-                    const networkType = wallet.crypto_assets?.network_type || 'N/A';
+                    const cryptoType = wallet.crypto_assets?.crypto_type || wallet.crypto_type || 'N/A';
+                    const networkType = wallet.crypto_assets?.network_type || wallet.network_type || 'N/A';
                     const symbol = wallet.crypto_assets?.symbol || '';
                     
                     return (
@@ -362,14 +438,12 @@ export default function ManageAccountOpeningWallets() {
                         <td style={styles.td}>
                           {editingWallet === wallet.id ? (
                             <select
-                              value={editFormData.cryptoAssetId}
-                              onChange={(e) => setEditFormData(prev => ({ ...prev, cryptoAssetId: e.target.value }))}
+                              value={editFormData.cryptoType}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, cryptoType: e.target.value }))}
                               style={styles.selectSmall}
                             >
-                              {cryptoAssets.map(asset => (
-                                <option key={asset.id} value={asset.id}>
-                                  {asset.crypto_type} ({asset.symbol}) - {asset.network_type}
-                                </option>
+                              {Object.keys(availableCryptoAssets).map(crypto => (
+                                <option key={crypto} value={crypto}>{crypto}</option>
                               ))}
                             </select>
                           ) : (
@@ -377,7 +451,19 @@ export default function ManageAccountOpeningWallets() {
                           )}
                         </td>
                         <td style={styles.td}>
-                          {editingWallet === wallet.id ? networkType : networkType}
+                          {editingWallet === wallet.id ? (
+                            <select
+                              value={editFormData.networkType}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, networkType: e.target.value }))}
+                              style={styles.selectSmall}
+                            >
+                              {(availableCryptoAssets[editFormData.cryptoType] || []).map(network => (
+                                <option key={network} value={network}>{network}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            networkType
+                          )}
                         </td>
                         <td style={styles.td}>
                           {editingWallet === wallet.id ? (
