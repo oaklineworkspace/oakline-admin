@@ -222,15 +222,28 @@ export default async function handler(req, res) {
 
     if (accountTypesError) {
       console.error('Error fetching account types:', accountTypesError);
+      return res.status(500).json({ error: 'Failed to fetch account type information' });
+    }
+
+    if (!accountTypesData || accountTypesData.length === 0) {
+      console.error('No account types found in database');
+      return res.status(500).json({ error: 'Account types not configured in database' });
     }
 
     // Create a mapping of account type names to their details
+    // Normalize keys to handle different naming conventions
     const accountTypesMap = {};
     if (accountTypesData) {
       accountTypesData.forEach(type => {
+        // Store with original name
         accountTypesMap[type.name] = type;
+        // Also store with normalized name (lowercase, no spaces/underscores)
+        const normalizedName = type.name.toLowerCase().replace(/[_\s-]/g, '');
+        accountTypesMap[normalizedName] = type;
       });
     }
+
+    console.log('Available account types:', Object.keys(accountTypesMap));
 
     // 6. Create accounts based on account_types array
     // Get all account types from the application (should be an array)
@@ -250,9 +263,28 @@ export default async function handler(req, res) {
 
     // Create an account for EACH account type the user selected
     for (const accountType of accountTypesToCreate) {
-      // Get account type details
-      const accountTypeDetails = accountTypesMap[accountType];
-      const minDeposit = parseFloat(accountTypeDetails?.min_deposit || 0);
+      // Get account type details - try exact match first, then normalized
+      let accountTypeDetails = accountTypesMap[accountType];
+      
+      if (!accountTypeDetails) {
+        // Try normalized lookup
+        const normalizedType = accountType.toLowerCase().replace(/[_\s-]/g, '');
+        accountTypeDetails = accountTypesMap[normalizedType];
+      }
+
+      if (!accountTypeDetails) {
+        console.error(`Account type '${accountType}' not found in database. Available types:`, Object.keys(accountTypesMap));
+        return res.status(400).json({ 
+          error: `Account type '${accountType}' is not configured in the system`,
+          details: `Please configure this account type in the database first`
+        });
+      }
+
+      const minDeposit = parseFloat(accountTypeDetails.min_deposit || 0);
+      
+      console.log(`Processing account type: ${accountType}`)
+      console.log(`Account type details:`, accountTypeDetails);
+      console.log(`Minimum deposit: $${minDeposit}`);
 
       // Determine account status:
       // - If min_deposit > 0: 'pending_funding' (waiting for minimum deposit)
