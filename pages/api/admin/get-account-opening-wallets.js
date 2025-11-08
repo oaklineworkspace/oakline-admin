@@ -13,10 +13,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    // First, fetch all wallets
+    // First, fetch all wallets WHERE user_id IS NULL (account opening wallets only)
     const { data: wallets, error: walletsError } = await supabaseAdmin
       .from('admin_assigned_wallets')
       .select('*')
+      .is('user_id', null)
       .order('created_at', { ascending: false });
 
     if (walletsError) {
