@@ -20,8 +20,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Build query based on available identifiers
-    // Priority: application_id > email > user_id (since documents may be uploaded before user creation)
+    // First, try to fetch from user_id_documents table
     let query = supabaseAdmin
       .from('user_id_documents')
       .select('*');
@@ -44,17 +43,59 @@ export default async function handler(req, res) {
       throw fetchError;
     }
 
-    if (!documents || documents.length === 0) {
-      return res.status(404).json({
-        error: 'No documents found for this user',
-        documents: { front: null, back: null }
-      });
-    }
+    let doc = null;
 
-    // Get the most recent document
-    const doc = documents.sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    )[0];
+    // If found in user_id_documents, use it
+    if (documents && documents.length > 0) {
+      doc = documents.sort((a, b) =>
+        new Date(b.created_at) - new Date(a.created_at)
+      )[0];
+    } else {
+      // If not found, try fetching from applications table
+      console.log('No documents in user_id_documents, checking applications table...');
+      
+      let appQuery = supabaseAdmin
+        .from('applications')
+        .select('*')
+        .not('id_front_path', 'is', null);
+
+      if (applicationId) {
+        appQuery = appQuery.eq('id', applicationId);
+      } else if (email) {
+        appQuery = appQuery.eq('email', email);
+      } else if (userId) {
+        appQuery = appQuery.eq('user_id', userId);
+      }
+
+      const { data: apps, error: appError } = await appQuery;
+
+      if (appError) {
+        console.error('Error fetching applications:', appError);
+        throw appError;
+      }
+
+      if (!apps || apps.length === 0) {
+        return res.status(404).json({
+          error: 'No documents found for this user',
+          documents: { front: null, back: null }
+        });
+      }
+
+      const app = apps.sort((a, b) =>
+        new Date(b.submitted_at) - new Date(a.submitted_at)
+      )[0];
+
+      // Map application to document format
+      doc = {
+        front_url: app.id_front_path,
+        back_url: app.id_back_path,
+        document_type: 'ID Card',
+        status: app.application_status === 'approved' ? 'verified' : 
+                app.application_status === 'rejected' ? 'rejected' : 'pending',
+        verified_at: app.processed_at,
+        rejection_reason: null
+      };
+    }
 
     // Generate signed URLs for the documents
     const signedUrls = {};
