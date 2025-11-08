@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -29,33 +30,74 @@ export default async function handler(req, res) {
   }
 
   try {
-    const updateData = {
-      status,
-      verified_by: authResult.user.id,
-      verified_at: new Date().toISOString(),
-    };
-
-    if (status === 'rejected') {
-      updateData.rejection_reason = reason;
-    }
-
-    const { data, error } = await supabaseAdmin
+    // First, try to find the document in user_id_documents table
+    const { data: existingDoc } = await supabaseAdmin
       .from('user_id_documents')
-      .update(updateData)
+      .select('*')
       .eq('id', docId)
-      .select()
       .single();
 
-    if (error) {
-      console.error('Error updating document:', error);
-      return res.status(500).json({ error: error.message });
+    let data;
+    let tableName;
+
+    if (existingDoc) {
+      // Document exists in user_id_documents table
+      const updateData = {
+        status,
+        verified_by: authResult.user.id,
+        verified_at: new Date().toISOString(),
+      };
+
+      if (status === 'rejected') {
+        updateData.rejection_reason = reason;
+      }
+
+      const { data: updatedDoc, error } = await supabaseAdmin
+        .from('user_id_documents')
+        .update(updateData)
+        .eq('id', docId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating document in user_id_documents:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      data = updatedDoc;
+      tableName = 'user_id_documents';
+    } else {
+      // Document might be from applications table
+      const updateData = {
+        application_status: status === 'verified' ? 'approved' : 'rejected',
+        processed_at: new Date().toISOString(),
+      };
+
+      if (status === 'rejected' && reason) {
+        updateData.rejection_reason = reason;
+      }
+
+      const { data: updatedApp, error } = await supabaseAdmin
+        .from('applications')
+        .update(updateData)
+        .eq('id', docId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating application:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      data = updatedApp;
+      tableName = 'applications';
     }
 
     // Log the action
     await supabaseAdmin.from('audit_logs').insert({
       user_id: authResult.user.id,
       action: `ID Document ${status}`,
-      table_name: 'user_id_documents',
+      table_name: tableName,
       new_data: data,
     });
 
