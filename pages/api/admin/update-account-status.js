@@ -60,6 +60,9 @@ export default async function handler(req, res) {
     });
 
     // Send email notification if status is 'active' or 'rejected'
+    let emailSent = false;
+    let emailError = null;
+    
     if ((status === 'active' || status === 'rejected') && data.user_id) {
       try {
         // Fetch user details from profiles
@@ -74,7 +77,7 @@ export default async function handler(req, res) {
           const host = req.headers['x-forwarded-host'] || req.headers.host;
           const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
 
-          await fetch(`${siteUrl}/api/send-account-status-email`, {
+          const emailResponse = await fetch(`${siteUrl}/api/send-account-status-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -88,10 +91,22 @@ export default async function handler(req, res) {
             })
           });
 
-          console.log(`✅ Account ${status} email sent to:`, profile.email);
+          const emailResult = await emailResponse.json();
+
+          if (emailResponse.ok) {
+            emailSent = true;
+            console.log(`✅ Account ${status} email sent successfully to:`, profile.email);
+          } else {
+            emailError = emailResult.error || 'Failed to send email';
+            console.error(`❌ Failed to send account ${status} email to ${profile.email}:`, emailError);
+          }
+        } else {
+          emailError = 'User profile or email not found';
+          console.error('❌ Cannot send email: User profile or email not found');
         }
-      } catch (emailError) {
-        console.error('❌ Failed to send account status email:', emailError);
+      } catch (error) {
+        emailError = error.message || 'Email service error';
+        console.error('❌ Exception while sending account status email:', error);
         // Don't fail the account status update if email fails
       }
     }
@@ -99,7 +114,9 @@ export default async function handler(req, res) {
     res.status(200).json({
       success: true,
       message: 'Account status updated successfully',
-      account: data
+      account: data,
+      emailSent: emailSent,
+      emailWarning: emailError ? `Email notification failed: ${emailError}` : null
     });
 
   } catch (error) {
