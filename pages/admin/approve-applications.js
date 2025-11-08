@@ -200,9 +200,18 @@ export default function ApproveApplications() {
     setError('');
 
     try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch('/api/admin/get-document-urls', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ 
           userId: app.user_id,
           email: app.email,
@@ -666,16 +675,6 @@ export default function ApproveApplications() {
                 <p style={styles.documentsSubtitle}>
                   {viewingDocuments.first_name} {viewingDocuments.last_name} - {viewingDocuments.email}
                 </p>
-
-                {documentUrls.type && (
-                  <div style={styles.documentInfo}>
-                    <p><strong>Document Type:</strong> {documentUrls.type}</p>
-                    <p><strong>Verification Status:</strong> <span style={{
-                      color: documentUrls.status === 'verified' ? '#10b981' : 
-                             documentUrls.status === 'rejected' ? '#ef4444' : '#f59e0b'
-                    }}>{documentUrls.status?.toUpperCase()}</span></p>
-                  </div>
-                )}
 
                 {documentUrls.front || documentUrls.back ? (
                   <div style={styles.documentsGrid}>

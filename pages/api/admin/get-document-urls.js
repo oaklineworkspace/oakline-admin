@@ -99,7 +99,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      documents: signedUrls
+      documents: signedUrls,
+      documentType: doc.document_type,
+      status: doc.status,
+      verifiedAt: doc.verified_at,
+      rejectionReason: doc.rejection_reason
     });
 
   } catch (error) {
