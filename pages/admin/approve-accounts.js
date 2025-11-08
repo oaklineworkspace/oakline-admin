@@ -21,7 +21,7 @@ export default function ApproveAccounts() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-accounts?status=pending');
+      const response = await fetch('/api/admin/get-accounts?status=pending_funding'); // Changed status to 'pending_funding'
       const result = await response.json();
 
       if (!response.ok) {
