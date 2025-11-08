@@ -1,4 +1,6 @@
+
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
+import { sendEmail, EMAIL_TYPES } from '../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -211,47 +213,29 @@ ${bankDetails.name || 'Oakline Bank'} Team
       return res.status(400).json({ error: 'Invalid status. Must be "active" or "rejected"' });
     }
 
-    const emailData = {
-      to: email,
-      from: bankDetails.email_notify || 'notify@theoaklinebank.com',
-      subject: subject,
-      text: textContent,
-      html: htmlContent
-    };
+    // Use the existing SMTP email system
+    try {
+      await sendEmail({
+        to: email,
+        subject: subject,
+        text: textContent,
+        html: htmlContent,
+        type: EMAIL_TYPES.NOTIFY
+      });
 
-    const resendApiKey = process.env.RESEND_API_KEY;
-    
-    if (!resendApiKey) {
-      console.error('RESEND_API_KEY not configured');
-      return res.status(500).json({ error: 'Email service not configured' });
-    }
+      console.log(`✅ Account ${status} email sent successfully to:`, email);
 
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(emailData)
-    });
-
-    const resendResult = await resendResponse.json();
-
-    if (!resendResponse.ok) {
-      console.error('Resend API error:', resendResult);
+      return res.status(200).json({
+        success: true,
+        message: `Account ${status} email sent successfully`
+      });
+    } catch (emailError) {
+      console.error(`❌ Failed to send account ${status} email:`, emailError);
       return res.status(500).json({ 
         error: 'Failed to send email', 
-        details: resendResult 
+        details: emailError.message 
       });
     }
-
-    console.log(`Account ${status} email sent successfully to ${email}:`, resendResult);
-
-    return res.status(200).json({
-      success: true,
-      message: `Account ${status} email sent successfully`,
-      emailId: resendResult.id
-    });
 
   } catch (error) {
     console.error('Error sending account status email:', error);
