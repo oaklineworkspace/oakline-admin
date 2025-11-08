@@ -16,17 +16,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get the authenticated user
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const userId = session.user.id;
-    const { documentType, frontImage, backImage } = req.body;
+    const { documentType, frontImage, backImage, email, applicationId } = req.body;
 
     if (!documentType || !frontImage) {
       return res.status(400).json({ error: 'Document type and front image are required' });
+    }
+
+    // Try to get authenticated user (may not exist during application)
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || null;
+
+    // Require either authenticated user OR email+applicationId
+    if (!userId && (!email || !applicationId)) {
+      return res.status(400).json({ 
+        error: 'Either authenticated session or email and applicationId are required' 
+      });
     }
 
     // Generate unique filenames
@@ -73,17 +77,23 @@ export default async function handler(req, res) {
       backUrl = `documents/${backFileName}`;
     }
 
-    // Create database record
+    // Create database record with all available identifiers
+    const documentRecord = {
+      user_id: userId,
+      email: email || session?.user?.email,
+      application_id: applicationId || null,
+      document_type: documentType,
+      front_url: frontUrl,
+      back_url: backUrl,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+
+    console.log('Creating document record:', documentRecord);
+
     const { data: docRecord, error: dbError } = await supabaseAdmin
       .from('user_id_documents')
-      .insert({
-        user_id: userId,
-        document_type: documentType,
-        front_url: frontUrl,
-        back_url: backUrl,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      })
+      .insert(documentRecord)
       .select()
       .single();
 

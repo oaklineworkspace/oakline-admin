@@ -162,7 +162,33 @@ export default async function handler(req, res) {
 
     console.log(`Approving application ${applicationId} for user ${userId}`);
 
-    // 4. Create or update profile
+    // 4. Link any uploaded documents to this user
+    try {
+      const { data: orphanedDocs } = await supabaseAdmin
+        .from('user_id_documents')
+        .select('id')
+        .eq('application_id', applicationId)
+        .is('user_id', null);
+
+      if (orphanedDocs && orphanedDocs.length > 0) {
+        const { error: linkError } = await supabaseAdmin
+          .from('user_id_documents')
+          .update({ user_id: userId })
+          .eq('application_id', applicationId)
+          .is('user_id', null);
+
+        if (linkError) {
+          console.error('Failed to link documents to user:', linkError);
+        } else {
+          console.log(`Linked ${orphanedDocs.length} document(s) to user ${userId}`);
+        }
+      }
+    } catch (docLinkError) {
+      console.error('Error linking documents:', docLinkError);
+      // Don't fail the approval if document linking fails
+    }
+
+    // 5. Create or update profile
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -215,7 +241,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Fetch account types to get minimum deposit requirements
+    // 6. Fetch account types to get minimum deposit requirements
     const { data: accountTypesData, error: accountTypesError } = await supabaseAdmin
       .from('account_types')
       .select('*');
@@ -273,7 +299,7 @@ export default async function handler(req, res) {
 
     console.log('Available account types:', Object.keys(accountTypesMap));
 
-    // 6. Create accounts based on account_types array
+    // 7. Create accounts based on account_types array
     // Get all account types from the application (should be an array)
     let accountTypesToCreate = application.account_types || [];
     
@@ -389,7 +415,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 7. Create cards only for accounts with 'approved' status (no deposit required)
+    // 8. Create cards only for accounts with 'approved' status (no deposit required)
     const createdCards = [];
 
     for (const account of activeAccounts) {
@@ -432,7 +458,7 @@ export default async function handler(req, res) {
       createdCards.push(newCard);
     }
 
-    // 7. Update application status to approved
+    // 9. Update application status to approved
     const { error: updateError } = await supabaseAdmin
       .from('applications')
       .update({
@@ -447,7 +473,7 @@ export default async function handler(req, res) {
       throw new Error('Failed to approve application: ' + updateError.message);
     }
 
-    // 8. Send welcome email with credentials using dynamic bank details
+    // 10. Send welcome email with credentials using dynamic bank details
     let emailSent = false;
     let emailError = null;
     

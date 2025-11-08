@@ -21,16 +21,20 @@ export default async function handler(req, res) {
 
   try {
     // Build query based on available identifiers
+    // Priority: application_id > email > user_id (since documents may be uploaded before user creation)
     let query = supabaseAdmin
       .from('user_id_documents')
       .select('*');
 
-    if (userId) {
-      query = query.eq('user_id', userId);
-    } else if (email) {
-      query = query.eq('email', email);
-    } else if (applicationId) {
+    if (applicationId) {
+      console.log('Fetching documents by application_id:', applicationId);
       query = query.eq('application_id', applicationId);
+    } else if (email) {
+      console.log('Fetching documents by email:', email);
+      query = query.eq('email', email);
+    } else if (userId) {
+      console.log('Fetching documents by user_id:', userId);
+      query = query.eq('user_id', userId);
     }
 
     const { data: documents, error: fetchError } = await query;
