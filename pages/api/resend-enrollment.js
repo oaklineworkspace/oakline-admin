@@ -26,6 +26,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Either application ID or email is required' });
     }
 
+    // Fetch bank details for proper email sender
+    const { data: bankDetails, error: bankError } = await supabaseAdmin
+      .from('bank_details')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (bankError) {
+      console.error('Failed to fetch bank details:', bankError);
+    }
+
     // Get application data - allow lookup by email if applicationId is missing
     let applicationData;
     if (applicationId) {
@@ -229,7 +240,7 @@ export default async function handler(req, res) {
 
     // Create mail options
     const mailOptions = {
-      from: `"Oakline Bank" <${process.env.SMTP_USER}>`,
+      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_welcome || 'welcome@theoaklinebank.com'}>`,
       to: email,
       subject: 'Complete Your Oakline Bank Enrollment',
       html: emailHtml

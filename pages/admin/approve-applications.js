@@ -199,16 +199,15 @@ export default function ApproveApplications() {
     setDocumentUrls({ front: null, back: null });
     setError('');
 
-    if (!app.user_id) {
-      setError('No user ID found for this application');
-      return;
-    }
-
     try {
       const response = await fetch('/api/admin/get-document-urls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: app.user_id })
+        body: JSON.stringify({ 
+          userId: app.user_id,
+          email: app.email,
+          applicationId: app.id
+        })
       });
 
       const result = await response.json();

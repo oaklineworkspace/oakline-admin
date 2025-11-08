@@ -12,23 +12,61 @@ export default async function handler(req, res) {
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
-  const { userId } = req.body;
+  const { userId, email, applicationId } = req.body;
 
-  if (!userId) {
-    return res.status(400).json({ error: 'User ID is required' });
+  if (!userId && !email && !applicationId) {
+    return res.status(400).json({ error: 'User ID, email, or application ID is required' });
   }
 
   try {
-    console.log('📄 Fetching documents for user:', userId);
+    console.log('📄 Fetching documents for:', { userId, email, applicationId });
 
-    // Fetch documents from user_id_documents table
-    const { data: docs, error } = await supabaseAdmin
-      .from('user_id_documents')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    let docs = null;
+    let error = null;
+
+    // Try to fetch by user_id first
+    if (userId) {
+      const result = await supabaseAdmin
+        .from('user_id_documents')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      docs = result.data;
+      error = result.error;
+    }
+
+    // If no documents found and we have email, try searching by email
+    if (!docs && email) {
+      console.log('🔍 No documents found by user_id, trying email:', email);
+      const result = await supabaseAdmin
+        .from('user_id_documents')
+        .select('*')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      docs = result.data;
+      error = result.error;
+    }
+
+    // If still no documents and we have application_id, try searching by application_id
+    if (!docs && applicationId) {
+      console.log('🔍 No documents found by user_id or email, trying application_id:', applicationId);
+      const result = await supabaseAdmin
+        .from('user_id_documents')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      docs = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error('❌ Database error fetching documents:', error);

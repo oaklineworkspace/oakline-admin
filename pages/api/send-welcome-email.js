@@ -37,6 +37,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Fetch bank details for proper email sender
+    const { data: bankDetails, error: bankError } = await supabaseAdmin
+      .from('bank_details')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (bankError) {
+      console.error('Failed to fetch bank details:', bankError);
+    }
+
     // Determine site URL dynamically
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
@@ -214,7 +225,7 @@ export default async function handler(req, res) {
 
     // Send email
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_welcome || 'welcome@theoaklinebank.com'}>`,
       to: email,
       subject: "Complete Your Oakline Bank Enrollment",
       html: emailHtml,

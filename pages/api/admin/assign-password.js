@@ -60,6 +60,17 @@ export default async function handler(req, res) {
     // Send email if requested
     if (sendEmail) {
       try {
+        // Fetch bank details for proper email sender
+        const { data: bankDetails, error: bankError } = await supabaseAdmin
+          .from('bank_details')
+          .select('*')
+          .limit(1)
+          .single();
+
+        if (bankError) {
+          console.error('Failed to fetch bank details:', bankError);
+        }
+
         const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
           port: parseInt(process.env.SMTP_PORT) || 587,
@@ -142,7 +153,7 @@ export default async function handler(req, res) {
         `;
 
         const mailOptions = {
-          from: `"Oakline Bank" <${process.env.SMTP_USER}>`,
+          from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_security || bankDetails?.email_info || 'security@theoaklinebank.com'}>`,
           to: email,
           subject: 'Your Oakline Bank Login Credentials',
           html: emailHtml

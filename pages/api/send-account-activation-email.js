@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,6 +22,17 @@ export default async function handler(req, res) {
 
     if (!email || !accountNumber) {
       return res.status(400).json({ error: 'Email and account number are required' });
+    }
+
+    // Fetch bank details for proper email sender
+    const { data: bankDetails, error: bankError } = await supabaseAdmin
+      .from('bank_details')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (bankError) {
+      console.error('Failed to fetch bank details:', bankError);
     }
 
     const transporter = nodemailer.createTransport({
@@ -105,7 +117,7 @@ export default async function handler(req, res) {
     `;
 
     const mailOptions = {
-      from: `"Oakline Bank" <${process.env.SMTP_USER}>`,
+      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_notify || 'notify@theoaklinebank.com'}>`,
       to: email,
       subject: '🎉 Your Oakline Bank Account is Now Active!',
       html: emailHtml,
