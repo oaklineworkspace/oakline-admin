@@ -77,6 +77,8 @@ export default function AdminStickyDropdown() {
       pages: [
         { name: 'Approve Applications', href: '/admin/approve-applications', icon: '✅' },
         { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️' },
+        { name: 'Approve Funding', href: '/admin/approve-funding', icon: '💰' },
+        { name: 'Manage Account Deposits', href: '/admin/manage-account-opening-deposits', icon: '🪙' },
         { name: 'Manage Accounts', href: '/admin/manage-accounts', icon: '🏦' },
         { name: 'Manage Account Types', href: '/admin/manage-account-types', icon: '💳' },
         { name: 'User Details Lookup', href: '/admin/user-details', icon: '🔍' }
@@ -89,7 +91,8 @@ export default function AdminStickyDropdown() {
         { name: 'Loan Types', href: '/admin/loan-types', icon: '💼' },
         { name: 'Loan Payments', href: '/admin/loan-payments', icon: '💵' },
         { name: 'Manage Loan Wallets', href: '/admin/manage-loan-wallets', icon: '💰' },
-        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' }
+        { name: 'Investments', href: '/admin/admin-investments', icon: '📈' },
+        { name: 'Crypto Investments', href: '/admin/manage-crypto-investments', icon: '💹' }
       ]
     },
     {
