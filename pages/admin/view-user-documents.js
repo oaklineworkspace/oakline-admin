@@ -62,13 +62,19 @@ export default function ViewUserDocuments() {
         throw new Error('No active session');
       }
 
+      // Prepare request body with available identifiers
+      const requestBody = {};
+      if (doc.user_id) requestBody.userId = doc.user_id;
+      if (doc.email) requestBody.email = doc.email;
+      if (doc.application_id) requestBody.applicationId = doc.application_id;
+
       const response = await fetch('/api/admin/get-document-urls', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ userId: doc.user_id })
+        body: JSON.stringify(requestBody)
       });
 
       const result = await response.json();

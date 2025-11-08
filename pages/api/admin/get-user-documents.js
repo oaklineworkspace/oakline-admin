@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   try {
     let query = supabaseAdmin
       .from('user_id_documents')
-      .select('*')
+      .select('*, email')
       .order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
