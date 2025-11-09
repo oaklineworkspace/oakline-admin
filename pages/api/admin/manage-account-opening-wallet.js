@@ -15,6 +15,8 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { cryptoAssetId, walletAddress, memo } = req.body;
 
+      console.log('[POST] Request body:', { cryptoAssetId, walletAddress, memo });
+
       if (!cryptoAssetId || !walletAddress) {
         return res.status(400).json({ 
           error: 'Missing required fields: cryptoAssetId and walletAddress are required' 
@@ -29,9 +31,17 @@ export default async function handler(req, res) {
         .eq('status', 'active')
         .single();
 
+      console.log('[POST] Crypto asset lookup:', { 
+        cryptoAssetId, 
+        found: !!cryptoAsset, 
+        cryptoAsset,
+        assetError 
+      });
+
       if (assetError || !cryptoAsset) {
         return res.status(400).json({ 
-          error: 'Invalid crypto asset or asset is disabled' 
+          error: 'Invalid crypto asset or asset is disabled',
+          details: assetError?.message 
         });
       }
 
@@ -42,6 +52,12 @@ export default async function handler(req, res) {
         .eq('wallet_address', walletAddress.trim())
         .maybeSingle();
 
+      console.log('[POST] Wallet address check:', { 
+        walletAddress, 
+        exists: !!existingAddress,
+        checkError 
+      });
+
       if (existingAddress) {
         return res.status(400).json({ 
           error: 'This wallet address is already registered' 
@@ -49,7 +65,7 @@ export default async function handler(req, res) {
       }
 
       // Check if crypto type + network type combination already exists for account opening wallets
-      console.log('[POST] Selected crypto asset:', cryptoAsset);
+      console.log('[POST] Selected crypto asset full details:', JSON.stringify(cryptoAsset, null, 2));
       console.log('[POST] Checking for existing combo:', {
         crypto_type: cryptoAsset.crypto_type,
         network_type: cryptoAsset.network_type
@@ -64,9 +80,9 @@ export default async function handler(req, res) {
 
       console.log('[POST] Existing combo check result:', { 
         count: existingCombos?.length || 0, 
-        combos: existingCombos,
+        combos: JSON.stringify(existingCombos, null, 2),
         comboError,
-        query: {
+        searchingFor: {
           crypto_type: cryptoAsset.crypto_type,
           network_type: cryptoAsset.network_type
         }
