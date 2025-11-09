@@ -54,18 +54,25 @@ export default async function handler(req, res) {
         network_type: cryptoAsset.network_type
       });
       
-      const { data: existingCombo, error: comboError } = await supabaseAdmin
+      const { data: existingCombos, error: comboError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .select('*')
         .eq('crypto_type', cryptoAsset.crypto_type)
         .eq('network_type', cryptoAsset.network_type)
-        .is('user_id', null)
-        .maybeSingle();
+        .is('user_id', null);
 
-      console.log('[POST] Existing combo check result:', { existingCombo, comboError });
+      console.log('[POST] Existing combo check result:', { 
+        count: existingCombos?.length || 0, 
+        combos: existingCombos,
+        comboError 
+      });
 
-      if (existingCombo) {
-        console.log('[POST] Duplicate found:', existingCombo);
+      if (comboError) {
+        console.error('[POST] Error checking for duplicates:', comboError);
+      }
+
+      if (existingCombos && existingCombos.length > 0) {
+        console.log('[POST] Duplicate found:', existingCombos[0]);
         return res.status(400).json({ 
           error: `An account opening wallet already exists for ${cryptoAsset.crypto_type} on ${cryptoAsset.network_type} network. Please edit the existing wallet instead of creating a new one.` 
         });
@@ -126,16 +133,19 @@ export default async function handler(req, res) {
       }
 
       // Check if crypto type + network type combination already exists for a different wallet
-      const { data: existingCombo, error: comboError } = await supabaseAdmin
+      const { data: existingCombos, error: comboError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .select('*')
         .eq('crypto_type', cryptoAsset.crypto_type)
         .eq('network_type', cryptoAsset.network_type)
         .is('user_id', null)
-        .neq('id', walletId)
-        .maybeSingle();
+        .neq('id', walletId);
 
-      if (existingCombo) {
+      if (comboError) {
+        console.error('[PUT] Error checking for duplicates:', comboError);
+      }
+
+      if (existingCombos && existingCombos.length > 0) {
         return res.status(400).json({ 
           error: `An account opening wallet already exists for ${cryptoAsset.crypto_type} on ${cryptoAsset.network_type} network. Cannot change to this crypto/network combination.` 
         });
