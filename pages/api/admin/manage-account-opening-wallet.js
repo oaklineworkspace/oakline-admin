@@ -35,16 +35,31 @@ export default async function handler(req, res) {
         });
       }
 
-      // Check if wallet already exists
-      const { data: existing, error: checkError } = await supabaseAdmin
+      // Check if wallet address already exists
+      const { data: existingAddress, error: checkError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .select('*')
         .eq('wallet_address', walletAddress.trim())
         .maybeSingle();
 
-      if (existing) {
+      if (existingAddress) {
         return res.status(400).json({ 
           error: 'This wallet address is already registered' 
+        });
+      }
+
+      // Check if crypto type + network type combination already exists for account opening wallets
+      const { data: existingCombo, error: comboError } = await supabaseAdmin
+        .from('admin_assigned_wallets')
+        .select('*')
+        .eq('crypto_type', cryptoAsset.crypto_type)
+        .eq('network_type', cryptoAsset.network_type)
+        .is('user_id', null)
+        .maybeSingle();
+
+      if (existingCombo) {
+        return res.status(400).json({ 
+          error: `An account opening wallet already exists for ${cryptoAsset.crypto_type} on ${cryptoAsset.network_type} network. Please edit the existing wallet instead of creating a new one.` 
         });
       }
 
@@ -95,6 +110,22 @@ export default async function handler(req, res) {
       if (assetError || !cryptoAsset) {
         return res.status(400).json({ 
           error: 'Invalid crypto asset or asset is disabled' 
+        });
+      }
+
+      // Check if crypto type + network type combination already exists for a different wallet
+      const { data: existingCombo, error: comboError } = await supabaseAdmin
+        .from('admin_assigned_wallets')
+        .select('*')
+        .eq('crypto_type', cryptoAsset.crypto_type)
+        .eq('network_type', cryptoAsset.network_type)
+        .is('user_id', null)
+        .neq('id', walletId)
+        .maybeSingle();
+
+      if (existingCombo) {
+        return res.status(400).json({ 
+          error: `An account opening wallet already exists for ${cryptoAsset.crypto_type} on ${cryptoAsset.network_type} network. Cannot change to this crypto/network combination.` 
         });
       }
 
