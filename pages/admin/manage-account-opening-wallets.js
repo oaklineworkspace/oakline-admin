@@ -325,6 +325,16 @@ export default function ManageAccountOpeningWallets() {
         {error && <div style={styles.errorMessage}>{error}</div>}
         {message && <div style={styles.successMessage}>{message}</div>}
 
+        {!loading && Object.keys(availableCryptoAssets).length === 0 && (
+          <div style={styles.warningCard}>
+            <p style={styles.warningText}>
+              <strong>⚠️ No Crypto Assets Available</strong><br />
+              You need to add active crypto assets before you can create account opening wallets.
+              Please go to <Link href="/admin/manage-crypto-assets" style={styles.warningLink}>Manage Crypto Assets</Link> and add at least one active crypto asset first.
+            </p>
+          </div>
+        )}
+
         <div style={styles.infoCard}>
           <p style={styles.infoText}>
             <strong>Purpose:</strong> These wallets are used for account opening minimum deposit requirements.
@@ -395,10 +405,10 @@ export default function ManageAccountOpeningWallets() {
               <div style={styles.formGroup}>
                 <button
                   type="submit"
-                  disabled={loading}
-                  style={loading ? styles.disabledButton : styles.submitButton}
+                  disabled={loading || Object.keys(availableCryptoAssets).length === 0}
+                  style={(loading || Object.keys(availableCryptoAssets).length === 0) ? styles.disabledButton : styles.submitButton}
                 >
-                  {loading ? 'Adding...' : 'Add Wallet'}
+                  {loading ? 'Adding...' : Object.keys(availableCryptoAssets).length === 0 ? 'No Crypto Assets Available' : 'Add Wallet'}
                 </button>
               </div>
             </div>
@@ -610,6 +620,25 @@ const styles = {
     color: '#1e40af',
     fontSize: '14px',
     lineHeight: '1.6',
+  },
+  warningCard: {
+    backgroundColor: '#fef3c7',
+    border: '1px solid #f59e0b',
+    borderLeft: '4px solid #f59e0b',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '20px',
+  },
+  warningText: {
+    margin: 0,
+    color: '#92400e',
+    fontSize: '14px',
+    lineHeight: '1.6',
+  },
+  warningLink: {
+    color: '#d97706',
+    fontWeight: '600',
+    textDecoration: 'underline',
   },
   formSection: {
     backgroundColor: 'white',
