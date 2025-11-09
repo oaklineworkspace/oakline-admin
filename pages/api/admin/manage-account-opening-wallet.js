@@ -49,6 +49,7 @@ export default async function handler(req, res) {
       }
 
       // Check if crypto type + network type combination already exists for account opening wallets
+      console.log('[POST] Selected crypto asset:', cryptoAsset);
       console.log('[POST] Checking for existing combo:', {
         crypto_type: cryptoAsset.crypto_type,
         network_type: cryptoAsset.network_type
@@ -64,7 +65,11 @@ export default async function handler(req, res) {
       console.log('[POST] Existing combo check result:', { 
         count: existingCombos?.length || 0, 
         combos: existingCombos,
-        comboError 
+        comboError,
+        query: {
+          crypto_type: cryptoAsset.crypto_type,
+          network_type: cryptoAsset.network_type
+        }
       });
 
       if (comboError) {
