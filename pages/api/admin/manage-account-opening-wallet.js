@@ -49,6 +49,11 @@ export default async function handler(req, res) {
       }
 
       // Check if crypto type + network type combination already exists for account opening wallets
+      console.log('[POST] Checking for existing combo:', {
+        crypto_type: cryptoAsset.crypto_type,
+        network_type: cryptoAsset.network_type
+      });
+      
       const { data: existingCombo, error: comboError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .select('*')
@@ -57,7 +62,10 @@ export default async function handler(req, res) {
         .is('user_id', null)
         .maybeSingle();
 
+      console.log('[POST] Existing combo check result:', { existingCombo, comboError });
+
       if (existingCombo) {
+        console.log('[POST] Duplicate found:', existingCombo);
         return res.status(400).json({ 
           error: `An account opening wallet already exists for ${cryptoAsset.crypto_type} on ${cryptoAsset.network_type} network. Please edit the existing wallet instead of creating a new one.` 
         });
@@ -79,7 +87,11 @@ export default async function handler(req, res) {
 
       if (walletError) {
         console.error('Error creating wallet:', walletError);
-        return res.status(500).json({ error: 'Failed to create wallet' });
+        return res.status(500).json({ 
+          error: 'Failed to create wallet',
+          details: walletError.message,
+          code: walletError.code
+        });
       }
 
       return res.status(201).json({ 
