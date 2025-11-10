@@ -35,16 +35,17 @@ export default async function handler(req, res) {
         });
       }
 
-      // Check if wallet address already exists
+      // Check if this exact crypto/network combination already exists
+      // Note: Same wallet address can be used for different crypto types (e.g., BTC and USDT on BEP20)
       const { data: existing } = await supabaseAdmin
         .from('loan_crypto_wallets')
         .select('id')
-        .eq('wallet_address', walletAddress.trim())
+        .eq('crypto_asset_id', cryptoAsset.id)
         .maybeSingle();
 
       if (existing) {
         return res.status(400).json({
-          error: 'This wallet address already exists in the system'
+          error: 'A wallet already exists for this crypto type and network combination'
         });
       }
 
@@ -110,17 +111,18 @@ export default async function handler(req, res) {
         });
       }
 
-      // Check if new wallet address conflicts with existing ones (excluding current wallet)
+      // Check if this exact crypto/network combination conflicts (excluding current wallet)
+      // Same wallet address can be used for different crypto types
       const { data: existing } = await supabaseAdmin
         .from('loan_crypto_wallets')
         .select('id')
-        .eq('wallet_address', walletAddress.trim())
+        .eq('crypto_asset_id', cryptoAsset.id)
         .neq('id', walletId)
         .maybeSingle();
 
       if (existing) {
         return res.status(400).json({
-          error: 'This wallet address already exists in the system'
+          error: 'A wallet already exists for this crypto type and network combination'
         });
       }
 

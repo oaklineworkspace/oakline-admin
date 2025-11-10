@@ -129,6 +129,9 @@ export default function ManageLoanWallets() {
       return;
     }
 
+    // Note: Same wallet address can be used for different crypto types
+    // e.g., BTC BEP20 and USDT BEP20 can share the same address
+
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -338,6 +341,10 @@ export default function ManageLoanWallets() {
           <p style={styles.infoText}>
             <strong>Purpose:</strong> These wallets are specifically for loan requirement deposits (10% of loan principal).
             Users will deposit crypto to these addresses to fulfill their loan deposit requirements.
+          </p>
+          <p style={styles.infoText}>
+            <strong>Note:</strong> The same wallet address can be used for different crypto types on the same network 
+            (e.g., BTC BEP20 and USDT BEP20 can share the same address). The system tracks them separately by crypto type.
           </p>
         </div>
 
