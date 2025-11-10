@@ -62,26 +62,41 @@ export default function ManageAccountOpeningDeposits() {
 
       // Fetch account opening deposits
       const depositsResponse = await fetch('/api/admin/get-account-opening-deposits', { headers });
+      console.log('Deposits response status:', depositsResponse.status, depositsResponse.statusText);
       const depositsResult = await depositsResponse.json();
+      console.log('Deposits result:', depositsResult);
 
       if (!depositsResponse.ok) {
+        console.error('Deposits fetch failed:', depositsResult);
         throw new Error(depositsResult.error || 'Failed to fetch deposits');
       }
 
       // Fetch crypto assets
       const assetsResponse = await fetch('/api/admin/get-crypto-assets', { headers });
+      console.log('Assets response status:', assetsResponse.status, assetsResponse.statusText);
       const assetsResult = await assetsResponse.json();
+      console.log('Assets result:', assetsResult);
 
       if (!assetsResponse.ok) {
+        console.error('Assets fetch failed:', assetsResult);
         throw new Error(assetsResult.error || 'Failed to fetch crypto assets');
       }
+
+      console.log('Setting accounts:', accountsResult.accounts?.length || 0);
+      console.log('Setting deposits:', depositsResult.deposits?.length || 0);
+      console.log('Setting crypto assets:', assetsResult.assets?.length || 0);
 
       setAccounts(accountsResult.accounts || []);
       setDeposits(depositsResult.deposits || []);
       setCryptoAssets(assetsResult.assets || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to load data: ' + error.message);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        fullError: error
+      });
+      setError('Failed to load data: ' + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
