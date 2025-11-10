@@ -23,9 +23,11 @@ export default async function handler(req, res) {
           symbol,
           network_type
         ),
-        assigned_wallets:assigned_wallet_id (
+        admin_assigned_wallets:assigned_wallet_id (
           wallet_address,
-          memo
+          memo,
+          crypto_type,
+          network_type
         )
       `)
       .order('created_at', { ascending: false });
