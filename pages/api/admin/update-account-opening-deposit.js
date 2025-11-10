@@ -253,12 +253,29 @@ async function sendDepositStatusEmail({
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
   const loginUrl = `${siteUrl}/login`;
 
+  // Fetch bank details from Supabase for contact email
+  let supportEmail = 'support@theoaklinebank.com';
+  try {
+    const { data: bankDetails } = await supabaseAdmin
+      .from('bank_details')
+      .select('email_support, email_crypto')
+      .eq('name', 'Oakline Bank')
+      .single();
+    
+    if (bankDetails) {
+      supportEmail = bankDetails.email_support || supportEmail;
+    }
+  } catch (error) {
+    console.error('Error fetching bank details for email:', error);
+  }
+
   let emailHtml = '';
   let subject = '';
+  let fromEmail = 'crypto@theoaklinebank.com'; // Use crypto email for deposit notifications
 
   if (status === 'approved' || status === 'completed') {
-    subject = '✅ Deposit Approved - Oakline Bank';
-    const statusText = status === 'completed' ? 'Approved & Credited' : 'Approved';
+    subject = status === 'completed' ? '✅ Deposit Completed - Oakline Bank' : '✅ Deposit Approved - Oakline Bank';
+    const statusText = status === 'completed' ? 'Completed & Credited' : 'Approved';
     
     emailHtml = `
       <!DOCTYPE html>
@@ -266,13 +283,13 @@ async function sendDepositStatusEmail({
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Deposit Approved - Oakline Bank</title>
+        <title>${statusText} - Oakline Bank</title>
       </head>
       <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 24px; text-align: center;">
             <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🏦 Oakline Bank</h1>
-            <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Deposit Status Update</p>
+            <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Deposit ${statusText}</p>
           </div>
           
           <div style="padding: 40px 32px;">
@@ -358,7 +375,7 @@ async function sendDepositStatusEmail({
               Questions? Contact our support team
             </p>
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <a href="mailto:support@theoaklinebank.com" style="color: #10b981; text-decoration: none;">support@theoaklinebank.com</a>
+              <a href="mailto:${supportEmail}" style="color: #10b981; text-decoration: none;">${supportEmail}</a>
             </p>
             <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0 0;">
               © ${new Date().getFullYear()} Oakline Bank. All rights reserved.
@@ -465,7 +482,7 @@ async function sendDepositStatusEmail({
               Need assistance? Contact our support team
             </p>
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <a href="mailto:support@theoaklinebank.com" style="color: #3b82f6; text-decoration: none;">support@theoaklinebank.com</a>
+              <a href="mailto:${supportEmail}" style="color: #3b82f6; text-decoration: none;">${supportEmail}</a>
             </p>
             <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0 0;">
               © ${new Date().getFullYear()} Oakline Bank. All rights reserved.
@@ -549,7 +566,7 @@ async function sendDepositStatusEmail({
               Questions? Contact our support team
             </p>
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <a href="mailto:support@theoaklinebank.com" style="color: #3b82f6; text-decoration: none;">support@theoaklinebank.com</a>
+              <a href="mailto:${supportEmail}" style="color: #3b82f6; text-decoration: none;">${supportEmail}</a>
             </p>
             <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0 0;">
               © ${new Date().getFullYear()} Oakline Bank. All rights reserved.
@@ -564,7 +581,7 @@ async function sendDepositStatusEmail({
   }
 
   const mailOptions = {
-    from: `Oakline Bank <${process.env.SMTP_USER}>`,
+    from: `Oakline Bank <${fromEmail}>`,
     to: email,
     subject,
     html: emailHtml,

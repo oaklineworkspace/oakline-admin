@@ -201,12 +201,18 @@ export default function ManageAccountOpeningDeposits() {
         throw new Error(result.error || result.details || 'Failed to update deposit');
       }
 
-      setMessage('✅ Deposit updated successfully!');
+      const successMessage = updateForm.status === 'completed' 
+        ? '✅ Deposit completed successfully! Balance has been credited.'
+        : `✅ Deposit status updated to ${updateForm.status} successfully!`;
+      
+      setMessage(successMessage);
+      setShowUpdateModal(null);
+      await fetchData();
+      
+      // Keep success message visible for 5 seconds
       setTimeout(() => {
         setMessage('');
-        setShowUpdateModal(null);
-      }, 2000);
-      await fetchData();
+      }, 5000);
     } catch (error) {
       console.error('Error updating deposit:', error);
       setError(error.message);
