@@ -46,8 +46,14 @@ BEGIN
     );
   END IF;
 
-  -- Determine credit amount
-  v_credit_amount := COALESCE(p_approved_amount, v_deposit.approved_amount, v_deposit.amount);
+  -- Determine amount to credit (net amount after fees)
+  -- The approved_amount passed should already be net of fees (amount - fee)
+  IF p_approved_amount IS NOT NULL AND p_approved_amount > 0 THEN
+    v_credit_amount := p_approved_amount;
+  ELSE
+    -- Fallback: calculate net amount from amount - fee
+    v_credit_amount := COALESCE(v_deposit.amount, 0) - COALESCE(v_deposit.fee, 0);
+  END IF;
 
   IF v_credit_amount IS NULL OR v_credit_amount <= 0 THEN
     RETURN json_build_object(

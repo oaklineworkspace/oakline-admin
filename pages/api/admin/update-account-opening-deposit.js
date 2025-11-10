@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       adminId
     } = req.body;
 
-    console.log('Update deposit request:', { depositId, status, amount, adminId });
+    console.log('Update deposit request:', { depositId, status, adminId });
 
     if (!depositId) {
       return res.status(400).json({ error: 'Deposit ID is required' });
@@ -59,9 +59,12 @@ export default async function handler(req, res) {
       if (status === 'approved' || status === 'completed') {
         updateData.approved_by = adminId;
         updateData.approved_at = new Date().toISOString();
-        if (amount !== undefined && amount !== null && amount !== '') {
-          updateData.approved_amount = parseFloat(amount);
-        }
+        // Calculate approved_amount as deposit amount minus fee
+        const depositAmount = amount !== undefined && amount !== null && amount !== ''
+          ? parseFloat(amount)
+          : (oldDeposit.amount || 0);
+        const fee = oldDeposit.fee || 0;
+        updateData.approved_amount = depositAmount - fee;
       }
 
       if (status === 'rejected' || status === 'failed') {
@@ -87,12 +90,12 @@ export default async function handler(req, res) {
 
     if (status === 'completed' && oldStatus !== 'completed') {
       console.log('Processing balance credit for completed deposit using atomic RPC');
-      
+
+      // Credit amount should be the approved_amount (which is already net of fees)
       const creditAmount = parseFloat(
-        updateData.approved_amount ?? 
-        oldDeposit.approved_amount ?? 
-        updateData.amount ?? 
-        oldDeposit.amount
+        updateData.approved_amount ??
+        oldDeposit.approved_amount ??
+        ((oldDeposit.amount || 0) - (oldDeposit.fee || 0))
       );
 
       if (!creditAmount || creditAmount <= 0) {
@@ -166,7 +169,7 @@ export default async function handler(req, res) {
 
     if (status && status !== oldStatus) {
       console.log('Status changed from', oldStatus, 'to', status, '- sending notification email');
-      
+
       try {
         const userEmail = oldDeposit.accounts?.applications?.email;
         const firstName = oldDeposit.accounts?.applications?.first_name;
@@ -261,7 +264,7 @@ async function sendDepositStatusEmail({
       .select('email_support, email_crypto')
       .eq('name', 'Oakline Bank')
       .single();
-    
+
     if (bankDetails) {
       supportEmail = bankDetails.email_support || supportEmail;
     }
@@ -276,7 +279,7 @@ async function sendDepositStatusEmail({
   if (status === 'approved' || status === 'completed') {
     subject = status === 'completed' ? '✅ Deposit Completed - Oakline Bank' : '✅ Deposit Approved - Oakline Bank';
     const statusText = status === 'completed' ? 'Completed & Credited' : 'Approved';
-    
+
     emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -291,12 +294,12 @@ async function sendDepositStatusEmail({
             <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🏦 Oakline Bank</h1>
             <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Deposit ${statusText}</p>
           </div>
-          
+
           <div style="padding: 40px 32px;">
             <h2 style="color: #10b981; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
               ✅ Great News, ${firstName}!
             </h2>
-            
+
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
               Your deposit for account opening has been <strong>${statusText}</strong>.
             </p>
@@ -350,9 +353,9 @@ async function sendDepositStatusEmail({
             `}
 
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${loginUrl}" 
-                 style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
-                        color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; 
+              <a href="${loginUrl}"
+                 style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none;
                         font-weight: 600; font-size: 16px;">
                 Access Your Account
               </a>
@@ -388,7 +391,7 @@ async function sendDepositStatusEmail({
   } else if (status === 'rejected' || status === 'failed') {
     subject = '❌ Deposit Update - Oakline Bank';
     const statusText = status === 'rejected' ? 'Rejected' : 'Failed';
-    
+
     emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -403,12 +406,12 @@ async function sendDepositStatusEmail({
             <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🏦 Oakline Bank</h1>
             <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Deposit Status Update</p>
           </div>
-          
+
           <div style="padding: 40px 32px;">
             <h2 style="color: #ef4444; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
               Deposit ${statusText}
             </h2>
-            
+
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
               Dear ${firstName}${lastName ? ' ' + lastName : ''},
             </p>
@@ -462,9 +465,9 @@ async function sendDepositStatusEmail({
             </ul>
 
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${loginUrl}" 
-                 style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
-                        color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; 
+              <a href="${loginUrl}"
+                 style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+                        color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none;
                         font-weight: 600; font-size: 16px;">
                 Access Your Account
               </a>
@@ -494,7 +497,7 @@ async function sendDepositStatusEmail({
     `;
   } else if (status === 'awaiting_confirmations') {
     subject = '🔄 Deposit Received - Awaiting Confirmations';
-    
+
     emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -509,12 +512,12 @@ async function sendDepositStatusEmail({
             <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🏦 Oakline Bank</h1>
             <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Deposit Status Update</p>
           </div>
-          
+
           <div style="padding: 40px 32px;">
             <h2 style="color: #3b82f6; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
               🔄 Deposit Received!
             </h2>
-            
+
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
               Dear ${firstName}${lastName ? ' ' + lastName : ''},
             </p>
@@ -552,9 +555,9 @@ async function sendDepositStatusEmail({
             </p>
 
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${loginUrl}" 
-                 style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
-                        color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; 
+              <a href="${loginUrl}"
+                 style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                        color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none;
                         font-weight: 600; font-size: 16px;">
                 Check Status
               </a>
