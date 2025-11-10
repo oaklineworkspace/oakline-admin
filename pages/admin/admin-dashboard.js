@@ -115,6 +115,12 @@ export default function AdminDashboard() {
                 <p style={styles.cardDescription}>Review and approve accounts</p>
               </Link>
 
+              <Link href="/admin/manage-account-requests" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>📋</div>
+                <h3 style={styles.cardTitle}>Account Requests</h3>
+                <p style={styles.cardDescription}>Manage additional account requests</p>
+              </Link>
+
               <Link href="/admin/issue-debit-card" style={styles.adminPageCard}>
                 <div style={styles.cardIcon}>💳</div>
                 <h3 style={styles.cardTitle}>Issue Debit Cards</h3>
