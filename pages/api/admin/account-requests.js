@@ -172,25 +172,7 @@ export default async function handler(req, res) {
       
       let query = supabaseAdmin
         .from('account_requests')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            email,
-            raw_user_meta_data
-          ),
-          account_type:account_type_id (
-            id,
-            name,
-            description,
-            icon,
-            min_deposit
-          ),
-          reviewer:reviewed_by (
-            id,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (status) {
@@ -204,14 +186,23 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to fetch account requests', details: error.message });
       }
 
-      const enrichedRequests = requests.map(request => {
-        const userMetadata = request.user?.raw_user_meta_data || {};
+      const enrichedRequests = await Promise.all(requests.map(async (request) => {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(request.user_id);
+        const { data: accountType } = await supabaseAdmin
+          .from('account_types')
+          .select('*')
+          .eq('id', request.account_type_id)
+          .single();
+        
+        const userMetadata = userData?.user?.user_metadata || {};
+        
         return {
           ...request,
           user_name: `${userMetadata.first_name || ''} ${userMetadata.last_name || ''}`.trim() || 'Unknown User',
-          user_email: request.user?.email || 'No email'
+          user_email: userData?.user?.email || 'No email',
+          account_type: accountType
         };
-      });
+      }));
 
       return res.status(200).json({ success: true, data: enrichedRequests });
 
@@ -239,20 +230,7 @@ export default async function handler(req, res) {
 
       const { data: request, error: fetchError } = await supabaseAdmin
         .from('account_requests')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            email,
-            raw_user_meta_data
-          ),
-          account_type:account_type_id (
-            id,
-            name,
-            description,
-            min_deposit
-          )
-        `)
+        .select('*')
         .eq('id', request_id)
         .single();
 
@@ -265,10 +243,19 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: `Request already ${request.status}` });
       }
 
-      const userMetadata = request.user?.raw_user_meta_data || {};
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(request.user_id);
+      const { data: accountType } = await supabaseAdmin
+        .from('account_types')
+        .select('*')
+        .eq('id', request.account_type_id)
+        .single();
+
+      const userMetadata = userData?.user?.user_metadata || {};
       const firstName = userMetadata.first_name || 'User';
       const lastName = userMetadata.last_name || '';
-      const userEmail = request.user?.email;
+      const userEmail = userData?.user?.email;
+      
+      request.account_type = accountType;
 
       if (action === 'approve') {
         try {
