@@ -106,8 +106,8 @@ export default async function handler(req, res) {
                   
                   <!-- Subject Banner -->
                   <tr>
-                    <td style="background: linear-gradient(to right, #f8fafc, #e2e8f0); padding: 25px 40px; border-bottom: 3px solid #d4af37;">
-                      <h2 style="margin: 0; color: #0a1a2f; font-size: 24px; font-weight: 700; text-align: center; letter-spacing: -0.3px;">
+                    <td style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 25px 40px; border-bottom: 3px solid #d4af37;">
+                      <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; text-align: center; letter-spacing: -0.3px;">
                         📢 ${subject}
                       </h2>
                     </td>
@@ -124,9 +124,9 @@ export default async function handler(req, res) {
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-top: 35px;">
                         <tr>
                           <td align="center">
-                            <div style="background: linear-gradient(135deg, #0a1a2f 0%, #1e3a5f 100%); padding: 16px 40px; border-radius: 12px; display: inline-block; box-shadow: 0 6px 20px rgba(10, 26, 47, 0.25);">
-                              <p style="margin: 0; color: #ffffff; font-size: 15px; font-weight: 600;">
-                                Need assistance? Contact our support team 24/7
+                            <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 18px 40px; border-radius: 12px; display: inline-block; box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3); border: 2px solid #60a5fa;">
+                              <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                                💬 Need assistance? Contact our support team 24/7
                               </p>
                             </div>
                           </td>
