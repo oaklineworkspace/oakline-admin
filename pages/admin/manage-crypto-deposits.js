@@ -115,7 +115,11 @@ export default function ManageCryptoDeposits() {
     // Only prompt for reason if not already provided
     if (!reason && (newStatus === 'rejected' || newStatus === 'on_hold' || newStatus === 'reversed' || newStatus === 'failed')) {
       reason = window.prompt(`Enter reason for ${newStatus}:`);
-      if (reason === null) return;
+      if (reason === null || reason.trim() === '') {
+        setError('Reason is required for this action');
+        setTimeout(() => setError(''), 3000);
+        return;
+      }
     }
 
     const confirmMessages = {
@@ -172,6 +176,58 @@ export default function ManageCryptoDeposits() {
     } catch (error) {
       console.error('Error updating status:', error);
       setError(`Failed to update status: ${error.message}`);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDeposit = async (depositId, deposit) => {
+    if (!window.confirm(`⚠️ WARNING: Are you sure you want to DELETE this deposit?\n\nDeposit ID: ${depositId}\nAmount: $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}\n\nThis action CANNOT be undone!`)) {
+      return;
+    }
+
+    const confirmText = window.prompt('Type "DELETE" to confirm deletion:');
+    if (confirmText !== 'DELETE') {
+      setError('Deletion cancelled - confirmation text did not match');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setMessage('');
+
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !session) {
+        setError('Session expired. Please log in again.');
+        setIsAuthenticated(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/delete-crypto-deposit', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ depositId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete deposit');
+      }
+
+      setMessage(result.message || '✅ Deposit deleted successfully');
+      await fetchDeposits();
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      console.error('Error deleting deposit:', error);
+      setError(`Failed to delete deposit: ${error.message}`);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
     }
@@ -302,6 +358,9 @@ export default function ManageCryptoDeposits() {
       default:
         break;
     }
+
+    // Always show Delete button (dangerous action)
+    actions.push({ label: 'Delete', value: 'delete', color: '#dc2626', isDelete: true });
 
     return actions;
   };
@@ -587,6 +646,8 @@ export default function ManageCryptoDeposits() {
                                   handleEditStatus(deposit);
                                 } else if (action.isComplete) {
                                   handleCompleteDeposit(deposit.id);
+                                } else if (action.isDelete) {
+                                  handleDeleteDeposit(deposit.id, deposit);
                                 } else {
                                   handleStatusChange(deposit.id, action.value);
                                 }
