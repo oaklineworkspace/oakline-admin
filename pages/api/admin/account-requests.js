@@ -93,12 +93,18 @@ async function sendApprovalEmail(userEmail, firstName, accountType, accountNumbe
     </html>
   `;
 
-  return sendEmail({
-    to: userEmail,
-    subject: '🎉 Your Additional Account Request Has Been Approved',
-    html: emailHtml,
-    type: EMAIL_TYPES.NOTIFY
-  });
+  try {
+    await sendEmail({
+      to: userEmail,
+      subject: '🎉 Your Additional Account Request Has Been Approved',
+      html: emailHtml,
+      type: EMAIL_TYPES.NOTIFY
+    });
+    console.log('✅ Approval email sent successfully to:', userEmail);
+  } catch (error) {
+    console.error('❌ Failed to send approval email:', error);
+    throw error;
+  }
 }
 
 async function sendRejectionEmail(userEmail, firstName, accountType, rejectionReason) {
@@ -156,12 +162,18 @@ async function sendRejectionEmail(userEmail, firstName, accountType, rejectionRe
     </html>
   `;
 
-  return sendEmail({
-    to: userEmail,
-    subject: 'Account Request Status Update - Oakline Bank',
-    html: emailHtml,
-    type: EMAIL_TYPES.NOTIFY
-  });
+  try {
+    await sendEmail({
+      to: userEmail,
+      subject: 'Account Request Status Update - Oakline Bank',
+      html: emailHtml,
+      type: EMAIL_TYPES.NOTIFY
+    });
+    console.log('✅ Rejection email sent successfully to:', userEmail);
+  } catch (error) {
+    console.error('❌ Failed to send rejection email:', error);
+    throw error;
+  }
 }
 
 export default async function handler(req, res) {
