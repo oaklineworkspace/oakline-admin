@@ -38,6 +38,7 @@ export default function AdminNavDropdown() {
     {
       category: '🛠️ Testing & Tools',
       links: [
+        { name: 'Account Requests', path: '/admin/manage-account-requests', icon: '📋' },
         { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
       ]
     },
@@ -75,6 +76,7 @@ export default function AdminNavDropdown() {
       category: '📋 Applications',
       links: [
         { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅' },
+        { name: 'Account Requests', path: '/admin/manage-account-requests', icon: '📋' },
         { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
       ]
     },

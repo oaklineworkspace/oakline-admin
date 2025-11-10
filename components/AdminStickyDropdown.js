@@ -77,6 +77,7 @@ export default function AdminStickyDropdown() {
       pages: [
         { name: 'Approve Applications', href: '/admin/approve-applications', icon: '✅' },
         { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️' },
+        { name: 'Account Requests', href: '/admin/manage-account-requests', icon: '📋' },
         { name: 'Approve Funding', href: '/admin/approve-funding', icon: '💰' },
         { name: 'Manage Account Deposits', href: '/admin/manage-account-opening-deposits', icon: '🪙' },
         { name: 'Manage Account Wallets', href: '/admin/manage-account-opening-wallets', icon: '👛' },

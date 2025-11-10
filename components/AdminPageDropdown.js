@@ -51,6 +51,7 @@ export default function AdminPageDropdown() {
       items: [
         { name: 'Approve Applications', href: '/admin/approve-applications', icon: '✅' },
         { name: 'Approve Accounts', href: '/admin/approve-accounts', icon: '✔️' },
+        { name: 'Account Requests', href: '/admin/manage-account-requests', icon: '📋' },
         { name: 'Manage Accounts', href: '/admin/manage-accounts', icon: '🏦' },
         { name: 'Manage Account Types', href: '/admin/manage-account-types', icon: '💳' },
         { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '💳' },
@@ -137,6 +138,7 @@ export default function AdminPageDropdown() {
       icon: '🛠️',
       color: '#6366F1',
       items: [
+        { name: 'Account Requests', href: '/admin/manage-account-requests', icon: '📋' },
         { name: 'Test Card Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
       ]
     }
