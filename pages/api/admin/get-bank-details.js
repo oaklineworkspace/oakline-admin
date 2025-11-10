@@ -23,6 +23,8 @@ export default async function handler(req, res) {
       throw error;
     }
 
+    const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
+    
     return res.status(200).json({
       success: true,
       bankDetails: bankDetails || {
@@ -35,16 +37,16 @@ export default async function handler(req, res) {
         logo_url: '',
         customer_service_hours: '',
         additional_info: '',
-        email_info: 'info@theoaklinebank.com',
-        email_contact: 'contact-us@theoaklinebank.com',
-        email_support: 'support@theoaklinebank.com',
-        email_loans: 'loans@theoaklinebank.com',
-        email_notify: 'notify@theoaklinebank.com',
-        email_updates: 'updates@theoaklinebank.com',
-        email_welcome: 'welcome@theoaklinebank.com',
-        email_security: 'security@theoaklinebank.com',
-        email_verify: 'verify@theoaklinebank.com',
-        email_crypto: 'crypto@theoaklinebank.com',
+        email_info: `info@${emailDomain}`,
+        email_contact: `contact-us@${emailDomain}`,
+        email_support: `support@${emailDomain}`,
+        email_loans: `loans@${emailDomain}`,
+        email_notify: `notify@${emailDomain}`,
+        email_updates: `updates@${emailDomain}`,
+        email_welcome: `welcome@${emailDomain}`,
+        email_security: `security@${emailDomain}`,
+        email_verify: `verify@${emailDomain}`,
+        email_crypto: `crypto@${emailDomain}`,
         routing_number: '075915826',
         swift_code: 'OAKLUS33',
         nmls_id: '574160'

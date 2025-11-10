@@ -85,7 +85,7 @@ ${bankDetails.name || 'Oakline Bank'} Team
       
       <div class="contact-info">
         <p><strong>📞 Phone:</strong> ${bankDetails.phone || '+1 (636) 635-6122'}</p>
-        <p><strong>📧 Email:</strong> ${bankDetails.email_contact || 'contact-us@theoaklinebank.com'}</p>
+        <p><strong>📧 Email:</strong> ${bankDetails.email_contact || `contact-us@${emailDomain}`}</p>
         <p><strong>🏢 Address:</strong> ${bankDetails.address || '12201 N May Avenue, Oklahoma City, OK 73120'}</p>
       </div>
       
