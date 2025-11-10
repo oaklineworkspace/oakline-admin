@@ -45,37 +45,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // Check if wallet address already exists
-      const { data: existingAddress, error: checkError } = await supabaseAdmin
-        .from('admin_assigned_wallets')
-        .select('*')
-        .eq('wallet_address', walletAddress.trim())
-        .maybeSingle();
-
-      console.log('[POST] Wallet address check:', { 
-        walletAddress, 
-        exists: !!existingAddress,
-        existingWalletDetails: existingAddress ? {
-          id: existingAddress.id,
-          crypto_type: existingAddress.crypto_type,
-          network_type: existingAddress.network_type,
-          user_id: existingAddress.user_id,
-          created_at: existingAddress.created_at
-        } : null,
-        checkError 
-      });
-
-      if (existingAddress) {
-        return res.status(400).json({ 
-          error: `This wallet address is already registered for ${existingAddress.crypto_type} on ${existingAddress.network_type}${existingAddress.user_id ? ' (user-assigned)' : ' (account opening)'}`,
-          existingWallet: {
-            crypto_type: existingAddress.crypto_type,
-            network_type: existingAddress.network_type,
-            wallet_address: existingAddress.wallet_address
-          }
-        });
-      }
-
       // Check if crypto type + network type combination already exists for account opening wallets
       console.log('[POST] Selected crypto asset full details:', JSON.stringify(cryptoAsset, null, 2));
       console.log('[POST] Checking for existing combo:', {
