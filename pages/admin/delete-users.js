@@ -260,11 +260,16 @@ export default function DeleteUsers() {
                   <li>All user accounts and balances</li>
                   <li>Card transactions and cards</li>
                   <li>Zelle transactions and settings</li>
-                  <li>Loan payments and loans</li>
-                  <li>Crypto deposits and wallets</li>
+                  <li>Oakline Pay profiles, contacts, transactions, and requests</li>
+                  <li>Bill payments</li>
+                  <li>Loan payments, loans, and loan collaterals</li>
+                  <li>Crypto deposits, investments, and wallets</li>
                   <li>Crypto deposit audit logs</li>
                   <li>Admin assigned wallets</li>
                   <li>Applications and enrollments</li>
+                  <li>Chat threads and messages</li>
+                  <li>Check deposits and ID documents</li>
+                  <li>Investment transactions</li>
                   <li>Notifications and logs</li>
                   <li>User profile and authentication</li>
                 </ul>
