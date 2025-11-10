@@ -17,6 +17,9 @@ export default function ManageAccountOpeningDeposits() {
   const [showWalletModal, setShowWalletModal] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showProofModal, setShowProofModal] = useState(null);
+  const [proofImageUrl, setProofImageUrl] = useState(null);
+  const [loadingProof, setLoadingProof] = useState(false);
   const [walletForm, setWalletForm] = useState({
     cryptoAssetId: '',
     cryptoType: '',
@@ -257,6 +260,46 @@ export default function ManageAccountOpeningDeposits() {
     }
   };
 
+  const handleViewProof = async (deposit) => {
+    if (!deposit.proof_path) {
+      setError('No proof of payment uploaded for this deposit');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setLoadingProof(true);
+    setShowProofModal(deposit);
+    setProofImageUrl(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // Create signed URL for the proof image
+      const { data: signedUrlData, error: signedUrlError } = await supabase
+        .storage
+        .from('crypto-deposit-proofs')
+        .createSignedUrl(deposit.proof_path, 3600); // 1 hour expiry
+
+      if (signedUrlError) {
+        console.error('Error creating signed URL:', signedUrlError);
+        throw new Error('Failed to load proof of payment image');
+      }
+
+      setProofImageUrl(signedUrlData.signedUrl);
+    } catch (error) {
+      console.error('Error loading proof:', error);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
+      setShowProofModal(null);
+    } finally {
+      setLoadingProof(false);
+    }
+  };
+
   const handleCryptoAssetChange = (assetId) => {
     const asset = cryptoAssets.find(a => a.id === assetId);
     if (asset) {
@@ -404,6 +447,14 @@ export default function ManageAccountOpeningDeposits() {
                               </span>
                             </div>
                           )}
+                          {deposit && deposit.proof_path && (
+                            <div style={styles.infoRow}>
+                              <span style={styles.infoLabel}>Proof:</span>
+                              <span style={{...styles.infoValue, color: '#059669', fontWeight: '600'}}>
+                                ✅ Uploaded
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div style={styles.cardFooter}>
@@ -423,12 +474,21 @@ export default function ManageAccountOpeningDeposits() {
                               >
                                 📊 Update
                               </button>
+                              {deposit.proof_path && (
+                                <button
+                                  onClick={() => handleViewProof(deposit)}
+                                  style={{...styles.btn, ...styles.btnInfo}}
+                                  disabled={processing === account.id}
+                                >
+                                  🖼️ Proof
+                                </button>
+                              )}
                               <button
                                 onClick={() => setShowDeleteConfirm(deposit)}
                                 style={{...styles.btn, ...styles.btnDanger}}
                                 disabled={processing === account.id}
                               >
-                                🗑️ Delete Deposit
+                                🗑️ Delete
                               </button>
                             </>
                           )}
@@ -485,6 +545,16 @@ export default function ManageAccountOpeningDeposits() {
                                   <p style={styles.notes}>{deposit.admin_notes}</p>
                                 </div>
                               )}
+                              {deposit.proof_path && (
+                                <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                  <button
+                                    onClick={() => handleViewProof(deposit)}
+                                    style={{...styles.btn, ...styles.btnPrimary, marginTop: '8px'}}
+                                  >
+                                    🖼️ View Proof of Payment
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -495,6 +565,61 @@ export default function ManageAccountOpeningDeposits() {
               )}
             </div>
           </>
+        )}
+
+        {/* Proof of Payment Modal */}
+        {showProofModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowProofModal(null)}>
+            <div style={{...styles.modal, maxWidth: '900px'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📸 Proof of Payment</h2>
+                <button onClick={() => setShowProofModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <div style={{...styles.formGroup, marginBottom: '16px'}}>
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                    <strong>Deposit ID:</strong> {showProofModal.id.slice(0, 8)}...
+                  </p>
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                    <strong>Amount:</strong> ${parseFloat(showProofModal.amount || 0).toFixed(2)}
+                  </p>
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                    <strong>Status:</strong> {showProofModal.status}
+                  </p>
+                </div>
+
+                {loadingProof ? (
+                  <div style={{textAlign: 'center', padding: '40px'}}>
+                    <div style={styles.spinner}></div>
+                    <p>Loading proof of payment...</p>
+                  </div>
+                ) : proofImageUrl ? (
+                  <div style={{textAlign: 'center'}}>
+                    <img
+                      src={proofImageUrl}
+                      alt="Proof of Payment"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '70vh',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        border: '2px solid #e2e8f0',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => window.open(proofImageUrl, '_blank')}
+                    />
+                    <p style={{marginTop: '12px', fontSize: 'clamp(0.8rem, 2vw, 13px)', color: '#64748b'}}>
+                      Click image to open in new tab
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{textAlign: 'center', padding: '40px', color: '#ef4444'}}>
+                    <p>Failed to load proof of payment image</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Wallet Assignment Modal */}
