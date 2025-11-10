@@ -200,7 +200,11 @@ export default function BroadcastMessages() {
 
     } catch (err) {
       console.error('Error sending messages:', err);
-      alert('Failed to send messages: ' + err.message);
+      alert('Failed to send messages. Please check:\n' +
+            '1. SMTP credentials are configured in Secrets\n' + 
+            '2. Internet connection is stable\n' +
+            '3. Recipients list is valid\n\n' +
+            'Error: ' + err.message);
     } finally {
       setSending(false);
     }

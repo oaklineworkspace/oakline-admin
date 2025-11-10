@@ -67,20 +67,29 @@ export default async function handler(req, res) {
       bankInfo = data;
     }
 
-    // Create email transporter
+    // Create email transporter with better configuration
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_PORT === '465',
+      secure: true, // use SSL
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 5,
+      connectionTimeout: 60000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000,
     });
 
     // Test SMTP connection
     try {
       await transporter.verify();
+      console.log('✅ SMTP connection verified for broadcast');
     } catch (smtpError) {
       console.error('SMTP connection failed:', smtpError.message);
       return res.status(500).json({
@@ -89,10 +98,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Send emails to all recipients
+    // Send emails to all recipients with retry logic
     const emailPromises = recipients.map(async (recipient) => {
+      const maxRetries = 3;
+      let lastError;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
       const emailHtml = `
-        <!DOCTYPE html>
+            <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
@@ -221,13 +235,29 @@ export default async function handler(req, res) {
       `;
 
       const mailOptions = {
-        from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_contact || 'support@theoaklinebank.com'}>`,
-        to: recipient.email,
-        subject: subject,
-        html: emailHtml
-      };
+            from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_contact || 'support@theoaklinebank.com'}>`,
+            to: recipient.email,
+            subject: subject,
+            html: emailHtml
+          };
 
-      return transporter.sendMail(mailOptions);
+          const info = await transporter.sendMail(mailOptions);
+          console.log(`✅ Broadcast email sent to ${recipient.email} (attempt ${attempt}/${maxRetries}):`, info.messageId);
+          return info;
+        } catch (err) {
+          lastError = err;
+          console.error(`❌ Broadcast email attempt ${attempt}/${maxRetries} failed for ${recipient.email}:`, err.message);
+          
+          if (attempt < maxRetries) {
+            const delay = attempt * 1000;
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      console.error(`❌ All broadcast email attempts failed for ${recipient.email}:`, lastError);
+      throw lastError;
     });
 
     // Wait for all emails to be sent
