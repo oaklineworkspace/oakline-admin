@@ -407,7 +407,7 @@ export default function ManageAccountOpeningDeposits() {
                                 style={{...styles.btn, ...styles.btnDanger}}
                                 disabled={processing === account.id}
                               >
-                                🗑️ Delete
+                                🗑️ Delete Deposit
                               </button>
                             </>
                           )}
@@ -671,8 +671,23 @@ export default function ManageAccountOpeningDeposits() {
                 <button onClick={() => setShowDeleteConfirm(null)} style={styles.closeButton}>×</button>
               </div>
               <div style={styles.modalBody}>
-                <p style={{marginBottom: '20px'}}>
-                  Are you sure you want to delete this deposit? This action cannot be undone.
+                <p style={{marginBottom: '20px', fontSize: 'clamp(0.9rem, 2.2vw, 15px)', lineHeight: '1.5'}}>
+                  Are you sure you want to delete this deposit record? This will permanently remove it from the database. This action cannot be undone.
+                </p>
+                {showDeleteConfirm && (
+                  <div style={{background: '#fef2f2', padding: '12px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #fecaca'}}>
+                    <p style={{margin: 0, fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b'}}>
+                      <strong>Deposit ID:</strong> {showDeleteConfirm.id.slice(0, 8)}...
+                    </p>
+                    {showDeleteConfirm.amount > 0 && (
+                      <p style={{margin: '4px 0 0 0', fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b'}}>
+                        <strong>Amount:</strong> ${parseFloat(showDeleteConfirm.amount).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <p style={{fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#dc2626', fontWeight: '600'}}>
+                  ⚠️ This will remove the deposit from account_opening_crypto_deposits table
                 </p>
                 <div style={styles.modalActions}>
                   <button
