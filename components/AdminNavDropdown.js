@@ -59,6 +59,7 @@ export default function AdminNavDropdown() {
         { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼' },
         { name: 'Create User', path: '/admin/create-user', icon: '➕' },
         { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Credit Scores', path: '/admin/credit-scores', icon: '📊' },
       ]
     },
     {
@@ -130,6 +131,7 @@ export default function AdminNavDropdown() {
         { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
         { name: 'Manage Crypto Investments', path: '/admin/manage-crypto-investments', icon: '📊' },
         { name: 'Account Opening Deposits', path: '/admin/manage-account-opening-deposits', icon: '💳' },
+        { name: 'Account Opening Wallets', path: '/admin/manage-account-opening-wallets', icon: '👛' },
         { name: 'Approve Funding', path: '/admin/approve-funding', icon: '✅' },
       ]
     },
