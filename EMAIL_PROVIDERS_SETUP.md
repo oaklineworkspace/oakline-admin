@@ -18,7 +18,7 @@ This application supports multiple email providers with automatic fallback. If o
 **Status:** ✅ Already configured  
 **Free Tier:** 3,000 emails/month, 100 emails/day  
 **Required Secrets:**
-- `RESEND_API_KEY` - Already set: `re_DVXbk8Ci_E3njoNzZBds7ThpyUZwbtmkW`
+- `RESEND_API_KEY` - Configured in Replit Secrets (API key starts with `re_`)
 
 **Notes:**
 - No additional SMTP credentials needed
