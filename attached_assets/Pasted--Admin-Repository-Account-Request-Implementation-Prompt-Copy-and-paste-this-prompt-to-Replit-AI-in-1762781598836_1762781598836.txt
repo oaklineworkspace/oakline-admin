@@ -1,0 +1,132 @@
+# Admin Repository Account Request Implementation Prompt
+
+Copy and paste this prompt to Replit AI in your **admin repository**:
+
+---
+
+## Goal
+I need you to implement a complete system to handle additional account requests from existing users. When a user requests a new account type, admins should be able to review and approve/reject these requests. Upon approval, the system should automatically create the new account and its associated debit card.
+
+## Backend Implementation Required
+
+### 1. Create Admin API Endpoint for Account Requests
+Create a new API endpoint at `pages/api/admin/account-requests.js` (or similar structure in your admin repo) with the following functionality:
+
+**GET endpoint** - Fetch all pending account requests:
+- Query the `account_requests` table from the frontend database
+- Filter by status ('pending', 'approved', 'rejected')
+- Join with user information to show who requested it
+- Return account requests with user details
+
+**POST endpoint** - Approve or reject account requests:
+- Accept `request_id`, `action` ('approve' or 'reject'), and optional `rejection_reason`
+- If approved:
+  1. Create a new account in the `accounts` table with the requested account type
+  2. Generate a new debit card in the `cards` table linked to the new account
+  3. Update the `account_requests` table status to 'approved'
+  4. Send a confirmation email to the user notifying them of approval
+- If rejected:
+  1. Update the `account_requests` table status to 'rejected' with the reason
+  2. Send an email to the user explaining the rejection
+
+### 2. Database Queries Needed
+The endpoint should interact with these tables:
+
+**account_requests table** (already exists in frontend):
+- `id`, `user_id`, `account_type`, `status`, `requested_at`, `processed_at`, `rejection_reason`
+
+**accounts table**:
+- Create new account with: `user_id`, `account_type`, `account_number` (generate unique), `balance` (0.00), `status` ('active')
+
+**cards table**:
+- Create new debit card with: `user_id`, `account_id`, `card_number` (generate unique), `card_type` ('debit'), `status` ('active'), `cvv` (generate), `expiry_date` (set to 5 years from now)
+
+### 3. Admin Dashboard UI Component
+Create a new page or section in your admin dashboard to display and manage account requests:
+
+**Table/List View** showing:
+- User name and email
+- Requested account type
+- Request date
+- Current status
+- Action buttons (Approve/Reject for pending requests)
+
+**Action Modal** for processing requests:
+- Display user details and request information
+- For rejection: text area for rejection reason
+- Confirm and Cancel buttons
+
+### 4. Email Notifications
+Implement email sending for:
+
+**Approval Email Template**:
+```
+Subject: Your Additional Account Request Has Been Approved
+
+Dear [User Name],
+
+Great news! Your request for a [Account Type] account has been approved.
+
+Your new account details:
+- Account Number: [Generated Account Number]
+- Account Type: [Account Type]
+- Debit Card Number: [Masked Card Number ending in XXXX]
+
+You can now access your new account from your dashboard.
+
+Best regards,
+Oakline Bank Team
+```
+
+**Rejection Email Template**:
+```
+Subject: Account Request Status Update
+
+Dear [User Name],
+
+We regret to inform you that your request for a [Account Type] account could not be approved at this time.
+
+Reason: [Rejection Reason]
+
+If you have any questions, please contact our support team.
+
+Best regards,
+Oakline Bank Team
+```
+
+### 5. Helper Functions Needed
+
+**Generate Account Number**:
+- Format: 10-digit unique number
+- Ensure uniqueness by checking against existing accounts
+
+**Generate Card Number**:
+- Format: 16-digit card number (use Luhn algorithm for validity)
+- Generate CVV: 3-digit random number
+- Set expiry date: Current date + 5 years
+
+**Generate Card Details**:
+- Return object with card_number, cvv, expiry_date
+
+## Security Requirements
+- All endpoints must verify admin authentication
+- Use proper RLS (Row Level Security) policies
+- Validate all input data
+- Use transactions for atomic operations (create account + card together)
+
+## Expected Flow
+1. User submits account request from frontend
+2. Request appears in admin dashboard as 'pending'
+3. Admin reviews request details
+4. Admin clicks Approve or Reject
+5. If approved: System creates account + card, sends approval email
+6. If rejected: System updates status, sends rejection email with reason
+7. User receives email notification
+8. User sees new account in their dashboard (if approved)
+
+## Database Connection
+Use the same Supabase connection details as the frontend repository since both databases are the same.
+
+---
+
+Please implement all of the above components in the admin repository, ensuring proper error handling, validation, and user feedback.
