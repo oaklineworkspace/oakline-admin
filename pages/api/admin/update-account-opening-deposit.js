@@ -29,7 +29,6 @@ export default async function handler(req, res) {
 
     if (amount !== undefined && amount !== null && amount !== '') {
       updateData.amount = parseFloat(amount);
-      updateData.net_amount = parseFloat(amount);
     }
 
     if (txHash) {

@@ -164,13 +164,22 @@ export default function ManageAccountOpeningDeposits() {
     e.preventDefault();
     setProcessing(showUpdateModal.id);
     setError('');
+    setMessage('');
     
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
       
       const response = await fetch('/api/admin/update-account-opening-deposit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           depositId: showUpdateModal.id,
           amount: updateForm.amount ? parseFloat(updateForm.amount) : undefined,
@@ -190,13 +199,14 @@ export default function ManageAccountOpeningDeposits() {
       }
 
       setMessage('✅ Deposit updated successfully!');
-      setTimeout(() => setMessage(''), 5000);
-      setShowUpdateModal(null);
+      setTimeout(() => {
+        setMessage('');
+        setShowUpdateModal(null);
+      }, 2000);
       await fetchData();
     } catch (error) {
       console.error('Error updating deposit:', error);
       setError(error.message);
-      setTimeout(() => setError(''), 5000);
     } finally {
       setProcessing(null);
     }
@@ -207,11 +217,21 @@ export default function ManageAccountOpeningDeposits() {
 
     setProcessing(showDeleteConfirm.id);
     setError('');
+    setMessage('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+      
       const response = await fetch('/api/admin/delete-account-opening-deposit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           depositId: showDeleteConfirm.id
         })
@@ -224,13 +244,14 @@ export default function ManageAccountOpeningDeposits() {
       }
 
       setMessage('✅ Deposit deleted successfully!');
-      setTimeout(() => setMessage(''), 5000);
-      setShowDeleteConfirm(null);
+      setTimeout(() => {
+        setMessage('');
+        setShowDeleteConfirm(null);
+      }, 2000);
       await fetchData();
     } catch (error) {
       console.error('Error deleting deposit:', error);
       setError(error.message);
-      setTimeout(() => setError(''), 5000);
     } finally {
       setProcessing(null);
     }
@@ -569,6 +590,16 @@ export default function ManageAccountOpeningDeposits() {
                 <button onClick={() => setShowUpdateModal(null)} style={styles.closeButton}>×</button>
               </div>
               <div style={styles.modalBody}>
+                {error && (
+                  <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
+                    {error}
+                  </div>
+                )}
+                {message && (
+                  <div style={{...styles.alert, ...styles.alertSuccess, marginBottom: '16px'}}>
+                    {message}
+                  </div>
+                )}
                 <form onSubmit={handleUpdateSubmit}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Amount Deposited (USD)</label>
@@ -588,7 +619,11 @@ export default function ManageAccountOpeningDeposits() {
                       value={updateForm.confirmations}
                       onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
                       style={styles.input}
+                      placeholder="e.g., 1, 2, 3"
                     />
+                    <small style={{color: '#64748b', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', display: 'block'}}>
+                      Increment this number as the transaction gets blockchain confirmations. 3 confirmations are required by default.
+                    </small>
                   </div>
 
                   <div style={styles.formGroup}>
@@ -671,6 +706,16 @@ export default function ManageAccountOpeningDeposits() {
                 <button onClick={() => setShowDeleteConfirm(null)} style={styles.closeButton}>×</button>
               </div>
               <div style={styles.modalBody}>
+                {error && (
+                  <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
+                    {error}
+                  </div>
+                )}
+                {message && (
+                  <div style={{...styles.alert, ...styles.alertSuccess, marginBottom: '16px'}}>
+                    {message}
+                  </div>
+                )}
                 <p style={{marginBottom: '20px', fontSize: 'clamp(0.9rem, 2.2vw, 15px)', lineHeight: '1.5'}}>
                   Are you sure you want to delete this deposit record? This will permanently remove it from the database. This action cannot be undone.
                 </p>
