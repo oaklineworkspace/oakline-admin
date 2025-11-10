@@ -74,7 +74,7 @@ export default function ManageAccountRequests() {
 
       const response = await fetch('/api/admin/account-requests', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
@@ -87,12 +87,22 @@ export default function ManageAccountRequests() {
 
       const result = await response.json();
 
-      if (!response.ok) {
+      if (result.success) {
+        let message = `✅ Account request approve'd successfully!`;
+
+        // Add email notification status
+        if (result.emailSent) {
+          message += ` 📧 Email notification sent to user.`;
+        } else if (result.emailError) {
+          message += ` ⚠️ Warning: Email notification failed - ${result.emailError}`;
+        }
+
+        setSuccess(message);
+        setTimeout(() => setSuccess(''), 8000);
+        await fetchAccountRequests();
+      } else {
         throw new Error(result.error || 'Failed to approve request');
       }
-
-      setSuccess(`Successfully approved ${request.user_name}'s request. Account and card created.`);
-      await fetchAccountRequests();
     } catch (err) {
       console.error('Error approving request:', err);
       setError('Failed to approve request: ' + err.message);
@@ -124,7 +134,7 @@ export default function ManageAccountRequests() {
 
       const response = await fetch('/api/admin/account-requests', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
@@ -138,15 +148,25 @@ export default function ManageAccountRequests() {
 
       const result = await response.json();
 
-      if (!response.ok) {
+      if (result.success) {
+        let message = `✅ Account request reject'd successfully!`;
+
+        // Add email notification status
+        if (result.emailSent) {
+          message += ` 📧 Email notification sent to user.`;
+        } else if (result.emailError) {
+          message += ` ⚠️ Warning: Email notification failed - ${result.emailError}`;
+        }
+
+        setSuccess(message);
+        setShowModal(null);
+        setSelectedRequest(null);
+        setFormData({ rejectionReason: '' });
+        setTimeout(() => setSuccess(''), 8000);
+        await fetchAccountRequests();
+      } else {
         throw new Error(result.error || 'Failed to reject request');
       }
-
-      setSuccess('Request rejected. User has been notified.');
-      setShowModal(null);
-      setSelectedRequest(null);
-      setFormData({ rejectionReason: '' });
-      await fetchAccountRequests();
     } catch (err) {
       console.error('Error rejecting request:', err);
       setError('Failed to reject request: ' + err.message);
@@ -154,7 +174,7 @@ export default function ManageAccountRequests() {
       setProcessing(null);
     }
   };
-  
+
   const handleDelete = async (requestId) => {
     if (!confirm('Are you sure you want to delete this account request? This action cannot be undone.')) {
       return;
@@ -172,7 +192,7 @@ export default function ManageAccountRequests() {
 
       const response = await fetch('/api/admin/account-requests', {
         method: 'DELETE',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
@@ -181,12 +201,22 @@ export default function ManageAccountRequests() {
 
       const result = await response.json();
 
-      if (!response.ok) {
+      if (result.success) {
+        let message = `✅ Account request deleted successfully!`;
+
+        // Add email notification status (though delete might not typically send email)
+        if (result.emailSent) {
+          message += ` 📧 Email notification sent to user.`;
+        } else if (result.emailError) {
+          message += ` ⚠️ Warning: Email notification failed - ${result.emailError}`;
+        }
+
+        setSuccess(message);
+        setTimeout(() => setSuccess(''), 8000);
+        await fetchAccountRequests();
+      } else {
         throw new Error(result.error || 'Failed to delete request');
       }
-
-      setSuccess('Request deleted successfully.');
-      await fetchAccountRequests();
     } catch (err) {
       console.error('Error deleting request:', err);
       setError('Failed to delete request: ' + err.message);
@@ -431,8 +461,8 @@ export default function ManageAccountRequests() {
                   </div>
 
                   <div style={styles.requestFooter}>
-                    <button 
-                      onClick={() => setSelectedRequest(request)} 
+                    <button
+                      onClick={() => setSelectedRequest(request)}
                       style={styles.viewButton}
                     >
                       👁️ Quick View

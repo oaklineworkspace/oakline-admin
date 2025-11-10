@@ -159,14 +159,23 @@ export default function ApproveAccounts() {
         rejected: '❌'
       };
 
-      setMessage(`${statusEmojis[newStatus]} Account ${accountNumber} has been ${actionName} successfully!`);
-      setTimeout(() => setMessage(''), 5000);
+      let successMessage = `${statusEmojis[newStatus]} Account ${accountNumber} has been ${actionName} successfully!`;
+      
+      // Add email notification status to the message
+      if (result.emailSent) {
+        successMessage += ` 📧 Email notification sent to user.`;
+      } else if (result.emailWarning) {
+        successMessage += ` ⚠️ ${result.emailWarning}`;
+      }
+
+      setMessage(successMessage);
+      setTimeout(() => setMessage(''), 8000);
 
       await fetchAllAccounts();
     } catch (error) {
       console.error(`Error ${actionName} account:`, error);
       setError(error.message);
-      setTimeout(() => setError(''), 5000);
+      setTimeout(() => setError(''), 8000);
     } finally {
       setProcessing(null);
     }
@@ -460,6 +469,16 @@ export default function ApproveAccounts() {
 }
 
 const styles = {
+  '@keyframes slideIn': {
+    from: {
+      transform: 'translateY(-20px)',
+      opacity: 0
+    },
+    to: {
+      transform: 'translateY(0)',
+      opacity: 1
+    }
+  },
   container: {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -528,22 +547,34 @@ const styles = {
     display: 'inline-block'
   },
   errorBanner: {
-    background: '#fee2e2',
-    color: '#dc2626',
-    padding: '16px',
-    borderRadius: '8px',
+    background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+    color: '#991b1b',
+    padding: '20px 24px',
+    borderRadius: '12px',
     marginBottom: '20px',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    fontWeight: '500'
+    fontSize: 'clamp(0.95rem, 2.2vw, 16px)',
+    fontWeight: '600',
+    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+    border: '2px solid #dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    animation: 'slideIn 0.3s ease-out'
   },
   successBanner: {
-    background: '#d1fae5',
+    background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
     color: '#065f46',
-    padding: '16px',
-    borderRadius: '8px',
+    padding: '20px 24px',
+    borderRadius: '12px',
     marginBottom: '20px',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    fontWeight: '500'
+    fontSize: 'clamp(0.95rem, 2.2vw, 16px)',
+    fontWeight: '600',
+    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+    border: '2px solid #10b981',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    animation: 'slideIn 0.3s ease-out'
   },
   statsGrid: {
     display: 'grid',
