@@ -3,79 +3,81 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
+import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function ApproveAccounts() {
   const [error, setError] = useState('');
-  const [pendingAccounts, setPendingAccounts] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(null);
   const [message, setMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
   const router = useRouter();
 
   useEffect(() => {
-    fetchPendingAccounts();
+    fetchAllAccounts();
   }, []);
 
-  const fetchPendingAccounts = async () => {
+  const fetchAllAccounts = async () => {
     setLoading(true);
     setError('');
     try {
-      // Fetch accounts with 'approve', 'approved', and 'pending_funding' statuses (exclude 'active')
-      const [approveResponse, approvedResponse, pendingFundingResponse] = await Promise.all([
-        fetch('/api/admin/get-accounts?status=approve'),
-        fetch('/api/admin/get-accounts?status=approved'),
-        fetch('/api/admin/get-accounts?status=pending_funding')
-      ]);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
 
-      const [approveResult, approvedResult, pendingFundingResult] = await Promise.all([
-        approveResponse.json(),
-        approvedResponse.json(),
-        pendingFundingResponse.json()
-      ]);
+      const token = session.access_token;
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      // Fetch all accounts except 'active' status
+      const statusesToFetch = ['approve', 'approved', 'pending_funding', 'suspended', 'closed', 'rejected'];
+      
+      const responses = await Promise.all(
+        statusesToFetch.map(status => 
+          fetch(`/api/admin/get-accounts?status=${status}`, { headers })
+        )
+      );
+
+      const results = await Promise.all(
+        responses.map(response => response.json())
+      );
 
       const errors = [];
-      if (!approveResponse.ok) {
-        console.error('Failed to fetch "approve" status accounts:', approveResult.error);
-        errors.push('"approve" status accounts');
-      }
-      if (!approvedResponse.ok) {
-        console.error('Failed to fetch "approved" status accounts:', approvedResult.error);
-        errors.push('"approved" status accounts');
-      }
-      if (!pendingFundingResponse.ok) {
-        console.error('Failed to fetch "pending_funding" status accounts:', pendingFundingResult.error);
-        errors.push('"pending_funding" status accounts');
-      }
+      results.forEach((result, index) => {
+        if (!responses[index].ok) {
+          console.error(`Failed to fetch "${statusesToFetch[index]}" status accounts:`, result.error);
+          errors.push(`"${statusesToFetch[index]}" status accounts`);
+        }
+      });
 
       if (errors.length > 0) {
         setError(`Warning: Failed to fetch ${errors.join(', ')}. Showing partial results.`);
       }
 
-      const approveAccounts = approveResponse.ok ? (approveResult.accounts || []) : [];
-      const approvedAccounts = approvedResponse.ok ? (approvedResult.accounts || []) : [];
-      const pendingFundingAccounts = pendingFundingResponse.ok ? (pendingFundingResult.accounts || []) : [];
-      
-      const allAccounts = [...approveAccounts, ...approvedAccounts, ...pendingFundingAccounts];
-      
-      // Get auth token for admin API calls
-      const { supabase } = await import('../../lib/supabaseClient');
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Combine all accounts
+      const allAccounts = results
+        .filter((result, index) => responses[index].ok)
+        .flatMap(result => result.accounts || []);
 
       // Fetch deposit information for each account
       const accountsWithDeposits = await Promise.all(
         allAccounts.map(async (account) => {
           try {
             const depositsResponse = await fetch(`/api/admin/get-account-opening-deposits?account_id=${account.id}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
+              headers
             });
             if (depositsResponse.ok) {
               const depositsData = await depositsResponse.json();
               const deposits = depositsData.deposits || [];
               
-              // Calculate total deposited (only approved/completed deposits)
               const totalDeposited = deposits
                 .filter(d => ['approved', 'completed'].includes(d.status))
                 .reduce((sum, d) => sum + parseFloat(d.approved_amount || 0), 0);
@@ -99,7 +101,6 @@ export default function ApproveAccounts() {
             console.error(`Failed to fetch deposits for account ${account.id}:`, err);
           }
           
-          // Fallback if deposit fetch fails
           const minDeposit = parseFloat(account.min_deposit || 0);
           return {
             ...account,
@@ -116,8 +117,7 @@ export default function ApproveAccounts() {
       );
       
       accountsWithDeposits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-      setPendingAccounts(accountsWithDeposits);
+      setAccounts(accountsWithDeposits);
     } catch (error) {
       console.error('Error fetching accounts:', error);
       setError(error.message);
@@ -131,7 +131,6 @@ export default function ApproveAccounts() {
     setError('');
     setMessage('');
     try {
-      const { supabase } = await import('../../lib/supabaseClient');
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
@@ -163,7 +162,7 @@ export default function ApproveAccounts() {
       setMessage(`${statusEmojis[newStatus]} Account ${accountNumber} has been ${actionName} successfully!`);
       setTimeout(() => setMessage(''), 5000);
 
-      await fetchPendingAccounts();
+      await fetchAllAccounts();
     } catch (error) {
       console.error(`Error ${actionName} account:`, error);
       setError(error.message);
@@ -189,118 +188,179 @@ export default function ApproveAccounts() {
     await updateAccountStatus(accountId, accountNumber, 'rejected', 'rejected');
   };
 
-  const handleLogout = async () => {
-    try {
-      const { supabase } = await import('../../lib/supabaseClient');
-      await supabase.auth.signOut();
-      router.push('/admin');
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
+  const filteredAccounts = accounts.filter(account => {
+    const matchesSearch = account.account_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         account.applications?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         account.applications?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         account.applications?.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || account.status === filterStatus;
+    
+    const matchesTab = activeTab === 'all' ||
+                      (activeTab === 'pending' && ['approve', 'approved', 'pending_funding'].includes(account.status)) ||
+                      (activeTab === 'suspended' && account.status === 'suspended') ||
+                      (activeTab === 'closed' && account.status === 'closed') ||
+                      (activeTab === 'rejected' && account.status === 'rejected');
+    
+    return matchesSearch && matchesStatus && matchesTab;
+  });
+
+  const stats = {
+    total: accounts.length,
+    pending: accounts.filter(a => ['approve', 'approved', 'pending_funding'].includes(a.status)).length,
+    suspended: accounts.filter(a => a.status === 'suspended').length,
+    closed: accounts.filter(a => a.status === 'closed').length,
+    rejected: accounts.filter(a => a.status === 'rejected').length
   };
 
   return (
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
-          <div style={styles.headerTop}>
-            <div style={styles.headerContent}>
-              <h1 style={styles.title}>✅ Activate Approved Accounts</h1>
-              <p style={styles.subtitle}>Activate accounts that have been approved</p>
-            </div>
+          <div>
+            <h1 style={styles.title}>🏦 Account Management System</h1>
+            <p style={styles.subtitle}>Manage and activate bank accounts</p>
           </div>
           <div style={styles.headerActions}>
-            <button onClick={fetchPendingAccounts} style={styles.refreshButton}>
-              🔄 Refresh
+            <button onClick={fetchAllAccounts} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
             </button>
+            <Link href="/admin/approve-funding" style={styles.linkButton}>
+              💰 Approve Funding
+            </Link>
             <Link href="/admin/admin-dashboard" style={styles.backButton}>
               ← Dashboard
             </Link>
-            <button onClick={handleLogout} style={styles.logoutButton}>
-              🚪 Logout
-            </button>
           </div>
         </div>
 
-        {message && (
-          <div style={styles.successMessage}>{message}</div>
-        )}
-        {error && (
-          <div style={styles.errorMessage}>{error}</div>
-        )}
+        {message && <div style={styles.successBanner}>{message}</div>}
+        {error && <div style={styles.errorBanner}>{error}</div>}
 
-        <div style={styles.accountsSection}>
-          <h2 style={styles.sectionTitle}>
-            Accounts Ready for Management ({pendingAccounts.length})
-          </h2>
-          <p style={{color: '#64748b', fontSize: '14px', marginBottom: '20px'}}>
-            💡 These accounts include those with "approve", "approved", and "pending_funding" statuses. You can activate, suspend, close, or reject them. Active accounts are not shown here.
-          </p>
+        {/* Statistics Cards */}
+        <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+            <h3 style={styles.statLabel}>Total Accounts</h3>
+            <p style={styles.statValue}>{stats.total}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+            <h3 style={styles.statLabel}>Pending Activation</h3>
+            <p style={styles.statValue}>{stats.pending}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #8b5cf6'}}>
+            <h3 style={styles.statLabel}>Suspended</h3>
+            <p style={styles.statValue}>{stats.suspended}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #6b7280'}}>
+            <h3 style={styles.statLabel}>Closed</h3>
+            <p style={styles.statValue}>{stats.closed}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+            <h3 style={styles.statLabel}>Rejected</h3>
+            <p style={styles.statValue}>{stats.rejected}</p>
+          </div>
+        </div>
 
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {['all', 'pending', 'suspended', 'closed', 'rejected'].map(tab => (
+            <button
+              key={tab}
+              style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={styles.filtersSection}>
+          <input
+            type="text"
+            placeholder="🔍 Search by account number, name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+          />
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Statuses</option>
+            <option value="approve">Approve</option>
+            <option value="approved">Approved</option>
+            <option value="pending_funding">Pending Funding</option>
+            <option value="suspended">Suspended</option>
+            <option value="closed">Closed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        {/* Accounts Table */}
+        <div style={styles.tableContainer}>
           {loading ? (
-            <div style={styles.loading}>Loading pending accounts...</div>
-          ) : pendingAccounts.length === 0 ? (
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
+              <p>Loading accounts...</p>
+            </div>
+          ) : filteredAccounts.length === 0 ? (
             <div style={styles.emptyState}>
-              <h3>No Accounts Requiring Action</h3>
-              <p>All accounts with "approve", "approved", or "pending_funding" status have been processed. Check the "Approve Applications" page for pending applications.</p>
+              <p style={styles.emptyIcon}>📋</p>
+              <p style={styles.emptyText}>No accounts found</p>
             </div>
           ) : (
             <div style={styles.accountsGrid}>
-              {pendingAccounts.map(account => (
+              {filteredAccounts.map(account => (
                 <div key={account.id} style={styles.accountCard}>
                   <div style={styles.accountHeader}>
-                    <div style={styles.accountInfo}>
-                      <h3 style={styles.accountNumber}>Account: {account.account_number}</h3>
-                      <span style={styles.accountType}>{account.account_type?.replace('_', ' ').toUpperCase()}</span>
+                    <div>
+                      <h3 style={styles.accountNumber}>{account.account_number}</h3>
+                      <p style={styles.accountType}>{account.account_type?.replace('_', ' ').toUpperCase()}</p>
                     </div>
-                    <div style={{
+                    <span style={{
                       ...styles.statusBadge,
-                      backgroundColor: account.status === 'approved' ? '#f59e0b' : '#8b5cf6'
+                      background: account.status === 'approved' ? '#fef3c7' :
+                                account.status === 'approve' ? '#fef3c7' :
+                                account.status === 'pending_funding' ? '#dbeafe' :
+                                account.status === 'suspended' ? '#fee2e2' :
+                                account.status === 'closed' ? '#f3f4f6' :
+                                account.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
+                      color: account.status === 'approved' ? '#92400e' :
+                            account.status === 'approve' ? '#92400e' :
+                            account.status === 'pending_funding' ? '#1e40af' :
+                            account.status === 'suspended' ? '#991b1b' :
+                            account.status === 'closed' ? '#374151' :
+                            account.status === 'rejected' ? '#991b1b' : '#374151'
                     }}>
                       {account.status?.toUpperCase()}
-                    </div>
+                    </span>
                   </div>
 
-                  <div style={styles.accountDetails}>
+                  <div style={styles.accountBody}>
                     {account.applications && (
                       <>
-                        <div style={styles.detail}>
-                          <span style={styles.detailLabel}>Name:</span>
-                          <span style={styles.detailValue}>{account.applications.first_name} {account.applications.last_name}</span>
+                        <div style={styles.accountInfo}>
+                          <span style={styles.infoLabel}>Name:</span>
+                          <span style={styles.infoValue}>{account.applications.first_name} {account.applications.last_name}</span>
                         </div>
-                        <div style={styles.detail}>
-                          <span style={styles.detailLabel}>Email:</span>
-                          <span style={styles.detailValue}>{account.applications.email}</span>
-                        </div>
-                        <div style={styles.detail}>
-                          <span style={styles.detailLabel}>Phone:</span>
-                          <span style={styles.detailValue}>{account.applications.phone || 'Not provided'}</span>
-                        </div>
-                        <div style={styles.detail}>
-                          <span style={styles.detailLabel}>Address:</span>
-                          <span style={styles.detailValue}>{account.applications.address || 'Not provided'}</span>
+                        <div style={styles.accountInfo}>
+                          <span style={styles.infoLabel}>Email:</span>
+                          <span style={styles.infoValue}>{account.applications.email}</span>
                         </div>
                       </>
                     )}
-                    <div style={styles.detail}>
-                      <span style={styles.detailLabel}>Current Balance:</span>
-                      <span style={styles.detailValue}>${parseFloat(account.balance || 0).toFixed(2)}</span>
+                    <div style={styles.accountInfo}>
+                      <span style={styles.infoLabel}>Balance:</span>
+                      <span style={styles.infoValue}>${parseFloat(account.balance || 0).toFixed(2)}</span>
                     </div>
                     {account.depositInfo && account.depositInfo.required > 0 && (
                       <>
-                        <div style={{
-                          ...styles.detail,
-                          borderTop: '2px solid #e2e8f0',
-                          paddingTop: '12px',
-                          marginTop: '8px'
-                        }}>
-                          <span style={styles.detailLabel}>Minimum Deposit Required:</span>
-                          <span style={{...styles.detailValue, color: '#64748b', fontWeight: '700'}}>${account.depositInfo.required.toFixed(2)}</span>
+                        <div style={{...styles.accountInfo, borderTop: '2px solid #e2e8f0', paddingTop: '12px', marginTop: '8px'}}>
+                          <span style={styles.infoLabel}>Min. Deposit:</span>
+                          <span style={{...styles.infoValue, fontWeight: '700'}}>${account.depositInfo.required.toFixed(2)}</span>
                         </div>
-                        <div style={styles.detail}>
-                          <span style={styles.detailLabel}>Total Deposited:</span>
+                        <div style={styles.accountInfo}>
+                          <span style={styles.infoLabel}>Deposited:</span>
                           <span style={{
-                            ...styles.detailValue,
+                            ...styles.infoValue,
                             color: account.depositMet ? '#059669' : '#f59e0b',
                             fontWeight: '700'
                           }}>
@@ -308,9 +368,9 @@ export default function ApproveAccounts() {
                           </span>
                         </div>
                         {!account.depositMet && (
-                          <div style={styles.detail}>
-                            <span style={styles.detailLabel}>Remaining:</span>
-                            <span style={{...styles.detailValue, color: '#dc2626', fontWeight: '700'}}>
+                          <div style={styles.accountInfo}>
+                            <span style={styles.infoLabel}>Remaining:</span>
+                            <span style={{...styles.infoValue, color: '#dc2626', fontWeight: '700'}}>
                               ${account.depositInfo.remaining.toFixed(2)}
                             </span>
                           </div>
@@ -324,30 +384,26 @@ export default function ApproveAccounts() {
                         }}>
                           <p style={{
                             margin: 0,
-                            fontSize: '13px',
+                            fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
                             color: account.depositMet ? '#065f46' : '#991b1b',
                             fontWeight: '600'
                           }}>
                             {account.depositMet ? (
-                              <>✅ Deposit requirement met - Account ready for activation</>
+                              <>✅ Deposit requirement met</>
                             ) : (
-                              <>⚠️ Waiting for ${account.depositInfo.remaining.toFixed(2)} deposit to activate</>
+                              <>⚠️ Awaiting ${account.depositInfo.remaining.toFixed(2)} deposit</>
                             )}
                           </p>
                         </div>
                       </>
                     )}
-                    <div style={styles.detail}>
-                      <span style={styles.detailLabel}>Status:</span>
-                      <span style={{...styles.detailValue, color: '#f59e0b', fontWeight: '700'}}>{account.status?.toUpperCase()}</span>
-                    </div>
-                    <div style={styles.detail}>
-                      <span style={styles.detailLabel}>Applied:</span>
-                      <span style={styles.detailValue}>{new Date(account.created_at).toLocaleDateString()}</span>
+                    <div style={styles.accountInfo}>
+                      <span style={styles.infoLabel}>Created:</span>
+                      <span style={styles.infoValue}>{new Date(account.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
 
-                  <div style={styles.actionButtons}>
+                  <div style={styles.accountFooter}>
                     <button
                       onClick={() => activateAccount(account.id, account.account_number)}
                       disabled={processing === account.id || !account.depositMet}
@@ -356,24 +412,23 @@ export default function ApproveAccounts() {
                         ...((!account.depositMet) && {
                           background: '#9ca3af',
                           cursor: 'not-allowed',
-                          boxShadow: 'none'
+                          opacity: 0.6
                         })
                       }}
                       title={
                         !account.depositMet
-                          ? `Minimum deposit of $${account.depositInfo?.required.toFixed(2)} required before activation`
-                          : 'Activate account and enable full access'
+                          ? `Minimum deposit of $${account.depositInfo?.required.toFixed(2)} required`
+                          : 'Activate account'
                       }
                     >
                       {processing === account.id ? '⏳ Processing...' : 
                        !account.depositMet ? '🔒 Deposit Required' :
-                       '🚀 Activate Account'}
+                       '🚀 Activate'}
                     </button>
                     <button
                       onClick={() => suspendAccount(account.id, account.account_number)}
                       disabled={processing === account.id}
                       style={styles.suspendButton}
-                      title="Temporarily suspend this account"
                     >
                       {processing === account.id ? '⏳' : '⏸️'} Suspend
                     </button>
@@ -381,7 +436,6 @@ export default function ApproveAccounts() {
                       onClick={() => closeAccount(account.id, account.account_number)}
                       disabled={processing === account.id}
                       style={styles.closeButton}
-                      title="Permanently close this account"
                     >
                       {processing === account.id ? '⏳' : '🔒'} Close
                     </button>
@@ -389,7 +443,6 @@ export default function ApproveAccounts() {
                       onClick={() => rejectAccount(account.id, account.account_number)}
                       disabled={processing === account.id}
                       style={styles.rejectButton}
-                      title="Reject this account"
                     >
                       {processing === account.id ? '⏳' : '❌'} Reject
                     </button>
@@ -400,6 +453,7 @@ export default function ApproveAccounts() {
           )}
         </div>
 
+        <AdminFooter />
       </div>
     </AdminAuth>
   );
@@ -408,279 +462,301 @@ export default function ApproveAccounts() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
-    padding: 'clamp(1rem, 3vw, 1.5rem)'
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    marginBottom: '2rem',
     background: 'white',
-    padding: 'clamp(1rem, 4vw, 1.5rem)',
-    borderRadius: '16px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
-  },
-  headerTop: {
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  headerContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
+    gap: '16px'
   },
   title: {
-    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
-    fontWeight: '700',
-    color: '#1e3c72',
-    margin: 0,
-    lineHeight: '1.2'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: 'clamp(0.875rem, 3vw, 1rem)',
-    color: '#64748b',
     margin: 0,
-    lineHeight: '1.4'
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
   headerActions: {
     display: 'flex',
-    gap: '0.75rem',
-    flexWrap: 'wrap',
-    alignItems: 'center'
+    gap: '12px',
+    flexWrap: 'wrap'
   },
   refreshButton: {
-    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#4299e1',
     color: 'white',
     border: 'none',
-    padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.25rem)',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2.5vw, 0.875rem)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  linkButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    display: 'inline-block'
   },
   backButton: {
-    background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#718096',
     color: 'white',
     border: 'none',
-    padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.25rem)',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2.5vw, 0.875rem)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
+    cursor: 'pointer',
     textDecoration: 'none',
-    display: 'inline-block',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(107, 114, 128, 0.3)'
+    display: 'inline-block'
   },
-  logoutButton: {
-    background: 'linear-gradient(135deg, #dc3545 0%, #b91c1c 100%)',
-    color: 'white',
-    border: 'none',
-    padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.25rem)',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2.5vw, 0.875rem)',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(220, 53, 69, 0.3)'
-  },
-  errorMessage: {
-    background: '#fef2f2',
+  errorBanner: {
+    background: '#fee2e2',
     color: '#dc2626',
-    padding: 'clamp(1rem, 3vw, 1.25rem)',
-    borderRadius: '12px',
-    margin: '0 0 1.5rem 0',
-    border: '1px solid #fecaca',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '500'
   },
-  successMessage: {
+  successBanner: {
     background: '#d1fae5',
     color: '#065f46',
-    padding: 'clamp(1rem, 3vw, 1.25rem)',
-    borderRadius: '12px',
-    margin: '0 0 1.5rem 0',
-    border: '1px solid #a7f3d0',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '500'
   },
-  accountsSection: {
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '16px',
+    marginBottom: '20px'
+  },
+  statCard: {
     background: 'white',
-    padding: 'clamp(1rem, 4vw, 1.5rem)',
-    borderRadius: '16px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+    padding: '20px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
-  sectionTitle: {
-    fontSize: 'clamp(1.25rem, 4vw, 1.5rem)',
-    fontWeight: '700',
-    color: '#1e3c72',
-    marginBottom: '1.5rem',
-    lineHeight: '1.2'
+  statLabel: {
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
+    fontWeight: '500'
   },
-  loading: {
+  statValue: {
+    margin: 0,
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  tabs: {
+    display: 'flex',
+    background: 'white',
+    borderRadius: '12px',
+    padding: '5px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    gap: '5px',
+    flexWrap: 'wrap'
+  },
+  tab: {
+    flex: 1,
+    minWidth: '100px',
+    padding: '12px 20px',
+    border: 'none',
+    background: 'transparent',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500',
+    color: '#666',
+    transition: 'all 0.3s'
+  },
+  activeTab: {
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white'
+  },
+  filtersSection: {
+    background: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: '250px',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  filterSelect: {
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    cursor: 'pointer',
+    outline: 'none'
+  },
+  tableContainer: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  loadingState: {
     textAlign: 'center',
-    padding: 'clamp(2rem, 6vw, 3rem)',
-    color: '#6b7280',
-    fontSize: 'clamp(1rem, 3vw, 1.125rem)'
+    padding: '60px 20px',
+    color: '#718096'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
   },
   emptyState: {
     textAlign: 'center',
-    padding: 'clamp(2rem, 6vw, 3rem)',
-    color: '#6b7280'
+    padding: '60px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
+  },
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
+    fontWeight: '600'
   },
   accountsGrid: {
     display: 'grid',
-    gap: 'clamp(1rem, 3vw, 1.5rem)',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))'
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
   },
   accountCard: {
-    border: '2px solid #e2e8f0',
-    borderRadius: '16px',
-    padding: 'clamp(1rem, 4vw, 1.5rem)',
-    backgroundColor: '#fafbfc',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: 'clamp(6px, 1.5vw, 12px)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+    transition: 'transform 0.2s, box-shadow 0.2s'
   },
   accountHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '1rem',
-    flexWrap: 'wrap',
-    gap: '0.75rem'
+    marginBottom: '16px',
+    gap: '12px'
+  },
+  accountNumber: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#1A3E6F',
+    fontWeight: '600'
+  },
+  accountType: {
+    margin: 0,
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    color: '#718096'
+  },
+  statusBadge: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '700',
+    whiteSpace: 'nowrap'
+  },
+  accountBody: {
+    marginBottom: '16px'
   },
   accountInfo: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-    flex: '1'
-  },
-  accountNumber: {
-    fontSize: 'clamp(1rem, 3.5vw, 1.25rem)',
-    fontWeight: '700',
-    color: '#1e293b',
-    margin: 0,
-    lineHeight: '1.2'
-  },
-  accountType: {
-    backgroundColor: '#dbeafe',
-    color: '#1d4ed8',
-    padding: '0.375rem 0.75rem',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    fontWeight: '600',
-    alignSelf: 'flex-start',
-    textTransform: 'uppercase',
-    letterSpacing: '0.025em'
-  },
-  statusBadge: {
-    color: 'white',
-    padding: '0.375rem 0.75rem',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '0.025em',
-    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
-  },
-  accountDetails: {
-    marginBottom: '1.5rem',
-    display: 'grid',
-    gap: '0.5rem'
-  },
-  detail: {
-    margin: 0,
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-    color: '#64748b',
-    lineHeight: '1.4',
-    display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '0.25rem 0',
-    borderBottom: '1px solid #f1f5f9'
+    padding: '8px 0',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
-  detailLabel: {
-    fontWeight: '600',
-    color: '#374151'
+  infoLabel: {
+    color: '#4a5568',
+    fontWeight: '600'
   },
-  detailValue: {
-    fontWeight: '500',
+  infoValue: {
+    color: '#2d3748',
     textAlign: 'right'
   },
-  actionButtons: {
+  accountFooter: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-    gap: '0.5rem'
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '8px'
   },
   activateButton: {
+    gridColumn: '1 / -1',
+    padding: '10px',
     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     color: 'white',
     border: 'none',
-    padding: 'clamp(0.75rem, 3vw, 1rem)',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    gridColumn: '1 / -1'
+    cursor: 'pointer'
   },
   suspendButton: {
+    padding: '10px',
     background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
     color: 'white',
     border: 'none',
-    padding: 'clamp(0.75rem, 3vw, 1rem)',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem'
+    cursor: 'pointer'
   },
   closeButton: {
+    padding: '10px',
     background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
     color: 'white',
     border: 'none',
-    padding: 'clamp(0.75rem, 3vw, 1rem)',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(107, 114, 128, 0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem'
+    cursor: 'pointer'
   },
   rejectButton: {
+    gridColumn: '1 / -1',
+    padding: '10px',
     background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
     color: 'white',
     border: 'none',
-    padding: 'clamp(0.75rem, 3vw, 1rem)',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem'
+    cursor: 'pointer'
   }
 };
