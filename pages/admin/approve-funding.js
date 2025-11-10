@@ -33,9 +33,13 @@ export default function ApproveFunding() {
         'Authorization': `Bearer ${session.access_token}`
       };
 
+      console.log('Fetching accounts and deposits...');
+
       // Fetch accounts that are pending funding (awaiting minimum deposit)
       const accountsResponse = await fetch('/api/admin/get-accounts?status=pending_funding', { headers });
       const accountsResult = await accountsResponse.json();
+
+      console.log('Accounts response:', accountsResponse.status, accountsResult);
 
       if (!accountsResponse.ok) {
         throw new Error(accountsResult.error || 'Failed to fetch accounts');
@@ -45,15 +49,20 @@ export default function ApproveFunding() {
       const depositsResponse = await fetch('/api/admin/get-account-opening-deposits', { headers });
       const depositsResult = await depositsResponse.json();
 
+      console.log('Deposits response:', depositsResponse.status, depositsResult);
+
       if (!depositsResponse.ok) {
         throw new Error(depositsResult.error || 'Failed to fetch deposits');
       }
+
+      console.log('Setting accounts:', accountsResult.accounts?.length || 0);
+      console.log('Setting deposits:', depositsResult.deposits?.length || 0);
 
       setAccounts(accountsResult.accounts || []);
       setDeposits(depositsResult.deposits || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to load data: ' + error.message);
+      setError('Failed to load data: ' + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -388,49 +397,65 @@ function getStatusColor(status) {
 
 const styles = {
   container: {
-    padding: '20px',
-    maxWidth: '1400px',
-    margin: '0 auto',
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif'
   },
   header: {
+    background: 'white',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px'
+    flexWrap: 'wrap',
+    gap: '16px'
   },
   headerActions: {
     display: 'flex',
     gap: '12px'
   },
   title: {
-    fontSize: '28px',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
     fontWeight: '700',
     color: '#1e40af',
     margin: '0 0 8px 0'
   },
   subtitle: {
-    fontSize: '16px',
+    fontSize: 'clamp(0.85rem, 2vw, 16px)',
     color: '#64748b',
     margin: 0
   },
   backButton: {
-    padding: '10px 20px',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
     background: '#f1f5f9',
     color: '#1e40af',
     textDecoration: 'none',
     borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    transition: 'background 0.2s'
+    transition: 'background 0.2s',
+    display: 'inline-block'
   },
   linkButton: {
-    padding: '10px 20px',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
     background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
     color: 'white',
     textDecoration: 'none',
     borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    transition: 'transform 0.2s'
+    transition: 'transform 0.2s',
+    display: 'inline-block'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
   },
   alert: {
     padding: '12px 16px',

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -14,6 +15,8 @@ export default function ManageAccountOpeningDeposits() {
   const [message, setMessage] = useState('');
   const [expandedAccount, setExpandedAccount] = useState(null);
   const [showWalletModal, setShowWalletModal] = useState(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [walletForm, setWalletForm] = useState({
     cryptoAssetId: '',
     cryptoType: '',
@@ -22,7 +25,6 @@ export default function ManageAccountOpeningDeposits() {
     memo: '',
     requiredAmount: ''
   });
-  const [showUpdateModal, setShowUpdateModal] = useState(null);
   const [updateForm, setUpdateForm] = useState({
     amount: '',
     txHash: '',
@@ -52,50 +54,35 @@ export default function ManageAccountOpeningDeposits() {
         'Authorization': `Bearer ${session.access_token}`
       };
 
-      // Fetch accounts that are pending funding (awaiting minimum deposit)
-      const accountsResponse = await fetch('/api/admin/get-accounts?status=pending_funding', { headers });
-      const accountsResult = await accountsResponse.json();
+      const [accountsResponse, depositsResponse, assetsResponse] = await Promise.all([
+        fetch('/api/admin/get-accounts?status=pending_funding', { headers }),
+        fetch('/api/admin/get-account-opening-deposits', { headers }),
+        fetch('/api/admin/get-crypto-assets', { headers })
+      ]);
+
+      const [accountsResult, depositsResult, assetsResult] = await Promise.all([
+        accountsResponse.json(),
+        depositsResponse.json(),
+        assetsResponse.json()
+      ]);
 
       if (!accountsResponse.ok) {
         throw new Error(accountsResult.error || 'Failed to fetch accounts');
       }
 
-      // Fetch account opening deposits
-      const depositsResponse = await fetch('/api/admin/get-account-opening-deposits', { headers });
-      console.log('Deposits response status:', depositsResponse.status, depositsResponse.statusText);
-      const depositsResult = await depositsResponse.json();
-      console.log('Deposits result:', depositsResult);
-
       if (!depositsResponse.ok) {
-        console.error('Deposits fetch failed:', depositsResult);
         throw new Error(depositsResult.error || 'Failed to fetch deposits');
       }
 
-      // Fetch crypto assets
-      const assetsResponse = await fetch('/api/admin/get-crypto-assets', { headers });
-      console.log('Assets response status:', assetsResponse.status, assetsResponse.statusText);
-      const assetsResult = await assetsResponse.json();
-      console.log('Assets result:', assetsResult);
-
       if (!assetsResponse.ok) {
-        console.error('Assets fetch failed:', assetsResult);
         throw new Error(assetsResult.error || 'Failed to fetch crypto assets');
       }
-
-      console.log('Setting accounts:', accountsResult.accounts?.length || 0);
-      console.log('Setting deposits:', depositsResult.deposits?.length || 0);
-      console.log('Setting crypto assets:', assetsResult.assets?.length || 0);
 
       setAccounts(accountsResult.accounts || []);
       setDeposits(depositsResult.deposits || []);
       setCryptoAssets(assetsResult.assets || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        stack: error?.stack,
-        fullError: error
-      });
       setError('Failed to load data: ' + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
@@ -103,7 +90,6 @@ export default function ManageAccountOpeningDeposits() {
   };
 
   const openWalletModal = (account) => {
-    // Find existing deposit for this account
     const existingDeposit = deposits.find(d => d.account_id === account.id);
     
     setWalletForm({
@@ -200,7 +186,7 @@ export default function ManageAccountOpeningDeposits() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update deposit');
+        throw new Error(result.error || result.details || 'Failed to update deposit');
       }
 
       setMessage('✅ Deposit updated successfully!');
@@ -209,6 +195,40 @@ export default function ManageAccountOpeningDeposits() {
       await fetchData();
     } catch (error) {
       console.error('Error updating deposit:', error);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleDeleteDeposit = async () => {
+    if (!showDeleteConfirm) return;
+
+    setProcessing(showDeleteConfirm.id);
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/delete-account-opening-deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          depositId: showDeleteConfirm.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to delete deposit');
+      }
+
+      setMessage('✅ Deposit deleted successfully!');
+      setTimeout(() => setMessage(''), 5000);
+      setShowDeleteConfirm(null);
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting deposit:', error);
       setError(error.message);
       setTimeout(() => setError(''), 5000);
     } finally {
@@ -263,12 +283,17 @@ export default function ManageAccountOpeningDeposits() {
       <div style={styles.container}>
         <header style={styles.header}>
           <div>
-            <h1 style={styles.title}>Manage Account Opening Deposits</h1>
+            <h1 style={styles.title}>💳 Manage Account Opening Deposits</h1>
             <p style={styles.subtitle}>Assign crypto wallets and track minimum deposits</p>
           </div>
-          <Link href="/admin/dashboard" style={styles.backButton}>
-            ← Back to Dashboard
-          </Link>
+          <div style={styles.headerActions}>
+            <button onClick={fetchData} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
+            </button>
+            <Link href="/admin/dashboard" style={styles.backButton}>
+              ← Dashboard
+            </Link>
+          </div>
         </header>
 
         {error && (
@@ -284,173 +309,168 @@ export default function ManageAccountOpeningDeposits() {
         )}
 
         {loading ? (
-          <div style={styles.loading}>Loading data...</div>
+          <div style={styles.loadingState}>
+            <div style={styles.spinner}></div>
+            <p>Loading data...</p>
+          </div>
         ) : (
           <>
-            <div style={styles.stats}>
-              <div style={styles.statCard}>
-                <div style={styles.statValue}>{accounts.length}</div>
-                <div style={styles.statLabel}>Accounts Awaiting Funding</div>
+            <div style={styles.statsGrid}>
+              <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+                <h3 style={styles.statLabel}>Total Accounts</h3>
+                <p style={styles.statValue}>{accounts.length}</p>
               </div>
-              <div style={styles.statCard}>
-                <div style={styles.statValue}>
+              <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+                <h3 style={styles.statLabel}>Pending Deposits</h3>
+                <p style={styles.statValue}>
                   {deposits.filter(d => d.status === 'pending').length}
-                </div>
-                <div style={styles.statLabel}>Pending Deposits</div>
+                </p>
               </div>
-              <div style={styles.statCard}>
-                <div style={styles.statValue}>
+              <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
+                <h3 style={styles.statLabel}>Completed Deposits</h3>
+                <p style={styles.statValue}>
                   {deposits.filter(d => d.status === 'completed').length}
-                </div>
-                <div style={styles.statLabel}>Completed Deposits</div>
+                </p>
               </div>
             </div>
 
             <div style={styles.tableContainer}>
               {accounts.length === 0 ? (
-                <div style={styles.empty}>
-                  <p>No accounts awaiting funding.</p>
+                <div style={styles.emptyState}>
+                  <p style={styles.emptyIcon}>📋</p>
+                  <p style={styles.emptyText}>No accounts awaiting funding</p>
                 </div>
               ) : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Account</th>
-                      <th style={styles.th}>User</th>
-                      <th style={styles.th}>Min. Deposit</th>
-                      <th style={styles.th}>Deposit Status</th>
-                      <th style={styles.th}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {accounts.map((account) => {
-                      const deposit = getDepositForAccount(account.id);
-                      const isExpanded = expandedAccount === account.id;
-                      
-                      return (
-                        <React.Fragment key={account.id}>
-                          <tr style={styles.tr}>
-                            <td style={styles.td}>
-                              <div>
-                                <strong>{account.account_number}</strong>
-                                <div style={styles.accountType}>{account.account_type}</div>
-                              </div>
-                            </td>
-                            <td style={styles.td}>
-                              <div>
-                                <strong>
-                                  {account.applications?.first_name} {account.applications?.last_name}
-                                </strong>
-                                <div style={styles.email}>{account.applications?.email}</div>
-                              </div>
-                            </td>
-                            <td style={styles.td}>
-                              <strong>${parseFloat(account.min_deposit || 0).toFixed(2)}</strong>
-                            </td>
-                            <td style={styles.td}>
-                              {deposit ? (
-                                <div>
-                                  <span style={{
-                                    ...styles.statusBadge,
-                                    backgroundColor: getStatusColor(deposit.status) + '20',
-                                    color: getStatusColor(deposit.status)
-                                  }}>
-                                    {getStatusEmoji(deposit.status)} {deposit.status}
-                                  </span>
-                                  {deposit.amount > 0 && (
-                                    <div style={styles.amount}>
-                                      ${parseFloat(deposit.amount).toFixed(2)} deposited
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span style={styles.noWallet}>No wallet assigned</span>
-                              )}
-                            </td>
-                            <td style={styles.td}>
-                              <div style={styles.actions}>
-                                <button
-                                  onClick={() => openWalletModal(account)}
-                                  style={{...styles.btn, ...styles.btnPrimary}}
-                                  disabled={processing === account.id}
-                                >
-                                  {deposit ? '📝 Edit Wallet' : '➕ Assign Wallet'}
-                                </button>
-                                {deposit && (
-                                  <button
-                                    onClick={() => openUpdateModal(deposit)}
-                                    style={{...styles.btn, ...styles.btnSecondary}}
-                                    disabled={processing === account.id}
-                                  >
-                                    📊 Update Deposit
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
-                                  style={{...styles.btn, ...styles.btnInfo}}
-                                >
-                                  {isExpanded ? '▲' : '▼'} Details
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {isExpanded && deposit && (
-                            <tr>
-                              <td colSpan="5" style={styles.expandedCell}>
-                                <div style={styles.detailsPanel}>
-                                  <h4 style={styles.detailsTitle}>Deposit Details</h4>
-                                  <div style={styles.detailsGrid}>
-                                    <div style={styles.detailItem}>
-                                      <strong>Crypto:</strong> {deposit.crypto_assets?.crypto_type}
-                                    </div>
-                                    <div style={styles.detailItem}>
-                                      <strong>Network:</strong> {deposit.crypto_assets?.network_type}
-                                    </div>
-                                    <div style={styles.detailItem}>
-                                      <strong>Wallet:</strong> 
-                                      <code style={styles.code}>
-                                        {deposit.admin_assigned_wallets?.wallet_address || 'N/A'}
-                                      </code>
-                                    </div>
-                                    {deposit.admin_assigned_wallets?.memo && (
-                                      <div style={styles.detailItem}>
-                                        <strong>Memo:</strong> {deposit.admin_assigned_wallets.memo}
-                                      </div>
-                                    )}
-                                    <div style={styles.detailItem}>
-                                      <strong>Required:</strong> ${parseFloat(deposit.required_amount || 0).toFixed(2)}
-                                    </div>
-                                    <div style={styles.detailItem}>
-                                      <strong>Deposited:</strong> ${parseFloat(deposit.amount || 0).toFixed(2)}
-                                    </div>
-                                    <div style={styles.detailItem}>
-                                      <strong>Approved:</strong> ${parseFloat(deposit.approved_amount || 0).toFixed(2)}
-                                    </div>
-                                    <div style={styles.detailItem}>
-                                      <strong>Confirmations:</strong> {deposit.confirmations}/{deposit.required_confirmations}
-                                    </div>
-                                    {deposit.tx_hash && (
-                                      <div style={styles.detailItem}>
-                                        <strong>TX Hash:</strong> 
-                                        <code style={styles.code}>{deposit.tx_hash}</code>
-                                      </div>
-                                    )}
-                                    {deposit.admin_notes && (
-                                      <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
-                                        <strong>Admin Notes:</strong> 
-                                        <p style={styles.notes}>{deposit.admin_notes}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
+                <div style={styles.cardsGrid}>
+                  {accounts.map((account) => {
+                    const deposit = getDepositForAccount(account.id);
+                    const isExpanded = expandedAccount === account.id;
+                    
+                    return (
+                      <div key={account.id} style={styles.card}>
+                        <div style={styles.cardHeader}>
+                          <div>
+                            <h3 style={styles.accountNumber}>{account.account_number}</h3>
+                            <p style={styles.accountType}>{account.account_type}</p>
+                            <p style={styles.userName}>
+                              {account.applications?.first_name} {account.applications?.last_name}
+                            </p>
+                            <p style={styles.userEmail}>{account.applications?.email}</p>
+                          </div>
+                          {deposit && (
+                            <span style={{
+                              ...styles.statusBadge,
+                              backgroundColor: getStatusColor(deposit.status) + '20',
+                              color: getStatusColor(deposit.status)
+                            }}>
+                              {getStatusEmoji(deposit.status)} {deposit.status}
+                            </span>
                           )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        </div>
+
+                        <div style={styles.cardBody}>
+                          <div style={styles.infoRow}>
+                            <span style={styles.infoLabel}>Min. Deposit:</span>
+                            <span style={styles.infoValue}>
+                              ${parseFloat(account.min_deposit || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          {deposit && deposit.amount > 0 && (
+                            <div style={styles.infoRow}>
+                              <span style={styles.infoLabel}>Deposited:</span>
+                              <span style={{...styles.infoValue, color: '#059669', fontWeight: '600'}}>
+                                ${parseFloat(deposit.amount).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={styles.cardFooter}>
+                          <button
+                            onClick={() => openWalletModal(account)}
+                            style={{...styles.btn, ...styles.btnPrimary}}
+                            disabled={processing === account.id}
+                          >
+                            {deposit ? '📝 Edit Wallet' : '➕ Assign Wallet'}
+                          </button>
+                          {deposit && (
+                            <>
+                              <button
+                                onClick={() => openUpdateModal(deposit)}
+                                style={{...styles.btn, ...styles.btnSecondary}}
+                                disabled={processing === account.id}
+                              >
+                                📊 Update
+                              </button>
+                              <button
+                                onClick={() => setShowDeleteConfirm(deposit)}
+                                style={{...styles.btn, ...styles.btnDanger}}
+                                disabled={processing === account.id}
+                              >
+                                🗑️ Delete
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
+                            style={{...styles.btn, ...styles.btnInfo}}
+                          >
+                            {isExpanded ? '▲' : '▼'} Details
+                          </button>
+                        </div>
+
+                        {isExpanded && deposit && (
+                          <div style={styles.expandedSection}>
+                            <h4 style={styles.detailsTitle}>Deposit Details</h4>
+                            <div style={styles.detailsGrid}>
+                              <div style={styles.detailItem}>
+                                <strong>Crypto:</strong> {deposit.crypto_assets?.crypto_type || 'N/A'}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Network:</strong> {deposit.crypto_assets?.network_type || 'N/A'}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Wallet:</strong>
+                                <code style={styles.code}>
+                                  {deposit.admin_assigned_wallets?.wallet_address || 'N/A'}
+                                </code>
+                              </div>
+                              {deposit.admin_assigned_wallets?.memo && (
+                                <div style={styles.detailItem}>
+                                  <strong>Memo:</strong> {deposit.admin_assigned_wallets.memo}
+                                </div>
+                              )}
+                              <div style={styles.detailItem}>
+                                <strong>Required:</strong> ${parseFloat(deposit.required_amount || 0).toFixed(2)}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Deposited:</strong> ${parseFloat(deposit.amount || 0).toFixed(2)}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Approved:</strong> ${parseFloat(deposit.approved_amount || 0).toFixed(2)}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Confirmations:</strong> {deposit.confirmations}/{deposit.required_confirmations}
+                              </div>
+                              {deposit.tx_hash && (
+                                <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                  <strong>TX Hash:</strong>
+                                  <code style={styles.code}>{deposit.tx_hash}</code>
+                                </div>
+                              )}
+                              {deposit.admin_notes && (
+                                <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                  <strong>Admin Notes:</strong>
+                                  <p style={styles.notes}>{deposit.admin_notes}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </>
@@ -458,13 +478,16 @@ export default function ManageAccountOpeningDeposits() {
 
         {/* Wallet Assignment Modal */}
         {showWalletModal && (
-          <div style={styles.modal}>
-            <div style={styles.modalContent}>
-              <h2 style={styles.modalTitle}>
-                {getDepositForAccount(showWalletModal.id) ? 'Edit' : 'Assign'} Crypto Wallet
-              </h2>
-              <form onSubmit={handleWalletSubmit}>
-                <div style={styles.formGrid}>
+          <div style={styles.modalOverlay} onClick={() => setShowWalletModal(null)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>
+                  {getDepositForAccount(showWalletModal.id) ? 'Edit' : 'Assign'} Crypto Wallet
+                </h2>
+                <button onClick={() => setShowWalletModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <form onSubmit={handleWalletSubmit}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Crypto Asset *</label>
                     <select
@@ -494,7 +517,7 @@ export default function ManageAccountOpeningDeposits() {
                     />
                   </div>
 
-                  <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <div style={styles.formGroup}>
                     <label style={styles.label}>Wallet Address *</label>
                     <input
                       type="text"
@@ -505,7 +528,7 @@ export default function ManageAccountOpeningDeposits() {
                     />
                   </div>
 
-                  <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <div style={styles.formGroup}>
                     <label style={styles.label}>Memo/Tag (Optional)</label>
                     <input
                       type="text"
@@ -514,36 +537,39 @@ export default function ManageAccountOpeningDeposits() {
                       style={styles.input}
                     />
                   </div>
-                </div>
 
-                <div style={styles.modalActions}>
-                  <button
-                    type="button"
-                    onClick={() => setShowWalletModal(null)}
-                    style={{...styles.btn, ...styles.btnSecondary}}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    style={{...styles.btn, ...styles.btnPrimary}}
-                    disabled={processing === showWalletModal.id}
-                  >
-                    {processing === showWalletModal.id ? 'Saving...' : 'Save Wallet'}
-                  </button>
-                </div>
-              </form>
+                  <div style={styles.modalActions}>
+                    <button
+                      type="button"
+                      onClick={() => setShowWalletModal(null)}
+                      style={{...styles.btn, ...styles.btnSecondary}}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      style={{...styles.btn, ...styles.btnPrimary}}
+                      disabled={processing === showWalletModal.id}
+                    >
+                      {processing === showWalletModal.id ? 'Saving...' : 'Save Wallet'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}
 
         {/* Update Deposit Modal */}
         {showUpdateModal && (
-          <div style={styles.modal}>
-            <div style={styles.modalContent}>
-              <h2 style={styles.modalTitle}>Update Deposit Status</h2>
-              <form onSubmit={handleUpdateSubmit}>
-                <div style={styles.formGrid}>
+          <div style={styles.modalOverlay} onClick={() => setShowUpdateModal(null)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Update Deposit Status</h2>
+                <button onClick={() => setShowUpdateModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <form onSubmit={handleUpdateSubmit}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Amount Deposited (USD)</label>
                     <input
@@ -565,7 +591,7 @@ export default function ManageAccountOpeningDeposits() {
                     />
                   </div>
 
-                  <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <div style={styles.formGroup}>
                     <label style={styles.label}>Transaction Hash</label>
                     <input
                       type="text"
@@ -575,7 +601,7 @@ export default function ManageAccountOpeningDeposits() {
                     />
                   </div>
 
-                  <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <div style={styles.formGroup}>
                     <label style={styles.label}>Status *</label>
                     <select
                       value={updateForm.status}
@@ -595,7 +621,7 @@ export default function ManageAccountOpeningDeposits() {
                   </div>
 
                   {(updateForm.status === 'rejected' || updateForm.status === 'failed') && (
-                    <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                    <div style={styles.formGroup}>
                       <label style={styles.label}>Rejection Reason</label>
                       <textarea
                         value={updateForm.rejectionReason}
@@ -605,7 +631,7 @@ export default function ManageAccountOpeningDeposits() {
                     </div>
                   )}
 
-                  <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <div style={styles.formGroup}>
                     <label style={styles.label}>Admin Notes</label>
                     <textarea
                       value={updateForm.adminNotes}
@@ -613,25 +639,58 @@ export default function ManageAccountOpeningDeposits() {
                       style={{...styles.input, minHeight: '100px'}}
                     />
                   </div>
-                </div>
 
+                  <div style={styles.modalActions}>
+                    <button
+                      type="button"
+                      onClick={() => setShowUpdateModal(null)}
+                      style={{...styles.btn, ...styles.btnSecondary}}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      style={{...styles.btn, ...styles.btnPrimary}}
+                      disabled={processing === showUpdateModal.id}
+                    >
+                      {processing === showUpdateModal.id ? 'Updating...' : 'Update Deposit'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div style={styles.modalOverlay} onClick={() => setShowDeleteConfirm(null)}>
+            <div style={{...styles.modal, maxWidth: '400px'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>⚠️ Confirm Delete</h2>
+                <button onClick={() => setShowDeleteConfirm(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <p style={{marginBottom: '20px'}}>
+                  Are you sure you want to delete this deposit? This action cannot be undone.
+                </p>
                 <div style={styles.modalActions}>
                   <button
                     type="button"
-                    onClick={() => setShowUpdateModal(null)}
+                    onClick={() => setShowDeleteConfirm(null)}
                     style={{...styles.btn, ...styles.btnSecondary}}
                   >
                     Cancel
                   </button>
                   <button
-                    type="submit"
-                    style={{...styles.btn, ...styles.btnPrimary}}
-                    disabled={processing === showUpdateModal.id}
+                    onClick={handleDeleteDeposit}
+                    style={{...styles.btn, ...styles.btnDanger}}
+                    disabled={processing === showDeleteConfirm.id}
                   >
-                    {processing === showUpdateModal.id ? 'Updating...' : 'Update Deposit'}
+                    {processing === showDeleteConfirm.id ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         )}
@@ -642,42 +701,69 @@ export default function ManageAccountOpeningDeposits() {
 
 const styles = {
   container: {
-    padding: '20px',
-    maxWidth: '1400px',
-    margin: '0 auto',
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif'
   },
   header: {
+    background: 'white',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px'
+    flexWrap: 'wrap',
+    gap: '16px'
   },
   title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1e40af',
-    margin: '0 0 8px 0'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: '16px',
-    color: '#64748b',
-    margin: 0
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  refreshButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
   },
   backButton: {
-    padding: '10px 20px',
-    background: '#f1f5f9',
-    color: '#1e40af',
-    textDecoration: 'none',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#718096',
+    color: 'white',
+    border: 'none',
     borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    transition: 'background 0.2s'
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
   },
   alert: {
     padding: '12px 16px',
     borderRadius: '8px',
     marginBottom: '20px',
-    fontWeight: '500'
+    fontWeight: '500',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
   alertError: {
     background: '#fee2e2',
@@ -689,101 +775,186 @@ const styles = {
     color: '#065f46',
     border: '1px solid #6ee7b7'
   },
-  loading: {
+  loadingState: {
     textAlign: 'center',
-    padding: '40px',
-    fontSize: '18px',
-    color: '#64748b'
+    padding: '60px 20px',
+    color: '#718096'
   },
-  stats: {
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
+  },
+  statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
+    gap: '16px',
+    marginBottom: '20px'
   },
   statCard: {
-    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-    padding: '24px',
+    background: 'white',
+    padding: '20px',
     borderRadius: '12px',
-    color: 'white',
-    textAlign: 'center'
-  },
-  statValue: {
-    fontSize: '36px',
-    fontWeight: '700',
-    marginBottom: '8px'
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   statLabel: {
-    fontSize: '14px',
-    opacity: 0.9
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
+    fontWeight: '500'
+  },
+  statValue: {
+    margin: 0,
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   tableContainer: {
     background: 'white',
     borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'hidden'
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
+  emptyState: {
+    textAlign: 'center',
+    padding: '60px 20px'
   },
-  th: {
-    background: '#f8fafc',
-    padding: '16px',
-    textAlign: 'left',
-    fontWeight: '600',
-    color: '#1e293b',
-    borderBottom: '2px solid #e2e8f0'
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
   },
-  tr: {
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
+    fontWeight: '600'
+  },
+  cardsGrid: {
+    display: 'grid',
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
+  },
+  card: {
+    background: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    transition: 'transform 0.2s, box-shadow 0.2s'
+  },
+  cardHeader: {
+    padding: 'clamp(12px, 3vw, 16px)',
     borderBottom: '1px solid #e2e8f0',
-    transition: 'background 0.2s'
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '12px'
   },
-  td: {
-    padding: '16px',
-    color: '#334155'
+  accountNumber: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    fontWeight: '600',
+    color: '#1A3E6F'
   },
   accountType: {
-    fontSize: '13px',
-    color: '#64748b',
-    marginTop: '4px'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    color: '#64748b'
   },
-  email: {
-    fontSize: '13px',
-    color: '#64748b',
-    marginTop: '4px'
+  userName: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#334155'
+  },
+  userEmail: {
+    margin: 0,
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    color: '#64748b'
   },
   statusBadge: {
-    display: 'inline-block',
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '13px',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '700',
+    whiteSpace: 'nowrap'
+  },
+  cardBody: {
+    padding: 'clamp(12px, 3vw, 16px)'
+  },
+  infoRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  infoLabel: {
+    color: '#4a5568',
     fontWeight: '600'
   },
-  amount: {
-    fontSize: '13px',
-    color: '#059669',
-    marginTop: '4px',
-    fontWeight: '600'
+  infoValue: {
+    color: '#2d3748',
+    textAlign: 'right'
   },
-  noWallet: {
-    color: '#94a3b8',
-    fontStyle: 'italic'
-  },
-  actions: {
+  cardFooter: {
+    padding: 'clamp(12px, 3vw, 16px)',
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
     gap: '8px',
     flexWrap: 'wrap'
   },
+  expandedSection: {
+    padding: 'clamp(12px, 3vw, 16px)',
+    background: '#f8fafc',
+    borderTop: '1px solid #e2e8f0'
+  },
+  detailsTitle: {
+    margin: '0 0 12px 0',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '600',
+    color: '#1e40af'
+  },
+  detailsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '12px'
+  },
+  detailItem: {
+    fontSize: 'clamp(0.8rem, 2vw, 14px)'
+  },
+  code: {
+    background: '#f1f5f9',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontFamily: 'monospace',
+    display: 'block',
+    marginTop: '4px',
+    wordBreak: 'break-all'
+  },
+  notes: {
+    background: '#f8fafc',
+    padding: '12px',
+    borderRadius: '6px',
+    margin: '8px 0 0 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    lineHeight: '1.6'
+  },
   btn: {
-    padding: '8px 16px',
+    flex: 1,
+    minWidth: '100px',
+    padding: 'clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)',
     borderRadius: '6px',
     border: 'none',
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    textAlign: 'center'
   },
   btnPrimary: {
     background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
@@ -797,46 +968,11 @@ const styles = {
     background: '#dbeafe',
     color: '#1e40af'
   },
-  expandedCell: {
-    background: '#f8fafc',
-    padding: '0'
+  btnDanger: {
+    background: '#dc2626',
+    color: 'white'
   },
-  detailsPanel: {
-    padding: '24px'
-  },
-  detailsTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1e40af',
-    marginBottom: '16px'
-  },
-  detailsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '16px'
-  },
-  detailItem: {
-    fontSize: '14px'
-  },
-  code: {
-    background: '#f1f5f9',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    display: 'block',
-    marginTop: '4px',
-    wordBreak: 'break-all'
-  },
-  notes: {
-    background: '#f8fafc',
-    padding: '12px',
-    borderRadius: '6px',
-    margin: '8px 0 0 0',
-    fontSize: '14px',
-    lineHeight: '1.6'
-  },
-  modal: {
+  modalOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
@@ -846,54 +982,66 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    padding: '20px'
   },
-  modalContent: {
+  modal: {
     background: 'white',
     borderRadius: '12px',
-    padding: '32px',
     maxWidth: '600px',
-    width: '90%',
+    width: '100%',
     maxHeight: '90vh',
-    overflow: 'auto'
+    overflowY: 'auto'
+  },
+  modalHeader: {
+    padding: '20px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   modalTitle: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#1e40af',
-    marginBottom: '24px'
+    margin: 0,
+    fontSize: 'clamp(1.25rem, 3.5vw, 24px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '16px',
-    marginBottom: '24px'
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '32px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1,
+    padding: 0
+  },
+  modalBody: {
+    padding: '20px'
   },
   formGroup: {
-    display: 'flex',
-    flexDirection: 'column'
+    marginBottom: '16px'
   },
   label: {
-    fontSize: '14px',
+    display: 'block',
+    marginBottom: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    color: '#334155',
-    marginBottom: '8px'
+    color: '#2d3748'
   },
   input: {
-    padding: '10px 12px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    fontSize: '14px',
+    width: '100%',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
     fontFamily: 'inherit'
   },
   modalActions: {
     display: 'flex',
     gap: '12px',
-    justifyContent: 'flex-end'
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    color: '#64748b'
+    justifyContent: 'flex-end',
+    marginTop: '20px',
+    flexWrap: 'wrap'
   }
 };

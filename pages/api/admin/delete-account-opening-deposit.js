@@ -1,9 +1,8 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+  if (req.method !== 'DELETE' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -15,23 +14,22 @@ export default async function handler(req, res) {
   try {
     const { depositId } = req.body;
 
+    console.log('Delete deposit request:', depositId);
+
     if (!depositId) {
       return res.status(400).json({ error: 'Deposit ID is required' });
     }
 
-    // Fetch the deposit to check if it exists and its status
-    const { data: deposit, error: depositError } = await supabaseAdmin
+    // First, fetch the deposit to ensure it exists
+    const { data: deposit, error: fetchError } = await supabaseAdmin
       .from('account_opening_crypto_deposits')
       .select('*')
       .eq('id', depositId)
       .single();
 
-    if (depositError || !deposit) {
-      console.error('Error fetching account opening deposit:', depositError);
-      return res.status(404).json({ 
-        error: 'Account opening deposit not found',
-        details: depositError?.message 
-      });
+    if (fetchError || !deposit) {
+      console.error('Deposit not found:', fetchError);
+      return res.status(404).json({ error: 'Deposit not found' });
     }
 
     // Prevent deletion of completed or confirmed deposits that have been credited
@@ -41,8 +39,6 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('Deleting account opening deposit:', depositId);
-
     // Delete the deposit
     const { error: deleteError } = await supabaseAdmin
       .from('account_opening_crypto_deposits')
@@ -50,14 +46,14 @@ export default async function handler(req, res) {
       .eq('id', depositId);
 
     if (deleteError) {
-      console.error('Error deleting account opening deposit:', deleteError);
+      console.error('Error deleting deposit:', deleteError);
       return res.status(500).json({ 
-        error: 'Failed to delete account opening deposit',
+        error: 'Failed to delete deposit',
         details: deleteError.message 
       });
     }
 
-    console.log('Account opening deposit deleted successfully:', depositId);
+    console.log('Deposit deleted successfully:', depositId);
 
     // Log the deletion
     await supabaseAdmin
@@ -79,13 +75,12 @@ export default async function handler(req, res) {
         admin_id: authResult.user.id
       });
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
-      message: 'Account opening deposit deleted successfully'
+      message: 'Deposit deleted successfully'
     });
-
   } catch (error) {
-    console.error('Error in delete-account-opening-deposit API:', error);
+    console.error('Unexpected error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
