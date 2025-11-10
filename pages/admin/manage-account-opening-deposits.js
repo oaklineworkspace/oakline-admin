@@ -614,15 +614,38 @@ export default function ManageAccountOpeningDeposits() {
 
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Confirmations</label>
-                    <input
-                      type="number"
-                      value={updateForm.confirmations}
-                      onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
-                      style={styles.input}
-                      placeholder="e.g., 1, 2, 3"
-                    />
+                    <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                      <button
+                        type="button"
+                        onClick={() => setUpdateForm({
+                          ...updateForm, 
+                          confirmations: Math.max(0, parseInt(updateForm.confirmations || 0) - 1)
+                        })}
+                        style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={updateForm.confirmations}
+                        onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
+                        style={{...styles.input, textAlign: 'center'}}
+                        placeholder="0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setUpdateForm({
+                          ...updateForm, 
+                          confirmations: parseInt(updateForm.confirmations || 0) + 1
+                        })}
+                        style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
+                      >
+                        +
+                      </button>
+                    </div>
                     <small style={{color: '#64748b', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', display: 'block'}}>
-                      Increment this number as the transaction gets blockchain confirmations. 3 confirmations are required by default.
+                      Current: {updateForm.confirmations || 0} / {showUpdateModal?.required_confirmations || 3} required. 
+                      Click + to increment confirmations.
                     </small>
                   </div>
 

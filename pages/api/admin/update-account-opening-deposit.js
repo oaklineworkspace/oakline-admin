@@ -78,9 +78,9 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error('Error updating deposit:', error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to update deposit',
-        details: error.message 
+        details: error.message
       });
     }
 
@@ -93,9 +93,9 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Unexpected error:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Internal server error',
-      details: error.message 
+      details: error.message
     });
   }
 }
