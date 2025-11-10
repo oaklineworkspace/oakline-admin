@@ -1,21 +1,20 @@
 
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import nodemailer from 'nodemailer';
+import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Check SMTP configuration
-  const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-  if (missingVars.length > 0) {
-    console.error('Missing SMTP environment variables:', missingVars);
+  // Check if at least one email provider is configured
+  const hasProvider = process.env.SMTP_HOST || process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY;
+  
+  if (!hasProvider) {
+    console.error('No email provider configured');
     return res.status(500).json({
       error: 'Email service not configured',
-      message: `Missing environment variables: ${missingVars.join(', ')}`
+      message: 'Please configure at least one email provider: SMTP, RESEND_API_KEY, or SENDGRID_API_KEY'
     });
   }
 
@@ -67,44 +66,8 @@ export default async function handler(req, res) {
       bankInfo = data;
     }
 
-    // Create email transporter with better configuration
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: true, // use SSL
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      rateDelta: 1000,
-      rateLimit: 5,
-      connectionTimeout: 60000,
-      greetingTimeout: 30000,
-      socketTimeout: 60000,
-    });
-
-    // Test SMTP connection
-    try {
-      await transporter.verify();
-      console.log('✅ SMTP connection verified for broadcast');
-    } catch (smtpError) {
-      console.error('SMTP connection failed:', smtpError.message);
-      return res.status(500).json({
-        error: 'Email service connection failed',
-        message: smtpError.message
-      });
-    }
-
-    // Send emails to all recipients with retry logic
+    // Send emails to all recipients with multi-provider fallback
     const emailPromises = recipients.map(async (recipient) => {
-      const maxRetries = 3;
-      let lastError;
-      
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
       const emailHtml = `
             <!DOCTYPE html>
         <html>
@@ -234,30 +197,13 @@ export default async function handler(req, res) {
         </html>
       `;
 
-      const mailOptions = {
-            from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_contact || 'support@theoaklinebank.com'}>`,
-            to: recipient.email,
-            subject: subject,
-            html: emailHtml
-          };
-
-          const info = await transporter.sendMail(mailOptions);
-          console.log(`✅ Broadcast email sent to ${recipient.email} (attempt ${attempt}/${maxRetries}):`, info.messageId);
-          return info;
-        } catch (err) {
-          lastError = err;
-          console.error(`❌ Broadcast email attempt ${attempt}/${maxRetries} failed for ${recipient.email}:`, err.message);
-          
-          if (attempt < maxRetries) {
-            const delay = attempt * 1000;
-            console.log(`⏳ Retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-      
-      console.error(`❌ All broadcast email attempts failed for ${recipient.email}:`, lastError);
-      throw lastError;
+      return sendEmail({
+        to: recipient.email,
+        subject: subject,
+        html: emailHtml,
+        from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_contact || 'support@theoaklinebank.com'}>`,
+        type: EMAIL_TYPES.NOTIFY
+      });
     });
 
     // Wait for all emails to be sent
