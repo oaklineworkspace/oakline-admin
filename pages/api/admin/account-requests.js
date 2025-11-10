@@ -1,13 +1,12 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { createCardForAccount } from '../../../lib/cardGenerator';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 async function generateUniqueAccountNumber() {
   const maxAttempts = 20;
-  
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const accountNumber = Array.from({length: 12}, () => Math.floor(Math.random() * 10)).join('');
-    
+
     const { data, error } = await supabaseAdmin
       .from('accounts')
       .select('id')
@@ -43,16 +42,16 @@ async function sendApprovalEmail(userEmail, firstName, accountType, accountNumbe
           <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Account Request Approved!</h1>
           <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
         </div>
-        
+
         <div style="padding: 40px 32px;">
           <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
             Great news, ${firstName}!
           </h2>
-          
+
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
             Your request for a <strong>${accountType}</strong> account has been approved.
           </p>
-          
+
           <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
             <h3 style="color: #059669; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
               Your New Account Details:
@@ -72,17 +71,17 @@ async function sendApprovalEmail(userEmail, firstName, accountType, accountNumbe
               </tr>
             </table>
           </div>
-          
+
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
             You can now access your new account from your dashboard at 
             <a href="https://www.theoaklinebank.com" style="color: #059669; font-weight: 600;">www.theoaklinebank.com</a>
           </p>
-          
+
           <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 16px 0;">
             Your new debit card has been activated and is ready to use.
           </p>
         </div>
-        
+
         <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
           <p style="color: #718096; font-size: 12px; margin: 0;">
             © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
@@ -116,16 +115,16 @@ async function sendRejectionEmail(userEmail, firstName, accountType, rejectionRe
           <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">Account Request Status Update</h1>
           <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
         </div>
-        
+
         <div style="padding: 40px 32px;">
           <h2 style="color: #dc2626; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
             Dear ${firstName},
           </h2>
-          
+
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
             We regret to inform you that your request for a <strong>${accountType}</strong> account could not be approved at this time.
           </p>
-          
+
           <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin: 24px 0;">
             <h3 style="color: #dc2626; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
               Reason:
@@ -134,18 +133,18 @@ async function sendRejectionEmail(userEmail, firstName, accountType, rejectionRe
               ${rejectionReason}
             </p>
           </div>
-          
+
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
             If you have any questions or would like to discuss this further, please contact our support team.
           </p>
-          
+
           <div style="text-align: center; margin: 32px 0;">
             <a href="mailto:contact-us@theoaklinebank.com" style="display: inline-block; background-color: #1e40af; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
               Contact Support
             </a>
           </div>
         </div>
-        
+
         <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
           <p style="color: #718096; font-size: 12px; margin: 0;">
             © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
@@ -169,7 +168,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const { status } = req.query;
-      
+
       let query = supabaseAdmin
         .from('account_requests')
         .select('*')
@@ -193,9 +192,9 @@ export default async function handler(req, res) {
           .select('*')
           .eq('id', request.account_type_id)
           .single();
-        
+
         const userMetadata = userData?.user?.user_metadata || {};
-        
+
         return {
           ...request,
           user_name: `${userMetadata.first_name || ''} ${userMetadata.last_name || ''}`.trim() || 'Unknown User',
@@ -254,7 +253,7 @@ export default async function handler(req, res) {
       const firstName = userMetadata.first_name || 'User';
       const lastName = userMetadata.last_name || '';
       const userEmail = userData?.user?.email;
-      
+
       request.account_type = accountType;
 
       if (action === 'approve') {
@@ -396,5 +395,40 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method === 'DELETE') {
+    try {
+      const { id } = req.body;
+
+      if (!id) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Account request ID is required' 
+        });
+      }
+
+      // Delete the account request
+      const { error: deleteError } = await supabaseAdmin
+        .from('account_requests')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Account request deleted successfully' 
+      });
+    } catch (error) {
+      console.error('Error deleting account request:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to delete account request' 
+      });
+    }
+  }
+
+  res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
 }

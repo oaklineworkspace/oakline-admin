@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
@@ -155,6 +154,46 @@ export default function ManageAccountRequests() {
       setProcessing(null);
     }
   };
+  
+  const handleDelete = async (requestId) => {
+    if (!confirm('Are you sure you want to delete this account request? This action cannot be undone.')) {
+      return;
+    }
+
+    setProcessing(requestId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Session expired. Please login again.');
+      }
+
+      const response = await fetch('/api/admin/account-requests', {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ id: requestId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete request');
+      }
+
+      setSuccess('Request deleted successfully.');
+      await fetchAccountRequests();
+    } catch (err) {
+      console.error('Error deleting request:', err);
+      setError('Failed to delete request: ' + err.message);
+    } finally {
+      setProcessing(null);
+    }
+  };
 
   const filteredRequests = requests.filter(request => {
     const matchesSearch = request.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -166,7 +205,7 @@ export default function ManageAccountRequests() {
                       (activeTab === 'pending' && request.status === 'pending') ||
                       (activeTab === 'approved' && request.status === 'approved') ||
                       (activeTab === 'rejected' && request.status === 'rejected');
-    
+
     let matchesDateRange = true;
     if (startDate || endDate) {
       const requestDate = new Date(request.created_at);
@@ -183,7 +222,7 @@ export default function ManageAccountRequests() {
         matchesDateRange = requestDate <= end;
       }
     }
-    
+
     return matchesSearch && matchesStatus && matchesAccountType && matchesTab && matchesDateRange;
   });
 
@@ -424,6 +463,18 @@ export default function ManageAccountRequests() {
                         {request.status === 'approved' ? 'Approved ✓' : 'Rejected ✗'}
                       </span>
                     )}
+                    {/* Add Delete Button for all statuses */}
+                    <button
+                      onClick={() => handleDelete(request.id)}
+                      style={{
+                        ...styles.rejectButton, // Reusing reject button style for delete, can be customized
+                        background: '#6b7280', // Gray color for delete button
+                        marginLeft: 'auto' // Push to the right if needed
+                      }}
+                      disabled={processing === request.id}
+                    >
+                      {processing === request.id ? '⏳' : '🗑️'} Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -877,49 +928,50 @@ const styles = {
   requestFooter: {
     display: 'flex',
     gap: '8px',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    alignItems: 'center' // Align items vertically in the footer
   },
   viewButton: {
-    flex: 1,
-    padding: '10px',
+    padding: '10px 16px', // Increased padding for better touch target
     background: '#4299e1',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background 0.3s ease'
   },
   approveButton: {
-    flex: 1,
-    padding: '10px',
+    padding: '10px 16px',
     background: '#10b981',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background 0.3s ease'
   },
   rejectButton: {
-    flex: 1,
-    padding: '10px',
+    padding: '10px 16px',
     background: '#dc2626',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background 0.3s ease'
   },
   processedText: {
-    flex: 1,
     padding: '10px',
     textAlign: 'center',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     color: '#9ca3af',
     fontStyle: 'italic',
-    fontWeight: '600'
+    fontWeight: '600',
+    marginLeft: 'auto' // Push to the right
   },
   modalOverlay: {
     position: 'fixed',
