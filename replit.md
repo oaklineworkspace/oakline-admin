@@ -4,6 +4,7 @@
 Oakline Bank Admin Panel is a secure, full-stack banking administration platform built with Next.js 14. Its primary purpose is to provide comprehensive administrative functionality for managing users, accounts, transactions, cards, applications, and loans. The platform aims to streamline bank operations, enhance security, and offer robust tools for financial oversight and customer service.
 
 ## Recent Changes (November 2025)
+- **Account Request Management System (Nov 10, 2025):** Implemented complete admin workflow for managing additional account requests from existing users. Created `/api/admin/account-requests` endpoint with GET (fetch requests with status filtering) and POST (approve/reject) operations. Built `/admin/manage-account-requests` UI page with status filters, inline approval/rejection, and modal for rejection reasons. System automatically generates unique 12-digit account numbers, creates debit cards via existing card generation service, and sends styled HTML email notifications for both approval and rejection. Integrated with existing account_requests table schema including user metadata, account type details, and review tracking.
 - **Professional Account Approval Flow (Jan 7, 2025):** Implemented multi-stage account approval process separating application approval from account activation. Updated `/api/admin/update-account-status` to use proper schema statuses (`pending_application`, `approved`, `pending_funding`, `active`, `rejected`) with admin authentication and audit logging. Verified existing `/admin/approve-funding` page for minimum deposit tracking. Created comprehensive documentation in `ACCOUNT_APPROVAL_FLOW.md` explaining the professional flow: Application Approval → Funding Confirmation (if min_deposit > 0) → Account Activation.
 - **Storage Diagnostics Tool (Jan 7, 2025):** Created `/admin/storage-diagnostics` page and `/api/admin/list-storage-files` endpoint to diagnose document viewing issues. Tool shows files in Supabase storage buckets vs. database records, identifies orphaned files (files in storage but not in `user_id_documents` table), and provides guidance on fixing sync issues. Helps admins understand why uploaded documents may not appear in the admin panel.
 - **Vercel Deployment Fix (Jan 7, 2025):** Fixed build failure caused by duplicate code in `pages/api/admin/verify-id-document.js`. The entire file content was duplicated, causing "name defined multiple times" errors. Removed duplicate code, build now passes successfully.
@@ -43,13 +44,14 @@ Preferred communication style: Simple, everyday language.
 1.  **User Management:** Create, view, delete users, and manage enrollment.
 2.  **Account Management:** Approve pending accounts, manage statuses, and update information.
 3.  **Application Processing:** Review, approve/reject user and card applications.
-4.  **Transaction Management:** View, create, process bulk, and reverse transactions.
-5.  **Card Management:** Issue, manage statuses, process applications, and assign cards.
-6.  **Reporting & Audit:** System logs, audit trails, and transaction reports.
-7.  **Bank Details Management:** Manage bank information, contact details, and dynamically add/update email fields.
-8.  **Crypto Wallet & Deposit Management:** Assign crypto wallet addresses (BTC, USDT, ETH, BNB), review/manage crypto deposit requests, approve/reject deposits with automatic balance crediting and email notifications.
-9.  **Loan Management System:** Comprehensive dashboard, detailed loan view, payment tracking with user-submitted payments requiring admin approval, deposit verification workflow, secure atomic approval process using PostgreSQL RPC functions to prevent race conditions and ensure data integrity, automatic balance updates, audit logging, and email notifications. Includes integration with a treasury account system for loan requirement deposits.
-10. **Transfers Management:** Dedicated page for managing all user transfers (internal, between accounts, wire).
+4.  **Account Request Management:** Process additional account requests from existing users with automated account creation, card issuance, and email notifications.
+5.  **Transaction Management:** View, create, process bulk, and reverse transactions.
+6.  **Card Management:** Issue, manage statuses, process applications, and assign cards.
+7.  **Reporting & Audit:** System logs, audit trails, and transaction reports.
+8.  **Bank Details Management:** Manage bank information, contact details, and dynamically add/update email fields.
+9.  **Crypto Wallet & Deposit Management:** Assign crypto wallet addresses (BTC, USDT, ETH, BNB), review/manage crypto deposit requests, approve/reject deposits with automatic balance crediting and email notifications.
+10.  **Loan Management System:** Comprehensive dashboard, detailed loan view, payment tracking with user-submitted payments requiring admin approval, deposit verification workflow, secure atomic approval process using PostgreSQL RPC functions to prevent race conditions and ensure data integrity, automatic balance updates, audit logging, and email notifications. Includes integration with a treasury account system for loan requirement deposits.
+11. **Transfers Management:** Dedicated page for managing all user transfers (internal, between accounts, wire).
 
 ## External Dependencies
 *   **Supabase:** Database (PostgreSQL), Authentication, and Row Level Security.
