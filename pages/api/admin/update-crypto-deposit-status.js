@@ -93,7 +93,7 @@ export default async function handler(req, res) {
           if (loans && loans.length > 0) {
             const loan = loans[0];
             console.log('Updating loan deposit status for loan:', loan.id);
-            
+
             const { error: loanUpdateError } = await supabaseAdmin
               .from('loans')
               .update({
@@ -242,6 +242,55 @@ export default async function handler(req, res) {
       }
 
       balanceChanged = true;
+    }
+
+    if (newStatus === 'rejected') {
+      if (!reason) {
+        return res.status(400).json({ error: 'Rejection reason is required' });
+      }
+
+      const updateData = {
+        status: 'rejected',
+        rejection_reason: reason,
+        rejected_by: authResult.user.id,
+        rejected_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: rejectError } = await supabaseAdmin
+        .from('crypto_deposits')
+        .update(updateData)
+        .eq('id', depositId);
+
+      if (rejectError) {
+        console.error('Error rejecting deposit:', rejectError);
+        return res.status(500).json({ 
+          error: 'Failed to reject deposit',
+          details: rejectError.message 
+        });
+      }
+
+      // Log the rejection
+      await supabaseAdmin
+        .from('system_logs')
+        .insert({
+          level: 'info',
+          type: 'transaction',
+          message: `Crypto deposit rejected by admin`,
+          details: {
+            deposit_id: depositId,
+            rejected_by: authResult.user.id,
+            rejected_by_email: authResult.user.email,
+            reason: reason,
+            timestamp: new Date().toISOString()
+          },
+          admin_id: authResult.user.id
+        });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Deposit rejected successfully'
+      });
     }
 
     const updateData = {
