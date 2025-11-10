@@ -83,34 +83,11 @@ export default async function handler(req, res) {
 
     console.log('Update data:', updateData);
 
+    let deposit;
+
     if (status === 'completed' && oldStatus !== 'completed') {
-      console.log('Processing balance credit for completed deposit');
+      console.log('Processing balance credit for completed deposit using atomic RPC');
       
-      const txReference = oldDeposit.tx_hash || depositId;
-      
-      const { data: existingTx } = await supabaseAdmin
-        .from('transactions')
-        .select('id')
-        .eq('reference', txReference)
-        .eq('account_id', oldDeposit.account_id)
-        .single();
-
-      if (existingTx) {
-        console.log('Transaction already exists - skipping duplicate credit');
-        return res.status(400).json({
-          error: 'Deposit has already been credited to account',
-          details: 'A transaction record already exists for this deposit'
-        });
-      }
-
-      if (oldDeposit.approved_at && oldDeposit.completed_at) {
-        console.log('Deposit already approved and completed - skipping duplicate credit');
-        return res.status(400).json({
-          error: 'Deposit has already been processed',
-          details: 'This deposit was already approved and completed'
-        });
-      }
-
       const creditAmount = parseFloat(
         updateData.approved_amount ?? 
         oldDeposit.approved_amount ?? 
@@ -125,95 +102,63 @@ export default async function handler(req, res) {
         });
       }
 
-      const { data: account, error: accountError } = await supabaseAdmin
-        .from('accounts')
-        .select('*')
-        .eq('id', oldDeposit.account_id)
+      const { data: rpcResult, error: rpcError } = await supabaseAdmin
+        .rpc('complete_account_opening_deposit_atomic', {
+          p_deposit_id: depositId,
+          p_admin_id: adminId,
+          p_approved_amount: creditAmount,
+          p_tx_hash: updateData.tx_hash || null,
+          p_confirmations: updateData.confirmations || null,
+          p_admin_notes: updateData.admin_notes || null
+        });
+
+      if (rpcError) {
+        console.error('Error calling atomic RPC:', rpcError);
+        return res.status(500).json({
+          error: 'Failed to complete deposit',
+          details: rpcError.message
+        });
+      }
+
+      if (!rpcResult || !rpcResult.success) {
+        console.error('Atomic RPC returned failure:', rpcResult);
+        return res.status(400).json({
+          error: rpcResult?.error || 'Failed to complete deposit',
+          details: 'Atomic operation was not successful'
+        });
+      }
+
+      console.log('Deposit completed atomically:', rpcResult);
+
+      const { data: completedDeposit } = await supabaseAdmin
+        .from('account_opening_crypto_deposits')
+        .select('*, crypto_assets(*), admin_assigned_wallets(*)')
+        .eq('id', depositId)
         .single();
 
-      if (accountError || !account) {
-        console.error('Error fetching account:', accountError);
-        return res.status(404).json({ error: 'Account not found' });
-      }
+      deposit = completedDeposit;
+    } else {
+      const { data: updatedDeposit, error } = await supabaseAdmin
+        .from('account_opening_crypto_deposits')
+        .update(updateData)
+        .eq('id', depositId)
+        .select('*, crypto_assets(*), admin_assigned_wallets(*)')
+        .single();
 
-      const balanceBefore = parseFloat(account.balance || 0);
-      const newBalance = balanceBefore + creditAmount;
-
-      console.log('Crediting account:', {
-        accountId: account.id,
-        balanceBefore,
-        creditAmount,
-        newBalance
-      });
-
-      const { error: balanceUpdateError } = await supabaseAdmin
-        .from('accounts')
-        .update({ 
-          balance: newBalance,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', account.id);
-
-      if (balanceUpdateError) {
-        console.error('Error updating account balance:', balanceUpdateError);
-        return res.status(500).json({ 
-          error: 'Failed to credit account balance',
-          details: balanceUpdateError.message
+      if (error) {
+        console.error('Error updating deposit:', error);
+        return res.status(500).json({
+          error: 'Failed to update deposit',
+          details: error.message
         });
       }
 
-      const { error: transactionError } = await supabaseAdmin
-        .from('transactions')
-        .insert({
-          user_id: oldDeposit.user_id,
-          account_id: oldDeposit.account_id,
-          type: 'deposit',
-          amount: creditAmount,
-          status: 'completed',
-          description: 'Account opening deposit credited',
-          balance_before: balanceBefore,
-          balance_after: newBalance,
-          reference: txReference,
-          created_at: new Date().toISOString()
-        });
-
-      if (transactionError) {
-        console.error('Error creating transaction record:', transactionError);
-        
-        await supabaseAdmin
-          .from('accounts')
-          .update({ balance: balanceBefore })
-          .eq('id', account.id);
-        
-        return res.status(500).json({ 
-          error: 'Failed to create transaction record',
-          details: 'Balance changes have been rolled back'
-        });
-      }
-
-      console.log('Balance credited successfully and transaction recorded');
-    }
-
-    const { data: deposit, error } = await supabaseAdmin
-      .from('account_opening_crypto_deposits')
-      .update(updateData)
-      .eq('id', depositId)
-      .eq('status', oldStatus)
-      .select('*, crypto_assets(*), admin_assigned_wallets(*)')
-      .single();
-
-    if (error) {
-      console.error('Error updating deposit:', error);
-      return res.status(500).json({
-        error: 'Failed to update deposit',
-        details: error.message
-      });
+      deposit = updatedDeposit;
     }
 
     if (!deposit) {
-      return res.status(409).json({
-        error: 'Deposit status was modified by another admin',
-        details: 'Please refresh and try again'
+      return res.status(404).json({
+        error: 'Deposit not found after update'
       });
     }
 
