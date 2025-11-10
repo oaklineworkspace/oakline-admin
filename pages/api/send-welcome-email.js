@@ -224,8 +224,9 @@ export default async function handler(req, res) {
     }
 
     // Send email
+    const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
     const mailOptions = {
-      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_welcome || 'welcome@theoaklinebank.com'}>`,
+      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_welcome || `welcome@${emailDomain}`}>`,
       to: email,
       subject: "Complete Your Oakline Bank Enrollment",
       html: emailHtml,

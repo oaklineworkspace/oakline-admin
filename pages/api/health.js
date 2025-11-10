@@ -1,6 +1,7 @@
 export default function handler(req, res) {
   // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://theoaklinebank.com');
+  const allowedOrigin = process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 

@@ -9,6 +9,9 @@ export const ENV = {
   SMTP_FROM: process.env.SMTP_FROM || '',
 
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || '',
+  NEXT_PUBLIC_SITE_DOMAIN: process.env.NEXT_PUBLIC_SITE_DOMAIN || 'theoaklinebank.com',
+  BANK_EMAIL_DOMAIN: process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com',
+  
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
   SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY || '',

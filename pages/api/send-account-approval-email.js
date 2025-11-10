@@ -240,7 +240,7 @@ export default async function handler(req, res) {
                       Phone: <a href="tel:${bankInfo.phone}" style="color: #10b981; text-decoration: none; font-weight: 600;">${bankInfo.phone}</a>
                     </p>
                     <p style="margin: 0 0 20px 0; color: #64748b; font-size: 14px;">
-                      Support: <a href="mailto:${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}" style="color: #10b981; text-decoration: none; font-weight: 600;">${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}</a>
+                      Support: <a href="mailto:${bankInfo.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}" style="color: #10b981; text-decoration: none; font-weight: 600;">${bankInfo.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}</a>
                     </p>
                     <p style="margin: 20px 0 0 0; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px;">
                       © ${new Date().getFullYear()} ${bankInfo.name}. All rights reserved.<br>
@@ -258,7 +258,7 @@ export default async function handler(req, res) {
     `;
 
     const mailOptions = {
-      from: `"${bankInfo.name}" <${bankInfo.email_notify || 'notify@theoaklinebank.com'}>`,
+      from: `"${bankInfo.name}" <${bankInfo.email_notify || `notify@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}>`,
       to: email,
       subject: `✅ Your ${accountTypeFormatted} Account Has Been Approved!`,
       html: emailHtml

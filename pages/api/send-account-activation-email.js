@@ -117,7 +117,7 @@ export default async function handler(req, res) {
     `;
 
     const mailOptions = {
-      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_notify || 'notify@theoaklinebank.com'}>`,
+      from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_notify || `notify@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}>`,
       to: email,
       subject: '🎉 Your Oakline Bank Account is Now Active!',
       html: emailHtml,

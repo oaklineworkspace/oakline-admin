@@ -25,9 +25,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch bank details' });
     }
 
+    const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
     const emailData = {
       to: email,
-      from: bankDetails.email_notify || 'notify@theoaklinebank.com',
+      from: bankDetails.email_notify || `notify@${emailDomain}`,
       subject: 'Application Status Update - Oakline Bank',
       text: `
 Dear ${first_name} ${last_name},
@@ -41,7 +42,7 @@ Reason: ${rejection_reason}
 If you have any questions or would like to discuss this decision, please feel free to contact our customer service team:
 
 Phone: ${bankDetails.phone || '+1 (636) 635-6122'}
-Email: ${bankDetails.email_contact || 'contact-us@theoaklinebank.com'}
+Email: ${bankDetails.email_contact || `contact-us@${emailDomain}`}
 
 We appreciate your understanding and wish you the best in your financial endeavors.
 

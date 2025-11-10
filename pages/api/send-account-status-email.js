@@ -51,7 +51,7 @@ ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com'}/login
 
 If you have any questions, please contact us:
 Phone: ${bankDetails.phone || '+1 (636) 635-6122'}
-Email: ${bankDetails.email_contact || 'contact-us@theoaklinebank.com'}
+Email: ${bankDetails.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}
 
 Thank you for banking with us!
 
@@ -115,7 +115,7 @@ ${bankDetails.name || 'Oakline Bank'} Team
       
       <div class="account-info">
         <p><strong>📞 Phone:</strong> ${bankDetails.phone || '+1 (636) 635-6122'}</p>
-        <p><strong>📧 Email:</strong> ${bankDetails.email_contact || 'contact-us@theoaklinebank.com'}</p>
+        <p><strong>📧 Email:</strong> ${bankDetails.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}</p>
         <p><strong>🏢 Address:</strong> ${bankDetails.address || '12201 N May Avenue, Oklahoma City, OK 73120'}</p>
       </div>
       
@@ -146,7 +146,7 @@ Reason: ${rejectionReason}
 If you have any questions or would like to discuss this decision, please contact our customer service team:
 
 Phone: ${bankDetails.phone || '+1 (636) 635-6122'}
-Email: ${bankDetails.email_contact || 'contact-us@theoaklinebank.com'}
+Email: ${bankDetails.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}
 
 We appreciate your understanding.
 
@@ -192,7 +192,7 @@ ${bankDetails.name || 'Oakline Bank'} Team
       
       <div class="account-info">
         <p><strong>📞 Phone:</strong> ${bankDetails.phone || '+1 (636) 635-6122'}</p>
-        <p><strong>📧 Email:</strong> ${bankDetails.email_contact || 'contact-us@theoaklinebank.com'}</p>
+        <p><strong>📧 Email:</strong> ${bankDetails.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}</p>
         <p><strong>🏢 Address:</strong> ${bankDetails.address || '12201 N May Avenue, Oklahoma City, OK 73120'}</p>
       </div>
       

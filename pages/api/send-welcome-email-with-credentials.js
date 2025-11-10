@@ -301,10 +301,10 @@ export default async function handler(req, res) {
 
                     <!-- Action Buttons -->
                     <div style="text-align: center; margin: 30px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                      <a href="https://www.theoaklinebank.com/login?redirect=/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com'}/login?redirect=/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
                         🔑 LOGIN TO ACCOUNT
                       </a>
-                      <a href="https://www.theoaklinebank.com/reset-password?redirect=/dashboard" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com'}/reset-password?redirect=/dashboard" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
                         🔐 SET NEW PASSWORD
                       </a>
                     </div>
@@ -338,7 +338,7 @@ export default async function handler(req, res) {
                       ${bankInfo.address || ''}
                     </p>
                     <p style="margin: 0 0 5px 0; color: #64748b; font-size: 14px;">
-                      Phone: ${bankInfo.phone || ''} | Email: ${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}
+                      Phone: ${bankInfo.phone || ''} | Email: ${bankInfo.email_contact || `contact-us@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`}
                     </p>
                     <p style="margin: 20px 0 0 0; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px;">
                       © ${new Date().getFullYear()} ${bankInfo.name || 'Oakline Bank'}. All rights reserved.<br>
@@ -356,8 +356,9 @@ export default async function handler(req, res) {
     `;
 
 
+    const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
     const mailOptions = {
-      from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_welcome || 'welcome@theoaklinebank.com'}>`,
+      from: `"${bankInfo.name || 'Oakline Bank'}" <${bankInfo.email_welcome || `welcome@${emailDomain}`}>`,
       to: email,
       subject: `Welcome to ${bankInfo.name || 'Oakline Bank'} — Your Account Has Been Approved`,
       html: emailHtml
