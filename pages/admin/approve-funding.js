@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -33,30 +34,23 @@ export default function ApproveFunding() {
         'Authorization': `Bearer ${session.access_token}`
       };
 
-      console.log('Fetching accounts and deposits...');
+      const [accountsResponse, depositsResponse] = await Promise.all([
+        fetch('/api/admin/get-accounts?status=pending_funding', { headers }),
+        fetch('/api/admin/get-account-opening-deposits', { headers })
+      ]);
 
-      // Fetch accounts that are pending funding (awaiting minimum deposit)
-      const accountsResponse = await fetch('/api/admin/get-accounts?status=pending_funding', { headers });
-      const accountsResult = await accountsResponse.json();
-
-      console.log('Accounts response:', accountsResponse.status, accountsResult);
+      const [accountsResult, depositsResult] = await Promise.all([
+        accountsResponse.json(),
+        depositsResponse.json()
+      ]);
 
       if (!accountsResponse.ok) {
         throw new Error(accountsResult.error || 'Failed to fetch accounts');
       }
 
-      // Fetch deposits for these accounts
-      const depositsResponse = await fetch('/api/admin/get-account-opening-deposits', { headers });
-      const depositsResult = await depositsResponse.json();
-
-      console.log('Deposits response:', depositsResponse.status, depositsResult);
-
       if (!depositsResponse.ok) {
         throw new Error(depositsResult.error || 'Failed to fetch deposits');
       }
-
-      console.log('Setting accounts:', accountsResult.accounts?.length || 0);
-      console.log('Setting deposits:', depositsResult.deposits?.length || 0);
 
       setAccounts(accountsResult.accounts || []);
       setDeposits(depositsResult.deposits || []);
@@ -135,15 +129,31 @@ export default function ApproveFunding() {
     return totalDeposited >= minDeposit;
   };
 
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: '#f59e0b',
+      awaiting_confirmations: '#3b82f6',
+      confirmed: '#10b981',
+      approved: '#10b981',
+      completed: '#059669',
+      rejected: '#ef4444',
+      failed: '#ef4444'
+    };
+    return colors[status] || '#6b7280';
+  };
+
   return (
     <AdminAuth>
       <div style={styles.container}>
         <header style={styles.header}>
           <div>
-            <h1 style={styles.title}>Approve Account Funding</h1>
+            <h1 style={styles.title}>🎉 Approve Account Funding</h1>
             <p style={styles.subtitle}>Confirm minimum deposits and activate accounts</p>
           </div>
           <div style={styles.headerActions}>
+            <button onClick={fetchData} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
+            </button>
             <Link href="/admin/manage-account-opening-deposits" style={styles.linkButton}>
               💳 Manage Deposits
             </Link>
@@ -166,213 +176,210 @@ export default function ApproveFunding() {
         )}
 
         {loading ? (
-          <div style={styles.loading}>Loading accounts...</div>
+          <div style={styles.loadingState}>
+            <div style={styles.spinner}></div>
+            <p>Loading accounts...</p>
+          </div>
         ) : (
           <>
-            <div style={styles.stats}>
-              <div style={styles.statCard}>
-                <div style={styles.statValue}>{accounts.length}</div>
-                <div style={styles.statLabel}>Accounts Awaiting Funding</div>
+            <div style={styles.statsGrid}>
+              <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+                <h3 style={styles.statLabel}>Awaiting Funding</h3>
+                <p style={styles.statValue}>{accounts.length}</p>
               </div>
-              <div style={styles.statCard}>
-                <div style={styles.statValue}>
+              <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
+                <h3 style={styles.statLabel}>Ready to Activate</h3>
+                <p style={styles.statValue}>
                   {accounts.filter(a => canConfirmFunding(a)).length}
-                </div>
-                <div style={styles.statLabel}>Ready to Activate</div>
+                </p>
               </div>
-              <div style={styles.statCard}>
-                <div style={styles.statValue}>
+              <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+                <h3 style={styles.statLabel}>Completed Deposits</h3>
+                <p style={styles.statValue}>
                   {deposits.filter(d => d.status === 'completed').length}
-                </div>
-                <div style={styles.statLabel}>Completed Deposits</div>
+                </p>
               </div>
             </div>
 
             <div style={styles.tableContainer}>
               {accounts.length === 0 ? (
-                <div style={styles.empty}>
-                  <p>No accounts awaiting funding confirmation.</p>
+                <div style={styles.emptyState}>
+                  <p style={styles.emptyIcon}>📋</p>
+                  <p style={styles.emptyText}>No accounts awaiting funding confirmation</p>
                   <Link href="/admin/approve-applications" style={styles.emptyLink}>
                     Go to Approve Applications
                   </Link>
                 </div>
               ) : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Account</th>
-                      <th style={styles.th}>User</th>
-                      <th style={styles.th}>Min. Deposit</th>
-                      <th style={styles.th}>Total Deposited</th>
-                      <th style={styles.th}>Status</th>
-                      <th style={styles.th}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {accounts.map((account) => {
-                      const accountDeposits = getDepositsForAccount(account.id);
-                      const totalDeposited = getTotalDeposited(account.id);
-                      const minDeposit = parseFloat(account.min_deposit || 0);
-                      const isReady = canConfirmFunding(account);
-                      const isExpanded = expandedAccount === account.id;
-                      
-                      return (
-                        <React.Fragment key={account.id}>
-                          <tr style={styles.tr}>
-                            <td style={styles.td}>
-                              <div>
-                                <strong>{account.account_number}</strong>
-                                <div style={styles.accountType}>{account.account_type}</div>
-                              </div>
-                            </td>
-                            <td style={styles.td}>
-                              <div>
-                                <strong>
-                                  {account.applications?.first_name} {account.applications?.last_name}
-                                </strong>
-                                <div style={styles.email}>{account.applications?.email}</div>
-                              </div>
-                            </td>
-                            <td style={styles.td}>
-                              <strong style={{color: '#1e40af'}}>${minDeposit.toFixed(2)}</strong>
-                            </td>
-                            <td style={styles.td}>
-                              <strong style={{color: isReady ? '#059669' : '#f59e0b'}}>
-                                ${totalDeposited.toFixed(2)}
-                              </strong>
-                              {!isReady && minDeposit > 0 && (
-                                <div style={styles.remaining}>
-                                  ${(minDeposit - totalDeposited).toFixed(2)} remaining
-                                </div>
-                              )}
-                            </td>
-                            <td style={styles.td}>
-                              {isReady ? (
-                                <span style={{...styles.badge, ...styles.badgeSuccess}}>
-                                  ✅ Ready to Activate
-                                </span>
-                              ) : (
-                                <span style={{...styles.badge, ...styles.badgeWarning}}>
-                                  ⏳ Awaiting Deposit
-                                </span>
-                              )}
-                            </td>
-                            <td style={styles.td}>
-                              <div style={styles.actions}>
-                                <button
-                                  onClick={() => confirmFunding(account.id, account.account_number)}
-                                  style={{
-                                    ...styles.btn,
-                                    ...(isReady ? styles.btnSuccess : styles.btnDisabled)
-                                  }}
-                                  disabled={!isReady || processing === account.id}
+                <div style={styles.cardsGrid}>
+                  {accounts.map((account) => {
+                    const accountDeposits = getDepositsForAccount(account.id);
+                    const totalDeposited = getTotalDeposited(account.id);
+                    const minDeposit = parseFloat(account.min_deposit || 0);
+                    const isReady = canConfirmFunding(account);
+                    const isExpanded = expandedAccount === account.id;
+                    
+                    return (
+                      <div key={account.id} style={styles.card}>
+                        <div style={styles.cardHeader}>
+                          <div>
+                            <h3 style={styles.accountNumber}>{account.account_number}</h3>
+                            <p style={styles.accountType}>{account.account_type}</p>
+                            <p style={styles.userName}>
+                              {account.applications?.first_name} {account.applications?.last_name}
+                            </p>
+                            <p style={styles.userEmail}>{account.applications?.email}</p>
+                          </div>
+                          <span style={{
+                            ...styles.statusBadge,
+                            backgroundColor: isReady ? '#d1fae5' : '#fef3c7',
+                            color: isReady ? '#065f46' : '#92400e'
+                          }}>
+                            {isReady ? '✅ Ready' : '⏳ Pending'}
+                          </span>
+                        </div>
+
+                        <div style={styles.cardBody}>
+                          <div style={styles.infoRow}>
+                            <span style={styles.infoLabel}>Min. Required:</span>
+                            <span style={{...styles.infoValue, color: '#1e40af', fontWeight: '600'}}>
+                              ${minDeposit.toFixed(2)}
+                            </span>
+                          </div>
+                          <div style={styles.infoRow}>
+                            <span style={styles.infoLabel}>Total Deposited:</span>
+                            <span style={{...styles.infoValue, color: isReady ? '#059669' : '#f59e0b', fontWeight: '600'}}>
+                              ${totalDeposited.toFixed(2)}
+                            </span>
+                          </div>
+                          {!isReady && minDeposit > 0 && (
+                            <div style={styles.infoRow}>
+                              <span style={styles.infoLabel}>Remaining:</span>
+                              <span style={{...styles.infoValue, color: '#f59e0b', fontWeight: '600'}}>
+                                ${(minDeposit - totalDeposited).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          <div style={styles.infoRow}>
+                            <span style={styles.infoLabel}>Deposits Count:</span>
+                            <span style={styles.infoValue}>
+                              {accountDeposits.length} deposit{accountDeposits.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={styles.cardFooter}>
+                          <button
+                            onClick={() => confirmFunding(account.id, account.account_number)}
+                            style={{
+                              ...styles.btn,
+                              ...(isReady ? styles.btnSuccess : styles.btnDisabled),
+                              flex: 2
+                            }}
+                            disabled={!isReady || processing === account.id}
+                          >
+                            {processing === account.id ? '⏳ Processing...' : '🎉 Confirm & Activate'}
+                          </button>
+                          <button
+                            onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
+                            style={{...styles.btn, ...styles.btnInfo, flex: 1}}
+                          >
+                            {isExpanded ? '▲' : '▼'} Details
+                          </button>
+                        </div>
+
+                        {isExpanded && (
+                          <div style={styles.expandedSection}>
+                            <h4 style={styles.detailsTitle}>💰 Deposit History</h4>
+                            
+                            {accountDeposits.length === 0 ? (
+                              <div style={styles.noDeposits}>
+                                <p>No deposits recorded yet</p>
+                                <Link 
+                                  href="/admin/manage-account-opening-deposits"
+                                  style={styles.manageLink}
                                 >
-                                  {processing === account.id ? '⏳ Processing...' : '🎉 Confirm & Activate'}
-                                </button>
-                                <button
-                                  onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
-                                  style={{...styles.btn, ...styles.btnInfo}}
-                                >
-                                  {isExpanded ? '▲ Hide' : '▼ Details'} ({accountDeposits.length})
-                                </button>
+                                  Assign Crypto Wallet
+                                </Link>
                               </div>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan="6" style={styles.expandedCell}>
-                                <div style={styles.detailsPanel}>
-                                  <h4 style={styles.detailsTitle}>Deposit History</h4>
-                                  
-                                  {accountDeposits.length === 0 ? (
-                                    <div style={styles.noDeposits}>
-                                      <p>No deposits recorded yet.</p>
-                                      <Link 
-                                        href="/admin/manage-account-opening-deposits"
-                                        style={styles.manageLink}
-                                      >
-                                        Assign Crypto Wallet
-                                      </Link>
-                                    </div>
-                                  ) : (
-                                    <div style={styles.depositsList}>
-                                      {accountDeposits.map((deposit, idx) => (
-                                        <div key={deposit.id} style={styles.depositCard}>
-                                          <div style={styles.depositHeader}>
-                                            <span style={styles.depositNumber}>Deposit #{idx + 1}</span>
-                                            <span style={{
-                                              ...styles.depositStatus,
-                                              backgroundColor: getStatusColor(deposit.status) + '20',
-                                              color: getStatusColor(deposit.status)
-                                            }}>
-                                              {deposit.status}
-                                            </span>
-                                          </div>
-                                          
-                                          <div style={styles.depositDetails}>
-                                            <div style={styles.depositRow}>
-                                              <span style={styles.depositLabel}>Crypto:</span>
-                                              <span>{deposit.crypto_assets?.crypto_type || 'N/A'}</span>
-                                            </div>
-                                            <div style={styles.depositRow}>
-                                              <span style={styles.depositLabel}>Network:</span>
-                                              <span>{deposit.crypto_assets?.network_type || 'N/A'}</span>
-                                            </div>
-                                            <div style={styles.depositRow}>
-                                              <span style={styles.depositLabel}>Amount:</span>
-                                              <strong style={{color: '#059669'}}>
-                                                ${parseFloat(deposit.amount || 0).toFixed(2)}
-                                              </strong>
-                                            </div>
-                                            <div style={styles.depositRow}>
-                                              <span style={styles.depositLabel}>Approved:</span>
-                                              <strong style={{color: '#1e40af'}}>
-                                                ${parseFloat(deposit.approved_amount || 0).toFixed(2)}
-                                              </strong>
-                                            </div>
-                                            <div style={styles.depositRow}>
-                                              <span style={styles.depositLabel}>Confirmations:</span>
-                                              <span>
-                                                {deposit.confirmations}/{deposit.required_confirmations}
-                                              </span>
-                                            </div>
-                                            {deposit.tx_hash && (
-                                              <div style={{...styles.depositRow, gridColumn: '1 / -1'}}>
-                                                <span style={styles.depositLabel}>TX Hash:</span>
-                                                <code style={styles.txHash}>{deposit.tx_hash}</code>
-                                              </div>
-                                            )}
-                                          </div>
+                            ) : (
+                              <>
+                                <div style={styles.depositsList}>
+                                  {accountDeposits.map((deposit, idx) => (
+                                    <div key={deposit.id} style={styles.depositCard}>
+                                      <div style={styles.depositHeader}>
+                                        <span style={styles.depositNumber}>Deposit #{idx + 1}</span>
+                                        <span style={{
+                                          ...styles.depositStatus,
+                                          backgroundColor: getStatusColor(deposit.status) + '20',
+                                          color: getStatusColor(deposit.status)
+                                        }}>
+                                          {deposit.status}
+                                        </span>
+                                      </div>
+                                      
+                                      <div style={styles.depositDetails}>
+                                        <div style={styles.depositRow}>
+                                          <span style={styles.depositLabel}>Crypto:</span>
+                                          <span>{deposit.crypto_assets?.crypto_type || 'N/A'}</span>
                                         </div>
-                                      ))}
+                                        <div style={styles.depositRow}>
+                                          <span style={styles.depositLabel}>Network:</span>
+                                          <span>{deposit.crypto_assets?.network_type || 'N/A'}</span>
+                                        </div>
+                                        <div style={styles.depositRow}>
+                                          <span style={styles.depositLabel}>Amount:</span>
+                                          <strong style={{color: '#059669'}}>
+                                            ${parseFloat(deposit.amount || 0).toFixed(2)}
+                                          </strong>
+                                        </div>
+                                        <div style={styles.depositRow}>
+                                          <span style={styles.depositLabel}>Approved:</span>
+                                          <strong style={{color: '#1e40af'}}>
+                                            ${parseFloat(deposit.approved_amount || 0).toFixed(2)}
+                                          </strong>
+                                        </div>
+                                        <div style={styles.depositRow}>
+                                          <span style={styles.depositLabel}>Confirmations:</span>
+                                          <span>
+                                            {deposit.confirmations}/{deposit.required_confirmations}
+                                          </span>
+                                        </div>
+                                        {deposit.tx_hash && (
+                                          <div style={{...styles.depositRow, gridColumn: '1 / -1'}}>
+                                            <span style={styles.depositLabel}>TX Hash:</span>
+                                            <code style={styles.code}>{deposit.tx_hash}</code>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  )}
-                                  
-                                  <div style={styles.summary}>
-                                    <div style={styles.summaryRow}>
-                                      <span>Total Required:</span>
-                                      <strong>${minDeposit.toFixed(2)}</strong>
-                                    </div>
-                                    <div style={styles.summaryRow}>
-                                      <span>Total Deposited:</span>
-                                      <strong style={{color: '#059669'}}>${totalDeposited.toFixed(2)}</strong>
-                                    </div>
-                                    <div style={styles.summaryRow}>
-                                      <span>Remaining:</span>
-                                      <strong style={{color: isReady ? '#059669' : '#f59e0b'}}>
-                                        ${Math.max(0, minDeposit - totalDeposited).toFixed(2)}
-                                      </strong>
-                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <div style={styles.summary}>
+                                  <div style={styles.summaryRow}>
+                                    <span>Total Required:</span>
+                                    <strong>${minDeposit.toFixed(2)}</strong>
+                                  </div>
+                                  <div style={styles.summaryRow}>
+                                    <span>Total Deposited:</span>
+                                    <strong style={{color: '#059669'}}>${totalDeposited.toFixed(2)}</strong>
+                                  </div>
+                                  <div style={styles.summaryRow}>
+                                    <span>Remaining:</span>
+                                    <strong style={{color: isReady ? '#059669' : '#f59e0b'}}>
+                                      ${Math.max(0, minDeposit - totalDeposited).toFixed(2)}
+                                    </strong>
                                   </div>
                                 </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </>
@@ -380,19 +387,6 @@ export default function ApproveFunding() {
       </div>
     </AdminAuth>
   );
-}
-
-function getStatusColor(status) {
-  const colors = {
-    pending: '#f59e0b',
-    awaiting_confirmations: '#3b82f6',
-    confirmed: '#10b981',
-    approved: '#10b981',
-    completed: '#059669',
-    rejected: '#ef4444',
-    failed: '#ef4444'
-  };
-  return colors[status] || '#6b7280';
 }
 
 const styles = {
@@ -415,31 +409,32 @@ const styles = {
     flexWrap: 'wrap',
     gap: '16px'
   },
-  headerActions: {
-    display: 'flex',
-    gap: '12px'
-  },
   title: {
+    margin: '0 0 8px 0',
     fontSize: 'clamp(1.5rem, 4vw, 28px)',
-    fontWeight: '700',
-    color: '#1e40af',
-    margin: '0 0 8px 0'
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: 'clamp(0.85rem, 2vw, 16px)',
-    color: '#64748b',
-    margin: 0
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
-  backButton: {
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  refreshButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-    background: '#f1f5f9',
-    color: '#1e40af',
-    textDecoration: 'none',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    transition: 'background 0.2s',
-    display: 'inline-block'
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
   },
   linkButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
@@ -452,16 +447,24 @@ const styles = {
     transition: 'transform 0.2s',
     display: 'inline-block'
   },
-  headerActions: {
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap'
+  backButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#718096',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
   },
   alert: {
     padding: '12px 16px',
     borderRadius: '8px',
     marginBottom: '20px',
-    fontWeight: '500'
+    fontWeight: '500',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
   alertError: {
     background: '#fee2e2',
@@ -473,105 +476,257 @@ const styles = {
     color: '#065f46',
     border: '1px solid #6ee7b7'
   },
-  loading: {
+  loadingState: {
     textAlign: 'center',
-    padding: '40px',
-    fontSize: '18px',
-    color: '#64748b'
+    padding: '60px 20px',
+    color: '#718096'
   },
-  stats: {
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
+  },
+  statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
+    gap: '16px',
+    marginBottom: '20px'
   },
   statCard: {
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    padding: '24px',
+    background: 'white',
+    padding: '20px',
     borderRadius: '12px',
-    color: 'white',
-    textAlign: 'center'
-  },
-  statValue: {
-    fontSize: '36px',
-    fontWeight: '700',
-    marginBottom: '8px'
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   statLabel: {
-    fontSize: '14px',
-    opacity: 0.9
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
+    fontWeight: '500'
+  },
+  statValue: {
+    margin: 0,
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   tableContainer: {
     background: 'white',
     borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'hidden'
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
+  emptyState: {
+    textAlign: 'center',
+    padding: '60px 20px'
   },
-  th: {
-    background: '#f8fafc',
-    padding: '16px',
-    textAlign: 'left',
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
+  },
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
     fontWeight: '600',
-    color: '#1e293b',
-    borderBottom: '2px solid #e2e8f0'
+    marginBottom: '16px'
   },
-  tr: {
+  emptyLink: {
+    display: 'inline-block',
+    padding: '10px 24px',
+    background: '#1e40af',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '8px',
+    fontWeight: '600',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  cardsGrid: {
+    display: 'grid',
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
+  },
+  card: {
+    background: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    transition: 'transform 0.2s, box-shadow 0.2s'
+  },
+  cardHeader: {
+    padding: 'clamp(12px, 3vw, 16px)',
     borderBottom: '1px solid #e2e8f0',
-    transition: 'background 0.2s'
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '12px'
   },
-  td: {
-    padding: '16px',
-    color: '#334155'
+  accountNumber: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    fontWeight: '600',
+    color: '#1A3E6F'
   },
   accountType: {
-    fontSize: '13px',
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
     color: '#64748b',
-    marginTop: '4px'
+    textTransform: 'capitalize'
   },
-  email: {
-    fontSize: '13px',
-    color: '#64748b',
-    marginTop: '4px'
+  userName: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#334155'
   },
-  remaining: {
-    fontSize: '13px',
-    color: '#f59e0b',
-    marginTop: '4px',
-    fontWeight: '600'
+  userEmail: {
+    margin: 0,
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    color: '#64748b'
   },
-  badge: {
-    display: 'inline-block',
+  statusBadge: {
     padding: '6px 12px',
-    borderRadius: '12px',
-    fontSize: '13px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '700',
+    whiteSpace: 'nowrap'
+  },
+  cardBody: {
+    padding: 'clamp(12px, 3vw, 16px)'
+  },
+  infoRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  infoLabel: {
+    color: '#4a5568',
     fontWeight: '600'
   },
-  badgeSuccess: {
-    background: '#d1fae5',
-    color: '#065f46'
+  infoValue: {
+    color: '#2d3748',
+    textAlign: 'right'
   },
-  badgeWarning: {
-    background: '#fef3c7',
-    color: '#92400e'
-  },
-  actions: {
+  cardFooter: {
+    padding: 'clamp(12px, 3vw, 16px)',
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
     gap: '8px',
     flexWrap: 'wrap'
   },
-  btn: {
+  expandedSection: {
+    padding: 'clamp(12px, 3vw, 16px)',
+    background: '#f8fafc',
+    borderTop: '1px solid #e2e8f0'
+  },
+  detailsTitle: {
+    margin: '0 0 12px 0',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '600',
+    color: '#1e40af'
+  },
+  noDeposits: {
+    textAlign: 'center',
+    padding: '30px',
+    background: '#fef3c7',
+    borderRadius: '8px',
+    color: '#92400e'
+  },
+  manageLink: {
+    display: 'inline-block',
+    marginTop: '12px',
     padding: '8px 16px',
+    background: '#1e40af',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '6px',
+    fontWeight: '600',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)'
+  },
+  depositsList: {
+    display: 'grid',
+    gap: '12px',
+    marginBottom: '16px'
+  },
+  depositCard: {
+    background: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '12px'
+  },
+  depositHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid #e2e8f0'
+  },
+  depositNumber: {
+    fontWeight: '600',
+    color: '#1e40af',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  depositStatus: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600'
+  },
+  depositDetails: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '8px'
+  },
+  depositRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)'
+  },
+  depositLabel: {
+    color: '#64748b',
+    marginRight: '8px'
+  },
+  code: {
+    background: '#f1f5f9',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    fontFamily: 'monospace',
+    display: 'block',
+    marginTop: '4px',
+    wordBreak: 'break-all'
+  },
+  summary: {
+    background: '#f0fdf4',
+    border: '2px solid #10b981',
+    borderRadius: '8px',
+    padding: '12px',
+    marginTop: '12px'
+  },
+  summaryRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    marginBottom: '8px'
+  },
+  btn: {
+    flex: 1,
+    minWidth: '100px',
+    padding: 'clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)',
     borderRadius: '6px',
     border: 'none',
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    textAlign: 'center'
   },
   btnSuccess: {
     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -585,115 +740,5 @@ const styles = {
   btnInfo: {
     background: '#dbeafe',
     color: '#1e40af'
-  },
-  expandedCell: {
-    background: '#f8fafc',
-    padding: '0'
-  },
-  detailsPanel: {
-    padding: '24px'
-  },
-  detailsTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1e40af',
-    marginBottom: '16px'
-  },
-  noDeposits: {
-    textAlign: 'center',
-    padding: '40px',
-    background: '#fef3c7',
-    borderRadius: '8px',
-    color: '#92400e'
-  },
-  manageLink: {
-    display: 'inline-block',
-    marginTop: '16px',
-    padding: '10px 20px',
-    background: '#1e40af',
-    color: 'white',
-    textDecoration: 'none',
-    borderRadius: '6px',
-    fontWeight: '600'
-  },
-  depositsList: {
-    display: 'grid',
-    gap: '16px',
-    marginBottom: '24px'
-  },
-  depositCard: {
-    background: 'white',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    padding: '16px'
-  },
-  depositHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px',
-    paddingBottom: '12px',
-    borderBottom: '1px solid #e2e8f0'
-  },
-  depositNumber: {
-    fontWeight: '600',
-    color: '#1e40af'
-  },
-  depositStatus: {
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  depositDetails: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '12px'
-  },
-  depositRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '14px'
-  },
-  depositLabel: {
-    color: '#64748b',
-    marginRight: '12px'
-  },
-  txHash: {
-    background: '#f1f5f9',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    wordBreak: 'break-all',
-    marginTop: '4px'
-  },
-  summary: {
-    background: '#f0fdf4',
-    border: '2px solid #10b981',
-    borderRadius: '8px',
-    padding: '16px',
-    marginTop: '16px'
-  },
-  summaryRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '16px',
-    marginBottom: '8px'
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    color: '#64748b'
-  },
-  emptyLink: {
-    display: 'inline-block',
-    marginTop: '16px',
-    padding: '10px 24px',
-    background: '#1e40af',
-    color: 'white',
-    textDecoration: 'none',
-    borderRadius: '8px',
-    fontWeight: '600'
   }
 };
