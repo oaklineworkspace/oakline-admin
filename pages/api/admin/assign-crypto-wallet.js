@@ -38,14 +38,13 @@ export default async function handler(req, res) {
 
     const adminId = authResult.user.id;
 
-    // Check if wallet already exists for this exact user/crypto/network/wallet combination
+    // Check if this exact combination already exists for this user
     const { data: existing, error: checkError } = await supabaseAdmin
       .from('admin_assigned_wallets')
       .select('*')
       .eq('user_id', userId)
       .eq('crypto_type', cryptoType)
       .eq('network_type', networkType)
-      .eq('wallet_address', walletAddress.trim())
       .maybeSingle();
 
     if (checkError) {
@@ -54,10 +53,11 @@ export default async function handler(req, res) {
     }
 
     if (existing) {
-      // Update existing wallet assignment (memo or admin_id might have changed)
+      // Update existing wallet assignment (wallet address, memo or admin_id might have changed)
       const { data: walletData, error: walletError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .update({ 
+          wallet_address: walletAddress.trim(),
           memo: memo || null,
           admin_id: adminId,
           updated_at: new Date().toISOString()
@@ -78,6 +78,7 @@ export default async function handler(req, res) {
       });
     } else {
       // Create new wallet assignment
+      // The composite unique index allows same wallet address for different crypto types
       const { data: walletData, error: walletError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .insert([{ 
@@ -97,7 +98,7 @@ export default async function handler(req, res) {
         // Check if error is due to duplicate combination
         if (walletError.code === '23505') {
           return res.status(400).json({ 
-            error: 'This wallet is already assigned for this crypto type and network' 
+            error: 'This user already has a wallet assigned for this crypto type and network combination' 
           });
         }
         

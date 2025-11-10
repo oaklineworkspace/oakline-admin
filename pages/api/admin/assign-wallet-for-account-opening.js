@@ -24,20 +24,38 @@ export default async function handler(req, res) {
     }
 
     // First, create or get the admin assigned wallet
+    // Check if this exact crypto/network combination exists for this user
     const { data: existingWallet, error: walletCheckError } = await supabaseAdmin
       .from('admin_assigned_wallets')
       .select('*')
       .eq('user_id', userId)
       .eq('crypto_type', cryptoType)
       .eq('network_type', networkType)
-      .eq('wallet_address', walletAddress)
       .maybeSingle();
 
     let walletId;
 
     if (existingWallet) {
-      walletId = existingWallet.id;
+      // Update the wallet address if it changed
+      const { data: updatedWallet, error: updateError } = await supabaseAdmin
+        .from('admin_assigned_wallets')
+        .update({
+          wallet_address: walletAddress,
+          memo: memo || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingWallet.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating wallet:', updateError);
+        return res.status(500).json({ error: 'Failed to update wallet assignment' });
+      }
+
+      walletId = updatedWallet.id;
     } else {
+      // Create new wallet - composite unique index allows same address for different tokens
       const { data: newWallet, error: walletError } = await supabaseAdmin
         .from('admin_assigned_wallets')
         .insert({

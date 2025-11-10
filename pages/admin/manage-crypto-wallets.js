@@ -166,7 +166,8 @@ export default function ManageCryptoWallets() {
       return;
     }
 
-    // Check if this crypto/network combination already exists for this user
+    // Check if this exact crypto/network combination already exists for this user
+    // Note: Same wallet address can be used for different crypto types (e.g., BTC and USDT on BEP20)
     const userWallets = existingWallets[userId] || [];
     const isDuplicate = userWallets.some(
       wallet => wallet.crypto_type === cryptoType && wallet.network_type === networkType
