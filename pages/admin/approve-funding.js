@@ -22,8 +22,19 @@ export default function ApproveFunding() {
     setLoading(true);
     setError('');
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      };
+
       // Fetch accounts that are pending funding (awaiting minimum deposit)
-      const accountsResponse = await fetch('/api/admin/get-accounts?status=pending_funding');
+      const accountsResponse = await fetch('/api/admin/get-accounts?status=pending_funding', { headers });
       const accountsResult = await accountsResponse.json();
 
       if (!accountsResponse.ok) {
@@ -31,7 +42,7 @@ export default function ApproveFunding() {
       }
 
       // Fetch deposits for these accounts
-      const depositsResponse = await fetch('/api/admin/get-account-opening-deposits');
+      const depositsResponse = await fetch('/api/admin/get-account-opening-deposits', { headers });
       const depositsResult = await depositsResponse.json();
 
       if (!depositsResponse.ok) {
