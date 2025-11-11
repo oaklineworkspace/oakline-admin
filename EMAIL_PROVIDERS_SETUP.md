@@ -49,27 +49,7 @@ This application supports multiple email providers with automatic fallback. If o
 - `SMTP_PASS`
 - `SMTP_FROM`
 
-### 4. SendPulse (Last Resort SMTP)
-**Status:** ⚠️ Needs configuration  
-**Free Tier:** 12,000 emails/month forever  
-**Signup:** https://sendpulse.com/
-
-**Setup Steps:**
-1. Sign up at SendPulse
-2. Verify your email
-3. Go to Settings → SMTP
-4. Create SMTP credentials or use existing ones
-5. Add to Replit Secrets:
-   - Key: `SENDPULSE_SMTP_HOST`
-   - Value: `smtp-pulse.com`
-   - Key: `SENDPULSE_SMTP_PORT`
-   - Value: `465` (or `587` for TLS)
-   - Key: `SENDPULSE_SMTP_USER`
-   - Value: Your SendPulse email or SMTP ID
-   - Key: `SENDPULSE_SMTP_PASS`
-   - Value: Your SMTP password
-
-## Alternative Third Providers
+## Alternative Providers
 
 ### Option A: Mailgun
 **Free Tier:** 5,000 emails/month for 3 months  
@@ -112,10 +92,9 @@ POSTMARK_SMTP_PASS=your-server-token
 ## Current Configuration
 
 Your system will try providers in this order:
-1. **Brevo API** (primary) ⚠️ Add your API key to activate
+1. **Brevo API** (primary) ✅ Configured
 2. **Resend API** (fallback #1) ✅ Configured
 3. **Primary SMTP** (fallback #2) ✅ Configured
-4. **SendPulse SMTP** (fallback #3) ⚠️ Optional
 
 ## How It Works
 
@@ -136,9 +115,9 @@ Check your logs for messages like:
 
 ## Recommendations
 
-For best reliability, I recommend:
-1. ➕ Add Brevo API (Priority 1) - free 300 emails/day, easy setup
-2. ✅ Keep Resend API (Priority 2) - already configured
-3. ✅ Keep your current SMTP (Priority 3) - already configured
+For best reliability, you currently have:
+1. ✅ Brevo API (Priority 1) - free 300 emails/day, easy setup
+2. ✅ Resend API (Priority 2) - already configured
+3. ✅ Primary SMTP (Priority 3) - already configured
 
 This gives you 3 independent providers with generous limits, ensuring your emails always get through!
