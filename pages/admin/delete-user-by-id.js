@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -24,7 +23,7 @@ export default function DeleteUserById() {
       // Fetch auth users
       const authResponse = await fetch('/api/admin/get-users');
       const authData = await authResponse.json();
-      
+
       if (!authResponse.ok || !authData.users) {
         setMessage({ type: 'error', text: 'Failed to fetch users' });
         setFetchingUsers(false);
@@ -117,10 +116,10 @@ export default function DeleteUserById() {
           type: 'success', 
           text: data.message || `User account for ${userToDelete.email} has been successfully deleted along with all associated data.`
         });
-        
+
         await fetchAllUsers();
         setUserToDelete(null);
-        
+
         setTimeout(() => setMessage(null), 8000);
       } else {
         setMessage({ 
@@ -258,7 +257,7 @@ export default function DeleteUserById() {
               <span style={styles.modalIcon}>⚠️</span>
               <h2 style={styles.modalTitle}>Confirm Deletion</h2>
             </div>
-            
+
             <div style={styles.modalBody}>
               <p style={styles.modalText}>
                 You are about to permanently delete:
@@ -268,7 +267,7 @@ export default function DeleteUserById() {
                 <div><strong>Email:</strong> {userToDelete.email}</div>
                 <div><strong>ID:</strong> {userToDelete.id}</div>
               </div>
-              
+
               <div style={styles.warningBox}>
                 <p style={styles.warningTitle}>This will permanently delete:</p>
                 <ul style={styles.warningList}>

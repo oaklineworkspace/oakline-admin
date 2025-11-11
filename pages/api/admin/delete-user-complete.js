@@ -48,29 +48,6 @@ export default async function handler(req, res) {
 
     console.log(`🗑️ Starting deletion process for user: ${userIdToDelete} (${userEmail})`);
 
-    // STEP 0: Delete from Supabase Auth FIRST (track success for later)
-    console.log('🔐 Deleting user from Supabase authentication...');
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete);
-    
-    let authDeletedSuccessfully = false;
-    let authErrorDetails = null;
-    
-    if (authError) {
-      // If user not found in auth, treat as success (already deleted)
-      if (authError.message && authError.message.toLowerCase().includes('user not found')) {
-        console.log('ℹ️ User not found in authentication (may have been already deleted) - continuing with database cleanup');
-        authDeletedSuccessfully = true;
-      } else {
-        // For other auth errors, log and continue but track the failure
-        console.warn('⚠️ Error deleting from auth (continuing with database cleanup):', authError.message);
-        authErrorDetails = authError.message;
-        authDeletedSuccessfully = false;
-      }
-    } else {
-      console.log('✅ Deleted user from Supabase authentication');
-      authDeletedSuccessfully = true;
-    }
-
     // Delete all database dependencies in the correct order
     const deletionSteps = [
       // 1. Card transactions (depends on cards)
@@ -730,14 +707,37 @@ export default async function handler(req, res) {
 
     console.log(`✅ Database cleanup completed for user: ${userIdToDelete}`);
 
+    // FINAL STEP: Delete from Supabase Auth LAST (after all database records are removed)
+    console.log('🔐 Deleting user from Supabase authentication...');
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete);
+    
+    let authDeletedSuccessfully = false;
+    let authErrorDetails = null;
+    
+    if (authError) {
+      // If user not found in auth, treat as success (already deleted)
+      if (authError.message && authError.message.toLowerCase().includes('user not found')) {
+        console.log('ℹ️ User not found in authentication (may have been already deleted)');
+        authDeletedSuccessfully = true;
+      } else {
+        // For other auth errors, log the failure
+        console.error('❌ Error deleting from auth:', authError.message);
+        authErrorDetails = authError.message;
+        authDeletedSuccessfully = false;
+      }
+    } else {
+      console.log('✅ Deleted user from Supabase authentication');
+      authDeletedSuccessfully = true;
+    }
+
     // Return appropriate status based on auth deletion success
     if (!authDeletedSuccessfully) {
       return res.status(207).json({
         success: false,
         partialSuccess: true,
-        error: 'Partial deletion: Database records removed but authentication account may still exist',
+        error: 'Partial deletion: Database records removed but authentication account could not be deleted',
         details: authErrorDetails,
-        message: `Database records for ${userEmail || userIdToDelete} have been deleted, but the authentication account could not be removed. Please retry the deletion or contact system administrator.`,
+        message: `Database records for ${userEmail || userIdToDelete} have been deleted, but the authentication account could not be removed. Please retry or contact system administrator.`,
         userId: userIdToDelete,
         email: userEmail || 'N/A',
       });
