@@ -103,22 +103,39 @@ export default function DeleteUserById() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      // Handle partial success (status 207)
+      if (response.status === 207 && data.partialSuccess) {
+        setMessage({ 
+          type: 'error', 
+          text: data.message || 'Partial deletion completed. Database records removed but authentication account may still exist. Please retry the deletion.'
+        });
+        await fetchAllUsers();
+        setUserToDelete(null);
+        setTimeout(() => setMessage(null), 10000);
+      } else if (response.ok) {
         setMessage({ 
           type: 'success', 
-          text: `✅ User ${userToDelete.email} deleted successfully!` 
+          text: data.message || `User account for ${userToDelete.email} has been successfully deleted along with all associated data.`
         });
         
         await fetchAllUsers();
         setUserToDelete(null);
         
-        setTimeout(() => setMessage(null), 5000);
+        setTimeout(() => setMessage(null), 8000);
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to delete user' });
+        setMessage({ 
+          type: 'error', 
+          text: data.details 
+            ? `Failed to delete user: ${data.error}. ${data.details}` 
+            : data.error || 'Unable to delete user. Please try again or contact system administrator.' 
+        });
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      setMessage({ type: 'error', text: 'Error deleting user' });
+      setMessage({ 
+        type: 'error', 
+        text: 'A network error occurred while attempting to delete the user. Please check your connection and try again.' 
+      });
     } finally {
       setLoading(false);
       setDeletingUserId(null);
