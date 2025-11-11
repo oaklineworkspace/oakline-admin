@@ -621,7 +621,119 @@ export default async function handler(req, res) {
         console.log('✅ Deleted chat messages (sender)');
       },
 
-      // 54. Nullify references where user was an approver/processor/reviewer
+      // 54. Card transaction audit logs (if exists)
+      async () => {
+        const { data: userCards } = await supabaseAdmin
+          .from('cards')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userCards && userCards.length > 0) {
+          const cardIds = userCards.map(c => c.id);
+          await supabaseAdmin
+            .from('card_transaction_audit_logs')
+            .delete()
+            .in('card_id', cardIds);
+          console.log('✅ Deleted card transaction audit logs');
+        }
+      },
+
+      // 55. Account audit logs (if exists)
+      async () => {
+        const { data: userAccounts } = await supabaseAdmin
+          .from('accounts')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userAccounts && userAccounts.length > 0) {
+          const accountIds = userAccounts.map(a => a.id);
+          await supabaseAdmin
+            .from('account_audit_logs')
+            .delete()
+            .in('account_id', accountIds);
+          console.log('✅ Deleted account audit logs');
+        }
+      },
+
+      // 56. Application audit logs (if exists)
+      async () => {
+        const { data: userApps } = await supabaseAdmin
+          .from('applications')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userApps && userApps.length > 0) {
+          const appIds = userApps.map(a => a.id);
+          await supabaseAdmin
+            .from('application_audit_logs')
+            .delete()
+            .in('application_id', appIds);
+          console.log('✅ Deleted application audit logs');
+        }
+      },
+
+      // 57. Investment audit logs (if exists)
+      async () => {
+        const { data: userInvestments } = await supabaseAdmin
+          .from('investments')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userInvestments && userInvestments.length > 0) {
+          const investmentIds = userInvestments.map(i => i.id);
+          await supabaseAdmin
+            .from('investment_audit_logs')
+            .delete()
+            .in('investment_id', investmentIds);
+          console.log('✅ Deleted investment audit logs');
+        }
+      },
+
+      // 58. Loan audit logs (if exists)
+      async () => {
+        const { data: userLoans } = await supabaseAdmin
+          .from('loans')
+          .select('id')
+          .eq('user_id', userIdToDelete);
+        
+        if (userLoans && userLoans.length > 0) {
+          const loanIds = userLoans.map(l => l.id);
+          await supabaseAdmin
+            .from('loan_audit_logs')
+            .delete()
+            .in('loan_id', loanIds);
+          console.log('✅ Deleted loan audit logs');
+        }
+      },
+
+      // 59. User sessions (if exists)
+      async () => {
+        await supabaseAdmin
+          .from('user_sessions')
+          .delete()
+          .eq('user_id', userIdToDelete);
+        console.log('✅ Deleted user sessions');
+      },
+
+      // 60. User preferences (if exists)
+      async () => {
+        await supabaseAdmin
+          .from('user_preferences')
+          .delete()
+          .eq('user_id', userIdToDelete);
+        console.log('✅ Deleted user preferences');
+      },
+
+      // 61. User verification tokens (if exists)
+      async () => {
+        await supabaseAdmin
+          .from('user_verification_tokens')
+          .delete()
+          .eq('user_id', userIdToDelete);
+        console.log('✅ Deleted user verification tokens');
+      },
+
+      // 62. Nullify references where user was an approver/processor/reviewer
       async () => {
         await supabaseAdmin
           .from('account_opening_crypto_deposits')
@@ -676,7 +788,7 @@ export default async function handler(req, res) {
         console.log('✅ Nullified admin/approver/reviewer references');
       },
 
-      // 55. Admin profiles
+      // 63. Admin profiles
       async () => {
         await supabaseAdmin
           .from('admin_profiles')
@@ -685,7 +797,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted admin profiles');
       },
 
-      // 56. Profile
+      // 64. Profile
       async () => {
         await supabaseAdmin
           .from('profiles')
@@ -720,10 +832,28 @@ export default async function handler(req, res) {
         console.log('ℹ️ User not found in authentication (may have been already deleted)');
         authDeletedSuccessfully = true;
       } else {
-        // For other auth errors, log the failure
-        console.error('❌ Error deleting from auth:', authError.message);
-        authErrorDetails = authError.message;
+        // For other auth errors, log the failure with full details
+        console.error('❌ Error deleting from auth:', JSON.stringify(authError, null, 2));
+        authErrorDetails = authError.message || JSON.stringify(authError);
         authDeletedSuccessfully = false;
+        
+        // Try to identify remaining foreign key constraints
+        console.log('🔍 Checking for remaining user references in database...');
+        try {
+          const tables = ['accounts', 'applications', 'cards', 'loans', 'profiles', 'transactions', 
+                         'zelle_transactions', 'oakline_pay_transactions', 'chat_threads', 'notifications'];
+          for (const table of tables) {
+            const { count } = await supabaseAdmin
+              .from(table)
+              .select('*', { count: 'exact', head: true })
+              .or(`user_id.eq.${userIdToDelete},id.eq.${userIdToDelete}`);
+            if (count > 0) {
+              console.log(`⚠️ Found ${count} remaining records in ${table}`);
+            }
+          }
+        } catch (checkError) {
+          console.warn('⚠️ Could not check for remaining references:', checkError.message);
+        }
       }
     } else {
       console.log('✅ Deleted user from Supabase authentication');
