@@ -49,7 +49,8 @@ export default function AdminNavDropdown() {
         { name: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
         { name: 'Reports', path: '/admin/admin-reports', icon: '📈' },
         { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
-        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' }
+        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
+        { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }
       ]
     },
     {

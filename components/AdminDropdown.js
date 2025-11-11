@@ -113,6 +113,7 @@ export default function AdminDropdown() {
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
+        { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' },
         { name: 'Database Explorer', path: '/admin/database-explorer', icon: '🗄️' },
         { name: 'Reports', path: '/admin/admin-reports', icon: '📊' },
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭' },

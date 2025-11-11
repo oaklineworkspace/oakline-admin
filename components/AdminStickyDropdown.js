@@ -25,7 +25,8 @@ export default function AdminStickyDropdown() {
         { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
         { name: 'Admin Reports', href: '/admin/admin-reports', icon: '📈' },
         { name: 'Admin Audit', href: '/admin/admin-audit', icon: '🔍' },
-        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' }
+        { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
+        { name: 'Email Logs', href: '/admin/email-logs', icon: '📧' }
       ]
     },
     {

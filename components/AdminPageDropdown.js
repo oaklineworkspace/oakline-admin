@@ -106,6 +106,7 @@ export default function AdminPageDropdown() {
         { name: 'Admin Reports', href: '/admin/admin-reports', icon: '📈' },
         { name: 'Audit Trail', href: '/admin/admin-audit', icon: '🔍' },
         { name: 'System Logs', href: '/admin/admin-logs', icon: '📜' },
+        { name: 'Email Logs', href: '/admin/email-logs', icon: '📧' },
         { name: 'Account Balances', href: '/admin/admin-balance', icon: '💰' },
         { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' },
         { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' }
