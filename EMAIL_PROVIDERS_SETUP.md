@@ -26,23 +26,25 @@ This application supports multiple email providers with automatic fallback. If o
 - Very reliable and fast
 - Great for transactional emails
 
-### 3. SendGrid (Recommended Third Provider)
+### 3. SendPulse (Recommended Third Provider)
 **Status:** ⚠️ Needs configuration  
-**Free Tier:** 100 emails/day forever  
-**Signup:** https://signup.sendgrid.com/
+**Free Tier:** 12,000 emails/month forever  
+**Signup:** https://sendpulse.com/
 
 **Setup Steps:**
-1. Sign up at SendGrid
+1. Sign up at SendPulse
 2. Verify your email
-3. Create an API Key:
-   - Go to Settings → API Keys
-   - Click "Create API Key"
-   - Name it "Oakline Bank"
-   - Select "Full Access"
-   - Copy the key (you'll only see it once!)
-4. Add to Replit Secrets:
-   - Key: `SENDGRID_API_KEY`
-   - Value: Your API key (starts with `SG.`)
+3. Go to Settings → SMTP
+4. Create SMTP credentials or use existing ones
+5. Add to Replit Secrets:
+   - Key: `SENDPULSE_SMTP_HOST`
+   - Value: `smtp-pulse.com`
+   - Key: `SENDPULSE_SMTP_PORT`
+   - Value: `465` (or `587` for TLS)
+   - Key: `SENDPULSE_SMTP_USER`
+   - Value: Your SendPulse email or SMTP ID
+   - Key: `SENDPULSE_SMTP_PASS`
+   - Value: Your SMTP password
 
 ## Alternative Third Providers
 
@@ -87,9 +89,9 @@ POSTMARK_SMTP_PASS=your-server-token
 ## Current Configuration
 
 Your system will try providers in this order:
-1. **Primary SMTP** (your current provider)
-2. **Resend API** (fallback #1) ✅ Configured
-3. **SendGrid SMTP** (fallback #2) ⚠️ Recommended to add
+1. **Resend API** (primary) ✅ Configured
+2. **Primary SMTP** (fallback #1) ✅ Configured
+3. **SendPulse SMTP** (fallback #2) ⚠️ Recommended to add
 
 ## How It Works
 
@@ -111,8 +113,8 @@ Check your logs for messages like:
 ## Recommendations
 
 For best reliability, I recommend:
-1. ✅ Keep your current SMTP (Priority 1)
-2. ✅ Keep Resend (Priority 2) - already configured
-3. ➕ Add SendGrid (Priority 3) - free 100 emails/day forever
+1. ✅ Keep Resend API (Priority 1) - already configured
+2. ✅ Keep your current SMTP (Priority 2) - already configured
+3. ➕ Add SendPulse (Priority 3) - free 12,000 emails/month forever
 
-This gives you 3 independent providers with different daily limits, ensuring your emails always get through!
+This gives you 3 independent providers with generous limits, ensuring your emails always get through!
