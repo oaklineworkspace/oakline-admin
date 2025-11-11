@@ -23,6 +23,19 @@ export default function ManageCryptoDeposits() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [expandedRow, setExpandedRow] = useState(null);
+  const [showProofModal, setShowProofModal] = useState(null);
+  const [proofImageUrl, setProofImageUrl] = useState(null);
+  const [loadingProof, setLoadingProof] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(null);
+  const [editForm, setEditForm] = useState({
+    amount: '',
+    fee: '',
+    confirmations: '',
+    txHash: '',
+    status: '',
+    rejectionReason: '',
+    holdReason: ''
+  });
 
   useEffect(() => {
     fetchDeposits();
@@ -182,6 +195,109 @@ export default function ManageCryptoDeposits() {
     }
   };
 
+  const handleViewProof = async (deposit) => {
+    if (!deposit.proof_path) {
+      setError('No proof of payment uploaded for this deposit');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setLoadingProof(true);
+    setShowProofModal(deposit);
+    setProofImageUrl(null);
+
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No active session');
+      }
+
+      // Create signed URL for the proof image
+      const { data: signedUrlData, error: signedUrlError } = await supabase
+        .storage
+        .from('crypto-deposit-proofs')
+        .createSignedUrl(deposit.proof_path, 3600); // 1 hour expiry
+
+      if (signedUrlError) {
+        console.error('Error creating signed URL:', signedUrlError);
+        throw new Error('Failed to load proof of payment image');
+      }
+
+      setProofImageUrl(signedUrlData.signedUrl);
+    } catch (error) {
+      console.error('Error loading proof:', error);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
+      setShowProofModal(null);
+    } finally {
+      setLoadingProof(false);
+    }
+  };
+
+  const openEditModal = (deposit) => {
+    setEditForm({
+      amount: deposit.amount || '',
+      fee: deposit.fee || '',
+      confirmations: deposit.confirmations || '',
+      txHash: deposit.tx_hash || '',
+      status: deposit.status || 'pending',
+      rejectionReason: deposit.rejection_reason || '',
+      holdReason: deposit.hold_reason || ''
+    });
+    setShowEditModal(deposit);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      const response = await fetch('/api/admin/edit-crypto-deposit', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          depositId: showEditModal.id,
+          amount: editForm.amount ? parseFloat(editForm.amount) : undefined,
+          fee: editForm.fee ? parseFloat(editForm.fee) : undefined,
+          confirmations: editForm.confirmations ? parseInt(editForm.confirmations) : undefined,
+          txHash: editForm.txHash || undefined,
+          status: editForm.status,
+          rejectionReason: editForm.rejectionReason || undefined,
+          holdReason: editForm.holdReason || undefined
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update deposit');
+      }
+
+      setMessage('✅ Deposit updated successfully!');
+      setShowEditModal(null);
+      await fetchDeposits();
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      console.error('Error updating deposit:', error);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteDeposit = async (depositId, deposit) => {
     if (!window.confirm(`⚠️ WARNING: Are you sure you want to DELETE this deposit?\n\nDeposit ID: ${depositId}\nAmount: $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}\n\nThis action CANNOT be undone!`)) {
       return;
@@ -326,7 +442,12 @@ export default function ManageCryptoDeposits() {
     const status = deposit.status;
 
     // Always show Edit button
-    actions.push({ label: 'Edit Status', value: 'edit', color: '#8b5cf6', isEdit: true });
+    actions.push({ label: 'Edit', value: 'edit', color: '#8b5cf6', isEditDeposit: true });
+
+    // Show View Proof if proof exists
+    if (deposit.proof_path) {
+      actions.push({ label: 'View Proof', value: 'view_proof', color: '#3b82f6', isViewProof: true });
+    }
 
     // Show Complete button for confirmed/processing deposits
     if (['confirmed', 'processing'].includes(status)) {
@@ -642,8 +763,10 @@ export default function ManageCryptoDeposits() {
                             <button
                               key={`${deposit.id}-${action.value}-${index}`}
                               onClick={() => {
-                                if (action.isEdit) {
-                                  handleEditStatus(deposit);
+                                if (action.isEditDeposit) {
+                                  openEditModal(deposit);
+                                } else if (action.isViewProof) {
+                                  handleViewProof(deposit);
                                 } else if (action.isComplete) {
                                   handleCompleteDeposit(deposit.id);
                                 } else if (action.isDelete) {
@@ -795,12 +918,300 @@ export default function ManageCryptoDeposits() {
             </button>
           </div>
         )}
+      {/* Proof of Payment Modal */}
+        {showProofModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowProofModal(null)}>
+            <div style={{...styles.modal, maxWidth: '900px'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📸 Proof of Payment</h2>
+                <button onClick={() => setShowProofModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <div style={{marginBottom: '16px'}}>
+                  <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
+                    <strong>Deposit ID:</strong> {showProofModal.id.slice(0, 8)}...
+                  </p>
+                  <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
+                    <strong>Amount:</strong> ${parseFloat(showProofModal.amount || 0).toFixed(2)}
+                  </p>
+                  <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
+                    <strong>Status:</strong> {showProofModal.status}
+                  </p>
+                </div>
+
+                {loadingProof ? (
+                  <div style={{textAlign: 'center', padding: '40px'}}>
+                    <div style={styles.spinner}></div>
+                    <p>Loading proof of payment...</p>
+                  </div>
+                ) : proofImageUrl ? (
+                  <div style={{textAlign: 'center'}}>
+                    <img
+                      src={proofImageUrl}
+                      alt="Proof of Payment"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '70vh',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        border: '2px solid #e2e8f0',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => window.open(proofImageUrl, '_blank')}
+                    />
+                    <p style={{marginTop: '12px', fontSize: '13px', color: '#64748b'}}>
+                      Click image to open in new tab
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{textAlign: 'center', padding: '40px', color: '#ef4444'}}>
+                    <p>Failed to load proof of payment image</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Deposit Modal */}
+        {showEditModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowEditModal(null)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📝 Edit Deposit</h2>
+                <button onClick={() => setShowEditModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <form onSubmit={handleEditSubmit}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Amount (USD)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.amount}
+                      onChange={(e) => setEditForm({...editForm, amount: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Fee (USD)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.fee}
+                      onChange={(e) => setEditForm({...editForm, fee: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Confirmations</label>
+                    <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({
+                          ...editForm, 
+                          confirmations: Math.max(0, parseInt(editForm.confirmations || 0) - 1)
+                        })}
+                        style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={editForm.confirmations}
+                        onChange={(e) => setEditForm({...editForm, confirmations: e.target.value})}
+                        style={{...styles.input, textAlign: 'center'}}
+                        placeholder="0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({
+                          ...editForm, 
+                          confirmations: parseInt(editForm.confirmations || 0) + 1
+                        })}
+                        style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <small style={{color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block'}}>
+                      Current: {editForm.confirmations || 0} / {showEditModal?.required_confirmations || 3} required
+                    </small>
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Transaction Hash</label>
+                    <input
+                      type="text"
+                      value={editForm.txHash}
+                      onChange={(e) => setEditForm({...editForm, txHash: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Status *</label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                      style={styles.input}
+                      required
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="on_hold">On Hold</option>
+                      <option value="awaiting_confirmations">Awaiting Confirmations</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="processing">Processing</option>
+                      <option value="completed">Completed</option>
+                      <option value="failed">Failed</option>
+                      <option value="reversed">Reversed</option>
+                    </select>
+                  </div>
+
+                  {(editForm.status === 'rejected' || editForm.status === 'failed') && (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Rejection Reason</label>
+                      <textarea
+                        value={editForm.rejectionReason}
+                        onChange={(e) => setEditForm({...editForm, rejectionReason: e.target.value})}
+                        style={{...styles.input, minHeight: '80px'}}
+                      />
+                    </div>
+                  )}
+
+                  {editForm.status === 'on_hold' && (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Hold Reason</label>
+                      <textarea
+                        value={editForm.holdReason}
+                        onChange={(e) => setEditForm({...editForm, holdReason: e.target.value})}
+                        style={{...styles.input, minHeight: '80px'}}
+                      />
+                    </div>
+                  )}
+
+                  <div style={styles.modalActions}>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditModal(null)}
+                      style={{...styles.btn, ...styles.btnSecondary}}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      style={{...styles.btn, ...styles.btnPrimary}}
+                      disabled={loading}
+                    >
+                      {loading ? 'Updating...' : 'Update Deposit'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminAuth>
   );
 }
 
 const styles = {
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px'
+  },
+  modal: {
+    background: 'white',
+    borderRadius: '12px',
+    maxWidth: '600px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  },
+  modalHeader: {
+    padding: '20px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '24px',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '32px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1,
+    padding: 0
+  },
+  modalBody: {
+    padding: '20px'
+  },
+  formGroup: {
+    marginBottom: '16px'
+  },
+  label: {
+    display: 'block',
+    marginBottom: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  input: {
+    width: '100%',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    outline: 'none',
+    fontFamily: 'inherit'
+  },
+  btn: {
+    flex: 1,
+    minWidth: '100px',
+    padding: '10px 16px',
+    borderRadius: '6px',
+    border: 'none',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    textAlign: 'center'
+  },
+  btnPrimary: {
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white'
+  },
+  btnSecondary: {
+    background: '#f1f5f9',
+    color: '#475569'
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '20px',
+    flexWrap: 'wrap'
+  },
   container: {
     padding: '20px 15px',
     maxWidth: '1800px',

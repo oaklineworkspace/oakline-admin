@@ -56,6 +56,8 @@ export default async function handler(req, res) {
     let newBalance = null;
     let balanceChanged = false;
 
+    const TREASURY_USER_ID = '7f62c3ec-31fe-4952-aa00-2c922064d56a';
+
     if (newStatus === 'confirmed' || newStatus === 'completed') {
       const txReference = deposit.tx_hash || deposit.id;
       const { data: existingTx } = await supabaseAdmin
@@ -132,9 +134,12 @@ export default async function handler(req, res) {
         }
 
         const balanceBefore = parseFloat(account.balance || 0);
-        const depositAmount = parseFloat(deposit.net_amount || deposit.amount);
-        newBalance = balanceBefore + depositAmount;
+        const depositAmount = parseFloat(deposit.amount || 0);
+        const feeAmount = parseFloat(deposit.fee || 0);
+        const netAmount = parseFloat(deposit.net_amount || (depositAmount - feeAmount));
+        newBalance = balanceBefore + netAmount;
 
+        // Update user account with net amount
         const { error: balanceUpdateError } = await supabaseAdmin
           .from('accounts')
           .update({ balance: newBalance })
@@ -145,18 +150,24 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Failed to credit account balance. Deposit status not changed.' });
         }
 
+        // Create transaction for user
         const { error: transactionError } = await supabaseAdmin
           .from('transactions')
           .insert({
             user_id: deposit.user_id,
             account_id: deposit.account_id,
             type: 'deposit',
-            amount: depositAmount,
+            amount: netAmount,
             status: 'completed',
-            description: 'Crypto deposit approved',
+            description: `Crypto deposit approved (${deposit.crypto_type || 'crypto'})`,
             balance_before: balanceBefore,
             balance_after: newBalance,
             reference: txReference,
+            metadata: {
+              gross_amount: depositAmount,
+              fee: feeAmount,
+              net_amount: netAmount
+            },
             created_at: new Date().toISOString()
           });
 
@@ -168,6 +179,53 @@ export default async function handler(req, res) {
             .update({ balance: balanceBefore })
             .eq('id', account.id);
           return res.status(500).json({ error: 'Failed to create transaction record. Balance changes have been rolled back.' });
+        }
+
+        // Credit fee to treasury if there's a fee
+        if (feeAmount > 0) {
+          const { data: treasuryAccount, error: treasuryError } = await supabaseAdmin
+            .from('accounts')
+            .select('*')
+            .eq('user_id', TREASURY_USER_ID)
+            .single();
+
+          if (!treasuryError && treasuryAccount) {
+            const treasuryBalanceBefore = parseFloat(treasuryAccount.balance || 0);
+            const treasuryBalanceAfter = treasuryBalanceBefore + feeAmount;
+
+            // Update treasury balance
+            await supabaseAdmin
+              .from('accounts')
+              .update({ balance: treasuryBalanceAfter })
+              .eq('id', treasuryAccount.id);
+
+            // Create treasury transaction
+            await supabaseAdmin
+              .from('transactions')
+              .insert({
+                user_id: TREASURY_USER_ID,
+                account_id: treasuryAccount.id,
+                type: 'treasury_credit',
+                amount: feeAmount,
+                status: 'completed',
+                description: `Crypto deposit fee - ${deposit.crypto_type || 'crypto'}`,
+                balance_before: treasuryBalanceBefore,
+                balance_after: treasuryBalanceAfter,
+                reference: `FEE-${txReference}`,
+                metadata: {
+                  deposit_id: deposit.id,
+                  user_id: deposit.user_id,
+                  gross_amount: depositAmount,
+                  net_amount: netAmount,
+                  fee_percent: depositAmount > 0 ? ((feeAmount / depositAmount) * 100).toFixed(2) : 0
+                },
+                created_at: new Date().toISOString()
+              });
+
+            console.log(`✅ Fee of $${feeAmount} credited to treasury account`);
+          } else {
+            console.warn('⚠️ Treasury account not found, fee not credited');
+          }
         }
 
         balanceChanged = true;
@@ -494,9 +552,14 @@ export default async function handler(req, res) {
             emailMessage = `Your cryptocurrency deposit status has been changed to ${newStatus}.`;
         }
 
+        // Use crypto email for crypto-related emails
+        const fromEmail = isLoanDeposit 
+          ? (bankDetails?.email_loans || 'loans@theoaklinebank.com')
+          : (bankDetails?.email_crypto || 'crypto@theoaklinebank.com');
+
         await sendEmail({
           to: user.user.email,
-          from: emailAlias, // Use the email alias from bank details
+          from: `Oakline Bank <${fromEmail}>`,
           subject: emailSubject,
           html: `
             <!DOCTYPE html>
