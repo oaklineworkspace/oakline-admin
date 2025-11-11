@@ -68,31 +68,73 @@ export default async function handler(req, res) {
         .eq('id', deposit.user_id)
         .single();
 
-      // Start transaction: Credit user account with net amount
-      const { data: userTransaction, error: userTxError } = await supabase
+      // Find existing pending transaction for this deposit
+      const { data: existingTx } = await supabase
         .from('transactions')
-        .insert({
-          user_id: deposit.user_id,
-          account_id: deposit.account_id,
-          type: 'credit',
-          amount: netAmount,
-          description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
-          status: 'completed',
-          metadata: {
-            deposit_id: depositId,
-            crypto_type: deposit.crypto_assets?.crypto_type,
-            network: deposit.crypto_assets?.network_type,
-            gross_amount: amount,
-            fee: fee,
-            net_amount: netAmount
-          }
-        })
-        .select()
+        .select('id')
+        .eq('reference', depositId)
+        .eq('type', 'credit')
+        .eq('status', 'pending')
         .single();
 
-      if (userTxError) {
-        console.error('User transaction error:', userTxError);
-        return res.status(500).json({ error: 'Failed to credit user account' });
+      let userTransaction;
+
+      if (existingTx) {
+        // Update existing pending transaction to completed
+        const { data: updatedTx, error: updateTxError } = await supabase
+          .from('transactions')
+          .update({
+            status: 'completed',
+            amount: netAmount,
+            description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
+            updated_at: new Date().toISOString(),
+            metadata: {
+              deposit_id: depositId,
+              crypto_type: deposit.crypto_assets?.crypto_type,
+              network: deposit.crypto_assets?.network_type,
+              gross_amount: amount,
+              fee: fee,
+              net_amount: netAmount
+            }
+          })
+          .eq('id', existingTx.id)
+          .select()
+          .single();
+
+        if (updateTxError) {
+          console.error('Transaction update error:', updateTxError);
+          return res.status(500).json({ error: 'Failed to update transaction' });
+        }
+        userTransaction = updatedTx;
+      } else {
+        // Fallback: Create new transaction if none exists
+        const { data: newTx, error: userTxError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: deposit.user_id,
+            account_id: deposit.account_id,
+            type: 'credit',
+            amount: netAmount,
+            description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
+            status: 'completed',
+            reference: depositId,
+            metadata: {
+              deposit_id: depositId,
+              crypto_type: deposit.crypto_assets?.crypto_type,
+              network: deposit.crypto_assets?.network_type,
+              gross_amount: amount,
+              fee: fee,
+              net_amount: netAmount
+            }
+          })
+          .select()
+          .single();
+
+        if (userTxError) {
+          console.error('User transaction error:', userTxError);
+          return res.status(500).json({ error: 'Failed to credit user account' });
+        }
+        userTransaction = newTx;
       }
 
       // Credit fee to Treasury account
@@ -188,6 +230,28 @@ export default async function handler(req, res) {
     if (status === 'confirmed') {
       updateData.approved_by = adminId;
       updateData.approved_at = new Date().toISOString();
+    }
+
+    // Update pending transaction if deposit is rejected/failed
+    if (status === 'rejected' || status === 'failed') {
+      const { data: existingTx } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('reference', depositId)
+        .eq('type', 'credit')
+        .eq('status', 'pending')
+        .single();
+
+      if (existingTx) {
+        await supabase
+          .from('transactions')
+          .update({
+            status: 'failed',
+            description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} - Rejected`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingTx.id);
+      }
     }
 
     const { error: updateError } = await supabase

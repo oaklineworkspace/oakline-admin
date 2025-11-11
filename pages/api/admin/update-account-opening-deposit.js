@@ -140,6 +140,70 @@ export default async function handler(req, res) {
         .single();
 
       deposit = completedDeposit;
+    } else if (status === 'rejected' || status === 'failed') {
+      // Handle rejection: Update deposit and find/update transaction
+      const { data: updatedDeposit, error } = await supabaseAdmin
+        .from('account_opening_crypto_deposits')
+        .update(updateData)
+        .eq('id', depositId)
+        .select('*, crypto_assets(*), admin_assigned_wallets(*)')
+        .single();
+
+      if (error) {
+        console.error('Error updating deposit:', error);
+        return res.status(500).json({
+          error: 'Failed to update deposit',
+          details: error.message
+        });
+      }
+
+      deposit = updatedDeposit;
+
+      // Find existing pending transaction for this deposit
+      const { data: existingTx } = await supabaseAdmin
+        .from('transactions')
+        .select('id')
+        .eq('reference', depositId)
+        .eq('type', 'credit')
+        .eq('status', 'pending')
+        .single();
+
+      if (existingTx) {
+        // Update existing pending transaction to 'failed'
+        await supabaseAdmin
+          .from('transactions')
+          .update({
+            status: 'failed',
+            updated_at: new Date().toISOString(),
+            metadata: {
+              ...(oldDeposit.metadata || {}), // Preserve existing metadata if any
+              rejection_reason: rejectionReason,
+              admin_notes: adminNotes
+            }
+          })
+          .eq('id', existingTx.id);
+      } else {
+        // Fallback: Create a 'failed' transaction if none exists
+        await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: oldDeposit.user_id,
+            account_id: oldDeposit.account_id,
+            type: 'credit',
+            amount: oldDeposit.amount, // Use original amount for failed transaction
+            description: `Account opening crypto deposit - ${oldDeposit.crypto_assets?.crypto_type} (Failed)`,
+            status: 'failed',
+            reference: depositId,
+            metadata: {
+              deposit_id: depositId,
+              crypto_type: oldDeposit.crypto_assets?.crypto_type,
+              network_type: oldDeposit.crypto_assets?.network_type,
+              gross_amount: oldDeposit.amount,
+              rejection_reason: rejectionReason,
+              admin_notes: adminNotes
+            }
+          });
+      }
     } else {
       const { data: updatedDeposit, error } = await supabaseAdmin
         .from('account_opening_crypto_deposits')
