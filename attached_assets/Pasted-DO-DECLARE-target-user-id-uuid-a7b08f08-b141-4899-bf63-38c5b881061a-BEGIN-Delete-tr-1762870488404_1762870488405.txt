@@ -1,0 +1,178 @@
+DO $$
+DECLARE
+    target_user_id uuid := 'a7b08f08-b141-4899-bf63-38c5b881061a';
+BEGIN
+
+-- Delete transactions referencing the user (to prevent FK errors)
+BEGIN
+    DELETE FROM public.transactions WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping transactions referencing user';
+END;
+
+-- Delete card transactions
+BEGIN
+    DELETE FROM public.card_transactions
+    WHERE card_id IN (SELECT id FROM public.cards WHERE user_id = target_user_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping card_transactions';
+END;
+
+-- Delete card activity logs
+BEGIN
+    DELETE FROM public.card_activity_log WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping card_activity_log';
+END;
+
+-- Delete cards
+BEGIN
+    DELETE FROM public.cards WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping cards';
+END;
+
+-- Delete card applications
+BEGIN
+    DELETE FROM public.card_applications WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping card_applications';
+END;
+
+-- Delete Zelle transactions
+BEGIN
+    DELETE FROM public.zelle_transactions
+    WHERE sender_id = target_user_id OR recipient_user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping zelle_transactions';
+END;
+
+-- Delete Zelle settings
+BEGIN
+    DELETE FROM public.zelle_settings WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping zelle_settings';
+END;
+
+-- Delete Zelle contacts
+BEGIN
+    DELETE FROM public.zelle_contacts WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping zelle_contacts';
+END;
+
+-- Delete loan payments
+BEGIN
+    DELETE FROM public.loan_payments
+    WHERE loan_id IN (SELECT id FROM public.loans WHERE user_id = target_user_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping loan_payments';
+END;
+
+-- Delete loans
+BEGIN
+    DELETE FROM public.loans WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping loans';
+END;
+
+-- Delete accounts
+BEGIN
+    DELETE FROM public.accounts WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping accounts';
+END;
+
+-- Delete enrollments
+BEGIN
+    DELETE FROM public.enrollments
+    WHERE application_id IN (SELECT id FROM public.applications WHERE user_id = target_user_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping enrollments';
+END;
+
+-- Delete applications
+BEGIN
+    DELETE FROM public.applications WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping applications';
+END;
+
+-- Delete profiles
+BEGIN
+    DELETE FROM public.profiles WHERE id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping profiles';
+END;
+
+-- Delete notifications
+BEGIN
+    DELETE FROM public.notifications WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping notifications';
+END;
+
+-- Delete beneficiaries
+BEGIN
+    DELETE FROM public.beneficiaries WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping beneficiaries';
+END;
+
+-- Delete audit logs
+BEGIN
+    DELETE FROM public.audit_logs WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping audit_logs';
+END;
+
+-- Delete system logs
+BEGIN
+    DELETE FROM public.system_logs
+    WHERE user_id = target_user_id OR admin_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping system_logs';
+END;
+
+-- Delete staff entries
+BEGIN
+    DELETE FROM public.staff WHERE id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping staff';
+END;
+
+-- Delete Plaid accounts/items
+BEGIN
+    DELETE FROM public.plaid_accounts
+    WHERE plaid_item_id IN (SELECT id FROM public.plaid_items WHERE user_id = target_user_id);
+    DELETE FROM public.plaid_items WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping plaid tables';
+END;
+
+-- Delete password reset OTPs
+BEGIN
+    DELETE FROM public.password_reset_otps
+    WHERE email IN (SELECT email FROM public.profiles WHERE id = target_user_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping password_reset_otps';
+END;
+
+-- Delete from email queue
+BEGIN
+    DELETE FROM public.email_queue WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping email_queue';
+END;
+
+-- Delete crypto deposits
+BEGIN
+    DELETE FROM public.crypto_deposits WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping crypto_deposits';
+END;
+
+-- Delete account opening crypto deposits
+BEGIN
+    DELETE FROM public.account_opening_crypto_deposits WHERE user_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping account_opening_crypto_deposits';
+END;
+
+-- Delete account opening crypto deposit audit logs
+BEGIN
+    DELETE FROM public.crypto_deposit_audit_logs
+    WHERE deposit_id IN (SELECT id FROM public.account_opening_crypto_deposits WHERE user_id = target_user_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping crypto_deposit_audit_logs';
+END;
+
+-- Delete loan crypto wallets
+BEGIN
+    DELETE FROM public.loan_crypto_wallets
+    WHERE admin_id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping loan_crypto_wallets';
+END;
+
+-- 🔹 Finally, delete the auth user
+BEGIN
+    DELETE FROM auth.users WHERE id = target_user_id;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipping auth.users';
+END;
+
+END $$;
