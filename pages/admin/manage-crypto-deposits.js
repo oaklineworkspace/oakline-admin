@@ -919,201 +919,201 @@ export default function ManageCryptoDeposits() {
           </div>
         )}
       {/* Proof of Payment Modal */}
-        {showProofModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowProofModal(null)}>
-            <div style={{...styles.modal, maxWidth: '900px'}} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>📸 Proof of Payment</h2>
-                <button onClick={() => setShowProofModal(null)} style={styles.closeButton}>×</button>
+      {showProofModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowProofModal(null)}>
+          <div style={{...styles.modal, maxWidth: '900px'}} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>📸 Proof of Payment</h2>
+              <button onClick={() => setShowProofModal(null)} style={styles.closeButton}>×</button>
+            </div>
+            <div style={styles.modalBody}>
+              <div style={{marginBottom: '16px'}}>
+                <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
+                  <strong>Deposit ID:</strong> {showProofModal.id.slice(0, 8)}...
+                </p>
+                <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
+                  <strong>Amount:</strong> ${parseFloat(showProofModal.amount || 0).toFixed(2)}
+                </p>
+                <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
+                  <strong>Status:</strong> {showProofModal.status}
+                </p>
               </div>
-              <div style={styles.modalBody}>
-                <div style={{marginBottom: '16px'}}>
-                  <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
-                    <strong>Deposit ID:</strong> {showProofModal.id.slice(0, 8)}...
-                  </p>
-                  <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
-                    <strong>Amount:</strong> ${parseFloat(showProofModal.amount || 0).toFixed(2)}
-                  </p>
-                  <p style={{margin: '0 0 8px 0', fontSize: '14px'}}>
-                    <strong>Status:</strong> {showProofModal.status}
+
+              {loadingProof ? (
+                <div style={{textAlign: 'center', padding: '40px'}}>
+                  <div style={styles.spinner}></div>
+                  <p>Loading proof of payment...</p>
+                </div>
+              ) : proofImageUrl ? (
+                <div style={{textAlign: 'center'}}>
+                  <img
+                    src={proofImageUrl}
+                    alt="Proof of Payment"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '70vh',
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      border: '2px solid #e2e8f0',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => window.open(proofImageUrl, '_blank')}
+                  />
+                  <p style={{marginTop: '12px', fontSize: '13px', color: '#64748b'}}>
+                    Click image to open in new tab
                   </p>
                 </div>
-
-                {loadingProof ? (
-                  <div style={{textAlign: 'center', padding: '40px'}}>
-                    <div style={styles.spinner}></div>
-                    <p>Loading proof of payment...</p>
-                  </div>
-                ) : proofImageUrl ? (
-                  <div style={{textAlign: 'center'}}>
-                    <img
-                      src={proofImageUrl}
-                      alt="Proof of Payment"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '70vh',
-                        objectFit: 'contain',
-                        borderRadius: '8px',
-                        border: '2px solid #e2e8f0',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => window.open(proofImageUrl, '_blank')}
-                    />
-                    <p style={{marginTop: '12px', fontSize: '13px', color: '#64748b'}}>
-                      Click image to open in new tab
-                    </p>
-                  </div>
-                ) : (
-                  <div style={{textAlign: 'center', padding: '40px', color: '#ef4444'}}>
-                    <p>Failed to load proof of payment image</p>
-                  </div>
-                )}
-              </div>
+              ) : (
+                <div style={{textAlign: 'center', padding: '40px', color: '#ef4444'}}>
+                  <p>Failed to load proof of payment image</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Edit Deposit Modal */}
-        {showEditModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowEditModal(null)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>📝 Edit Deposit</h2>
-                <button onClick={() => setShowEditModal(null)} style={styles.closeButton}>×</button>
-              </div>
-              <div style={styles.modalBody}>
-                <form onSubmit={handleEditSubmit}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Amount (USD)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editForm.amount}
-                      onChange={(e) => setEditForm({...editForm, amount: e.target.value})}
-                      style={styles.input}
-                    />
-                  </div>
+      {/* Edit Deposit Modal */}
+      {showEditModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowEditModal(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>📝 Edit Deposit</h2>
+              <button onClick={() => setShowEditModal(null)} style={styles.closeButton}>×</button>
+            </div>
+            <div style={styles.modalBody}>
+              <form onSubmit={handleEditSubmit}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Amount (USD)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.amount}
+                    onChange={(e) => setEditForm({...editForm, amount: e.target.value})}
+                    style={styles.input}
+                  />
+                </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Fee (USD)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editForm.fee}
-                      onChange={(e) => setEditForm({...editForm, fee: e.target.value})}
-                      style={styles.input}
-                    />
-                  </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Fee (USD)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.fee}
+                    onChange={(e) => setEditForm({...editForm, fee: e.target.value})}
+                    style={styles.input}
+                  />
+                </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Confirmations</label>
-                    <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                      <button
-                        type="button"
-                        onClick={() => setEditForm({
-                          ...editForm, 
-                          confirmations: Math.max(0, parseInt(editForm.confirmations || 0) - 1)
-                        })}
-                        style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        value={editForm.confirmations}
-                        onChange={(e) => setEditForm({...editForm, confirmations: e.target.value})}
-                        style={{...styles.input, textAlign: 'center'}}
-                        placeholder="0"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEditForm({
-                          ...editForm, 
-                          confirmations: parseInt(editForm.confirmations || 0) + 1
-                        })}
-                        style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <small style={{color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block'}}>
-                      Current: {editForm.confirmations || 0} / {showEditModal?.required_confirmations || 3} required
-                    </small>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Transaction Hash</label>
-                    <input
-                      type="text"
-                      value={editForm.txHash}
-                      onChange={(e) => setEditForm({...editForm, txHash: e.target.value})}
-                      style={styles.input}
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Status *</label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) => setEditForm({...editForm, status: e.target.value})}
-                      style={styles.input}
-                      required
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="on_hold">On Hold</option>
-                      <option value="awaiting_confirmations">Awaiting Confirmations</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
-                      <option value="failed">Failed</option>
-                      <option value="reversed">Reversed</option>
-                    </select>
-                  </div>
-
-                  {(editForm.status === 'rejected' || editForm.status === 'failed') && (
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Rejection Reason</label>
-                      <textarea
-                        value={editForm.rejectionReason}
-                        onChange={(e) => setEditForm({...editForm, rejectionReason: e.target.value})}
-                        style={{...styles.input, minHeight: '80px'}}
-                      />
-                    </div>
-                  )}
-
-                  {editForm.status === 'on_hold' && (
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Hold Reason</label>
-                      <textarea
-                        value={editForm.holdReason}
-                        onChange={(e) => setEditForm({...editForm, holdReason: e.target.value})}
-                        style={{...styles.input, minHeight: '80px'}}
-                      />
-                    </div>
-                  )}
-
-                  <div style={styles.modalActions}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Confirmations</label>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
                     <button
                       type="button"
-                      onClick={() => setShowEditModal(null)}
-                      style={{...styles.btn, ...styles.btnSecondary}}
+                      onClick={() => setEditForm({
+                        ...editForm, 
+                        confirmations: Math.max(0, parseInt(editForm.confirmations || 0) - 1)
+                      })}
+                      style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
                     >
-                      Cancel
+                      -
                     </button>
+                    <input
+                      type="number"
+                      value={editForm.confirmations}
+                      onChange={(e) => setEditForm({...editForm, confirmations: e.target.value})}
+                      style={{...styles.input, textAlign: 'center'}}
+                      placeholder="0"
+                    />
                     <button
-                      type="submit"
-                      style={{...styles.btn, ...styles.btnPrimary}}
-                      disabled={loading}
+                      type="button"
+                      onClick={() => setEditForm({
+                        ...editForm, 
+                        confirmations: parseInt(editForm.confirmations || 0) + 1
+                      })}
+                      style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
                     >
-                      {loading ? 'Updating...' : 'Update Deposit'}
+                      +
                     </button>
                   </div>
-                </form>
-              </div>
+                  <small style={{color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block'}}>
+                    Current: {editForm.confirmations || 0} / {showEditModal?.required_confirmations || 3} required
+                  </small>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Transaction Hash</label>
+                  <input
+                    type="text"
+                    value={editForm.txHash}
+                    onChange={(e) => setEditForm({...editForm, txHash: e.target.value})}
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Status *</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                    style={styles.input}
+                    required
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="awaiting_confirmations">Awaiting Confirmations</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="reversed">Reversed</option>
+                  </select>
+                </div>
+
+                {(editForm.status === 'rejected' || editForm.status === 'failed') && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Rejection Reason</label>
+                    <textarea
+                      value={editForm.rejectionReason}
+                      onChange={(e) => setEditForm({...editForm, rejectionReason: e.target.value})}
+                      style={{...styles.input, minHeight: '80px'}}
+                    />
+                  </div>
+                )}
+
+                {editForm.status === 'on_hold' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Hold Reason</label>
+                    <textarea
+                      value={editForm.holdReason}
+                      onChange={(e) => setEditForm({...editForm, holdReason: e.target.value})}
+                      style={{...styles.input, minHeight: '80px'}}
+                    />
+                  </div>
+                )}
+
+                <div style={styles.modalActions}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(null)}
+                    style={{...styles.btn, ...styles.btnSecondary}}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{...styles.btn, ...styles.btnPrimary}}
+                    disabled={loading}
+                  >
+                    {loading ? 'Updating...' : 'Update Deposit'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
     </AdminAuth>
   );
 }
