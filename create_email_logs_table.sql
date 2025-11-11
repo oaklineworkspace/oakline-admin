@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.email_logs (
   message_id text,
   error_message text,
   metadata jsonb DEFAULT '{}',
+  email_content_html text,
+  email_content_text text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT email_logs_pkey PRIMARY KEY (id),

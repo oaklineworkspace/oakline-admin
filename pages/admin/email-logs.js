@@ -493,6 +493,33 @@ export default function EmailLogs() {
                       </pre>
                     </div>
                   )}
+                  {selectedEmail.email_content_html && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>Email Content (HTML):</span>
+                      <div style={styles.emailContentPreview}>
+                        <iframe
+                          srcDoc={selectedEmail.email_content_html}
+                          style={styles.emailIframe}
+                          sandbox="allow-same-origin"
+                          title="Email Preview"
+                        />
+                      </div>
+                      <details style={styles.emailContentDetails}>
+                        <summary style={styles.emailContentSummary}>View HTML Source</summary>
+                        <pre style={styles.metadataValue}>
+                          {selectedEmail.email_content_html}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+                  {selectedEmail.email_content_text && !selectedEmail.email_content_html && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>Email Content (Text):</span>
+                      <pre style={styles.metadataValue}>
+                        {selectedEmail.email_content_text}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -953,5 +980,29 @@ const styles = {
     borderRadius: '6px',
     overflow: 'auto',
     maxHeight: '200px'
+  },
+  emailContentPreview: {
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    marginTop: '8px'
+  },
+  emailIframe: {
+    width: '100%',
+    minHeight: '400px',
+    border: 'none',
+    display: 'block'
+  },
+  emailContentDetails: {
+    marginTop: '12px'
+  },
+  emailContentSummary: {
+    cursor: 'pointer',
+    fontWeight: '600',
+    color: '#3b82f6',
+    padding: '8px',
+    background: '#f0f9ff',
+    borderRadius: '6px',
+    userSelect: 'none'
   }
 };
