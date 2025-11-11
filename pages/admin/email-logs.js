@@ -25,17 +25,40 @@ export default function EmailLogs() {
   const fetchEmailLogs = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get email logs
+      const { data: logsData, error: logsError } = await supabase
         .from('email_logs')
-        .select(`
-          *,
-          profiles:recipient_user_id(first_name, last_name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(500);
 
-      if (error) throw error;
-      setEmailLogs(data || []);
+      if (logsError) throw logsError;
+
+      // Then get unique user IDs and fetch their profiles
+      const userIds = [...new Set(logsData.map(log => log.recipient_user_id).filter(Boolean))];
+      
+      let profilesMap = {};
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', userIds);
+        
+        if (profilesData) {
+          profilesMap = profilesData.reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Merge profiles into logs
+      const enrichedLogs = logsData.map(log => ({
+        ...log,
+        profiles: log.recipient_user_id ? profilesMap[log.recipient_user_id] : null
+      }));
+
+      setEmailLogs(enrichedLogs);
     } catch (err) {
       console.error('Error fetching email logs:', err);
       alert('Failed to load email logs');
