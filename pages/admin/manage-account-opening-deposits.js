@@ -534,7 +534,10 @@ export default function ManageAccountOpeningDeposits() {
                                 <strong>Deposited:</strong> ${parseFloat(deposit.amount || 0).toFixed(2)}
                               </div>
                               <div style={styles.detailItem}>
-                                <strong>Approved:</strong> ${parseFloat(deposit.approved_amount || 0).toFixed(2)}
+                                <strong>Fee:</strong> ${parseFloat(deposit.fee || 0).toFixed(2)}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Net Amount:</strong> ${parseFloat(deposit.approved_amount || 0).toFixed(2)}
                               </div>
                               <div style={styles.detailItem}>
                                 <strong>Confirmations:</strong> {deposit.confirmations}/{deposit.required_confirmations}
