@@ -139,18 +139,13 @@ export default function AdminNavDropdown() {
       ]
     },
     {
-      category: '⚙️ Settings & Security',
+      category: '⚙️ System & Audit',
       links: [
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'User Activity Monitor', path: '/admin/user-activity-monitor', icon: '👁️' },
+        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
-        { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭' },
-        { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
-        { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
-        { name: 'User Messages', path: '/admin/messages' },
-        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
-        { name: 'File Browser', path: '/admin/file-browser', icon: '📁' },
-        { name: 'Create Admin', path: '/admin/register', icon: '➕' },
-        { name: 'Admin Login', path: '/admin/login', icon: '🔐' }
+        { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }
       ]
     },
     {
