@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
@@ -8,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     const { email, userId } = req.body;
-    
+
     if (!email && !userId) {
       return res.status(400).json({ error: 'Email or userId is required' });
     }
@@ -23,7 +22,7 @@ export default async function handler(req, res) {
         .select('id')
         .eq('email', email)
         .single();
-      
+
       if (profile) {
         userIdToDelete = profile.id;
       }
@@ -36,7 +35,7 @@ export default async function handler(req, res) {
         .select('email')
         .eq('id', userId)
         .single();
-      
+
       if (profile) {
         userEmail = profile.email;
       }
@@ -56,7 +55,7 @@ export default async function handler(req, res) {
           .from('cards')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userCards && userCards.length > 0) {
           const cardIds = userCards.map(c => c.id);
           await supabaseAdmin
@@ -181,7 +180,7 @@ export default async function handler(req, res) {
           .from('chat_threads')
           .select('id')
           .or(`user_id.eq.${userIdToDelete},admin_id.eq.${userIdToDelete}`);
-        
+
         if (userThreads && userThreads.length > 0) {
           const threadIds = userThreads.map(t => t.id);
           await supabaseAdmin
@@ -207,7 +206,7 @@ export default async function handler(req, res) {
           .from('loan_collaterals')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userCollaterals && userCollaterals.length > 0) {
           const collateralIds = userCollaterals.map(c => c.id);
           await supabaseAdmin
@@ -227,13 +226,13 @@ export default async function handler(req, res) {
         console.log('✅ Deleted loan collaterals');
       },
 
-      // 18. Crypto deposit audit logs (for ALL user's crypto deposits - before deleting deposits)
+      // 18. Crypto deposit audit logs (depends on crypto_deposits)
       async () => {
         const { data: userDeposits } = await supabaseAdmin
           .from('crypto_deposits')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userDeposits && userDeposits.length > 0) {
           const depositIds = userDeposits.map(d => d.id);
           await supabaseAdmin
@@ -244,7 +243,7 @@ export default async function handler(req, res) {
         }
       },
 
-      // 19. Crypto deposits (ALL deposits by user - before deleting loan wallets)
+      // 19. Crypto deposits (owned by user)
       async () => {
         await supabaseAdmin
           .from('crypto_deposits')
@@ -253,32 +252,28 @@ export default async function handler(req, res) {
         console.log('✅ Deleted crypto deposits (owned by user)');
       },
 
-      // 20. Loan crypto wallets (assigned by this admin - nullify references to preserve borrower data)
+      // 20. Loan crypto wallets (nullify loan_wallet_id in crypto_deposits first)
       async () => {
-        // First, get all loan_crypto_wallets managed by this admin
         const { data: adminWallets } = await supabaseAdmin
           .from('loan_crypto_wallets')
           .select('id')
           .eq('admin_id', userIdToDelete);
-        
+
         if (adminWallets && adminWallets.length > 0) {
           const walletIds = adminWallets.map(w => w.id);
-          
-          // Nullify loan_wallet_id in crypto_deposits that reference these wallets
-          // This preserves borrower deposit records while removing the FK reference
+
           await supabaseAdmin
             .from('crypto_deposits')
             .update({ loan_wallet_id: null })
             .in('loan_wallet_id', walletIds);
-          
-          console.log('✅ Nullified loan_wallet_id references to preserve borrower data');
-          
-          // Now safe to delete the loan crypto wallets
+
+          console.log('✅ Nullified loan_wallet_id references');
+
           await supabaseAdmin
             .from('loan_crypto_wallets')
             .delete()
             .in('id', walletIds);
-          
+
           console.log('✅ Deleted loan crypto wallets');
         }
       },
@@ -289,7 +284,7 @@ export default async function handler(req, res) {
           .from('loans')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userLoans && userLoans.length > 0) {
           const loanIds = userLoans.map(l => l.id);
           await supabaseAdmin
@@ -315,7 +310,7 @@ export default async function handler(req, res) {
           .from('crypto_investments')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userInvestments && userInvestments.length > 0) {
           const investmentIds = userInvestments.map(i => i.id);
           await supabaseAdmin
@@ -341,7 +336,7 @@ export default async function handler(req, res) {
           .from('investments')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userInvestments && userInvestments.length > 0) {
           const investmentIds = userInvestments.map(i => i.id);
           await supabaseAdmin
@@ -367,7 +362,7 @@ export default async function handler(req, res) {
           .from('accounts')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userAccounts && userAccounts.length > 0) {
           const accountIds = userAccounts.map(a => a.id);
           await supabaseAdmin
@@ -387,7 +382,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted check deposits');
       },
 
-      // 29. Account opening crypto deposits (depends on applications and accounts)
+      // 29. Account opening crypto deposits
       async () => {
         await supabaseAdmin
           .from('account_opening_crypto_deposits')
@@ -405,13 +400,13 @@ export default async function handler(req, res) {
         console.log('✅ Deleted crypto portfolio');
       },
 
-      // 31. Account requests (user's own requests - before accounts)
+      // 31. Account requests
       async () => {
         await supabaseAdmin
           .from('account_requests')
           .delete()
           .eq('user_id', userIdToDelete);
-        console.log('✅ Deleted account requests (user owned)');
+        console.log('✅ Deleted account requests');
       },
 
       // 32. Accounts
@@ -429,7 +424,7 @@ export default async function handler(req, res) {
           .from('applications')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (userApps && userApps.length > 0) {
           const appIds = userApps.map(a => a.id);
           await supabaseAdmin
@@ -536,7 +531,7 @@ export default async function handler(req, res) {
           .from('plaid_items')
           .select('id')
           .eq('user_id', userIdToDelete);
-        
+
         if (plaidItems && plaidItems.length > 0) {
           const itemIds = plaidItems.map(i => i.id);
           await supabaseAdmin
@@ -556,7 +551,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted Plaid items');
       },
 
-      // 47. User crypto wallets
+      // 46. User crypto wallets
       async () => {
         await supabaseAdmin
           .from('user_crypto_wallets')
@@ -565,7 +560,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted user crypto wallets');
       },
 
-      // 48. Admin assigned wallets (as admin)
+      // 47. Admin assigned wallets (as admin)
       async () => {
         await supabaseAdmin
           .from('admin_assigned_wallets')
@@ -574,7 +569,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted admin assigned wallets (as admin)');
       },
 
-      // 49. Admin assigned wallets (as user)
+      // 48. Admin assigned wallets (as user)
       async () => {
         await supabaseAdmin
           .from('admin_assigned_wallets')
@@ -583,7 +578,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted admin assigned wallets (as user)');
       },
 
-      // 50. Email queue
+      // 49. Email queue
       async () => {
         await supabaseAdmin
           .from('email_queue')
@@ -592,7 +587,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted email queue entries');
       },
 
-      // 51. Email logs
+      // 50. Email logs
       async () => {
         await supabaseAdmin
           .from('email_logs')
@@ -601,7 +596,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted email logs');
       },
 
-      // 52. Password reset OTPs
+      // 51. Password reset OTPs
       async () => {
         if (userEmail) {
           await supabaseAdmin
@@ -612,7 +607,7 @@ export default async function handler(req, res) {
         }
       },
 
-      // 53. Chat messages sent by user (not in threads)
+      // 52. Chat messages sent by user (not in threads)
       async () => {
         await supabaseAdmin
           .from('chat_messages')
@@ -621,92 +616,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted chat messages (sender)');
       },
 
-      // 54. Card transaction audit logs (if exists)
-      async () => {
-        const { data: userCards } = await supabaseAdmin
-          .from('cards')
-          .select('id')
-          .eq('user_id', userIdToDelete);
-        
-        if (userCards && userCards.length > 0) {
-          const cardIds = userCards.map(c => c.id);
-          await supabaseAdmin
-            .from('card_transaction_audit_logs')
-            .delete()
-            .in('card_id', cardIds);
-          console.log('✅ Deleted card transaction audit logs');
-        }
-      },
-
-      // 55. Account audit logs (if exists)
-      async () => {
-        const { data: userAccounts } = await supabaseAdmin
-          .from('accounts')
-          .select('id')
-          .eq('user_id', userIdToDelete);
-        
-        if (userAccounts && userAccounts.length > 0) {
-          const accountIds = userAccounts.map(a => a.id);
-          await supabaseAdmin
-            .from('account_audit_logs')
-            .delete()
-            .in('account_id', accountIds);
-          console.log('✅ Deleted account audit logs');
-        }
-      },
-
-      // 56. Application audit logs (if exists)
-      async () => {
-        const { data: userApps } = await supabaseAdmin
-          .from('applications')
-          .select('id')
-          .eq('user_id', userIdToDelete);
-        
-        if (userApps && userApps.length > 0) {
-          const appIds = userApps.map(a => a.id);
-          await supabaseAdmin
-            .from('application_audit_logs')
-            .delete()
-            .in('application_id', appIds);
-          console.log('✅ Deleted application audit logs');
-        }
-      },
-
-      // 57. Investment audit logs (if exists)
-      async () => {
-        const { data: userInvestments } = await supabaseAdmin
-          .from('investments')
-          .select('id')
-          .eq('user_id', userIdToDelete);
-        
-        if (userInvestments && userInvestments.length > 0) {
-          const investmentIds = userInvestments.map(i => i.id);
-          await supabaseAdmin
-            .from('investment_audit_logs')
-            .delete()
-            .in('investment_id', investmentIds);
-          console.log('✅ Deleted investment audit logs');
-        }
-      },
-
-      // 58. Loan audit logs (if exists)
-      async () => {
-        const { data: userLoans } = await supabaseAdmin
-          .from('loans')
-          .select('id')
-          .eq('user_id', userIdToDelete);
-        
-        if (userLoans && userLoans.length > 0) {
-          const loanIds = userLoans.map(l => l.id);
-          await supabaseAdmin
-            .from('loan_audit_logs')
-            .delete()
-            .in('loan_id', loanIds);
-          console.log('✅ Deleted loan audit logs');
-        }
-      },
-
-      // 59. User sessions (if exists)
+      // 53. User sessions
       async () => {
         await supabaseAdmin
           .from('user_sessions')
@@ -715,7 +625,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted user sessions');
       },
 
-      // 60. User preferences (if exists)
+      // 54. User preferences
       async () => {
         await supabaseAdmin
           .from('user_preferences')
@@ -724,7 +634,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted user preferences');
       },
 
-      // 61. User verification tokens (if exists)
+      // 55. User verification tokens
       async () => {
         await supabaseAdmin
           .from('user_verification_tokens')
@@ -733,62 +643,83 @@ export default async function handler(req, res) {
         console.log('✅ Deleted user verification tokens');
       },
 
-      // 62. Nullify references where user was an approver/processor/reviewer
+      // 56. Email verifications
+      async () => {
+        if (userEmail) {
+          await supabaseAdmin
+            .from('email_verifications')
+            .delete()
+            .eq('email', userEmail);
+          console.log('✅ Deleted email verifications');
+        }
+      },
+
+      // 57. Nullify references where user was an approver/processor/reviewer
       async () => {
         await supabaseAdmin
           .from('account_opening_crypto_deposits')
           .update({ approved_by: null })
           .eq('approved_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('account_opening_crypto_deposits')
           .update({ rejected_by: null })
           .eq('rejected_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('check_deposits')
           .update({ processed_by: null })
           .eq('processed_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('credit_scores')
           .update({ updated_by: null })
           .eq('updated_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('loan_collaterals')
           .update({ verified_by: null })
           .eq('verified_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('loan_collaterals')
           .update({ appraised_by: null })
           .eq('appraised_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('loan_payments')
           .update({ processed_by: null })
           .eq('processed_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('accounts')
           .update({ approved_by: null })
           .eq('approved_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('accounts')
           .update({ funding_confirmed_by: null })
           .eq('funding_confirmed_by', userIdToDelete);
-        
+
         await supabaseAdmin
           .from('account_requests')
           .update({ reviewed_by: null })
           .eq('reviewed_by', userIdToDelete);
-        
+
+        await supabaseAdmin
+          .from('crypto_deposits')
+          .update({ approved_by: null })
+          .eq('approved_by', userIdToDelete);
+
+        await supabaseAdmin
+          .from('crypto_deposits')
+          .update({ rejected_by: null })
+          .eq('rejected_by', userIdToDelete);
+
         console.log('✅ Nullified admin/approver/reviewer references');
       },
 
-      // 63. Admin profiles
+      // 58. Admin profiles
       async () => {
         await supabaseAdmin
           .from('admin_profiles')
@@ -797,7 +728,7 @@ export default async function handler(req, res) {
         console.log('✅ Deleted admin profiles');
       },
 
-      // 64. Profile
+      // 59. Profile
       async () => {
         await supabaseAdmin
           .from('profiles')
@@ -822,60 +753,25 @@ export default async function handler(req, res) {
     // FINAL STEP: Delete from Supabase Auth LAST (after all database records are removed)
     console.log('🔐 Deleting user from Supabase authentication...');
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete);
-    
-    let authDeletedSuccessfully = false;
-    let authErrorDetails = null;
-    
-    if (authError) {
-      // If user not found in auth, treat as success (already deleted)
-      if (authError.message && authError.message.toLowerCase().includes('user not found')) {
-        console.log('ℹ️ User not found in authentication (may have been already deleted)');
-        authDeletedSuccessfully = true;
-      } else {
-        // For other auth errors, log the failure with full details
-        console.error('❌ Error deleting from auth:', JSON.stringify(authError, null, 2));
-        authErrorDetails = authError.message || JSON.stringify(authError);
-        authDeletedSuccessfully = false;
-        
-        // Try to identify remaining foreign key constraints
-        console.log('🔍 Checking for remaining user references in database...');
-        try {
-          const tables = ['accounts', 'applications', 'cards', 'loans', 'profiles', 'transactions', 
-                         'zelle_transactions', 'oakline_pay_transactions', 'chat_threads', 'notifications'];
-          for (const table of tables) {
-            const { count } = await supabaseAdmin
-              .from(table)
-              .select('*', { count: 'exact', head: true })
-              .or(`user_id.eq.${userIdToDelete},id.eq.${userIdToDelete}`);
-            if (count > 0) {
-              console.log(`⚠️ Found ${count} remaining records in ${table}`);
-            }
-          }
-        } catch (checkError) {
-          console.warn('⚠️ Could not check for remaining references:', checkError.message);
-        }
-      }
-    } else {
-      console.log('✅ Deleted user from Supabase authentication');
-      authDeletedSuccessfully = true;
-    }
 
-    // Return appropriate status based on auth deletion success
-    if (!authDeletedSuccessfully) {
+    if (authError) {
+      console.error('❌ Error deleting from auth:', authError);
       return res.status(207).json({
         success: false,
         partialSuccess: true,
-        error: 'Partial deletion: Database records removed but authentication account could not be deleted',
-        details: authErrorDetails,
-        message: `Database records for ${userEmail || userIdToDelete} have been deleted, but the authentication account could not be removed. Please retry or contact system administrator.`,
+        error: 'Database records deleted but authentication deletion failed',
+        details: authError.message,
+        message: `All database records for ${userEmail || userIdToDelete} have been removed, but the authentication account could not be deleted. Please contact support.`,
         userId: userIdToDelete,
         email: userEmail || 'N/A',
       });
     }
 
+    console.log('✅ Successfully deleted user from Supabase authentication');
+
     return res.status(200).json({
       success: true,
-      message: `User account for ${userEmail || userIdToDelete} has been permanently deleted along with all associated data.`,
+      message: `User ${userEmail || userIdToDelete} has been permanently deleted from all systems including authentication.`,
       userId: userIdToDelete,
       email: userEmail || 'N/A',
     });
