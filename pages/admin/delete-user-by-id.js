@@ -21,15 +21,41 @@ export default function DeleteUserById() {
   const fetchAllUsers = async () => {
     setFetchingUsers(true);
     try {
-      const response = await fetch('/api/admin/get-users');
-      const data = await response.json();
+      // Fetch auth users
+      const authResponse = await fetch('/api/admin/get-users');
+      const authData = await authResponse.json();
       
-      if (response.ok && data.users) {
-        setAllUsers(data.users);
-        setFilteredUsers(data.users);
-      } else {
+      if (!authResponse.ok || !authData.users) {
         setMessage({ type: 'error', text: 'Failed to fetch users' });
+        setFetchingUsers(false);
+        return;
       }
+
+      // Fetch applications to get user names
+      const appsResponse = await fetch('/api/admin/get-applications-with-status');
+      const appsData = await appsResponse.json();
+
+      // Create a map of user_id to full name from applications
+      const nameMap = {};
+      if (appsData.applications) {
+        appsData.applications.forEach(app => {
+          if (app.user_id) {
+            const fullName = [app.first_name, app.middle_name, app.last_name]
+              .filter(Boolean)
+              .join(' ');
+            nameMap[app.user_id] = fullName || null;
+          }
+        });
+      }
+
+      // Merge auth users with names from applications
+      const usersWithNames = authData.users.map(user => ({
+        ...user,
+        name: nameMap[user.id] || user.name || user.email
+      }));
+
+      setAllUsers(usersWithNames);
+      setFilteredUsers(usersWithNames);
     } catch (error) {
       console.error('Error fetching users:', error);
       setMessage({ type: 'error', text: 'Error loading users' });
