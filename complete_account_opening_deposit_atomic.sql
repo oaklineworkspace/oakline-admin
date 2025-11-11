@@ -1,5 +1,6 @@
 -- PostgreSQL RPC function to atomically complete an account opening deposit
 -- This prevents race conditions and ensures data integrity
+-- UPDATED: Now credits fees to bank treasury account
 
 CREATE OR REPLACE FUNCTION complete_account_opening_deposit_atomic(
   p_deposit_id UUID,
@@ -17,12 +18,17 @@ AS $$
 DECLARE
   v_deposit RECORD;
   v_account RECORD;
+  v_treasury_account RECORD;
   v_credit_amount DECIMAL;
+  v_fee_amount DECIMAL;
   v_balance_before DECIMAL;
   v_balance_after DECIMAL;
+  v_treasury_balance_before DECIMAL;
+  v_treasury_balance_after DECIMAL;
   v_tx_reference TEXT;
   v_tx_exists BOOLEAN;
   v_result JSON;
+  v_treasury_user_id UUID := '7f62c3ec-31fe-4952-aa00-2c922064d56a';
 BEGIN
   -- Lock the deposit row for update to prevent concurrent modifications
   SELECT * INTO v_deposit
@@ -103,7 +109,7 @@ BEGIN
       updated_at = NOW()
   WHERE id = v_account.id;
 
-  -- Create transaction record
+  -- Create transaction record for user
   INSERT INTO transactions (
     user_id,
     account_id,
@@ -128,6 +134,57 @@ BEGIN
     NOW()
   );
 
+  -- Process fee to treasury account if fee exists
+  v_fee_amount := COALESCE(v_deposit.fee, 0);
+  
+  IF v_fee_amount > 0 THEN
+    -- Get and lock the treasury account
+    SELECT * INTO v_treasury_account
+    FROM accounts
+    WHERE user_id = v_treasury_user_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      -- If treasury account not found, log a warning but don't fail the deposit
+      RAISE WARNING 'Treasury account not found. Fee amount: %', v_fee_amount;
+    ELSE
+      -- Calculate treasury new balance
+      v_treasury_balance_before := COALESCE(v_treasury_account.balance, 0);
+      v_treasury_balance_after := v_treasury_balance_before + v_fee_amount;
+
+      -- Update treasury account balance
+      UPDATE accounts
+      SET balance = v_treasury_balance_after,
+          updated_at = NOW()
+      WHERE id = v_treasury_account.id;
+
+      -- Create transaction record for treasury
+      INSERT INTO transactions (
+        user_id,
+        account_id,
+        type,
+        amount,
+        status,
+        description,
+        balance_before,
+        balance_after,
+        reference,
+        created_at
+      ) VALUES (
+        v_treasury_user_id,
+        v_treasury_account.id,
+        'credit',
+        v_fee_amount,
+        'completed',
+        'Account opening deposit fee from user ' || COALESCE(v_deposit.user_id::TEXT, 'unknown'),
+        v_treasury_balance_before,
+        v_treasury_balance_after,
+        'fee_' || v_tx_reference,
+        NOW()
+      );
+    END IF;
+  END IF;
+
   -- Update deposit status to completed
   UPDATE account_opening_crypto_deposits
   SET status = 'completed',
@@ -148,10 +205,16 @@ BEGIN
     'account_id', v_deposit.account_id,
     'user_id', v_deposit.user_id,
     'credited_amount', v_credit_amount,
+    'fee_amount', v_fee_amount,
     'balance_before', v_balance_before,
     'balance_after', v_balance_after,
+    'treasury_fee_credited', v_fee_amount > 0,
     'transaction_reference', v_tx_reference,
-    'message', 'Deposit completed and balance credited successfully'
+    'message', 'Deposit completed, balance credited successfully' || 
+               CASE WHEN v_fee_amount > 0 
+                    THEN ', and fee credited to treasury' 
+                    ELSE '' 
+               END
   );
 
   RETURN v_result;
