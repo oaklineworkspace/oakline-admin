@@ -9,13 +9,10 @@ export default async function handler(req, res) {
   try {
     const { userId, startDate, endDate, activityType, limit = 100 } = req.query;
 
-    // Build the query
+    // Build the query - fetch audit logs without the foreign key hint
     let query = supabaseAdmin
       .from('audit_logs')
-      .select(`
-        *,
-        profiles!audit_logs_user_id_fkey(first_name, last_name, email)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -45,6 +42,30 @@ export default async function handler(req, res) {
       console.error('Error fetching user activities:', error);
       return res.status(500).json({ error: 'Failed to fetch user activities' });
     }
+
+    // Fetch user profiles separately
+    const userIds = [...new Set((activities || []).map(a => a.user_id).filter(Boolean))];
+    let profilesMap = {};
+    
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+      
+      if (profiles) {
+        profilesMap = profiles.reduce((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {});
+      }
+    }
+
+    // Merge profile data into activities
+    const activitiesWithProfiles = (activities || []).map(activity => ({
+      ...activity,
+      profiles: activity.user_id ? profilesMap[activity.user_id] : null
+    }));
 
     // Also fetch system logs for auth events
     let systemLogsQuery = supabaseAdmin
@@ -80,7 +101,7 @@ export default async function handler(req, res) {
 
     // Combine and sort activities
     const combinedActivities = [
-      ...(activities || []).map(a => ({ ...a, source: 'audit_log' })),
+      ...(activitiesWithProfiles || []).map(a => ({ ...a, source: 'audit_log' })),
       ...(systemLogs || []).map(s => ({ ...s, source: 'system_log' }))
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
