@@ -5,16 +5,30 @@ This application supports multiple email providers with automatic fallback. If o
 
 ## Supported Providers (in priority order)
 
-### 1. Primary SMTP (Your Current Provider)
-**Status:** ✅ Already configured  
-**Required Secrets:**
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_FROM`
+### 1. Brevo (Primary - Recommended)
+**Status:** ✅ Ready to configure  
+**Free Tier:** 300 emails/day (9,000 emails/month)  
+**Signup:** https://www.brevo.com/
 
-### 2. Resend (Recommended - Already Configured)
+**Required Secrets:**
+- `BREVO_API_KEY` - Your Brevo API key (starts with `xkeysib-`)
+
+**Setup Steps:**
+1. Sign up at Brevo (formerly Sendinblue)
+2. Verify your email and complete setup
+3. Go to Settings → SMTP & API → API Keys
+4. Create a new API key or use existing one
+5. Add to Replit Secrets:
+   - Key: `BREVO_API_KEY`
+   - Value: Your API key from Brevo
+
+**Notes:**
+- No SMTP credentials needed - works via REST API
+- Very reliable and fast
+- Great for transactional emails
+- Free tier is generous for most use cases
+
+### 2. Resend (Second Provider - Already Configured)
 **Status:** ✅ Already configured  
 **Free Tier:** 3,000 emails/month, 100 emails/day  
 **Required Secrets:**
@@ -26,7 +40,16 @@ This application supports multiple email providers with automatic fallback. If o
 - Very reliable and fast
 - Great for transactional emails
 
-### 3. SendPulse (Recommended Third Provider)
+### 3. Primary SMTP (Fallback)
+**Status:** ✅ Already configured  
+**Required Secrets:**
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+
+### 4. SendPulse (Last Resort SMTP)
 **Status:** ⚠️ Needs configuration  
 **Free Tier:** 12,000 emails/month forever  
 **Signup:** https://sendpulse.com/
@@ -89,9 +112,10 @@ POSTMARK_SMTP_PASS=your-server-token
 ## Current Configuration
 
 Your system will try providers in this order:
-1. **Resend API** (primary) ✅ Configured
-2. **Primary SMTP** (fallback #1) ✅ Configured
-3. **SendPulse SMTP** (fallback #2) ⚠️ Recommended to add
+1. **Brevo API** (primary) ⚠️ Add your API key to activate
+2. **Resend API** (fallback #1) ✅ Configured
+3. **Primary SMTP** (fallback #2) ✅ Configured
+4. **SendPulse SMTP** (fallback #3) ⚠️ Optional
 
 ## How It Works
 
@@ -106,15 +130,15 @@ The system automatically:
 
 Check your logs for messages like:
 ```
-📧 Attempting to send email via primary (attempt 1/2)
-✅ Email sent successfully via resend: msg_abc123
+📧 Attempting to send email via Brevo...
+✅ Email sent successfully via Brevo: <message-id>
 ```
 
 ## Recommendations
 
 For best reliability, I recommend:
-1. ✅ Keep Resend API (Priority 1) - already configured
-2. ✅ Keep your current SMTP (Priority 2) - already configured
-3. ➕ Add SendPulse (Priority 3) - free 12,000 emails/month forever
+1. ➕ Add Brevo API (Priority 1) - free 300 emails/day, easy setup
+2. ✅ Keep Resend API (Priority 2) - already configured
+3. ✅ Keep your current SMTP (Priority 3) - already configured
 
 This gives you 3 independent providers with generous limits, ensuring your emails always get through!
