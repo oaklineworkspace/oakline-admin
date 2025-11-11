@@ -74,15 +74,14 @@ export default function EmailLogs() {
 
   const getProviderBadgeColor = (provider) => {
     switch (provider?.toLowerCase()) {
-      case 'primary smtp':
-      case 'smtp1':
-        return '#3b82f6';
+      case 'brevo':
+        return '#0092ff';
       case 'resend':
       case 'smtp2':
         return '#10b981';
-      case 'sendgrid':
-      case 'smtp3':
-        return '#f59e0b';
+      case 'primary smtp':
+      case 'smtp1':
+        return '#3b82f6';
       case 'smtp4':
         return '#8b5cf6';
       case 'smtp5':
@@ -140,9 +139,9 @@ export default function EmailLogs() {
   };
 
   const providerStats = {
-    'Primary SMTP': emailLogs.filter(l => l.provider?.toLowerCase() === 'primary smtp' || l.provider?.toLowerCase() === 'smtp1').length,
+    'Brevo': emailLogs.filter(l => l.provider?.toLowerCase() === 'brevo').length,
     'Resend': emailLogs.filter(l => l.provider?.toLowerCase() === 'resend' || l.provider?.toLowerCase() === 'smtp2').length,
-    'SendGrid': emailLogs.filter(l => l.provider?.toLowerCase() === 'sendgrid' || l.provider?.toLowerCase() === 'smtp3').length,
+    'Primary SMTP': emailLogs.filter(l => l.provider?.toLowerCase() === 'primary smtp' || l.provider?.toLowerCase() === 'smtp1').length,
   };
 
   const emailTypes = [...new Set(emailLogs.map(l => l.email_type).filter(Boolean))];
@@ -235,12 +234,11 @@ export default function EmailLogs() {
             style={styles.filterSelect}
           >
             <option value="all">All Providers</option>
-            <option value="primary smtp">Primary SMTP</option>
-            <option value="smtp1">SMTP1</option>
+            <option value="brevo">Brevo</option>
             <option value="resend">Resend</option>
             <option value="smtp2">SMTP2</option>
-            <option value="sendgrid">SendGrid</option>
-            <option value="smtp3">SMTP3</option>
+            <option value="primary smtp">Primary SMTP</option>
+            <option value="smtp1">SMTP1</option>
             <option value="smtp4">SMTP4</option>
             <option value="smtp5">SMTP5</option>
           </select>
