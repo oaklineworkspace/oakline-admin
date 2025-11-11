@@ -37,11 +37,19 @@ export default async function handler(req, res) {
     }
 
     // Map auth users with names from applications
-    const formattedUsers = authUsers.users.map(user => ({
-      id: user.id,
-      email: user.email,
-      name: nameMap[user.id] || null
-    }));
+    const formattedUsers = authUsers.users.map(user => {
+      const fullName = nameMap[user.id];
+      const nameParts = fullName ? fullName.trim().split(' ') : [];
+      
+      return {
+        id: user.id,
+        email: user.email,
+        profiles: {
+          first_name: nameParts[0] || null,
+          last_name: nameParts.slice(1).join(' ') || null
+        }
+      };
+    });
 
     return res.status(200).json({ users: formattedUsers });
   } catch (error) {
