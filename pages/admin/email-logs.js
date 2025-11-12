@@ -18,6 +18,8 @@ export default function EmailLogs() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [resendingId, setResendingId] = useState(null);
+  const [resendMessage, setResendMessage] = useState('');
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
@@ -26,6 +28,40 @@ export default function EmailLogs() {
   useEffect(() => {
     fetchEmailLogs();
   }, []);
+
+  const handleResendEmail = async (emailLog) => {
+    if (!confirm(`Are you sure you want to resend this email to ${emailLog.recipient_email}?`)) {
+      return;
+    }
+
+    setResendingId(emailLog.id);
+    setResendMessage('');
+
+    try {
+      const response = await fetch('/api/admin/resend-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailLogId: emailLog.id })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setResendMessage(`✅ Email resent successfully via ${result.provider}!`);
+        fetchEmailLogs(); // Refresh the logs
+        setTimeout(() => setResendMessage(''), 5000);
+      } else {
+        setResendMessage(`❌ Error: ${result.error || 'Failed to resend email'}`);
+        setTimeout(() => setResendMessage(''), 5000);
+      }
+    } catch (error) {
+      console.error('Error resending email:', error);
+      setResendMessage('❌ Error resending email');
+      setTimeout(() => setResendMessage(''), 5000);
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const fetchEmailLogs = async () => {
     setLoading(true);
@@ -153,6 +189,19 @@ export default function EmailLogs() {
           <div>
             <h1 style={styles.title}>📧 Email Logs & SMTP Tracking</h1>
             <p style={styles.subtitle}>Monitor email delivery across multiple SMTP providers</p>
+            {resendMessage && (
+              <p style={{
+                ...styles.subtitle,
+                marginTop: '8px',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                backgroundColor: resendMessage.includes('✅') ? '#d1fae5' : '#fee2e2',
+                color: resendMessage.includes('✅') ? '#065f46' : '#991b1b',
+                fontWeight: '600'
+              }}>
+                {resendMessage}
+              </p>
+            )}
           </div>
           <div style={styles.headerActions}>
             <button onClick={fetchEmailLogs} style={styles.refreshButton} disabled={loading}>
@@ -397,6 +446,19 @@ export default function EmailLogs() {
                     >
                       👁️ View Details
                     </button>
+                    {(log.email_content_html || log.email_content_text) && (
+                      <button
+                        onClick={() => handleResendEmail(log)}
+                        disabled={resendingId === log.id}
+                        style={{
+                          ...styles.resendButton,
+                          opacity: resendingId === log.id ? 0.6 : 1,
+                          cursor: resendingId === log.id ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {resendingId === log.id ? '⏳ Resending...' : '📧 Resend'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -902,6 +964,18 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
+  },
+  resendButton: {
+    flex: 1,
+    padding: '10px',
+    background: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
   },
   modalOverlay: {
     position: 'fixed',
