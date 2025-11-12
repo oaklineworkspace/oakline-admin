@@ -99,19 +99,26 @@ export default function UserActivityMonitor() {
       loginAttempts: activitiesData.filter(a => 
         a.action?.toLowerCase().includes('login') || 
         a.action?.toLowerCase().includes('sign') ||
-        a.type === 'auth'
+        a.type === 'auth' ||
+        a.activity_category === 'login' ||
+        a.message?.toLowerCase().includes('login')
       ).length,
       passwordChanges: activitiesData.filter(a => 
         a.action?.toLowerCase().includes('password') ||
-        a.action?.toLowerCase().includes('update_user_password')
+        a.action?.toLowerCase().includes('update_user_password') ||
+        a.activity_category === 'password' ||
+        a.message?.toLowerCase().includes('password')
       ).length,
       transactions: activitiesData.filter(a => 
         a.table_name === 'transactions' || 
-        a.type === 'transaction'
+        a.type === 'transaction' ||
+        a.activity_category === 'transaction'
       ).length,
       accountChanges: activitiesData.filter(a => 
         a.table_name === 'accounts' ||
-        a.table_name === 'profiles'
+        a.table_name === 'profiles' ||
+        a.activity_category === 'account' ||
+        a.activity_category === 'profile'
       ).length,
       todayActivities: todayActivities.length
     });
@@ -121,16 +128,19 @@ export default function UserActivityMonitor() {
     const action = activity.action?.toLowerCase() || '';
     const type = activity.type?.toLowerCase() || '';
     const table = activity.table_name?.toLowerCase() || '';
+    const category = activity.activity_category?.toLowerCase() || '';
+    const message = activity.message?.toLowerCase() || '';
 
-    if (action.includes('login') || action.includes('sign') || type === 'auth') return '🔐';
-    if (action.includes('password')) return '🔑';
+    if (category === 'login' || action.includes('login') || action.includes('sign') || type === 'auth' || message.includes('login')) return '🔐';
+    if (category === 'password' || action.includes('password') || message.includes('password')) return '🔑';
     if (action.includes('create') || action.includes('insert')) return '➕';
     if (action.includes('update') || action.includes('modify')) return '✏️';
     if (action.includes('delete') || action.includes('remove')) return '🗑️';
-    if (table === 'transactions' || type === 'transaction') return '💸';
-    if (table === 'cards' || type === 'card') return '💳';
+    if (category === 'transaction' || table === 'transactions' || type === 'transaction') return '💸';
+    if (category === 'card' || table === 'cards' || type === 'card') return '💳';
     if (table === 'accounts') return '🏦';
     if (table === 'loans') return '🏠';
+    if (category === 'profile' || table === 'profiles') return '👤';
     return '📋';
   };
 
@@ -166,6 +176,21 @@ export default function UserActivityMonitor() {
       return activity.details.user_email;
     }
     return 'System';
+  };
+
+  const getDeviceInfo = (userAgent) => {
+    if (!userAgent) return 'Unknown Device';
+    
+    // Simple device detection
+    if (userAgent.includes('Mobile')) return '📱 Mobile Device';
+    if (userAgent.includes('Tablet')) return '📱 Tablet';
+    if (userAgent.includes('Windows')) return '💻 Windows PC';
+    if (userAgent.includes('Mac')) return '💻 Mac';
+    if (userAgent.includes('Linux')) return '💻 Linux';
+    if (userAgent.includes('Android')) return '📱 Android';
+    if (userAgent.includes('iPhone') || userAgent.includes('iPad')) return '📱 iOS Device';
+    
+    return '💻 Computer';
   };
 
   const filteredActivities = activities.filter(activity => {
@@ -288,9 +313,14 @@ export default function UserActivityMonitor() {
                 style={styles.select}
               >
                 <option value="all">All Activities</option>
+                <option value="login">🔐 Login Events</option>
+                <option value="password">🔑 Password Changes</option>
+                <option value="transaction">💸 Transactions</option>
+                <option value="card">💳 Card Activities</option>
+                <option value="account">🏦 Account Changes</option>
+                <option value="loan">🏠 Loan Activities</option>
+                <option value="profile">👤 Profile Changes</option>
                 <option value="auth">Authentication</option>
-                <option value="transaction">Transactions</option>
-                <option value="card">Card Activities</option>
                 <option value="user">User Changes</option>
                 <option value="system">System Events</option>
               </select>
@@ -420,6 +450,28 @@ export default function UserActivityMonitor() {
                         <span style={styles.infoValue}>{activity.message}</span>
                       </div>
                     )}
+                    {activity.details?.ip_address && (
+                      <div style={styles.activityInfo}>
+                        <span style={styles.infoLabel}>IP Address:</span>
+                        <span style={styles.infoValue}>{activity.details.ip_address}</span>
+                      </div>
+                    )}
+                    {activity.details?.user_agent && (
+                      <div style={styles.activityInfo}>
+                        <span style={styles.infoLabel}>Device:</span>
+                        <span style={styles.infoValue}>
+                          {getDeviceInfo(activity.details.user_agent)}
+                        </span>
+                      </div>
+                    )}
+                    {activity.activity_category && (
+                      <div style={styles.activityInfo}>
+                        <span style={styles.infoLabel}>Category:</span>
+                        <span style={styles.infoValue}>
+                          {activity.activity_category.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     {activity.source && (
                       <div style={styles.activityInfo}>
                         <span style={styles.infoLabel}>Source:</span>
@@ -475,6 +527,34 @@ export default function UserActivityMonitor() {
                       {new Date(selectedActivity.created_at).toLocaleString()}
                     </span>
                   </div>
+                  {selectedActivity.activity_category && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>Category:</span>
+                      <span style={styles.detailValue}>
+                        {selectedActivity.activity_category.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  {selectedActivity.details?.ip_address && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>IP Address:</span>
+                      <span style={styles.detailValue}>{selectedActivity.details.ip_address}</span>
+                    </div>
+                  )}
+                  {selectedActivity.details?.user_agent && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>Device/Browser:</span>
+                      <span style={styles.detailValue} style={{fontSize: '12px'}}>
+                        {selectedActivity.details.user_agent}
+                      </span>
+                    </div>
+                  )}
+                  {selectedActivity.details?.location && (
+                    <div style={styles.detailItem}>
+                      <span style={styles.detailLabel}>Location:</span>
+                      <span style={styles.detailValue}>{selectedActivity.details.location}</span>
+                    </div>
+                  )}
                   {selectedActivity.level && (
                     <div style={styles.detailItem}>
                       <span style={styles.detailLabel}>Level:</span>
