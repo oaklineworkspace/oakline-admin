@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function EditUserTimestamps() {
   const router = useRouter();
@@ -23,7 +24,17 @@ export default function EditUserTimestamps() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/get-users');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/get-users', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const data = await response.json();
       if (response.ok) {
         setUsers(data.users || []);
@@ -41,7 +52,17 @@ export default function EditUserTimestamps() {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`/api/admin/get-user-timestamps?userId=${userId}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const response = await fetch(`/api/admin/get-user-timestamps?userId=${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const data = await response.json();
       
       if (response.ok) {
@@ -63,9 +84,18 @@ export default function EditUserTimestamps() {
       setError('');
       setSuccess('');
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
       const response = await fetch('/api/admin/update-user-timestamp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           table,
           recordId,
