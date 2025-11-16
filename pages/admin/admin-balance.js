@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
 
 export default function AdminBalance() {
@@ -22,7 +23,16 @@ export default function AdminBalance() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/balance/get-accounts');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch('/api/admin/balance/get-accounts', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const data = await response.json();
 
       if (!response.ok) {
@@ -66,11 +76,19 @@ export default function AdminBalance() {
     setError('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const amount = parseFloat(balanceAmount);
 
       const response = await fetch('/api/admin/balance/update-balance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           accountId: selectedAccount,
           operation: operation,
@@ -117,9 +135,17 @@ export default function AdminBalance() {
 
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch('/api/admin/balance/update-balance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           accountId: accountId,
           operation: 'add',
