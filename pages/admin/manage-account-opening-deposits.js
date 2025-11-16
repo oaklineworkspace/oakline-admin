@@ -347,83 +347,7 @@ export default function ManageAccountOpeningDeposits() {
     return emojis[status] || '📋';
   };
 
-  const handleQuickAction = async (deposit, action) => {
-    setProcessing(deposit.id);
-    setError('');
-    setMessage('');
-
-    let endpoint = '';
-    let payload = { depositId: deposit.id };
-
-    switch (action) {
-      case 'confirm':
-        endpoint = '/api/admin/confirm-deposit';
-        payload.confirmations = deposit.required_confirmations;
-        payload.status = 'confirmed';
-        break;
-      case 'reject':
-        endpoint = '/api/admin/reject-deposit';
-        payload.status = 'rejected';
-        payload.rejectionReason = 'Automatically rejected by admin action.'; // Default reason
-        break;
-      case 'approve':
-        endpoint = '/api/admin/approve-deposit';
-        payload.status = 'approved';
-        break;
-      case 'complete':
-        endpoint = '/api/admin/complete-deposit';
-        payload.status = 'completed';
-        break;
-      default:
-        setError('Unknown action');
-        return;
-    }
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session.');
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || result.details || `Failed to ${action} deposit`);
-      }
-
-      let successMessage = '';
-      switch (action) {
-        case 'confirm':
-          successMessage = '✅ Deposit confirmed successfully!';
-          break;
-        case 'reject':
-          successMessage = '✅ Deposit rejected successfully!';
-          break;
-        case 'approve':
-          successMessage = '✅ Deposit approved successfully!';
-          break;
-        case 'complete':
-          successMessage = '✅ Deposit completed successfully! Balance has been credited.';
-          break;
-      }
-      setMessage(successMessage);
-      await fetchData();
-      setTimeout(() => setMessage(''), 5000);
-    } catch (error) {
-      console.error(`Error performing ${action} action:`, error);
-      setError(error.message);
-      setTimeout(() => setError(''), 5000);
-    } finally {
-      setProcessing(null);
-    }
-  };
+  // Removed quick action function - use Update modal for all status changes
 
 
   return (
@@ -551,57 +475,12 @@ export default function ManageAccountOpeningDeposits() {
                     </button>
                     {deposit && (
                       <>
-                        {/* Quick Action Buttons */}
-                        {deposit.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleQuickAction(deposit, 'confirm')}
-                              style={{...styles.btn, ...styles.btnSuccess}}
-                              disabled={processing === account.id}
-                              title="Mark as confirmed"
-                            >
-                              ✓ Confirm
-                            </button>
-                            <button
-                              onClick={() => handleQuickAction(deposit, 'reject')}
-                              style={{...styles.btn, ...styles.btnDanger}}
-                              disabled={processing === account.id}
-                              title="Reject deposit"
-                            >
-                              ✕ Reject
-                            </button>
-                          </>
-                        )}
-                        {(deposit.status === 'confirmed' || deposit.status === 'awaiting_confirmations') && (
-                          <>
-                            <button
-                              onClick={() => handleQuickAction(deposit, 'approve')}
-                              style={{...styles.btn, ...styles.btnSuccess}}
-                              disabled={processing === account.id}
-                              title="Approve deposit"
-                            >
-                              ✓ Approve
-                            </button>
-                          </>
-                        )}
-                        {(deposit.status === 'approved' || deposit.status === 'confirmed') && (
-                          <button
-                            onClick={() => handleQuickAction(deposit, 'complete')}
-                            style={{...styles.btn, ...styles.btnSuccess}}
-                            disabled={processing === account.id}
-                            title="Complete and credit account"
-                          >
-                            💰 Complete
-                          </button>
-                        )}
-
-                        {/* Standard Action Buttons */}
                         <button
                           onClick={() => openUpdateModal(deposit)}
-                          style={{...styles.btn, ...styles.btnSecondary}}
+                          style={{...styles.btn, ...styles.btnSuccess}}
                           disabled={processing === account.id}
                         >
-                          📊 Update
+                          📊 Update Status
                         </button>
                         {deposit.proof_path && (
                           <button
