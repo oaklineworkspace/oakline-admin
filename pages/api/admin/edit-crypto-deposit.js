@@ -217,7 +217,7 @@ export default async function handler(req, res) {
         const fromEmail = bankDetails?.email_crypto || 'crypto@theoaklinebank.com';
 
         if (profile?.email) {
-          // Get the crypto asset details by joining with crypto_assets table
+          // Get the crypto asset details and wallet address by joining with crypto_assets and admin_assigned_wallets tables
           const { data: depositWithAsset } = await supabaseAdmin
             .from('crypto_deposits')
             .select(`
@@ -225,6 +225,10 @@ export default async function handler(req, res) {
               crypto_assets:crypto_asset_id (
                 crypto_type,
                 network_type
+              ),
+              admin_assigned_wallets:assigned_wallet_id (
+                wallet_address,
+                memo
               )
             `)
             .eq('id', depositId)
@@ -232,6 +236,9 @@ export default async function handler(req, res) {
 
           const cryptoType = depositWithAsset?.crypto_assets?.crypto_type || 'Unknown';
           const networkType = depositWithAsset?.crypto_assets?.network_type || 'Unknown';
+          const walletAddress = depositWithAsset?.admin_assigned_wallets?.wallet_address || null;
+          const memo = depositWithAsset?.admin_assigned_wallets?.memo || null;
+          const txHash = depositWithAsset?.tx_hash || txHash || null;
 
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
             method: 'POST',
@@ -245,7 +252,10 @@ export default async function handler(req, res) {
               fee: depositFee,
               netAmount: netAmount,
               depositId: depositId,
-              userName: `${profile.first_name} ${profile.last_name}`
+              userName: `${profile.first_name} ${profile.last_name}`,
+              walletAddress: walletAddress,
+              memo: memo,
+              txHash: txHash
             })
           });
           console.log('Deposit completion email sent to:', profile.email);
