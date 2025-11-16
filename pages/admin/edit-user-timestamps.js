@@ -23,6 +23,15 @@ export default function EditUserTimestamps() {
   const [selectedFields, setSelectedFields] = useState([]);
   const [availableFields, setAvailableFields] = useState([]);
 
+  // Filter states
+  const [filterType, setFilterType] = useState('all'); // 'all', 'date', 'month', 'time', 'range'
+  const [filterDate, setFilterDate] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterTime, setFilterTime] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filteredFields, setFilteredFields] = useState([]);
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -32,6 +41,10 @@ export default function EditUserTimestamps() {
       buildAvailableFields();
     }
   }, [userData]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [availableFields, filterType, filterDate, filterMonth, filterTime, filterStartDate, filterEndDate]);
 
   const fetchUsers = async () => {
     try {
@@ -159,6 +172,46 @@ export default function EditUserTimestamps() {
     setAvailableFields(fields);
   };
 
+  const applyFilters = () => {
+    if (filterType === 'all') {
+      setFilteredFields(availableFields);
+      return;
+    }
+
+    let filtered = availableFields.filter(field => {
+      if (!field.current) return false;
+      const fieldDate = new Date(field.current);
+
+      if (filterType === 'date' && filterDate) {
+        const targetDate = new Date(filterDate);
+        return fieldDate.toDateString() === targetDate.toDateString();
+      }
+
+      if (filterType === 'month' && filterMonth) {
+        const [year, month] = filterMonth.split('-');
+        return fieldDate.getFullYear() === parseInt(year) && 
+               fieldDate.getMonth() === parseInt(month) - 1;
+      }
+
+      if (filterType === 'time' && filterTime) {
+        const [hours, minutes] = filterTime.split(':');
+        return fieldDate.getHours() === parseInt(hours) && 
+               fieldDate.getMinutes() === parseInt(minutes);
+      }
+
+      if (filterType === 'range' && filterStartDate && filterEndDate) {
+        const startDate = new Date(filterStartDate);
+        const endDate = new Date(filterEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        return fieldDate >= startDate && fieldDate <= endDate;
+      }
+
+      return true;
+    });
+
+    setFilteredFields(filtered);
+  };
+
   const handleUpdateTimestamp = async (table, recordId, field, value) => {
     try {
       setSaving(true);
@@ -220,6 +273,7 @@ export default function EditUserTimestamps() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
+        setSaving(false);
         return;
       }
 
@@ -243,7 +297,7 @@ export default function EditUserTimestamps() {
             field: field.field,
             value: isoDateTime
           })
-      });
+        });
 
         if (response.ok) {
           successCount++;
@@ -278,7 +332,8 @@ export default function EditUserTimestamps() {
   };
 
   const selectAllFields = () => {
-    setSelectedFields(availableFields.map(f => `${f.table}-${f.id}-${f.field}`));
+    const fieldsToSelect = filterType === 'all' ? availableFields : filteredFields;
+    setSelectedFields(fieldsToSelect.map(f => `${f.table}-${f.id}-${f.field}`));
   };
 
   const clearAllFields = () => {
@@ -334,6 +389,8 @@ export default function EditUserTimestamps() {
     const query = searchQuery.toLowerCase();
     return email.includes(query) || firstName.includes(query) || lastName.includes(query);
   });
+
+  const displayFields = filterType === 'all' ? availableFields : filteredFields;
 
   return (
     <AdminAuth>
@@ -568,7 +625,7 @@ export default function EditUserTimestamps() {
               
               <div style={styles.modalBody}>
                 <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Select Date & Time</label>
+                  <label style={styles.formLabel}>Select Date & Time to Apply</label>
                   <input
                     type="datetime-local"
                     value={bulkDateTime}
@@ -577,41 +634,118 @@ export default function EditUserTimestamps() {
                   />
                 </div>
 
+                {/* Filter Section */}
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabel}>Filter Timestamps</label>
+                  <select 
+                    value={filterType} 
+                    onChange={(e) => setFilterType(e.target.value)}
+                    style={styles.filterSelect}
+                  >
+                    <option value="all">All Timestamps</option>
+                    <option value="date">By Date</option>
+                    <option value="month">By Month</option>
+                    <option value="time">By Time</option>
+                    <option value="range">By Date Range</option>
+                  </select>
+
+                  {filterType === 'date' && (
+                    <input
+                      type="date"
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      style={styles.filterInput}
+                      placeholder="Select date"
+                    />
+                  )}
+
+                  {filterType === 'month' && (
+                    <input
+                      type="month"
+                      value={filterMonth}
+                      onChange={(e) => setFilterMonth(e.target.value)}
+                      style={styles.filterInput}
+                      placeholder="Select month"
+                    />
+                  )}
+
+                  {filterType === 'time' && (
+                    <input
+                      type="time"
+                      value={filterTime}
+                      onChange={(e) => setFilterTime(e.target.value)}
+                      style={styles.filterInput}
+                      placeholder="Select time"
+                    />
+                  )}
+
+                  {filterType === 'range' && (
+                    <div style={styles.dateRangeContainer}>
+                      <input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        style={styles.filterInput}
+                        placeholder="Start date"
+                      />
+                      <span style={styles.dateRangeTo}>to</span>
+                      <input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        style={styles.filterInput}
+                        placeholder="End date"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div style={styles.formGroup}>
                   <div style={styles.fieldSelectionHeader}>
-                    <label style={styles.formLabel}>Select Fields to Update</label>
+                    <label style={styles.formLabel}>
+                      Select Fields to Update 
+                      {filterType !== 'all' && ` (${displayFields.length} matching)`}
+                    </label>
                     <div style={styles.selectionButtons}>
-                      <button onClick={selectAllFields} style={styles.selectButton}>Select All</button>
+                      <button onClick={selectAllFields} style={styles.selectButton}>
+                        Select {filterType !== 'all' ? 'Filtered' : 'All'}
+                      </button>
                       <button onClick={clearAllFields} style={styles.selectButton}>Clear All</button>
                     </div>
                   </div>
                   
                   <div style={styles.fieldsList}>
-                    {availableFields.map(field => {
-                      const fieldKey = `${field.table}-${field.id}-${field.field}`;
-                      const isSelected = selectedFields.includes(fieldKey);
-                      
-                      return (
-                        <div 
-                          key={fieldKey} 
-                          style={{
-                            ...styles.fieldOption,
-                            ...(isSelected ? styles.fieldOptionSelected : {})
-                          }}
-                          onClick={() => toggleFieldSelection(fieldKey)}
-                        >
-                          <div style={styles.fieldCheckbox}>
-                            {isSelected && '✓'}
-                          </div>
-                          <div style={styles.fieldInfo}>
-                            <div style={styles.fieldLabel}>{field.label}</div>
-                            <div style={styles.fieldCurrent}>
-                              Current: {field.current ? new Date(field.current).toLocaleString() : 'Not set'}
+                    {displayFields.length === 0 ? (
+                      <div style={styles.noFieldsMessage}>
+                        No timestamps match your filter criteria
+                      </div>
+                    ) : (
+                      displayFields.map(field => {
+                        const fieldKey = `${field.table}-${field.id}-${field.field}`;
+                        const isSelected = selectedFields.includes(fieldKey);
+                        
+                        return (
+                          <div 
+                            key={fieldKey} 
+                            style={{
+                              ...styles.fieldOption,
+                              ...(isSelected ? styles.fieldOptionSelected : {})
+                            }}
+                            onClick={() => toggleFieldSelection(fieldKey)}
+                          >
+                            <div style={styles.fieldCheckbox}>
+                              {isSelected && '✓'}
+                            </div>
+                            <div style={styles.fieldInfo}>
+                              <div style={styles.fieldOptionLabel}>{field.label}</div>
+                              <div style={styles.fieldCurrent}>
+                                Current: {field.current ? new Date(field.current).toLocaleString() : 'Not set'}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -916,50 +1050,53 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
-    padding: '20px'
+    padding: '20px',
+    overflowY: 'auto'
   },
   modalContent: {
     background: 'white',
     borderRadius: '16px',
     width: '100%',
-    maxWidth: '600px',
+    maxWidth: '650px',
     maxHeight: '90vh',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    margin: 'auto'
   },
   modalHeader: {
-    padding: 'clamp(1.2rem, 3vw, 24px)',
+    padding: 'clamp(1rem, 3vw, 20px)',
     borderBottom: '2px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexShrink: 0
   },
   modalTitle: {
     margin: 0,
-    fontSize: 'clamp(1.2rem, 3vw, 20px)',
+    fontSize: 'clamp(1.1rem, 3vw, 18px)',
     fontWeight: '700',
     color: '#1A3E6F'
   },
   modalCloseButton: {
     background: 'none',
     border: 'none',
-    fontSize: 'clamp(1.5rem, 3vw, 24px)',
+    fontSize: 'clamp(1.3rem, 3vw, 20px)',
     cursor: 'pointer',
     color: '#64748b',
     padding: '0',
-    width: '32px',
-    height: '32px',
+    width: '28px',
+    height: '28px',
     borderRadius: '50%',
     transition: 'all 0.2s'
   },
   modalBody: {
-    padding: 'clamp(1.2rem, 3vw, 24px)',
+    padding: 'clamp(1rem, 3vw, 20px)',
     overflowY: 'auto',
     flex: 1
   },
   formGroup: {
-    marginBottom: '24px'
+    marginBottom: '20px'
   },
   formLabel: {
     display: 'block',
@@ -970,11 +1107,43 @@ const styles = {
   },
   bulkDateInput: {
     width: '100%',
-    padding: 'clamp(0.6rem, 2vw, 12px)',
+    padding: 'clamp(0.6rem, 2vw, 10px)',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     boxSizing: 'border-box'
+  },
+  filterSelect: {
+    width: '100%',
+    padding: 'clamp(0.6rem, 2vw, 10px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    boxSizing: 'border-box',
+    marginBottom: '10px',
+    background: 'white'
+  },
+  filterInput: {
+    width: '100%',
+    padding: 'clamp(0.6rem, 2vw, 10px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    boxSizing: 'border-box',
+    marginTop: '8px'
+  },
+  dateRangeContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '8px',
+    flexWrap: 'wrap'
+  },
+  dateRangeTo: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#64748b',
+    fontWeight: '500',
+    padding: '0 4px'
   },
   fieldSelectionHeader: {
     display: 'flex',
@@ -986,10 +1155,11 @@ const styles = {
   },
   selectionButtons: {
     display: 'flex',
-    gap: '8px'
+    gap: '8px',
+    flexWrap: 'wrap'
   },
   selectButton: {
-    padding: '6px 12px',
+    padding: 'clamp(0.4rem, 1.5vw, 6px) clamp(0.75rem, 2vw, 12px)',
     background: '#f1f5f9',
     border: '1px solid #cbd5e1',
     borderRadius: '6px',
@@ -1005,6 +1175,13 @@ const styles = {
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
     padding: '8px'
+  },
+  noFieldsMessage: {
+    padding: '30px 20px',
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontStyle: 'italic'
   },
   fieldOption: {
     display: 'flex',
@@ -1036,12 +1213,20 @@ const styles = {
     color: '#7c3aed'
   },
   fieldInfo: {
-    flex: 1
+    flex: 1,
+    minWidth: 0
+  },
+  fieldOptionLabel: {
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '600',
+    color: '#334155',
+    wordBreak: 'break-word'
   },
   fieldCurrent: {
     fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
     color: '#64748b',
-    marginTop: '4px'
+    marginTop: '4px',
+    wordBreak: 'break-word'
   },
   selectedCount: {
     textAlign: 'center',
@@ -1053,14 +1238,16 @@ const styles = {
     borderRadius: '8px'
   },
   modalFooter: {
-    padding: 'clamp(1.2rem, 3vw, 24px)',
+    padding: 'clamp(1rem, 3vw, 20px)',
     borderTop: '2px solid #e2e8f0',
     display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end'
+    gap: '10px',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+    flexWrap: 'wrap'
   },
   cancelButton: {
-    padding: 'clamp(0.6rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
+    padding: 'clamp(0.6rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
     background: '#f1f5f9',
     color: '#475569',
     border: '1px solid #cbd5e1',
@@ -1071,7 +1258,7 @@ const styles = {
     transition: 'all 0.3s ease'
   },
   confirmButton: {
-    padding: 'clamp(0.6rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
+    padding: 'clamp(0.6rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
     border: 'none',
