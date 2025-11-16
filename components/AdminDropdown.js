@@ -110,6 +110,8 @@ export default function AdminDropdown() {
     {
       category: '⚙️ Settings & Security',
       links: [
+        { name: 'Security Dashboard', path: '/admin/security-dashboard', icon: '🔐' },
+        { name: 'User Activity Monitor', path: '/admin/user-activity-monitor', icon: '👁️' },
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },

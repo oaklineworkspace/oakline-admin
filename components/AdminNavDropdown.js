@@ -141,8 +141,9 @@ export default function AdminNavDropdown() {
     {
       category: '⚙️ System & Audit',
       links: [
-        { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
+        { name: 'Security Dashboard', path: '/admin/security-dashboard', icon: '🔐' },
         { name: 'User Activity Monitor', path: '/admin/user-activity-monitor', icon: '👁️' },
+        { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
         { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }

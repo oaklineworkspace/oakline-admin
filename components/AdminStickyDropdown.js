@@ -111,6 +111,8 @@ export default function AdminStickyDropdown() {
     {
       category: '🔧 System & Security',
       pages: [
+        { name: 'Security Dashboard', href: '/admin/security-dashboard', icon: '🔐' },
+        { name: 'User Activity Monitor', href: '/admin/user-activity-monitor', icon: '👁️' },
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
         { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
         { name: 'Storage Diagnostics', href: '/admin/storage-diagnostics', icon: '🔍' },
