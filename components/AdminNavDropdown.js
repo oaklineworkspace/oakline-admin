@@ -143,6 +143,7 @@ export default function AdminNavDropdown() {
       links: [
         { name: 'Security Dashboard', path: '/admin/security-dashboard', icon: '🔐' },
         { name: 'User Activity Monitor', path: '/admin/user-activity-monitor', icon: '👁️' },
+        { name: 'Edit User Timestamps', path: '/admin/edit-user-timestamps', icon: '⏰' },
         { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
