@@ -1,6 +1,5 @@
 
-import nodemailer from 'nodemailer';
-import { supabase } from '../../../lib/supabaseClient';
+import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,18 +13,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Recipient email is required' });
     }
 
-    const from = fromEmail || 'crypto@theoaklinebank.com';
-
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
+    const from = fromEmail || `Oakline Bank - Crypto <crypto@${emailDomain}>`;
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -104,47 +93,25 @@ export default async function handler(req, res) {
       </html>
     `;
 
-    const mailOptions = {
-      from: `"Oakline Bank - Crypto" <${from}>`,
+    const emailText = `Hello ${userName || 'Valued Customer'},\n\nYour cryptocurrency deposit has been completed!\n\nCrypto Type: ${cryptoType}\nNetwork: ${network}\nAmount: $${parseFloat(amount).toFixed(2)}\nFee: $${parseFloat(fee).toFixed(2)}\nNet Amount: $${parseFloat(netAmount).toFixed(2)}\nStatus: Completed\n\nThank you for banking with Oakline Bank.`;
+
+    const result = await sendEmail({
       to,
       subject: 'Your Cryptocurrency Deposit has been Completed',
       html: emailHtml,
-      text: `Hello ${userName || 'Valued Customer'},\n\nYour cryptocurrency deposit has been completed!\n\nCrypto Type: ${cryptoType}\nNetwork: ${network}\nAmount: $${parseFloat(amount).toFixed(2)}\nFee: $${parseFloat(fee).toFixed(2)}\nNet Amount: $${parseFloat(netAmount).toFixed(2)}\nStatus: Completed\n\nThank you for banking with Oakline Bank.`
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-
-    // Log email
-    await supabase.from('email_logs').insert({
-      recipient_email: to,
-      subject: 'Your Cryptocurrency Deposit has been Completed',
-      email_type: 'crypto_deposit_completed',
-      provider: 'smtp',
-      status: 'sent',
-      message_id: info.messageId,
-      email_content_html: emailHtml,
-      metadata: { cryptoType, network, amount, fee, netAmount, depositId }
+      text: emailText,
+      type: EMAIL_TYPES.CRYPTO,
+      from
     });
 
-    return res.status(200).json({ success: true, messageId: info.messageId });
+    return res.status(200).json({ 
+      success: true, 
+      messageId: result.messageId,
+      provider: result.provider 
+    });
 
   } catch (error) {
     console.error('Error sending email:', error);
-    
-    // Log failed email
-    try {
-      await supabase.from('email_logs').insert({
-        recipient_email: req.body.to,
-        subject: 'Your Cryptocurrency Deposit has been Completed',
-        email_type: 'crypto_deposit_completed',
-        provider: 'smtp',
-        status: 'failed',
-        error_message: error.message
-      });
-    } catch (logError) {
-      console.error('Error logging failed email:', logError);
-    }
-
     return res.status(500).json({ error: 'Failed to send email', details: error.message });
   }
 }

@@ -88,9 +88,119 @@ export default async function handler(req, res) {
         }
       });
 
-    // Send email notification if status changed to completed
+    // Send email notification and credit account if status changed to completed
     if (status === 'completed' && deposit.status !== 'completed') {
       try {
+        // Calculate amounts
+        const depositAmount = amount !== undefined ? parseFloat(amount) : parseFloat(deposit.amount);
+        const depositFee = fee !== undefined ? parseFloat(fee) : parseFloat(deposit.fee || 0);
+        const netAmount = depositAmount - depositFee;
+
+        // Credit user account
+        if (!deposit.account_id) {
+          console.error('No account linked to this deposit');
+          return res.status(400).json({ error: 'No account linked to this deposit' });
+        }
+
+        // Get account and lock it
+        const { data: account, error: accountError } = await supabaseAdmin
+          .from('accounts')
+          .select('*')
+          .eq('id', deposit.account_id)
+          .single();
+
+        if (accountError || !account) {
+          console.error('Error fetching account:', accountError);
+          return res.status(404).json({ error: 'Account not found' });
+        }
+
+        const balanceBefore = parseFloat(account.balance || 0);
+        const balanceAfter = balanceBefore + netAmount;
+
+        // Update account balance
+        const { error: balanceError } = await supabaseAdmin
+          .from('accounts')
+          .update({
+            balance: balanceAfter,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', account.id);
+
+        if (balanceError) {
+          console.error('Error updating account balance:', balanceError);
+          return res.status(500).json({ error: 'Failed to update account balance' });
+        }
+
+        // Create transaction record
+        const { error: txError } = await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: deposit.user_id,
+            account_id: deposit.account_id,
+            type: 'credit',
+            amount: netAmount,
+            description: `Crypto deposit - ${deposit.crypto_type} (Net after ${depositFee} fee)`,
+            status: 'completed',
+            balance_before: balanceBefore,
+            balance_after: balanceAfter,
+            reference: depositId,
+            metadata: {
+              deposit_id: depositId,
+              crypto_type: deposit.crypto_type,
+              network_type: deposit.network_type,
+              gross_amount: depositAmount,
+              fee: depositFee,
+              net_amount: netAmount
+            }
+          });
+
+        if (txError) {
+          console.error('Transaction creation error:', txError);
+        }
+
+        // Credit fee to Treasury account
+        if (depositFee > 0) {
+          const { data: treasuryAccount } = await supabaseAdmin
+            .from('accounts')
+            .select('*')
+            .eq('account_number', 'TREASURY-001')
+            .single();
+
+          if (treasuryAccount) {
+            const treasuryBalanceBefore = parseFloat(treasuryAccount.balance || 0);
+            const treasuryBalanceAfter = treasuryBalanceBefore + depositFee;
+
+            await supabaseAdmin
+              .from('accounts')
+              .update({
+                balance: treasuryBalanceAfter,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', treasuryAccount.id);
+
+            await supabaseAdmin
+              .from('transactions')
+              .insert({
+                account_id: treasuryAccount.id,
+                type: 'credit',
+                amount: depositFee,
+                description: `Crypto deposit fee - ${deposit.crypto_type}`,
+                status: 'completed',
+                balance_before: treasuryBalanceBefore,
+                balance_after: treasuryBalanceAfter,
+                metadata: {
+                  source: 'crypto_deposit_fee',
+                  deposit_id: depositId,
+                  user_id: deposit.user_id,
+                  crypto_type: deposit.crypto_type,
+                  gross_amount: depositAmount,
+                  fee: depositFee,
+                  net_amount: netAmount
+                }
+              });
+          }
+        }
+
         // Get user profile for email
         const { data: profile } = await supabaseAdmin
           .from('profiles')
@@ -107,10 +217,6 @@ export default async function handler(req, res) {
         const fromEmail = bankDetails?.email_crypto || 'crypto@theoaklinebank.com';
 
         if (profile?.email) {
-          const depositAmount = amount !== undefined ? parseFloat(amount) : parseFloat(deposit.amount);
-          const depositFee = fee !== undefined ? parseFloat(fee) : parseFloat(deposit.fee || 0);
-          const netAmount = depositAmount - depositFee;
-
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
