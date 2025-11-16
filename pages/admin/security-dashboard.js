@@ -45,19 +45,14 @@ export default function SecurityDashboard() {
     setLoading(true);
     setError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in');
-        return;
-      }
-
       const response = await fetch(`/api/admin/get-user-security?userId=${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+        credentials: 'include'
       });
 
-      if (!response.ok) throw new Error('Failed to fetch security data');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch security data');
+      }
       const data = await response.json();
       setSecurityData(data);
     } catch (err) {

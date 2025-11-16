@@ -7,15 +7,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization header' });
+    // Verify admin authentication
+    const { data: { session }, error: sessionError } = await supabaseAdmin.auth.getSession();
+    
+    // Try to get admin from authorization header if session fails
+    let isAdmin = false;
+    if (req.headers.authorization) {
+      const token = req.headers.authorization.replace('Bearer ', '');
+      const admin = await verifyAdminAuth(token);
+      isAdmin = !!admin;
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAuth(token);
-    if (!admin) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (!isAdmin && sessionError) {
+      return res.status(401).json({ error: 'Unauthorized - Admin access required' });
     }
 
     const { userId } = req.query;
