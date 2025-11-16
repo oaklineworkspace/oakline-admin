@@ -108,7 +108,6 @@ export default function EditUserTimestamps() {
 
       if (response.ok) {
         setSuccess(`Successfully updated ${field} in ${table}`);
-        // Refresh data
         await fetchUserTimestamps(selectedUser);
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -152,11 +151,11 @@ export default function EditUserTimestamps() {
             style={styles.updateButton}
             disabled={saving}
           >
-            {saving ? 'Updating...' : 'Update'}
+            {saving ? '⏳' : '✅'}
           </button>
         </div>
         <span style={styles.currentValue}>
-          Current: {currentValue ? new Date(currentValue).toLocaleString() : 'Not set'}
+          {currentValue ? new Date(currentValue).toLocaleString() : 'Not set'}
         </span>
       </div>
     );
@@ -179,20 +178,25 @@ export default function EditUserTimestamps() {
             <h1 style={styles.title}>⏰ Edit User Timestamps</h1>
             <p style={styles.subtitle}>Manually update dates and timestamps across all user tables</p>
           </div>
-          <Link href="/admin/admin-dashboard" style={styles.backButton}>
-            ← Back to Dashboard
-          </Link>
+          <div style={styles.headerActions}>
+            <button onClick={fetchUsers} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              ← Dashboard
+            </Link>
+          </div>
         </div>
 
-        {error && <div style={styles.errorMessage}>{error}</div>}
-        {success && <div style={styles.successMessage}>{success}</div>}
+        {error && <div style={styles.errorBanner}>{error}</div>}
+        {success && <div style={styles.successBanner}>{success}</div>}
 
         <div style={styles.contentWrapper}>
           <div style={styles.userSelectionPanel}>
             <h2 style={styles.panelTitle}>Select User</h2>
             <input
               type="text"
-              placeholder="Search by email or name..."
+              placeholder="🔍 Search by email or name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={styles.searchInput}
@@ -222,10 +226,13 @@ export default function EditUserTimestamps() {
 
           <div style={styles.timestampEditPanel}>
             {loading && userData ? (
-              <div style={styles.loadingText}>Loading timestamps...</div>
+              <div style={styles.loadingState}>
+                <div style={styles.spinner}></div>
+                <p>Loading timestamps...</p>
+              </div>
             ) : userData ? (
               <div>
-                <h2 style={styles.panelTitle}>Edit Timestamps for {userData.user?.email}</h2>
+                <h2 style={styles.panelTitle}>Timestamps for {userData.user?.email}</h2>
 
                 {/* Applications */}
                 {userData.application && (
@@ -369,7 +376,8 @@ export default function EditUserTimestamps() {
               </div>
             ) : (
               <div style={styles.emptyState}>
-                <p>Select a user from the list to edit timestamps</p>
+                <p style={styles.emptyIcon}>📋</p>
+                <p style={styles.emptyText}>Select a user from the list to edit timestamps</p>
               </div>
             )}
           </div>
@@ -383,95 +391,116 @@ export default function EditUserTimestamps() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    padding: '20px'
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(12px, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
+    background: 'white',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
-    background: 'white',
-    padding: '25px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
     flexWrap: 'wrap',
-    gap: '15px'
+    gap: '16px'
   },
   title: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    color: '#1e3c72',
-    margin: 0
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: '14px',
-    color: '#666',
-    margin: '5px 0 0 0'
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  refreshButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
   },
   backButton: {
-    background: '#6b7280',
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#718096',
     color: 'white',
-    padding: '10px 20px',
+    border: 'none',
     borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
     textDecoration: 'none',
-    fontSize: '14px',
-    fontWeight: '500'
+    display: 'inline-block'
   },
-  errorMessage: {
+  errorBanner: {
     background: '#fee2e2',
     color: '#dc2626',
-    padding: '15px',
+    padding: '16px',
     borderRadius: '8px',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500'
   },
-  successMessage: {
+  successBanner: {
     background: '#d1fae5',
     color: '#065f46',
-    padding: '15px',
+    padding: '16px',
     borderRadius: '8px',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500'
   },
   contentWrapper: {
     display: 'grid',
-    gridTemplateColumns: '300px 1fr',
-    gap: '20px',
-    alignItems: 'start'
+    gridTemplateColumns: '1fr',
+    gap: '20px'
   },
   userSelectionPanel: {
     background: 'white',
     borderRadius: '12px',
-    padding: '20px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    maxHeight: 'calc(100vh - 200px)',
-    position: 'sticky',
-    top: '20px'
+    padding: 'clamp(1rem, 3vw, 20px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   panelTitle: {
-    fontSize: '18px',
+    fontSize: 'clamp(1.1rem, 3vw, 18px)',
     fontWeight: 'bold',
-    color: '#1e3c72',
+    color: '#1A3E6F',
     marginBottom: '15px'
   },
   searchInput: {
     width: '100%',
-    padding: '10px',
+    padding: 'clamp(0.6rem, 2vw, 12px)',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     marginBottom: '15px'
   },
   userList: {
-    maxHeight: 'calc(100vh - 350px)',
+    maxHeight: '400px',
     overflowY: 'auto'
   },
   userItem: {
-    padding: '12px',
+    padding: 'clamp(0.75rem, 2.5vw, 12px)',
     borderRadius: '8px',
     marginBottom: '8px',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    border: '2px solid transparent'
+    border: '2px solid transparent',
+    background: '#f7fafc'
   },
   userItemActive: {
     background: '#ede9fe',
@@ -480,30 +509,52 @@ const styles = {
   userName: {
     fontWeight: '600',
     color: '#1e293b',
-    fontSize: '14px'
+    fontSize: 'clamp(0.85rem, 2.2vw, 14px)'
   },
   userEmail: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
     color: '#64748b',
     marginTop: '4px'
   },
   timestampEditPanel: {
     background: 'white',
     borderRadius: '12px',
-    padding: '25px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    padding: 'clamp(1.5rem, 4vw, 25px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     minHeight: '400px'
+  },
+  loadingState: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#718096'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
   },
   loadingText: {
     textAlign: 'center',
-    padding: '40px',
-    color: '#666'
+    padding: '40px 20px',
+    color: '#666',
+    fontSize: 'clamp(0.9rem, 2.5vw, 16px)'
   },
   emptyState: {
     textAlign: 'center',
-    padding: '60px 20px',
-    color: '#94a3b8',
-    fontSize: '16px'
+    padding: '60px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
+  },
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
+    fontWeight: '600'
   },
   tableSection: {
     marginBottom: '30px',
@@ -511,63 +562,67 @@ const styles = {
     borderBottom: '2px solid #e2e8f0'
   },
   tableSectionTitle: {
-    fontSize: '16px',
+    fontSize: 'clamp(1rem, 2.5vw, 16px)',
     fontWeight: 'bold',
     color: '#3730a3',
     marginBottom: '15px'
   },
   recordGroup: {
     background: '#f8fafc',
-    padding: '15px',
+    padding: 'clamp(0.9rem, 2.5vw, 15px)',
     borderRadius: '8px',
     marginBottom: '15px'
   },
   recordTitle: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     color: '#475569',
     marginBottom: '12px'
   },
   fieldRow: {
     marginBottom: '15px',
-    padding: '10px',
+    padding: 'clamp(0.6rem, 2vw, 10px)',
     background: 'white',
     borderRadius: '6px',
     border: '1px solid #e2e8f0'
   },
   fieldLabel: {
     display: 'block',
-    fontSize: '13px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
     fontWeight: '600',
     color: '#334155',
     marginBottom: '8px'
   },
   fieldInputGroup: {
     display: 'flex',
-    gap: '10px',
-    marginBottom: '5px'
+    gap: '8px',
+    marginBottom: '5px',
+    flexWrap: 'wrap'
   },
   dateInput: {
     flex: 1,
-    padding: '8px',
+    minWidth: '150px',
+    padding: 'clamp(0.5rem, 1.8vw, 8px)',
     border: '1px solid #cbd5e1',
     borderRadius: '6px',
-    fontSize: '13px'
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)'
   },
   updateButton: {
     background: '#10b981',
     color: 'white',
     border: 'none',
-    padding: '8px 16px',
+    padding: 'clamp(0.5rem, 1.8vw, 8px) clamp(1rem, 2.5vw, 16px)',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '13px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
     fontWeight: '500',
     whiteSpace: 'nowrap'
   },
   currentValue: {
-    fontSize: '11px',
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
     color: '#64748b',
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    display: 'block',
+    marginTop: '4px'
   }
 };
