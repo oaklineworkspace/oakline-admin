@@ -217,14 +217,21 @@ export default async function handler(req, res) {
         const fromEmail = bankDetails?.email_crypto || 'crypto@theoaklinebank.com';
 
         if (profile?.email) {
+          // Get the updated deposit record to ensure we have all current data
+          const { data: currentDeposit } = await supabaseAdmin
+            .from('crypto_deposits')
+            .select('crypto_type, network_type')
+            .eq('id', depositId)
+            .single();
+
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: profile.email,
               fromEmail,
-              cryptoType: deposit.crypto_type,
-              network: deposit.network_type,
+              cryptoType: currentDeposit?.crypto_type || deposit.crypto_type,
+              network: currentDeposit?.network_type || deposit.network_type,
               amount: depositAmount,
               fee: depositFee,
               netAmount: netAmount,
