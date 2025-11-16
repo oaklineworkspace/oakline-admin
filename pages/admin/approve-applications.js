@@ -176,6 +176,11 @@ export default function ApproveApplications() {
     }
   };
 
+  const handleOpenApprovalModal = (app) => {
+    console.log('Opening approval modal for application:', app.id);
+    openApprovalModal(app);
+  };
+
   const handleRejectApplication = async () => {
     if (!applicationToReject) return;
 
@@ -619,28 +624,12 @@ export default function ApproveApplications() {
                     <button
                       onClick={() => toggleExpanded(app.id)}
                       style={styles.detailsButton}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = 'translateY(-2px)';
-                        e.target.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.5)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
-                      }}
                     >
                       {expandedApp === app.id ? '⬆️ Hide Details' : '⬇️ Show Details'}
                     </button>
                     <button
                       onClick={() => handleViewDocuments(app)}
                       style={styles.viewDocsButton}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = 'translateY(-2px)';
-                        e.target.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.5)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.4)';
-                      }}
                     >
                       📄 View Documents
                     </button>
@@ -649,43 +638,23 @@ export default function ApproveApplications() {
                         setApplicationToReject(app);
                         setShowRejectModal(true);
                       }}
-                      disabled={processing === app.id}
+                      disabled={processing === app.id || app.application_status !== 'pending'}
                       style={{
                         ...styles.rejectButton,
-                        ...(processing === app.id ? styles.buttonDisabled : {})
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!processing) {
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 8px 24px rgba(239, 68, 68, 0.5)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.4)';
+                        ...(processing === app.id || app.application_status !== 'pending' ? styles.buttonDisabled : {})
                       }}
                     >
-                      {processing === app.id ? '⏳ Processing...' : '❌ Reject Application'}
+                      {processing === app.id ? '⏳ Processing...' : '❌ Reject'}
                     </button>
                     <button
-                      onClick={() => openApprovalModal(app)}
-                      disabled={processing === app.id}
+                      onClick={() => handleOpenApprovalModal(app)}
+                      disabled={processing === app.id || app.application_status !== 'pending'}
                       style={{
                         ...styles.approveButton,
-                        ...(processing === app.id ? styles.buttonDisabled : {})
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!processing) {
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.5)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
+                        ...(processing === app.id || app.application_status !== 'pending' ? styles.buttonDisabled : {})
                       }}
                     >
-                      {processing === app.id ? '⏳ Approving...' : '✅ Approve Application'}
+                      {processing === app.id ? '⏳ Approving...' : '✅ Approve'}
                     </button>
                   </div>
                 </div>
@@ -1175,51 +1144,44 @@ const styles = {
     flexWrap: 'wrap',
   },
   detailsButton: {
-    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
-    fontWeight: '700',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
   },
   approveButton: {
-    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
+    flex: 1,
+    padding: '10px',
     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
-    fontWeight: '700',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
   },
   rejectButton: {
-    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
-    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
-    fontWeight: '700',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
   },
   buttonDisabled: {
     background: '#9ca3af',
     cursor: 'not-allowed',
-    boxShadow: 'none',
     opacity: 0.6,
   },
   modalOverlay: {
@@ -1461,16 +1423,16 @@ const styles = {
     minWidth: '120px'
   },
   viewDocsButton: {
-    padding: 'clamp(0.75rem, 2.5vw, 14px) clamp(1.5rem, 4vw, 28px)',
-    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
-    fontWeight: '700',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    boxShadow: '0 6px 20px rgba(139, 92, 246, 0.4)',
   },
   documentsModal: {
     backgroundColor: 'white',
