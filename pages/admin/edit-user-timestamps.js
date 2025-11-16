@@ -270,9 +270,9 @@ export default function EditUserTimestamps() {
       setError('');
       setSuccess('');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        setError('Authentication failed. Please refresh the page and try again.');
         setSaving(false);
         return;
       }
@@ -1051,7 +1051,8 @@ const styles = {
     justifyContent: 'center',
     zIndex: 1000,
     padding: '20px',
-    overflowY: 'auto'
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch'
   },
   modalContent: {
     background: 'white',
@@ -1062,7 +1063,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-    margin: 'auto'
+    margin: 'auto',
+    overflow: 'hidden'
   },
   modalHeader: {
     padding: 'clamp(1rem, 3vw, 20px)',
@@ -1093,7 +1095,9 @@ const styles = {
   modalBody: {
     padding: 'clamp(1rem, 3vw, 20px)',
     overflowY: 'auto',
-    flex: 1
+    flex: 1,
+    maxHeight: 'calc(90vh - 160px)',
+    WebkitOverflowScrolling: 'touch'
   },
   formGroup: {
     marginBottom: '20px'
@@ -1170,11 +1174,14 @@ const styles = {
     transition: 'all 0.2s'
   },
   fieldsList: {
-    maxHeight: '300px',
+    maxHeight: '250px',
     overflowY: 'auto',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    padding: '8px'
+    padding: '8px',
+    WebkitOverflowScrolling: 'touch',
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#cbd5e1 #f1f5f9'
   },
   noFieldsMessage: {
     padding: '30px 20px',
