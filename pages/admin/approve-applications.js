@@ -27,6 +27,12 @@ export default function ApproveApplications() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [viewingDocuments, setViewingDocuments] = useState(null);
   const [documentUrls, setDocumentUrls] = useState({ front: null, back: null });
+  
+  // New state for filtering and tabs
+  const [activeTab, setActiveTab] = useState('pending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchApplications();
@@ -36,7 +42,8 @@ export default function ApproveApplications() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-applications-with-status?status=pending');
+      // Fetch all applications to enable accurate stats and client-side filtering
+      const response = await fetch('/api/admin/get-applications-with-status?status=all');
       const result = await response.json();
 
       if (!response.ok) {
@@ -263,17 +270,69 @@ export default function ApproveApplications() {
     return types;
   };
 
+  // Filter applications based on activeTab, search, and date range
+  const filteredApplications = applications.filter(app => {
+    // Tab filtering
+    const matchesTab = activeTab === 'all' || app.application_status === activeTab;
+    
+    const matchesSearch = app.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.id?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Date range filtering
+    let matchesDateRange = true;
+    if (startDate || endDate) {
+      const appDate = new Date(app.submitted_at);
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchesDateRange = appDate >= start && appDate <= end;
+      } else if (startDate) {
+        matchesDateRange = appDate >= new Date(startDate);
+      } else if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchesDateRange = appDate <= end;
+      }
+    }
+    
+    return matchesTab && matchesSearch && matchesDateRange;
+  });
+
+  // Calculate statistics
+  const stats = {
+    total: applications.length,
+    pending: applications.filter(a => a.application_status === 'pending').length,
+    approved: applications.filter(a => a.application_status === 'approved').length,
+    rejected: applications.filter(a => a.application_status === 'rejected').length,
+    underReview: applications.filter(a => a.application_status === 'under_review').length
+  };
+
+  // Status badge styling helper
+  const getStatusStyle = (status) => {
+    const statusStyles = {
+      pending: { backgroundColor: '#fef3c7', color: '#92400e' },
+      approved: { backgroundColor: '#d1fae5', color: '#065f46' },
+      rejected: { backgroundColor: '#fee2e2', color: '#991b1b' },
+      under_review: { backgroundColor: '#dbeafe', color: '#1e40af' },
+      completed: { backgroundColor: '#d1fae5', color: '#065f46' }
+    };
+    return statusStyles[status] || statusStyles.pending;
+  };
+
   return (
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
-            <h1 style={styles.title}>💼 Approve Applications</h1>
-            <p style={styles.subtitle}>Review and approve pending user applications with full control</p>
+            <h1 style={styles.title}>💼 Application Management System</h1>
+            <p style={styles.subtitle}>Review and approve pending user applications with comprehensive oversight</p>
           </div>
           <div style={styles.headerActions}>
             <button onClick={fetchApplications} style={styles.refreshButton} disabled={loading}>
-              {loading ? '⏳ Loading...' : '🔄 Refresh'}
+              {loading ? '⏳' : '🔄'} Refresh
             </button>
             <Link href="/admin/admin-dashboard" style={styles.backButton}>
               ← Dashboard
@@ -283,6 +342,93 @@ export default function ApproveApplications() {
 
         {error && <div style={styles.errorBanner}>{error}</div>}
         {successMessage && <div style={styles.successBanner}>{successMessage}</div>}
+
+        {/* Statistics Cards */}
+        <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+            <h3 style={styles.statLabel}>Total Applications</h3>
+            <p style={styles.statValue}>{stats.total}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+            <h3 style={styles.statLabel}>Pending Review</h3>
+            <p style={styles.statValue}>{stats.pending}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
+            <h3 style={styles.statLabel}>Approved</h3>
+            <p style={styles.statValue}>{stats.approved}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+            <h3 style={styles.statLabel}>Rejected</h3>
+            <p style={styles.statValue}>{stats.rejected}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #7c3aed'}}>
+            <h3 style={styles.statLabel}>Under Review</h3>
+            <p style={styles.statValue}>{stats.underReview}</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {['all', 'pending', 'approved', 'rejected', 'under_review'].map(tab => (
+            <button
+              key={tab}
+              style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={styles.filtersSection}>
+          <input
+            type="text"
+            placeholder="🔍 Search by name, email or application ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+          />
+        </div>
+
+        {/* Date Range Filters */}
+        <div style={styles.dateRangeSection}>
+          <div style={styles.dateRangeLabel}>
+            <span>📅</span>
+            <span>Filter by Date Range:</span>
+          </div>
+          <div style={styles.dateRangeInputs}>
+            <div style={styles.dateInputGroup}>
+              <label style={styles.dateLabel}>From:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                style={styles.dateInput}
+              />
+            </div>
+            <div style={styles.dateInputGroup}>
+              <label style={styles.dateLabel}>To:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                style={styles.dateInput}
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                style={styles.clearDateButton}
+              >
+                ✕ Clear Dates
+              </button>
+            )}
+          </div>
+        </div>
 
         {approvalResult && (
           <div style={styles.resultModal}>
@@ -337,30 +483,36 @@ export default function ApproveApplications() {
           </div>
         )}
 
-        <div style={styles.content}>
-          {loading && <p style={styles.loadingText}>Loading applications...</p>}
-
-          {!loading && applications.length === 0 && (
-            <div style={styles.emptyState}>
-              <p style={styles.emptyStateIcon}>✅</p>
-              <p style={styles.emptyStateText}>No pending applications</p>
-              <p style={styles.emptyStateSubtext}>All applications have been processed</p>
+        {/* Applications Table/Grid */}
+        <div style={styles.tableContainer}>
+          {loading ? (
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
+              <p>Loading applications...</p>
             </div>
-          )}
-
-          {!loading && applications.length > 0 && (
+          ) : filteredApplications.length === 0 ? (
+            <div style={styles.emptyState}>
+              <p style={styles.emptyIcon}>📋</p>
+              <p style={styles.emptyText}>No applications found</p>
+            </div>
+          ) : (
             <div style={styles.applicationsGrid}>
-              {applications.map((app) => (
+              {filteredApplications.map((app) => (
                 <div key={app.id} style={styles.applicationCard}>
-                  <div style={styles.cardHeader}>
-                    <div>
-                      <h3 style={styles.applicantName}>
-                        {app.first_name} {app.middle_name ? app.middle_name + ' ' : ''}{app.last_name}
-                      </h3>
-                      <p style={styles.applicantEmail}>{app.email}</p>
+                    <div style={styles.cardHeader}>
+                      <div>
+                        <h3 style={styles.applicantName}>
+                          {app.first_name} {app.middle_name ? app.middle_name + ' ' : ''}{app.last_name}
+                        </h3>
+                        <p style={styles.applicantEmail}>{app.email}</p>
+                      </div>
+                      <span style={{
+                        ...styles.statusBadge,
+                        ...getStatusStyle(app.application_status)
+                      }}>
+                        {app.application_status?.toUpperCase().replace(/_/g, ' ') || 'PENDING'}
+                      </span>
                     </div>
-                    <span style={styles.statusBadge}>PENDING</span>
-                  </div>
 
                   <div style={styles.cardBody}>
                     <div style={styles.infoRow}>
@@ -1396,5 +1548,164 @@ const styles = {
     fontSize: 'clamp(1rem, 3vw, 1.125rem)',
     color: '#64748b',
     fontWeight: '500'
+  },
+  statsGrid: {
+    display: 'grid',
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    marginBottom: '20px'
+  },
+  statCard: {
+    background: 'white',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  statLabel: {
+    fontSize: 'clamp(0.75rem, 2vw, 14px)',
+    color: '#718096',
+    fontWeight: '600',
+    margin: '0 0 8px 0',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  statValue: {
+    fontSize: 'clamp(1.5rem, 4vw, 32px)',
+    fontWeight: '700',
+    color: '#2d3748',
+    margin: 0
+  },
+  tabs: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '20px',
+    background: 'white',
+    padding: '12px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    flexWrap: 'wrap'
+  },
+  tab: {
+    flex: 1,
+    minWidth: '100px',
+    padding: '10px 16px',
+    background: '#f7fafc',
+    border: '2px solid transparent',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#4a5568',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  activeTab: {
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    borderColor: '#1e40af'
+  },
+  filtersSection: {
+    background: 'white',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  searchInput: {
+    width: '100%',
+    padding: '12px 16px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  dateRangeSection: {
+    background: 'white',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  dateRangeLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    fontSize: 'clamp(0.95rem, 2.5vw, 16px)',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  dateRangeInputs: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'center'
+  },
+  dateInputGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  dateLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#4a5568'
+  },
+  dateInput: {
+    padding: '8px 12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  clearDateButton: {
+    padding: '8px 16px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  tableContainer: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  loadingState: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#718096'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '60px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
+  },
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
+    fontWeight: '600'
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '32px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1
   }
 };

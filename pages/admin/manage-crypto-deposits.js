@@ -36,6 +36,15 @@ export default function ManageCryptoDeposits() {
     rejectionReason: '',
     holdReason: ''
   });
+  const [showUpdateModal, setShowUpdateModal] = useState(null);
+  const [updateForm, setUpdateForm] = useState({
+    amount: '',
+    txHash: '',
+    confirmations: '',
+    status: '',
+    rejectionReason: '',
+    adminNotes: ''
+  });
 
   useEffect(() => {
     fetchDeposits();
@@ -298,6 +307,73 @@ export default function ManageCryptoDeposits() {
     }
   };
 
+  const openUpdateModal = (deposit) => {
+    setUpdateForm({
+      amount: deposit.amount || '',
+      txHash: deposit.tx_hash || '',
+      confirmations: deposit.confirmations || '',
+      status: deposit.status || 'pending',
+      rejectionReason: deposit.rejection_reason || '',
+      adminNotes: deposit.admin_notes || ''
+    });
+    setShowUpdateModal(deposit);
+  };
+
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+    
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Session expired. Please log in again.');
+      }
+      
+      const response = await fetch('/api/admin/edit-crypto-deposit', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          depositId: showUpdateModal.id,
+          amount: updateForm.amount ? parseFloat(updateForm.amount) : undefined,
+          txHash: updateForm.txHash || undefined,
+          confirmations: updateForm.confirmations ? parseInt(updateForm.confirmations) : undefined,
+          status: updateForm.status,
+          rejectionReason: updateForm.rejectionReason || undefined,
+          adminNotes: updateForm.adminNotes || undefined
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update deposit');
+      }
+
+      const successMessage = updateForm.status === 'completed' 
+        ? '✅ Deposit completed successfully! Balance has been credited.'
+        : `✅ Deposit status updated to ${updateForm.status} successfully!`;
+      
+      setMessage(successMessage);
+      setShowUpdateModal(null);
+      await fetchDeposits();
+      
+      setTimeout(() => {
+        setMessage('');
+      }, 5000);
+    } catch (error) {
+      console.error('Error updating deposit:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteDeposit = async (depositId, deposit) => {
     if (!window.confirm(`⚠️ WARNING: Are you sure you want to DELETE this deposit?\n\nDeposit ID: ${depositId}\nAmount: $${parseFloat(deposit.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}\n\nThis action CANNOT be undone!`)) {
       return;
@@ -440,6 +516,11 @@ export default function ManageCryptoDeposits() {
   const getAvailableActions = (deposit) => {
     const actions = [];
     const status = deposit.status;
+
+    // Show Update button for deposits that need confirmation/completion
+    if (['pending', 'confirmed', 'processing'].includes(status)) {
+      actions.push({ label: 'Update', value: 'update', color: '#10b981', isUpdate: true });
+    }
 
     // Always show Edit button
     actions.push({ label: 'Edit', value: 'edit', color: '#8b5cf6', isEditDeposit: true });
@@ -763,7 +844,9 @@ export default function ManageCryptoDeposits() {
                             <button
                               key={`${deposit.id}-${action.value}-${index}`}
                               onClick={() => {
-                                if (action.isEditDeposit) {
+                                if (action.isUpdate) {
+                                  openUpdateModal(deposit);
+                                } else if (action.isEditDeposit) {
                                   openEditModal(deposit);
                                 } else if (action.isViewProof) {
                                   handleViewProof(deposit);
@@ -1106,6 +1189,163 @@ export default function ManageCryptoDeposits() {
                     disabled={loading}
                   >
                     {loading ? 'Updating...' : 'Update Deposit'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Deposit Modal */}
+      {showUpdateModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowUpdateModal(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>🔄 Update Deposit Status</h2>
+              <button onClick={() => setShowUpdateModal(null)} style={styles.closeButton}>×</button>
+            </div>
+            <div style={styles.modalBody}>
+              <div style={{marginBottom: '20px', padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd'}}>
+                <div style={{fontSize: '14px', color: '#0c4a6e', marginBottom: '8px'}}>
+                  <strong>User:</strong> {showUpdateModal.profiles?.first_name} {showUpdateModal.profiles?.last_name}
+                </div>
+                <div style={{fontSize: '14px', color: '#0c4a6e'}}>
+                  <strong>Current Status:</strong> <span style={{textTransform: 'capitalize'}}>{showUpdateModal.status.replace(/_/g, ' ')}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdateSubmit}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Amount (USD)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={updateForm.amount}
+                    onChange={(e) => setUpdateForm({...updateForm, amount: e.target.value})}
+                    style={styles.input}
+                    placeholder="Enter deposit amount"
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Transaction Hash</label>
+                  <input
+                    type="text"
+                    value={updateForm.txHash}
+                    onChange={(e) => setUpdateForm({...updateForm, txHash: e.target.value})}
+                    style={styles.input}
+                    placeholder="Enter blockchain transaction hash"
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Confirmations</label>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                    <button
+                      type="button"
+                      onClick={() => setUpdateForm({
+                        ...updateForm, 
+                        confirmations: Math.max(0, parseInt(updateForm.confirmations || 0) - 1)
+                      })}
+                      style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={updateForm.confirmations}
+                      onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
+                      style={{...styles.input, textAlign: 'center'}}
+                      placeholder="0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setUpdateForm({
+                        ...updateForm, 
+                        confirmations: parseInt(updateForm.confirmations || 0) + 1
+                      })}
+                      style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <small style={{color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block'}}>
+                    Current: {updateForm.confirmations || 0} / {showUpdateModal?.required_confirmations || 3} required
+                  </small>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Status *</label>
+                  <select
+                    value={updateForm.status}
+                    onChange={(e) => setUpdateForm({...updateForm, status: e.target.value})}
+                    style={styles.input}
+                    required
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="awaiting_confirmations">Awaiting Confirmations</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">✅ Completed (Credits User)</option>
+                    <option value="failed">Failed</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+
+                {(updateForm.status === 'rejected' || updateForm.status === 'failed') && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Rejection Reason</label>
+                    <textarea
+                      value={updateForm.rejectionReason}
+                      onChange={(e) => setUpdateForm({...updateForm, rejectionReason: e.target.value})}
+                      style={{...styles.input, minHeight: '80px'}}
+                      placeholder="Explain why this deposit is being rejected"
+                    />
+                  </div>
+                )}
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Admin Notes (Optional)</label>
+                  <textarea
+                    value={updateForm.adminNotes}
+                    onChange={(e) => setUpdateForm({...updateForm, adminNotes: e.target.value})}
+                    style={{...styles.input, minHeight: '80px'}}
+                    placeholder="Add any internal notes about this update"
+                  />
+                </div>
+
+                {updateForm.status === 'completed' && (
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#dcfce7',
+                    border: '1px solid #86efac',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{fontSize: '14px', color: '#166534', fontWeight: '600', marginBottom: '4px'}}>
+                      ✅ Completing Deposit
+                    </div>
+                    <div style={{fontSize: '13px', color: '#15803d'}}>
+                      This will credit ${updateForm.amount || showUpdateModal.amount} to the user's account balance.
+                    </div>
+                  </div>
+                )}
+
+                <div style={styles.modalActions}>
+                  <button
+                    type="button"
+                    onClick={() => setShowUpdateModal(null)}
+                    style={{...styles.btn, ...styles.btnSecondary}}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{...styles.btn, ...styles.btnPrimary}}
+                    disabled={loading}
+                  >
+                    {loading ? 'Updating...' : updateForm.status === 'completed' ? '✅ Complete & Credit' : 'Update Deposit'}
                   </button>
                 </div>
               </form>
