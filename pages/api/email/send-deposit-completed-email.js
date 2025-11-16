@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, fromEmail, cryptoType, network, amount, fee, netAmount, depositId, userName } = req.body;
+    const { to, fromEmail, cryptoType, network, amount, fee, netAmount, depositId, userName, walletAddress, memo, txHash } = req.body;
 
     if (!to) {
       return res.status(400).json({ error: 'Recipient email is required' });
@@ -58,6 +58,27 @@ export default async function handler(req, res) {
                 <span class="detail-value">${network}</span>
               </div>
               
+              ${walletAddress ? `
+              <div class="detail-row">
+                <span class="detail-label">Wallet Address:</span>
+                <span class="detail-value" style="font-size: 12px; word-break: break-all;">${walletAddress}</span>
+              </div>
+              ` : ''}
+              
+              ${memo ? `
+              <div class="detail-row">
+                <span class="detail-label">Memo/Tag:</span>
+                <span class="detail-value">${memo}</span>
+              </div>
+              ` : ''}
+              
+              ${txHash ? `
+              <div class="detail-row">
+                <span class="detail-label">Transaction Hash:</span>
+                <span class="detail-value" style="font-size: 12px; word-break: break-all;">${txHash}</span>
+              </div>
+              ` : ''}
+              
               <div class="detail-row">
                 <span class="detail-label">Amount:</span>
                 <span class="detail-value">$${parseFloat(amount).toFixed(2)}</span>
@@ -93,7 +114,7 @@ export default async function handler(req, res) {
       </html>
     `;
 
-    const emailText = `Hello ${userName || 'Valued Customer'},\n\nYour cryptocurrency deposit has been completed!\n\nCrypto Type: ${cryptoType}\nNetwork: ${network}\nAmount: $${parseFloat(amount).toFixed(2)}\nFee: $${parseFloat(fee).toFixed(2)}\nNet Amount: $${parseFloat(netAmount).toFixed(2)}\nStatus: Completed\n\nThank you for banking with Oakline Bank.`;
+    const emailText = `Hello ${userName || 'Valued Customer'},\n\nYour cryptocurrency deposit has been completed!\n\nCrypto Type: ${cryptoType}\nNetwork: ${network}${walletAddress ? `\nWallet Address: ${walletAddress}` : ''}${memo ? `\nMemo/Tag: ${memo}` : ''}${txHash ? `\nTransaction Hash: ${txHash}` : ''}\nAmount: $${parseFloat(amount).toFixed(2)}\nFee: $${parseFloat(fee).toFixed(2)}\nNet Amount: $${parseFloat(netAmount).toFixed(2)}\nStatus: Completed\n\nThank you for banking with Oakline Bank.`;
 
     const result = await sendEmail({
       to,
