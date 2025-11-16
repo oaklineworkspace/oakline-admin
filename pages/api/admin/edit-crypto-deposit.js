@@ -238,7 +238,7 @@ export default async function handler(req, res) {
           const networkType = depositWithAsset?.crypto_assets?.network_type || 'Unknown';
           const walletAddress = depositWithAsset?.admin_assigned_wallets?.wallet_address || null;
           const memo = depositWithAsset?.admin_assigned_wallets?.memo || null;
-          const txHash = depositWithAsset?.tx_hash || txHash || null;
+          const resolvedTxHash = depositWithAsset?.tx_hash || txHash || null;
 
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
             method: 'POST',
@@ -255,7 +255,7 @@ export default async function handler(req, res) {
               userName: `${profile.first_name} ${profile.last_name}`,
               walletAddress: walletAddress,
               memo: memo,
-              txHash: txHash
+              txHash: resolvedTxHash
             })
           });
           console.log('Deposit completion email sent to:', profile.email);
