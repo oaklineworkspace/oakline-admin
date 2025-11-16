@@ -16,10 +16,22 @@ export default function EditUserTimestamps() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Bulk update states
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkDateTime, setBulkDateTime] = useState('');
+  const [selectedFields, setSelectedFields] = useState([]);
+  const [availableFields, setAvailableFields] = useState([]);
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (userData) {
+      buildAvailableFields();
+    }
+  }, [userData]);
 
   const fetchUsers = async () => {
     try {
@@ -78,6 +90,75 @@ export default function EditUserTimestamps() {
     }
   };
 
+  const buildAvailableFields = () => {
+    const fields = [];
+
+    if (userData.application) {
+      fields.push({ table: 'applications', id: userData.application.id, field: 'submitted_at', label: '📝 Application - Submitted At', current: userData.application.submitted_at });
+      fields.push({ table: 'applications', id: userData.application.id, field: 'processed_at', label: '📝 Application - Processed At', current: userData.application.processed_at });
+      fields.push({ table: 'applications', id: userData.application.id, field: 'updated_at', label: '📝 Application - Updated At', current: userData.application.updated_at });
+    }
+
+    if (userData.profile) {
+      fields.push({ table: 'profiles', id: userData.profile.id, field: 'created_at', label: '👤 Profile - Created At', current: userData.profile.created_at });
+      fields.push({ table: 'profiles', id: userData.profile.id, field: 'updated_at', label: '👤 Profile - Updated At', current: userData.profile.updated_at });
+      fields.push({ table: 'profiles', id: userData.profile.id, field: 'enrollment_completed_at', label: '👤 Profile - Enrollment Completed At', current: userData.profile.enrollment_completed_at });
+    }
+
+    if (userData.accounts) {
+      userData.accounts.forEach((account, idx) => {
+        fields.push({ table: 'accounts', id: account.id, field: 'created_at', label: `💳 Account ${idx + 1} - Created At`, current: account.created_at });
+        fields.push({ table: 'accounts', id: account.id, field: 'updated_at', label: `💳 Account ${idx + 1} - Updated At`, current: account.updated_at });
+        fields.push({ table: 'accounts', id: account.id, field: 'approved_at', label: `💳 Account ${idx + 1} - Approved At`, current: account.approved_at });
+        fields.push({ table: 'accounts', id: account.id, field: 'funding_confirmed_at', label: `💳 Account ${idx + 1} - Funding Confirmed At`, current: account.funding_confirmed_at });
+      });
+    }
+
+    if (userData.cards) {
+      userData.cards.forEach((card, idx) => {
+        fields.push({ table: 'cards', id: card.id, field: 'created_at', label: `💳 Card ${idx + 1} - Created At`, current: card.created_at });
+        fields.push({ table: 'cards', id: card.id, field: 'updated_at', label: `💳 Card ${idx + 1} - Updated At`, current: card.updated_at });
+        fields.push({ table: 'cards', id: card.id, field: 'activated_at', label: `💳 Card ${idx + 1} - Activated At`, current: card.activated_at });
+      });
+    }
+
+    if (userData.loans) {
+      userData.loans.forEach((loan, idx) => {
+        fields.push({ table: 'loans', id: loan.id, field: 'created_at', label: `💰 Loan ${idx + 1} - Created At`, current: loan.created_at });
+        fields.push({ table: 'loans', id: loan.id, field: 'updated_at', label: `💰 Loan ${idx + 1} - Updated At`, current: loan.updated_at });
+        fields.push({ table: 'loans', id: loan.id, field: 'approved_at', label: `💰 Loan ${idx + 1} - Approved At`, current: loan.approved_at });
+        fields.push({ table: 'loans', id: loan.id, field: 'disbursed_at', label: `💰 Loan ${idx + 1} - Disbursed At`, current: loan.disbursed_at });
+        fields.push({ table: 'loans', id: loan.id, field: 'deposit_date', label: `💰 Loan ${idx + 1} - Deposit Date`, current: loan.deposit_date });
+      });
+    }
+
+    if (userData.transactions) {
+      userData.transactions.slice(0, 10).forEach((txn, idx) => {
+        fields.push({ table: 'transactions', id: txn.id, field: 'created_at', label: `🔄 Transaction ${idx + 1} - Created At`, current: txn.created_at });
+        fields.push({ table: 'transactions', id: txn.id, field: 'updated_at', label: `🔄 Transaction ${idx + 1} - Updated At`, current: txn.updated_at });
+      });
+    }
+
+    if (userData.check_deposits) {
+      userData.check_deposits.forEach((deposit, idx) => {
+        fields.push({ table: 'check_deposits', id: deposit.id, field: 'created_at', label: `📝 Check Deposit ${idx + 1} - Created At`, current: deposit.created_at });
+        fields.push({ table: 'check_deposits', id: deposit.id, field: 'updated_at', label: `📝 Check Deposit ${idx + 1} - Updated At`, current: deposit.updated_at });
+        fields.push({ table: 'check_deposits', id: deposit.id, field: 'processed_at', label: `📝 Check Deposit ${idx + 1} - Processed At`, current: deposit.processed_at });
+      });
+    }
+
+    if (userData.crypto_deposits) {
+      userData.crypto_deposits.forEach((deposit, idx) => {
+        fields.push({ table: 'crypto_deposits', id: deposit.id, field: 'created_at', label: `₿ Crypto Deposit ${idx + 1} - Created At`, current: deposit.created_at });
+        fields.push({ table: 'crypto_deposits', id: deposit.id, field: 'updated_at', label: `₿ Crypto Deposit ${idx + 1} - Updated At`, current: deposit.updated_at });
+        fields.push({ table: 'crypto_deposits', id: deposit.id, field: 'approved_at', label: `₿ Crypto Deposit ${idx + 1} - Approved At`, current: deposit.approved_at });
+        fields.push({ table: 'crypto_deposits', id: deposit.id, field: 'completed_at', label: `₿ Crypto Deposit ${idx + 1} - Completed At`, current: deposit.completed_at });
+      });
+    }
+
+    setAvailableFields(fields);
+  };
+
   const handleUpdateTimestamp = async (table, recordId, field, value) => {
     try {
       setSaving(true);
@@ -118,6 +199,90 @@ export default function EditUserTimestamps() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedFields.length === 0) {
+      setError('Please select at least one field to update');
+      return;
+    }
+
+    if (!bulkDateTime) {
+      setError('Please select a date and time');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const isoDateTime = new Date(bulkDateTime).toISOString();
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const fieldKey of selectedFields) {
+        const field = availableFields.find(f => `${f.table}-${f.id}-${f.field}` === fieldKey);
+        if (!field) continue;
+
+        const response = await fetch('/api/admin/update-user-timestamp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            table: field.table,
+            recordId: field.id,
+            field: field.field,
+            value: isoDateTime
+          })
+      });
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        setSuccess(`✅ Successfully updated ${successCount} field(s)${failCount > 0 ? `, ${failCount} failed` : ''}`);
+        await fetchUserTimestamps(selectedUser);
+        setShowBulkModal(false);
+        setSelectedFields([]);
+        setBulkDateTime('');
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        setError('Failed to update any fields');
+      }
+    } catch (err) {
+      setError('Error in bulk update: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleFieldSelection = (fieldKey) => {
+    setSelectedFields(prev => 
+      prev.includes(fieldKey) 
+        ? prev.filter(f => f !== fieldKey)
+        : [...prev, fieldKey]
+    );
+  };
+
+  const selectAllFields = () => {
+    setSelectedFields(availableFields.map(f => `${f.table}-${f.id}-${f.field}`));
+  };
+
+  const clearAllFields = () => {
+    setSelectedFields([]);
   };
 
   const formatDateForInput = (dateString) => {
@@ -232,7 +397,16 @@ export default function EditUserTimestamps() {
               </div>
             ) : userData ? (
               <div>
-                <h2 style={styles.panelTitle}>Timestamps for {userData.user?.email}</h2>
+                <div style={styles.actionBar}>
+                  <h2 style={styles.panelTitle}>Timestamps for {userData.user?.email}</h2>
+                  <button 
+                    onClick={() => setShowBulkModal(true)} 
+                    style={styles.bulkUpdateButton}
+                    disabled={!availableFields.length}
+                  >
+                    ⚡ Bulk Update
+                  </button>
+                </div>
 
                 {/* Applications */}
                 {userData.application && (
@@ -382,6 +556,89 @@ export default function EditUserTimestamps() {
             )}
           </div>
         </div>
+
+        {/* Bulk Update Modal */}
+        {showBulkModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowBulkModal(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>⚡ Bulk Update Timestamps</h2>
+                <button style={styles.modalCloseButton} onClick={() => setShowBulkModal(false)}>✕</button>
+              </div>
+              
+              <div style={styles.modalBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabel}>Select Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={bulkDateTime}
+                    onChange={(e) => setBulkDateTime(e.target.value)}
+                    style={styles.bulkDateInput}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <div style={styles.fieldSelectionHeader}>
+                    <label style={styles.formLabel}>Select Fields to Update</label>
+                    <div style={styles.selectionButtons}>
+                      <button onClick={selectAllFields} style={styles.selectButton}>Select All</button>
+                      <button onClick={clearAllFields} style={styles.selectButton}>Clear All</button>
+                    </div>
+                  </div>
+                  
+                  <div style={styles.fieldsList}>
+                    {availableFields.map(field => {
+                      const fieldKey = `${field.table}-${field.id}-${field.field}`;
+                      const isSelected = selectedFields.includes(fieldKey);
+                      
+                      return (
+                        <div 
+                          key={fieldKey} 
+                          style={{
+                            ...styles.fieldOption,
+                            ...(isSelected ? styles.fieldOptionSelected : {})
+                          }}
+                          onClick={() => toggleFieldSelection(fieldKey)}
+                        >
+                          <div style={styles.fieldCheckbox}>
+                            {isSelected && '✓'}
+                          </div>
+                          <div style={styles.fieldInfo}>
+                            <div style={styles.fieldLabel}>{field.label}</div>
+                            <div style={styles.fieldCurrent}>
+                              Current: {field.current ? new Date(field.current).toLocaleString() : 'Not set'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={styles.selectedCount}>
+                  {selectedFields.length} field(s) selected
+                </div>
+              </div>
+
+              <div style={styles.modalFooter}>
+                <button 
+                  onClick={() => setShowBulkModal(false)} 
+                  style={styles.cancelButton}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleBulkUpdate} 
+                  style={styles.confirmButton}
+                  disabled={saving || selectedFields.length === 0 || !bulkDateTime}
+                >
+                  {saving ? '⏳ Updating...' : `✅ Update ${selectedFields.length} Field(s)`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <AdminFooter />
     </AdminAuth>
@@ -479,7 +736,8 @@ const styles = {
     fontSize: 'clamp(1.1rem, 3vw, 18px)',
     fontWeight: 'bold',
     color: '#1A3E6F',
-    marginBottom: '15px'
+    marginBottom: '15px',
+    margin: 0
   },
   searchInput: {
     width: '100%',
@@ -487,7 +745,9 @@ const styles = {
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    marginBottom: '15px'
+    marginBottom: '15px',
+    marginTop: '15px',
+    boxSizing: 'border-box'
   },
   userList: {
     maxHeight: '400px',
@@ -522,6 +782,26 @@ const styles = {
     padding: 'clamp(1.5rem, 4vw, 25px)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     minHeight: '400px'
+  },
+  actionBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    flexWrap: 'wrap',
+    gap: '12px'
+  },
+  bulkUpdateButton: {
+    padding: 'clamp(0.6rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)'
   },
   loadingState: {
     textAlign: 'center',
@@ -624,5 +904,182 @@ const styles = {
     fontStyle: 'italic',
     display: 'block',
     marginTop: '4px'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px'
+  },
+  modalContent: {
+    background: 'white',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '600px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+  },
+  modalHeader: {
+    padding: 'clamp(1.2rem, 3vw, 24px)',
+    borderBottom: '2px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: 'clamp(1.2rem, 3vw, 20px)',
+    fontWeight: '700',
+    color: '#1A3E6F'
+  },
+  modalCloseButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: 'clamp(1.5rem, 3vw, 24px)',
+    cursor: 'pointer',
+    color: '#64748b',
+    padding: '0',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    transition: 'all 0.2s'
+  },
+  modalBody: {
+    padding: 'clamp(1.2rem, 3vw, 24px)',
+    overflowY: 'auto',
+    flex: 1
+  },
+  formGroup: {
+    marginBottom: '24px'
+  },
+  formLabel: {
+    display: 'block',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: '8px'
+  },
+  bulkDateInput: {
+    width: '100%',
+    padding: 'clamp(0.6rem, 2vw, 12px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    boxSizing: 'border-box'
+  },
+  fieldSelectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  selectionButtons: {
+    display: 'flex',
+    gap: '8px'
+  },
+  selectButton: {
+    padding: '6px 12px',
+    background: '#f1f5f9',
+    border: '1px solid #cbd5e1',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    cursor: 'pointer',
+    fontWeight: '500',
+    color: '#475569',
+    transition: 'all 0.2s'
+  },
+  fieldsList: {
+    maxHeight: '300px',
+    overflowY: 'auto',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '8px'
+  },
+  fieldOption: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    padding: 'clamp(0.6rem, 2vw, 10px)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    border: '2px solid transparent',
+    marginBottom: '6px',
+    background: '#f8fafc'
+  },
+  fieldOptionSelected: {
+    background: '#ede9fe',
+    border: '2px solid #7c3aed'
+  },
+  fieldCheckbox: {
+    width: '20px',
+    height: '20px',
+    border: '2px solid #cbd5e1',
+    borderRadius: '4px',
+    marginRight: '12px',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#7c3aed'
+  },
+  fieldInfo: {
+    flex: 1
+  },
+  fieldCurrent: {
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    color: '#64748b',
+    marginTop: '4px'
+  },
+  selectedCount: {
+    textAlign: 'center',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#7c3aed',
+    padding: '12px',
+    background: '#f5f3ff',
+    borderRadius: '8px'
+  },
+  modalFooter: {
+    padding: 'clamp(1.2rem, 3vw, 24px)',
+    borderTop: '2px solid #e2e8f0',
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end'
+  },
+  cancelButton: {
+    padding: 'clamp(0.6rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
+    background: '#f1f5f9',
+    color: '#475569',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  confirmButton: {
+    padding: 'clamp(0.6rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)'
   }
 };
