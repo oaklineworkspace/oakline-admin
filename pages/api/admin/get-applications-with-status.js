@@ -8,22 +8,30 @@ export default async function handler(req, res) {
   try {
     const { status } = req.query;
 
+    console.log('Fetching applications with status:', status || 'all');
+
     // Fetch all applications
     let query = supabaseAdmin
       .from('applications')
       .select('*')
       .order('submitted_at', { ascending: false });
 
-    if (status) {
+    if (status && status !== 'all') {
       query = query.eq('application_status', status);
     }
 
     const { data: applications, error } = await query;
 
     if (error) {
-      console.error('Error fetching applications:', error);
-      return res.status(500).json({ error: 'Failed to fetch applications' });
+      console.error('Error fetching applications from Supabase:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to fetch applications',
+        details: error.message 
+      });
     }
+
+    console.log(`Found ${applications?.length || 0} applications`);
 
     // Get enrollment data and profile completion status for each application
     const applicationsWithStatus = await Promise.all(
@@ -59,12 +67,19 @@ export default async function handler(req, res) {
       })
     );
 
+    console.log('Returning applications with enrollment status');
+    
     return res.status(200).json({
       success: true,
-      applications: applicationsWithStatus || []
+      applications: applicationsWithStatus || [],
+      count: applicationsWithStatus?.length || 0
     });
   } catch (error) {
     console.error('Error in get-applications-with-status:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 }

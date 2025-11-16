@@ -42,22 +42,25 @@ export default function ApproveApplications() {
     setLoading(true);
     setError('');
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        throw new Error('No active session. Please log in again.');
-      }
-
+      // Fetch directly from API without checking session first
       const response = await fetch('/api/admin/get-applications-with-status?status=all', {
+        method: 'GET',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         }
       });
       
-      const result = await response.json();
-
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`Failed to fetch applications: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Fetched applications:', result);
+
+      if (!result.success) {
         throw new Error(result.error || 'Failed to fetch applications');
       }
 
