@@ -88,6 +88,52 @@ export default async function handler(req, res) {
         }
       });
 
+    // Send email notification if status changed to completed
+    if (status === 'completed' && deposit.status !== 'completed') {
+      try {
+        // Get user profile for email
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', deposit.user_id)
+          .single();
+
+        // Get bank details for email configuration
+        const { data: bankDetails } = await supabaseAdmin
+          .from('bank_details')
+          .select('email_crypto')
+          .single();
+
+        const fromEmail = bankDetails?.email_crypto || 'crypto@theoaklinebank.com';
+
+        if (profile?.email) {
+          const depositAmount = amount !== undefined ? parseFloat(amount) : parseFloat(deposit.amount);
+          const depositFee = fee !== undefined ? parseFloat(fee) : parseFloat(deposit.fee || 0);
+          const netAmount = depositAmount - depositFee;
+
+          await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: profile.email,
+              fromEmail,
+              cryptoType: deposit.crypto_type,
+              network: deposit.network_type,
+              amount: depositAmount,
+              fee: depositFee,
+              netAmount: netAmount,
+              depositId: depositId,
+              userName: `${profile.first_name} ${profile.last_name}`
+            })
+          });
+          console.log('Deposit completion email sent to:', profile.email);
+        }
+      } catch (emailError) {
+        console.error('Error sending completion email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Deposit updated successfully'
