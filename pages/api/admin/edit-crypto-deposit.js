@@ -217,16 +217,16 @@ export default async function handler(req, res) {
         const fromEmail = bankDetails?.email_crypto || 'crypto@theoaklinebank.com';
 
         if (profile?.email) {
-          // Get the crypto asset details and wallet address by joining with crypto_assets and admin_assigned_wallets tables
+          // Get the crypto asset details and wallet address by joining with crypto_assets and loan_wallet tables
           const { data: depositWithAsset } = await supabaseAdmin
             .from('crypto_deposits')
             .select(`
               *,
-              crypto_assets:crypto_asset_id (
+              crypto_asset:crypto_asset_id (
                 crypto_type,
                 network_type
               ),
-              admin_assigned_wallets:assigned_wallet_id (
+              loan_wallet:loan_wallet_id (
                 wallet_address,
                 memo
               )
@@ -234,10 +234,10 @@ export default async function handler(req, res) {
             .eq('id', depositId)
             .single();
 
-          const cryptoType = depositWithAsset?.crypto_assets?.crypto_type || 'Unknown';
-          const networkType = depositWithAsset?.crypto_assets?.network_type || 'Unknown';
-          const walletAddress = depositWithAsset?.admin_assigned_wallets?.wallet_address || null;
-          const memo = depositWithAsset?.admin_assigned_wallets?.memo || null;
+          const cryptoType = depositWithAsset?.crypto_asset?.crypto_type || 'Unknown';
+          const networkType = depositWithAsset?.crypto_asset?.network_type || 'Unknown';
+          const walletAddress = depositWithAsset?.loan_wallet?.wallet_address || null;
+          const memo = depositWithAsset?.loan_wallet?.memo || null;
           const resolvedTxHash = depositWithAsset?.tx_hash || txHash || null;
 
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
