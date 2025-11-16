@@ -42,8 +42,19 @@ export default function ApproveApplications() {
     setLoading(true);
     setError('');
     try {
-      // Fetch all applications to enable accurate stats and client-side filtering
-      const response = await fetch('/api/admin/get-applications-with-status?status=all');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
+      const response = await fetch('/api/admin/get-applications-with-status?status=all', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       const result = await response.json();
 
       if (!response.ok) {

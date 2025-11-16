@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -47,7 +46,7 @@ export default function ManageAccountOpeningDeposits() {
     setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error('No active session. Please log in again.');
       }
@@ -94,7 +93,7 @@ export default function ManageAccountOpeningDeposits() {
 
   const openWalletModal = (account) => {
     const existingDeposit = deposits.find(d => d.account_id === account.id);
-    
+
     setWalletForm({
       cryptoAssetId: existingDeposit?.crypto_asset_id || '',
       cryptoType: existingDeposit?.crypto_assets?.crypto_type || '',
@@ -103,7 +102,7 @@ export default function ManageAccountOpeningDeposits() {
       memo: existingDeposit?.admin_assigned_wallets?.memo || '',
       requiredAmount: account.min_deposit || ''
     });
-    
+
     setShowWalletModal(account);
   };
 
@@ -111,10 +110,10 @@ export default function ManageAccountOpeningDeposits() {
     e.preventDefault();
     setProcessing(showWalletModal.id);
     setError('');
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       const response = await fetch('/api/admin/assign-wallet-for-account-opening', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,15 +167,15 @@ export default function ManageAccountOpeningDeposits() {
     setProcessing(showUpdateModal.id);
     setError('');
     setMessage('');
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!session) {
         throw new Error('No active session. Please log in again.');
       }
-      
+
       const response = await fetch('/api/admin/update-account-opening-deposit', {
         method: 'POST',
         headers: { 
@@ -204,11 +203,11 @@ export default function ManageAccountOpeningDeposits() {
       const successMessage = updateForm.status === 'completed' 
         ? '✅ Deposit completed successfully! Balance has been credited.'
         : `✅ Deposit status updated to ${updateForm.status} successfully!`;
-      
+
       setMessage(successMessage);
       setShowUpdateModal(null);
       await fetchData();
-      
+
       // Keep success message visible for 5 seconds
       setTimeout(() => {
         setMessage('');
@@ -230,11 +229,11 @@ export default function ManageAccountOpeningDeposits() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error('No active session. Please log in again.');
       }
-      
+
       const response = await fetch('/api/admin/delete-account-opening-deposit', {
         method: 'POST',
         headers: { 
@@ -279,7 +278,7 @@ export default function ManageAccountOpeningDeposits() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error('No active session');
       }
@@ -348,6 +347,85 @@ export default function ManageAccountOpeningDeposits() {
     return emojis[status] || '📋';
   };
 
+  const handleQuickAction = async (deposit, action) => {
+    setProcessing(deposit.id);
+    setError('');
+    setMessage('');
+
+    let endpoint = '';
+    let payload = { depositId: deposit.id };
+
+    switch (action) {
+      case 'confirm':
+        endpoint = '/api/admin/confirm-deposit';
+        payload.confirmations = deposit.required_confirmations;
+        payload.status = 'confirmed';
+        break;
+      case 'reject':
+        endpoint = '/api/admin/reject-deposit';
+        payload.status = 'rejected';
+        payload.rejectionReason = 'Automatically rejected by admin action.'; // Default reason
+        break;
+      case 'approve':
+        endpoint = '/api/admin/approve-deposit';
+        payload.status = 'approved';
+        break;
+      case 'complete':
+        endpoint = '/api/admin/complete-deposit';
+        payload.status = 'completed';
+        break;
+      default:
+        setError('Unknown action');
+        return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session.');
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || `Failed to ${action} deposit`);
+      }
+
+      let successMessage = '';
+      switch (action) {
+        case 'confirm':
+          successMessage = '✅ Deposit confirmed successfully!';
+          break;
+        case 'reject':
+          successMessage = '✅ Deposit rejected successfully!';
+          break;
+        case 'approve':
+          successMessage = '✅ Deposit approved successfully!';
+          break;
+        case 'complete':
+          successMessage = '✅ Deposit completed successfully! Balance has been credited.';
+          break;
+      }
+      setMessage(successMessage);
+      await fetchData();
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      console.error(`Error performing ${action} action:`, error);
+      setError(error.message);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+
   return (
     <AdminAuth>
       <div style={styles.container}>
@@ -415,7 +493,7 @@ export default function ManageAccountOpeningDeposits() {
                   {accounts.map((account) => {
                     const deposit = getDepositForAccount(account.id);
                     const isExpanded = expandedAccount === account.id;
-                    
+
                     return (
                       <div key={account.id} style={styles.card}>
                         <div style={styles.cardHeader}>
@@ -464,47 +542,92 @@ export default function ManageAccountOpeningDeposits() {
                         </div>
 
                         <div style={styles.cardFooter}>
+                    <button
+                      onClick={() => openWalletModal(account)}
+                      style={{...styles.btn, ...styles.btnPrimary}}
+                      disabled={processing === account.id}
+                    >
+                      {deposit ? '📝 Edit Wallet' : '➕ Assign Wallet'}
+                    </button>
+                    {deposit && (
+                      <>
+                        {/* Quick Action Buttons */}
+                        {deposit.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleQuickAction(deposit, 'confirm')}
+                              style={{...styles.btn, ...styles.btnSuccess}}
+                              disabled={processing === account.id}
+                              title="Mark as confirmed"
+                            >
+                              ✓ Confirm
+                            </button>
+                            <button
+                              onClick={() => handleQuickAction(deposit, 'reject')}
+                              style={{...styles.btn, ...styles.btnDanger}}
+                              disabled={processing === account.id}
+                              title="Reject deposit"
+                            >
+                              ✕ Reject
+                            </button>
+                          </>
+                        )}
+                        {(deposit.status === 'confirmed' || deposit.status === 'awaiting_confirmations') && (
+                          <>
+                            <button
+                              onClick={() => handleQuickAction(deposit, 'approve')}
+                              style={{...styles.btn, ...styles.btnSuccess}}
+                              disabled={processing === account.id}
+                              title="Approve deposit"
+                            >
+                              ✓ Approve
+                            </button>
+                          </>
+                        )}
+                        {(deposit.status === 'approved' || deposit.status === 'confirmed') && (
                           <button
-                            onClick={() => openWalletModal(account)}
-                            style={{...styles.btn, ...styles.btnPrimary}}
+                            onClick={() => handleQuickAction(deposit, 'complete')}
+                            style={{...styles.btn, ...styles.btnSuccess}}
+                            disabled={processing === account.id}
+                            title="Complete and credit account"
+                          >
+                            💰 Complete
+                          </button>
+                        )}
+
+                        {/* Standard Action Buttons */}
+                        <button
+                          onClick={() => openUpdateModal(deposit)}
+                          style={{...styles.btn, ...styles.btnSecondary}}
+                          disabled={processing === account.id}
+                        >
+                          📊 Update
+                        </button>
+                        {deposit.proof_path && (
+                          <button
+                            onClick={() => handleViewProof(deposit)}
+                            style={{...styles.btn, ...styles.btnInfo}}
                             disabled={processing === account.id}
                           >
-                            {deposit ? '📝 Edit Wallet' : '➕ Assign Wallet'}
+                            🖼️ Proof
                           </button>
-                          {deposit && (
-                            <>
-                              <button
-                                onClick={() => openUpdateModal(deposit)}
-                                style={{...styles.btn, ...styles.btnSecondary}}
-                                disabled={processing === account.id}
-                              >
-                                📊 Update
-                              </button>
-                              {deposit.proof_path && (
-                                <button
-                                  onClick={() => handleViewProof(deposit)}
-                                  style={{...styles.btn, ...styles.btnInfo}}
-                                  disabled={processing === account.id}
-                                >
-                                  🖼️ Proof
-                                </button>
-                              )}
-                              <button
-                                onClick={() => setShowDeleteConfirm(deposit)}
-                                style={{...styles.btn, ...styles.btnDanger}}
-                                disabled={processing === account.id}
-                              >
-                                🗑️ Delete
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
-                            style={{...styles.btn, ...styles.btnInfo}}
-                          >
-                            {isExpanded ? '▲' : '▼'} Details
-                          </button>
-                        </div>
+                        )}
+                        <button
+                          onClick={() => setShowDeleteConfirm(deposit)}
+                          style={{...styles.btn, ...styles.btnDanger}}
+                          disabled={processing === account.id}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
+                      style={{...styles.btn, ...styles.btnInfo}}
+                    >
+                      {isExpanded ? '▲' : '▼'} Details
+                    </button>
+                  </div>
 
                         {isExpanded && deposit && (
                           <div style={styles.expandedSection}>
@@ -1187,6 +1310,10 @@ const styles = {
   },
   btnDanger: {
     background: '#dc2626',
+    color: 'white'
+  },
+  btnSuccess: {
+    background: '#10b981',
     color: 'white'
   },
   modalOverlay: {
