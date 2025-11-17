@@ -64,7 +64,35 @@ export default function ApproveApplications() {
         throw new Error(result.error || 'Failed to fetch applications');
       }
 
-      setApplications(result.applications || []);
+      // Fetch accounts for each application
+      const applicationsWithAccounts = await Promise.all(
+        (result.applications || []).map(async (app) => {
+          if (app.user_id) {
+            try {
+              const accountsResponse = await fetch(`/api/admin/get-user-accounts?userId=${app.user_id}`, {
+                method: 'GET',
+                credentials: 'include'
+              });
+              
+              if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                return {
+                  ...app,
+                  accounts: accountsData.accounts || []
+                };
+              }
+            } catch (err) {
+              console.error('Error fetching accounts for user:', app.user_id, err);
+            }
+          }
+          return {
+            ...app,
+            accounts: []
+          };
+        })
+      );
+
+      setApplications(applicationsWithAccounts);
     } catch (error) {
       console.error('Error fetching applications:', error);
       setError('Failed to load applications: ' + error.message);
@@ -616,6 +644,62 @@ export default function ApproveApplications() {
                             <span style={styles.detailValue}>{app.id}</span>
                           </div>
                         </div>
+
+                        {/* Display user's accounts */}
+                        {app.accounts && app.accounts.length > 0 && (
+                          <div style={styles.accountsSection}>
+                            <h4 style={styles.accountsSectionTitle}>💳 User Accounts ({app.accounts.length})</h4>
+                            <div style={styles.accountsGrid}>
+                              {app.accounts.map((account, idx) => (
+                                <div key={account.id || idx} style={styles.accountCard}>
+                                  <div style={styles.accountHeader}>
+                                    <span style={styles.accountType}>
+                                      {account.account_type?.replace(/_/g, ' ').toUpperCase()}
+                                    </span>
+                                    <span style={{
+                                      ...styles.accountStatusBadge,
+                                      ...getStatusStyle(account.status)
+                                    }}>
+                                      {account.status?.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div style={styles.accountDetails}>
+                                    <div style={styles.accountRow}>
+                                      <span style={styles.accountLabel}>Account #:</span>
+                                      <span style={styles.accountValue}>{account.account_number}</span>
+                                    </div>
+                                    <div style={styles.accountRow}>
+                                      <span style={styles.accountLabel}>Balance:</span>
+                                      <span style={styles.accountValue}>
+                                        ${parseFloat(account.balance || 0).toFixed(2)}
+                                      </span>
+                                    </div>
+                                    {account.min_deposit > 0 && (
+                                      <div style={styles.accountRow}>
+                                        <span style={styles.accountLabel}>Min. Deposit:</span>
+                                        <span style={styles.accountValue}>
+                                          ${parseFloat(account.min_deposit).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div style={styles.accountRow}>
+                                      <span style={styles.accountLabel}>Created:</span>
+                                      <span style={styles.accountValue}>
+                                        {new Date(account.created_at).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {app.user_id && (!app.accounts || app.accounts.length === 0) && (
+                          <div style={styles.noAccounts}>
+                            <p style={styles.noAccountsText}>No accounts created yet for this user</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1683,5 +1767,81 @@ const styles = {
     cursor: 'pointer',
     color: '#718096',
     lineHeight: 1
+  },
+  accountsSection: {
+    marginTop: '20px',
+    padding: '16px',
+    background: '#ffffff',
+    borderRadius: '8px',
+    border: '2px solid #e2e8f0'
+  },
+  accountsSectionTitle: {
+    fontSize: 'clamp(1rem, 2.5vw, 16px)',
+    fontWeight: '700',
+    color: '#1a202c',
+    marginBottom: '16px',
+    margin: '0 0 16px 0'
+  },
+  accountsGrid: {
+    display: 'grid',
+    gap: '12px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))'
+  },
+  accountCard: {
+    background: '#f7fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '12px'
+  },
+  accountHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+    gap: '8px'
+  },
+  accountType: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  accountStatusBadge: {
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    fontWeight: '700',
+    whiteSpace: 'nowrap'
+  },
+  accountDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  accountRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)'
+  },
+  accountLabel: {
+    color: '#718096',
+    fontWeight: '500'
+  },
+  accountValue: {
+    color: '#2d3748',
+    fontWeight: '600',
+    textAlign: 'right'
+  },
+  noAccounts: {
+    marginTop: '16px',
+    padding: '20px',
+    textAlign: 'center',
+    background: '#f7fafc',
+    borderRadius: '8px',
+    border: '1px dashed #cbd5e0'
+  },
+  noAccountsText: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
+    margin: 0
   }
 };
