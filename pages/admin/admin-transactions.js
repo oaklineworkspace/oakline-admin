@@ -1,13 +1,16 @@
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
+import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
-import AdminBackButton from '../../components/AdminBackButton';
+import AdminFooter from '../../components/AdminFooter';
+import { supabase } from '../../lib/supabaseClient';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
 const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit'];
 
 export default function AdminTransactions() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [users, setUsers] = useState([]);
@@ -22,6 +25,9 @@ export default function AdminTransactions() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [editForm, setEditForm] = useState({
     type: '',
     amount: '',
@@ -61,7 +67,7 @@ export default function AdminTransactions() {
 
   useEffect(() => {
     filterTransactions();
-  }, [transactions, searchTerm, statusFilter, typeFilter, userFilter, dateFilter, dateRange]);
+  }, [transactions, searchTerm, statusFilter, typeFilter, userFilter, dateFilter, dateRange, activeTab]);
 
   const fetchUsers = async () => {
     try {
@@ -127,7 +133,7 @@ export default function AdminTransactions() {
       setTransactions(enrichedData || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      alert('Failed to fetch transactions: ' + error.message);
+      setError('Failed to fetch transactions: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -163,6 +169,16 @@ export default function AdminTransactions() {
 
     if (userFilter !== 'all') {
       filtered = filtered.filter(tx => tx.user_id === userFilter);
+    }
+
+    if (activeTab !== 'all') {
+      if (activeTab === 'completed') {
+        filtered = filtered.filter(tx => tx.status === 'completed');
+      } else if (activeTab === 'pending') {
+        filtered = filtered.filter(tx => tx.status === 'pending');
+      } else if (activeTab === 'failed') {
+        filtered = filtered.filter(tx => tx.status === 'failed' || tx.status === 'cancelled');
+      }
     }
 
     if (dateFilter === 'custom' && (dateRange.start || dateRange.end)) {
@@ -221,11 +237,10 @@ export default function AdminTransactions() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('You must be logged in');
+        setError('You must be logged in');
         return;
       }
 
-      // Get account balance before update
       const { data: accountBefore } = await supabase
         .from('accounts')
         .select('balance')
@@ -256,14 +271,12 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to update transaction');
       }
 
-      // Get account balance after update
       const { data: accountAfter } = await supabase
         .from('accounts')
         .select('balance')
         .eq('id', selectedTransaction.account_id)
         .single();
 
-      // Check if status changed to/from completed
       const statusChanged = selectedTransaction.status !== editForm.status;
       const balanceChanged = accountBefore?.balance !== accountAfter?.balance;
 
@@ -280,12 +293,12 @@ export default function AdminTransactions() {
         successMessage += `\nChange: ${balanceDiff >= 0 ? '+' : ''}$${Math.abs(balanceDiff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
 
-      alert(successMessage);
+      setSuccess(successMessage);
       setShowEditModal(false);
       fetchTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
-      alert('❌ Failed to update transaction: ' + error.message);
+      setError('❌ Failed to update transaction: ' + error.message);
     } finally {
       setActionLoading(false);
     }
@@ -298,7 +311,7 @@ export default function AdminTransactions() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('You must be logged in');
+        setError('You must be logged in');
         return;
       }
 
@@ -323,7 +336,7 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to create transaction');
       }
 
-      alert('Transaction created successfully');
+      setSuccess('Transaction created successfully');
       setShowCreateModal(false);
       setCreateForm({
         account_id: '',
@@ -335,7 +348,7 @@ export default function AdminTransactions() {
       fetchTransactions();
     } catch (error) {
       console.error('Error creating transaction:', error);
-      alert('Failed to create transaction: ' + error.message);
+      setError('Failed to create transaction: ' + error.message);
     } finally {
       setActionLoading(false);
     }
@@ -361,7 +374,7 @@ export default function AdminTransactions() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('You must be logged in');
+        setError('You must be logged in');
         return;
       }
 
@@ -391,11 +404,11 @@ export default function AdminTransactions() {
         successMessage += `\n\n💰 Account balance reverted by ${formatCurrency(transaction.amount)}`;
       }
 
-      alert(successMessage);
+      setSuccess(successMessage);
       fetchTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      alert('❌ Failed to delete transaction: ' + error.message);
+      setError('❌ Failed to delete transaction: ' + error.message);
     }
   };
 
@@ -407,22 +420,22 @@ export default function AdminTransactions() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      completed: { bg: '#2ECC71', color: 'white' },
-      pending: { bg: '#F1C40F', color: '#333' },
-      cancelled: { bg: '#7F8C8D', color: 'white' },
-      reversed: { bg: '#3498DB', color: 'white' },
-      failed: { bg: '#E74C3C', color: 'white' },
-      hold: { bg: '#E67E22', color: 'white' }
+      completed: { bg: '#d1fae5', color: '#065f46' },
+      pending: { bg: '#fef3c7', color: '#92400e' },
+      cancelled: { bg: '#fee2e2', color: '#991b1b' },
+      reversed: { bg: '#dbeafe', color: '#1e40af' },
+      failed: { bg: '#fee2e2', color: '#991b1b' },
+      hold: { bg: '#fed7aa', color: '#92400e' }
     };
 
     const style = styles[status?.toLowerCase()] || styles.pending;
 
     return (
       <span style={{
-        padding: '0.4rem 0.8rem',
-        borderRadius: '20px',
-        fontSize: '0.75rem',
-        fontWeight: '600',
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+        fontWeight: '700',
         backgroundColor: style.bg,
         color: style.color,
         textTransform: 'uppercase'
@@ -449,261 +462,241 @@ export default function AdminTransactions() {
     });
   };
 
+  const stats = {
+    total: transactions.length,
+    completed: transactions.filter(t => t.status === 'completed').length,
+    pending: transactions.filter(t => t.status === 'pending').length,
+    failed: transactions.filter(t => t.status === 'failed' || t.status === 'cancelled').length,
+    totalVolume: transactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
+    totalCredit: transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
+    totalDebit: transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+  };
+
   return (
     <AdminAuth>
-      <AdminBackButton />
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
-            <h1 style={styles.title}>💸 Transactions Management</h1>
-            <p style={styles.subtitle}>View and manage all user transactions</p>
+            <h1 style={styles.title}>💸 Transaction Management</h1>
+            <p style={styles.subtitle}>View, edit, and manage all user transactions</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            style={styles.createButton}
-          >
-            ➕ Create Transaction
-          </button>
-        </div>
-
-        <div style={styles.filtersCard}>
-          <div style={styles.filtersGrid}>
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>🔍 Search</label>
-              <input
-                type="text"
-                placeholder="Search by name, email, or account..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>👤 User</label>
-              <select
-                value={userFilter}
-                onChange={(e) => setUserFilter(e.target.value)}
-                style={styles.select}
-              >
-                <option value="all">All Users</option>
-                {users.map(user => (
-                  <option key={user.user_id} value={user.user_id}>
-                    {user.first_name} {user.last_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>📊 Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={styles.select}
-              >
-                <option value="all">All Statuses</option>
-                {VALID_STATUSES.map(status => (
-                  <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>💳 Type</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                style={styles.select}
-              >
-                <option value="all">All Types</option>
-                <option value="credit">Credit</option>
-                <option value="debit">Debit</option>
-                <option value="deposit">Deposit</option>
-                <option value="withdrawal">Withdrawal</option>
-                <option value="transfer">Transfer</option>
-                <option value="crypto_deposit">Crypto Deposit</option>
-                <option value="loan_disbursement">Loan Disbursement</option>
-                <option value="treasury_credit">Treasury Credit</option>
-                <option value="treasury_debit">Treasury Debit</option>
-              </select>
-            </div>
-
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>📅 Date Range</label>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                style={styles.select}
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-                <option value="custom">Custom Range</option>
-              </select>
-            </div>
-
-            {dateFilter === 'custom' && (
-              <>
-                <div style={styles.filterGroup}>
-                  <label style={styles.label}>From</label>
-                  <input
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                    style={styles.input}
-                  />
-                </div>
-                <div style={styles.filterGroup}>
-                  <label style={styles.label}>To</label>
-                  <input
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                    style={styles.input}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          <div style={styles.statsRow}>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Total Transactions:</span>
-              <span style={styles.statValue}>{filteredTransactions.length}</span>
-            </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Total Amount:</span>
-              <span style={styles.statValue}>
-                {formatCurrency(filteredTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0))}
-              </span>
-            </div>
+          <div style={styles.headerActions}>
+            <button onClick={fetchTransactions} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
+            </button>
+            <button onClick={() => setShowCreateModal(true)} style={styles.createButton}>
+              ➕ Create Transaction
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              ← Dashboard
+            </Link>
           </div>
         </div>
 
-        <div style={styles.tableCard}>
+        {error && <div style={styles.errorBanner}>{error}</div>}
+        {success && <div style={styles.successBanner}>{success}</div>}
+
+        {/* Statistics Cards */}
+        <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+            <h3 style={styles.statLabel}>Total Transactions</h3>
+            <p style={styles.statValue}>{stats.total}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
+            <h3 style={styles.statLabel}>Completed</h3>
+            <p style={styles.statValue}>{stats.completed}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+            <h3 style={styles.statLabel}>Pending</h3>
+            <p style={styles.statValue}>{stats.pending}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+            <h3 style={styles.statLabel}>Failed</h3>
+            <p style={styles.statValue}>{stats.failed}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #7c3aed'}}>
+            <h3 style={styles.statLabel}>Total Volume</h3>
+            <p style={styles.statValue}>${stats.totalVolume.toLocaleString()}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
+            <h3 style={styles.statLabel}>Total Credit</h3>
+            <p style={styles.statValue}>${stats.totalCredit.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {['all', 'completed', 'pending', 'failed'].map(tab => (
+            <button
+              key={tab}
+              style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={styles.filtersSection}>
+          <input
+            type="text"
+            placeholder="🔍 Search by name, email or account..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+          />
+          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Users</option>
+            {users.map(user => (
+              <option key={user.user_id} value={user.user_id}>
+                {user.first_name} {user.last_name}
+              </option>
+            ))}
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Statuses</option>
+            {VALID_STATUSES.map(status => (
+              <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
+            ))}
+          </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Types</option>
+            <option value="credit">Credit</option>
+            <option value="debit">Debit</option>
+            <option value="deposit">Deposit</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="transfer">Transfer</option>
+          </select>
+          <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">Last 7 Days</option>
+            <option value="month">Last 30 Days</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+
+        {/* Date Range */}
+        {dateFilter === 'custom' && (
+          <div style={styles.dateRangeSection}>
+            <div style={styles.dateRangeLabel}>
+              <span>📅</span>
+              <span>Filter by Date Range:</span>
+            </div>
+            <div style={styles.dateRangeInputs}>
+              <div style={styles.dateInputGroup}>
+                <label style={styles.dateLabel}>From:</label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                  style={styles.dateInput}
+                />
+              </div>
+              <div style={styles.dateInputGroup}>
+                <label style={styles.dateLabel}>To:</label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                  style={styles.dateInput}
+                />
+              </div>
+              {(dateRange.start || dateRange.end) && (
+                <button
+                  onClick={() => setDateRange({ start: '', end: '' })}
+                  style={styles.clearDateButton}
+                >
+                  ✕ Clear Dates
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Transactions Grid */}
+        <div style={styles.tableContainer}>
           {loading ? (
-            <div style={styles.loadingContainer}>
+            <div style={styles.loadingState}>
               <div style={styles.spinner}></div>
               <p>Loading transactions...</p>
             </div>
           ) : filteredTransactions.length === 0 ? (
             <div style={styles.emptyState}>
+              <p style={styles.emptyIcon}>📋</p>
               <p style={styles.emptyText}>No transactions found</p>
             </div>
           ) : (
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
-                <thead style={styles.tableHead}>
-                  <tr>
-                    <th style={styles.th}>User</th>
-                    <th style={styles.th}>Account</th>
-                    <th style={styles.th}>Type</th>
-                    <th style={styles.th}>Amount</th>
-                    <th style={styles.th}>Description</th>
-                    <th style={styles.th}>Date/Time</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTransactions.map((tx) => (
-                    <tr key={tx.id} style={styles.tr}>
-                      <td style={styles.td}>
-                        <div style={styles.userCell}>
-                          <div style={styles.userIcon}>
-                            {(tx.accounts?.applications?.first_name?.[0] || 'U').toUpperCase()}
-                          </div>
-                          <div>
-                            <div style={styles.userName}>
-                              {tx.accounts?.applications?.first_name} {tx.accounts?.applications?.last_name}
-                            </div>
-                            <div style={styles.userEmail}>
-                              {tx.accounts?.applications?.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.accountNumber}>
-                          {maskAccountNumber(tx.accounts?.account_number)}
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.typeBadge,
-                          backgroundColor: tx.type === 'credit' ? '#d1fae5' : '#fee2e2',
-                          color: tx.type === 'credit' ? '#065f46' : '#991b1b'
-                        }}>
-                          {tx.type === 'credit' ? '↑ Credit' : '↓ Debit'}
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={{
-                          fontWeight: '700',
-                          color: tx.type === 'credit' ? '#059669' : '#dc2626'
-                        }}>
-                          {tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount)}
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        <div style={styles.description}>
-                          {tx.description || 'No description'}
-                        </div>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.dateTime}>
-                          {formatDateTime(tx.created_at)}
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          {getStatusBadge(tx.status)}
-                          {tx.status === 'completed' && (
-                            <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '500' }}>
-                              ✓ Balance Applied
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={styles.td}>
-                        <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleEditTransaction(tx)}
-                            style={{ ...styles.actionBtn, ...styles.editBtn }}
-                            title="Edit Transaction"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTransaction(tx)}
-                            style={{ ...styles.actionBtn, ...styles.deleteBtn }}
-                            title="Delete Transaction"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={styles.transactionsGrid}>
+              {filteredTransactions.map((tx) => (
+                <div key={tx.id} style={styles.transactionCard}>
+                  <div style={styles.transactionHeader}>
+                    <div>
+                      <h3 style={styles.transactionType}>
+                        {tx.type?.toUpperCase() || 'TRANSACTION'}
+                      </h3>
+                      <p style={styles.transactionEmail}>{tx.accounts?.applications?.first_name} {tx.accounts?.applications?.last_name}</p>
+                      <p style={{...styles.transactionEmail, fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '2px'}}>
+                        {tx.accounts?.applications?.email}
+                      </p>
+                    </div>
+                    {getStatusBadge(tx.status)}
+                  </div>
+
+                  <div style={styles.transactionBody}>
+                    <div style={styles.transactionInfo}>
+                      <span style={styles.infoLabel}>Account:</span>
+                      <span style={styles.infoValue}>{maskAccountNumber(tx.accounts?.account_number)}</span>
+                    </div>
+                    <div style={styles.transactionInfo}>
+                      <span style={styles.infoLabel}>Amount:</span>
+                      <span style={{...styles.infoValue, color: tx.type === 'credit' ? '#059669' : '#dc2626', fontWeight: '700'}}>
+                        {tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      </span>
+                    </div>
+                    <div style={styles.transactionInfo}>
+                      <span style={styles.infoLabel}>Description:</span>
+                      <span style={styles.infoValue}>{tx.description || 'No description'}</span>
+                    </div>
+                    <div style={styles.transactionInfo}>
+                      <span style={styles.infoLabel}>Date:</span>
+                      <span style={styles.infoValue}>{formatDateTime(tx.created_at)}</span>
+                    </div>
+                    {tx.status === 'completed' && (
+                      <div style={styles.completedBadge}>
+                        ✓ Balance Applied
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={styles.transactionFooter}>
+                    <button
+                      onClick={() => handleEditTransaction(tx)}
+                      style={styles.editButton}
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTransaction(tx)}
+                      style={styles.deleteButton}
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
+        {/* Edit Modal */}
         {showEditModal && selectedTransaction && (
           <div style={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>Edit Transaction</h2>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  style={styles.closeBtn}
-                >
-                  ✕
-                </button>
+                <button onClick={() => setShowEditModal(false)} style={styles.closeBtn}>×</button>
               </div>
               <form onSubmit={handleUpdateTransaction}>
                 <div style={styles.modalBody}>
@@ -721,42 +714,6 @@ export default function AdminTransactions() {
                         <option value="deposit">Deposit</option>
                         <option value="withdrawal">Withdrawal</option>
                         <option value="transfer">Transfer</option>
-                        <option value="zelle_send">Zelle Send</option>
-                        <option value="zelle_receive">Zelle Receive</option>
-                        <option value="crypto_send">Crypto Send</option>
-                        <option value="crypto_receive">Crypto Receive</option>
-                        <option value="card_purchase">Card Purchase</option>
-                        <option value="bank_charge">Bank Charge</option>
-                        <option value="maintenance_fee">Maintenance Fee</option>
-                        <option value="atm_fee">ATM Fee</option>
-                        <option value="overdraft_fee">Overdraft Fee</option>
-                        <option value="wire_fee">Wire Fee</option>
-                        <option value="foreign_transaction_fee">Foreign Transaction Fee</option>
-                        <option value="refund">Refund</option>
-                        <option value="reversal">Reversal</option>
-                        <option value="wire_transfer_in">Wire Transfer In</option>
-                        <option value="wire_transfer_out">Wire Transfer Out</option>
-                        <option value="ach_credit">ACH Credit</option>
-                        <option value="ach_debit">ACH Debit</option>
-                        <option value="check_deposit">Check Deposit</option>
-                        <option value="check_payment">Check Payment</option>
-                        <option value="atm_deposit">ATM Deposit</option>
-                        <option value="atm_withdrawal">ATM Withdrawal</option>
-                        <option value="loan_disbursement">Loan Disbursement</option>
-                        <option value="loan_payment">Loan Payment</option>
-                        <option value="investment_purchase">Investment Purchase</option>
-                        <option value="investment_sale">Investment Sale</option>
-                        <option value="dividend_payment">Dividend Payment</option>
-                        <option value="interest_earned">Interest Earned</option>
-                        <option value="international_transfer">International Transfer</option>
-                        <option value="bill_payment">Bill Payment</option>
-                        <option value="merchant_settlement">Merchant Settlement</option>
-                        <option value="chargeback">Chargeback</option>
-                        <option value="cash_advance">Cash Advance</option>
-                        <option value="recurring_payment">Recurring Payment</option>
-                        <option value="crypto_deposit">Crypto Deposit</option>
-                        <option value="treasury_credit">Treasury Credit</option>
-                        <option value="treasury_debit">Treasury Debit</option>
                       </select>
                     </div>
 
@@ -852,17 +809,13 @@ export default function AdminTransactions() {
           </div>
         )}
 
+        {/* Create Modal */}
         {showCreateModal && (
           <div style={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>Create New Transaction</h2>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  style={styles.closeBtn}
-                >
-                  ✕
-                </button>
+                <button onClick={() => setShowCreateModal(false)} style={styles.closeBtn}>×</button>
               </div>
               <form onSubmit={handleCreateTransaction}>
                 <div style={styles.modalBody}>
@@ -954,6 +907,7 @@ export default function AdminTransactions() {
           </div>
         )}
       </div>
+      <AdminFooter />
     </AdminAuth>
   );
 }
@@ -961,222 +915,338 @@ export default function AdminTransactions() {
 const styles = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#f8fafc',
-    padding: '2rem'
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
-    marginBottom: '2rem',
+    background: 'white',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '1rem'
+    gap: '16px'
   },
   title: {
-    fontSize: '2rem',
-    fontWeight: '800',
-    color: '#1e293b',
-    marginBottom: '0.5rem'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: '1rem',
-    color: '#64748b'
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
-  createButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#3b82f6',
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  refreshButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#4299e1',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '1rem',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.3s ease'
   },
-  filtersCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    marginBottom: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  createButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
   },
-  filtersGrid: {
+  backButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#718096',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
+  },
+  errorBanner: {
+    background: '#fee2e2',
+    color: '#dc2626',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500'
+  },
+  successBanner: {
+    background: '#d1fae5',
+    color: '#065f46',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500',
+    whiteSpace: 'pre-line'
+  },
+  statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
-    marginBottom: '1.5rem'
+    gap: '16px',
+    marginBottom: '20px'
   },
-  filterGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
-  },
-  label: {
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#475569'
-  },
-  input: {
-    padding: '0.625rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    transition: 'all 0.2s'
-  },
-  select: {
-    padding: '0.625rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    backgroundColor: 'white',
-    cursor: 'pointer'
-  },
-  statsRow: {
-    display: 'flex',
-    gap: '2rem',
-    paddingTop: '1rem',
-    borderTop: '1px solid #e2e8f0'
-  },
-  stat: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
+  statCard: {
+    background: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   statLabel: {
-    fontSize: '0.875rem',
-    color: '#64748b'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
+    fontWeight: '500'
   },
   statValue: {
-    fontSize: '1.125rem',
-    fontWeight: '700',
-    color: '#1e293b'
+    margin: 0,
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
-  tableCard: {
-    backgroundColor: 'white',
+  tabs: {
+    display: 'flex',
+    background: 'white',
     borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    padding: '5px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    gap: '5px',
+    flexWrap: 'wrap'
   },
-  loadingContainer: {
+  tab: {
+    flex: 1,
+    minWidth: '100px',
+    padding: '12px 20px',
+    border: 'none',
+    background: 'transparent',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500',
+    color: '#666',
+    transition: 'all 0.3s'
+  },
+  activeTab: {
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white'
+  },
+  filtersSection: {
+    background: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: '250px',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  filterSelect: {
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    cursor: 'pointer',
+    outline: 'none'
+  },
+  dateRangeSection: {
+    background: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  dateRangeLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    fontSize: 'clamp(0.9rem, 2.2vw, 16px)',
+    fontWeight: '600',
+    color: '#1A3E6F'
+  },
+  dateRangeInputs: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end'
+  },
+  dateInputGroup: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '3rem',
-    gap: '1rem'
+    gap: '6px'
+  },
+  dateLabel: {
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '500',
+    color: '#4a5568'
+  },
+  dateInput: {
+    padding: '10px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    minWidth: '150px'
+  },
+  clearDateButton: {
+    padding: '10px 16px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
+  },
+  tableContainer: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  loadingState: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#718096'
   },
   spinner: {
     width: '40px',
     height: '40px',
-    border: '4px solid #e2e8f0',
-    borderTop: '4px solid #3b82f6',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
     borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
   },
   emptyState: {
-    padding: '3rem',
-    textAlign: 'center'
+    textAlign: 'center',
+    padding: '60px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
   },
   emptyText: {
-    fontSize: '1rem',
-    color: '#94a3b8'
-  },
-  tableWrapper: {
-    overflowX: 'auto'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
-  },
-  tableHead: {
-    backgroundColor: '#f8fafc',
-    borderBottom: '2px solid #e2e8f0'
-  },
-  th: {
-    padding: '0.75rem',
-    textAlign: 'left',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  tr: {
-    borderBottom: '1px solid #e2e8f0',
-    transition: 'background-color 0.2s'
-  },
-  td: {
-    padding: '1rem 0.75rem',
-    fontSize: '0.875rem'
-  },
-  userCell: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  userIcon: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '700',
-    fontSize: '0.875rem'
-  },
-  userName: {
-    fontWeight: '600',
-    color: '#1e293b'
-  },
-  userEmail: {
-    fontSize: '0.75rem',
-    color: '#64748b'
-  },
-  accountNumber: {
-    fontFamily: 'monospace',
-    fontSize: '0.875rem',
-    color: '#475569'
-  },
-  typeBadge: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '12px',
-    fontSize: '0.75rem',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
     fontWeight: '600'
   },
-  description: {
-    maxWidth: '200px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
+  transactionsGrid: {
+    display: 'grid',
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
   },
-  dateTime: {
-    fontSize: '0.8125rem',
-    color: '#64748b'
+  transactionCard: {
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: 'clamp(6px, 1.5vw, 12px)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+    transition: 'transform 0.2s, box-shadow 0.2s'
   },
-  actionButtons: {
+  transactionHeader: {
     display: 'flex',
-    gap: '0.5rem'
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '16px',
+    gap: '12px'
   },
-  actionBtn: {
-    padding: '0.5rem 0.75rem',
-    border: 'none',
+  transactionType: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#1A3E6F',
+    fontWeight: '600'
+  },
+  transactionEmail: {
+    margin: 0,
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    color: '#718096'
+  },
+  transactionBody: {
+    marginBottom: '16px'
+  },
+  transactionInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  infoLabel: {
+    color: '#4a5568',
+    fontWeight: '600'
+  },
+  infoValue: {
+    color: '#2d3748',
+    textAlign: 'right'
+  },
+  completedBadge: {
+    marginTop: '12px',
+    padding: '8px',
+    background: '#d1fae5',
+    color: '#065f46',
     borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    transition: 'all 0.2s',
-    backgroundColor: '#3b82f6',
+    textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)'
+  },
+  transactionFooter: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  editButton: {
+    flex: 1,
+    padding: '10px',
+    background: '#4299e1',
     color: 'white',
-    fontWeight: '500'
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
   },
-  editBtn: {
-    backgroundColor: '#3b82f6',
-    color: 'white'
-  },
-  deleteBtn: {
-    backgroundColor: '#ef4444',
-    color: 'white'
+  deleteButton: {
+    flex: 1,
+    padding: '10px',
+    background: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
   },
   modalOverlay: {
     position: 'fixed',
@@ -1184,120 +1254,105 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1rem'
+    zIndex: 10000,
+    padding: '20px'
   },
   modal: {
-    backgroundColor: 'white',
+    background: 'white',
     borderRadius: '12px',
-    maxWidth: '800px',
+    maxWidth: '600px',
     width: '100%',
     maxHeight: '90vh',
-    overflow: 'auto',
-    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+    overflowY: 'auto',
+    zIndex: 10001
   },
   modalHeader: {
-    padding: '1.5rem',
+    padding: '20px',
     borderBottom: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    position: 'sticky',
-    top: 0,
-    backgroundColor: 'white',
-    zIndex: 1
+    alignItems: 'center'
   },
   modalTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: '#1e293b'
+    margin: 0,
+    fontSize: 'clamp(1.25rem, 3.5vw, 24px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   closeBtn: {
-    width: '32px',
-    height: '32px',
+    background: 'none',
     border: 'none',
-    borderRadius: '6px',
-    backgroundColor: '#f1f5f9',
+    fontSize: '32px',
     cursor: 'pointer',
-    fontSize: '1.25rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s'
+    color: '#718096',
+    lineHeight: 1
   },
   modalBody: {
-    padding: '1.5rem'
+    padding: '20px'
   },
   formGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1.25rem',
-    marginBottom: '1.5rem'
+    gap: '16px',
+    marginBottom: '16px'
   },
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem'
+    gap: '8px'
   },
   formLabel: {
-    fontSize: '0.875rem',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    color: '#475569'
+    color: '#2d3748'
   },
   formInput: {
-    padding: '0.75rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    fontSize: '0.9375rem',
-    transition: 'all 0.2s'
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
   },
   helpText: {
-    fontSize: '0.75rem',
-    color: '#64748b',
-    marginTop: '-0.25rem'
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#64748b'
   },
   infoBox: {
-    padding: '1rem',
-    backgroundColor: '#f8fafc',
+    padding: '16px',
+    background: '#f8fafc',
     borderRadius: '8px',
-    fontSize: '0.875rem',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     lineHeight: '1.6',
     color: '#475569'
   },
   modalFooter: {
-    padding: '1.5rem',
+    padding: '20px',
     borderTop: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'flex-end',
-    gap: '1rem',
-    position: 'sticky',
-    bottom: 0,
-    backgroundColor: 'white'
+    gap: '12px'
   },
   cancelButton: {
-    padding: '0.75rem 1.5rem',
-    border: '1px solid #e2e8f0',
+    padding: '12px 24px',
+    border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    backgroundColor: 'white',
+    background: 'white',
     color: '#475569',
-    fontSize: '0.9375rem',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    cursor: 'pointer'
   },
   saveButton: {
-    padding: '0.75rem 1.5rem',
+    padding: '12px 24px',
     border: 'none',
     borderRadius: '8px',
-    backgroundColor: '#3b82f6',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
     color: 'white',
-    fontSize: '0.9375rem',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    cursor: 'pointer'
   }
 };

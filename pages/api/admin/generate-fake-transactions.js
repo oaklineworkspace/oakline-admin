@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const {
       user_id,
-      account_id,
+      account_ids,
       transaction_types,
       year_start,
       year_end,
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     } = req.body;
 
     // Validation
-    if (!user_id || !account_id || !transaction_types || !Array.isArray(transaction_types) || transaction_types.length === 0) {
+    if (!user_id || !account_ids || !Array.isArray(account_ids) || account_ids.length === 0 || !transaction_types || !Array.isArray(transaction_types) || transaction_types.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -35,33 +35,39 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid manual count' });
     }
 
-    // Verify account belongs to user
-    const { data: account, error: accountError } = await supabaseAdmin
+    // Verify accounts belong to user
+    const { data: accounts, error: accountError } = await supabaseAdmin
       .from('accounts')
       .select('*')
-      .eq('id', account_id)
-      .eq('user_id', user_id)
-      .single();
+      .in('id', account_ids)
+      .eq('user_id', user_id);
 
-    if (accountError || !account) {
-      return res.status(404).json({ error: 'Account not found or does not belong to user' });
+    if (accountError || !accounts || accounts.length === 0) {
+      return res.status(404).json({ error: 'Accounts not found or do not belong to user' });
     }
 
-    // Determine transaction count
+    if (accounts.length !== account_ids.length) {
+      return res.status(400).json({ error: 'Some account IDs are invalid or do not belong to user' });
+    }
+
+    // Determine transaction count per account
     const targetCount = count_mode === 'random'
       ? Math.floor(300 + Math.random() * 600)
       : manual_count;
 
-    // Generate transactions
+    // Generate transactions for all accounts
     const transactions = [];
-    let currentBalance = parseFloat(account.balance) || 5000;
     const startDate = new Date(year_start, 0, 1, 0, 0, 0);
     const endDate = new Date(year_end, 11, 31, 23, 59, 59);
     const timeRange = endDate.getTime() - startDate.getTime();
 
     const statuses = ['completed', 'completed', 'completed', 'pending', 'failed', 'cancelled', 'reversed'];
 
-    for (let i = 0; i < targetCount; i++) {
+    // Loop through each account
+    for (const account of accounts) {
+      let currentBalance = parseFloat(account.balance) || 5000;
+
+      for (let i = 0; i < targetCount; i++) {
       // Random timestamp within range
       const timestamp = new Date(startDate.getTime() + Math.random() * timeRange);
 
@@ -76,11 +82,17 @@ export default async function handler(req, res) {
       let fee = 0;
 
       if (type === 'deposit' || type === 'check_deposit' || type === 'atm_deposit' || type === 'zelle_receive' || type === 'crypto_receive' || type === 'ach_credit' || type === 'interest_earned' || type === 'dividend_payment' || type === 'loan_disbursement' || type === 'merchant_settlement') {
-        // Larger amounts for income/deposits
-        amount = Math.round((50 + Math.random() * 50000) * 100) / 100;
-      } else if (type === 'withdrawal' || type === 'transfer' || type === 'zelle_send' || type === 'crypto_send' || type === 'wire_transfer_out' || type === 'ach_debit' || type === 'check_payment' || type === 'investment_purchase' || type === 'international_transfer' || type === 'bill_payment' || type === 'loan_payment' || type === 'recurring_payment' || type === 'cash_advance') {
-        // Moderate to large amounts for expenses/outgoing
-        amount = Math.round((20 + Math.random() * 5000) * 100) / 100;
+        // Larger amounts for income/deposits (increased range)
+        amount = Math.round((50 + Math.random() * 120000) * 100) / 100;
+      } else if (type === 'transfer' || type === 'wire_transfer_out' || type === 'wire_transfer_in' || type === 'international_transfer') {
+        // High amounts for transfers (50-120000)
+        amount = Math.round((50 + Math.random() * 120000) * 100) / 100;
+      } else if (type === 'crypto_send' || type === 'crypto_receive') {
+        // High amounts for crypto (50-120000)
+        amount = Math.round((50 + Math.random() * 120000) * 100) / 100;
+      } else if (type === 'withdrawal' || type === 'zelle_send' || type === 'ach_debit' || type === 'check_payment' || type === 'investment_purchase' || type === 'bill_payment' || type === 'loan_payment' || type === 'recurring_payment' || type === 'cash_advance') {
+        // Moderate to large amounts for expenses/outgoing (increased)
+        amount = Math.round((20 + Math.random() * 15000) * 100) / 100;
       } else if (type === 'card_purchase') {
         // Variable amounts for card purchases
         amount = Math.round((5 + Math.random() * 500) * 100) / 100;
@@ -170,17 +182,18 @@ export default async function handler(req, res) {
       const balanceAfter = currentBalance;
 
       transactions.push({
-        user_id,
-        account_id,
-        type,
-        amount,
-        description,
-        status,
-        created_at: timestamp.toISOString(),
-        updated_at: timestamp.toISOString(),
-        balance_before: balanceBefore,
-        balance_after: balanceAfter
-      });
+          user_id,
+          account_id: account.id,
+          type,
+          amount,
+          description,
+          status,
+          created_at: timestamp.toISOString(),
+          updated_at: timestamp.toISOString(),
+          balance_before: balanceBefore,
+          balance_after: balanceAfter
+        });
+      }
     }
 
     // Sort transactions by date
@@ -211,11 +224,12 @@ export default async function handler(req, res) {
       .from('audit_logs')
       .insert({
         user_id: authResult.adminId,
-        action: `Generated ${inserted} fake transactions for user ${user_id}`,
+        action: `Generated ${inserted} fake transactions for user ${user_id} across ${account_ids.length} account(s)`,
         table_name: 'transactions',
         new_data: {
           user_id,
-          account_id,
+          account_ids,
+          account_count: account_ids.length,
           transaction_count: inserted,
           year_range: `${year_start}-${year_end}`,
           types: transaction_types

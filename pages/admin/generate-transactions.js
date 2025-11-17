@@ -11,7 +11,7 @@ export default function GenerateTransactions() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [accounts, setAccounts] = useState([]);
-  const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -75,7 +75,7 @@ export default function GenerateTransactions() {
       fetchUserAccounts(selectedUser);
     } else {
       setAccounts([]);
-      setSelectedAccount('');
+      setSelectedAccounts([]);
     }
   }, [selectedUser]);
 
@@ -150,13 +150,29 @@ export default function GenerateTransactions() {
     setSelectedTypes([]);
   };
 
+  const toggleAccount = (accountId) => {
+    setSelectedAccounts(prev =>
+      prev.includes(accountId)
+        ? prev.filter(id => id !== accountId)
+        : [...prev, accountId]
+    );
+  };
+
+  const selectAllAccounts = () => {
+    setSelectedAccounts(accounts.map(a => a.id));
+  };
+
+  const clearAllAccounts = () => {
+    setSelectedAccounts([]);
+  };
+
   const handleGenerate = async () => {
     if (!selectedUser) {
       setError('Please select a user');
       return;
     }
-    if (!selectedAccount) {
-      setError('Please select an account');
+    if (selectedAccounts.length === 0) {
+      setError('Please select at least one account');
       return;
     }
     if (selectedTypes.length === 0) {
@@ -191,7 +207,7 @@ export default function GenerateTransactions() {
         },
         body: JSON.stringify({
           user_id: selectedUser,
-          account_id: selectedAccount,
+          account_ids: selectedAccounts,
           transaction_types: selectedTypes,
           year_start: yearStart,
           year_end: yearEnd,
@@ -257,20 +273,34 @@ export default function GenerateTransactions() {
 
           {selectedUser && (
             <div style={styles.formSection}>
-              <h3 style={styles.sectionTitle}>2️⃣ Select Account</h3>
-              <select
-                value={selectedAccount}
-                onChange={(e) => setSelectedAccount(e.target.value)}
-                style={styles.select}
-                disabled={loadingAccounts || generating || !accounts.length}
-              >
-                <option value="">-- Select Account --</option>
+              <h3 style={styles.sectionTitle}>2️⃣ Select Accounts</h3>
+              <div style={styles.typeButtonGroup}>
+                <button onClick={selectAllAccounts} style={styles.actionButton}>✓ Select All</button>
+                <button onClick={clearAllAccounts} style={styles.actionButton}>✕ Clear All</button>
+              </div>
+              <div style={styles.typeGrid}>
                 {accounts.map(account => (
-                  <option key={account.id} value={account.id}>
-                    {account.account_type} - {account.account_number} (Balance: ${parseFloat(account.balance).toFixed(2)})
-                  </option>
+                  <button
+                    key={account.id}
+                    onClick={() => toggleAccount(account.id)}
+                    style={{
+                      ...styles.typeButton,
+                      ...(selectedAccounts.includes(account.id) ? styles.typeButtonSelected : {})
+                    }}
+                    disabled={loadingAccounts || generating}
+                  >
+                    {account.account_type} - {account.account_number.slice(-4)}
+                    <br />
+                    <small>Balance: ${parseFloat(account.balance).toFixed(2)}</small>
+                    {selectedAccounts.includes(account.id) && ' ✓'}
+                  </button>
                 ))}
-              </select>
+              </div>
+              {selectedAccounts.length > 0 && (
+                <div style={styles.selectedCount}>
+                  {selectedAccounts.length} account{selectedAccounts.length !== 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
           )}
 
@@ -373,7 +403,7 @@ export default function GenerateTransactions() {
           <div style={styles.formSection}>
             <button
               onClick={handleGenerate}
-              disabled={generating || !selectedUser || !selectedAccount || selectedTypes.length === 0}
+              disabled={generating || !selectedUser || selectedAccounts.length === 0 || selectedTypes.length === 0}
               style={{
                 ...styles.generateButton,
                 ...(generating ? styles.generateButtonDisabled : {})
