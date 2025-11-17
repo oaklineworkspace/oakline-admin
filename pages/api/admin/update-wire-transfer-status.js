@@ -15,11 +15,11 @@ async function ensureTransactionExists(wireTransfer) {
 
   if (txCheckError && txCheckError.code !== 'PGRST116') {
     console.error('Error checking for existing transaction:', txCheckError);
-    return;
+    throw new Error('Failed to check for existing transaction');
   }
 
   if (!existingTx) {
-    console.log(`⚠️  No transaction found for wire transfer ${wireTransfer.id}, creating one...`);
+    console.log(`⚠️  No transaction found for wire transfer ${wireTransfer.id}, creating placeholder transaction...`);
     
     const { data: account, error: accountError } = await supabaseAdmin
       .from('accounts')
@@ -29,11 +29,17 @@ async function ensureTransactionExists(wireTransfer) {
 
     if (accountError) {
       console.error('Error fetching account for transaction creation:', accountError);
-      return;
+      throw new Error('Failed to fetch account for transaction creation');
     }
 
-    const balanceBefore = parseFloat(account.balance);
-    const balanceAfter = balanceBefore;
+    const currentBalance = parseFloat(account.balance);
+    
+    let transactionStatus = wireTransfer.status;
+    if (wireTransfer.status === 'rejected' || wireTransfer.status === 'cancelled' || wireTransfer.status === 'failed') {
+      transactionStatus = 'cancelled';
+    } else if (wireTransfer.status === 'processing' || wireTransfer.status === 'on_hold') {
+      transactionStatus = 'pending';
+    }
 
     const { error: createError } = await supabaseAdmin
       .from('transactions')
@@ -42,20 +48,21 @@ async function ensureTransactionExists(wireTransfer) {
         account_id: wireTransfer.from_account_id,
         type: `Wire transfer to ${wireTransfer.recipient_name}`,
         amount: wireTransfer.total_amount,
-        description: `Wire transfer to ${wireTransfer.recipient_name} - ${wireTransfer.recipient_bank}`,
+        description: `Wire transfer to ${wireTransfer.recipient_name} - ${wireTransfer.recipient_bank} (status: ${wireTransfer.status})`,
         reference: reference,
-        status: wireTransfer.status === 'completed' ? 'completed' : 'pending',
-        balance_before: balanceBefore,
-        balance_after: balanceAfter,
+        status: transactionStatus,
+        balance_before: currentBalance,
+        balance_after: currentBalance,
         created_at: wireTransfer.created_at,
         updated_at: new Date().toISOString()
       });
 
     if (createError) {
-      console.error('Error creating transaction for wire transfer:', createError);
-    } else {
-      console.log(`✅ Created transaction for wire transfer ${wireTransfer.id} with reference ${reference}`);
+      console.error('Error creating placeholder transaction for wire transfer:', createError);
+      throw new Error('Failed to create placeholder transaction for wire transfer');
     }
+    
+    console.log(`✅ Created placeholder transaction for wire transfer ${wireTransfer.id} with reference ${reference} and status ${transactionStatus}. Existing update handlers will manage balance adjustments.`);
   }
 }
 
