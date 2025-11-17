@@ -46,8 +46,8 @@ export default async function handler(req, res) {
 
     switch (action) {
       case 'approve':
-        if (transfer.status !== 'pending') {
-          return res.status(400).json({ error: 'Only pending transfers can be approved' });
+        if (!['pending', 'rejected', 'cancelled', 'failed'].includes(transfer.status)) {
+          return res.status(400).json({ error: 'Only pending, rejected, cancelled, or failed transfers can be approved' });
         }
         updateData.status = 'processing';
         updateData.approved_by = adminId;
@@ -56,7 +56,32 @@ export default async function handler(req, res) {
         
         newStatus = 'processing';
         
-        // Update related transaction status to processing
+        // If approving a previously rejected/cancelled transfer, we need to deduct from account again
+        if (['rejected', 'cancelled'].includes(transfer.status)) {
+          const { data: account, error: accountFetchError } = await supabaseAdmin
+            .from('accounts')
+            .select('balance')
+            .eq('id', transfer.from_account_id)
+            .single();
+
+          if (account && !accountFetchError) {
+            // Deduct the amount from account balance
+            const { error: deductError } = await supabaseAdmin
+              .from('accounts')
+              .update({
+                balance: parseFloat(account.balance) - parseFloat(transfer.total_amount),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', transfer.from_account_id);
+
+            if (deductError) {
+              console.error('Error deducting from account:', deductError);
+              return res.status(500).json({ error: 'Failed to deduct amount from account' });
+            }
+          }
+        }
+        
+        // Update related transaction status to pending
         const { error: txApproveError } = await supabaseAdmin
           .from('transactions')
           .update({
@@ -151,8 +176,8 @@ export default async function handler(req, res) {
           .eq('account_id', transfer.from_account_id)
           .single();
 
-        if (relatedTransaction && relatedTransaction.status === 'pending') {
-          // Update transaction to cancelled and refund the account
+        if (relatedTransaction && ['pending', 'cancelled'].includes(relatedTransaction.status)) {
+          // Update transaction to cancelled
           const { error: txUpdateError } = await supabaseAdmin
             .from('transactions')
             .update({
@@ -166,39 +191,41 @@ export default async function handler(req, res) {
             console.error('Error updating transaction:', txUpdateError);
           }
 
-          // Refund the account balance
-          const { data: account, error: accountFetchError } = await supabaseAdmin
-            .from('accounts')
-            .select('balance')
-            .eq('id', transfer.from_account_id)
-            .single();
-
-          if (account && !accountFetchError) {
-            const { error: refundError } = await supabaseAdmin
+          // Only refund if not already refunded (check if transaction was pending)
+          if (relatedTransaction.status === 'pending') {
+            const { data: account, error: accountFetchError } = await supabaseAdmin
               .from('accounts')
-              .update({
-                balance: parseFloat(account.balance) + parseFloat(transfer.total_amount),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', transfer.from_account_id);
+              .select('balance')
+              .eq('id', transfer.from_account_id)
+              .single();
 
-            if (refundError) {
-              console.error('Error refunding account:', refundError);
-            } else {
-              // Create a refund transaction record
-              await supabaseAdmin
-                .from('transactions')
-                .insert({
-                  user_id: transfer.user_id,
-                  account_id: transfer.from_account_id,
-                  type: 'credit',
-                  amount: transfer.total_amount,
-                  description: `Refund for rejected wire transfer - ${reason}`,
-                  reference: `WIRE-REFUND-${wireTransferId}`,
-                  status: 'completed',
-                  balance_before: account.balance,
-                  balance_after: parseFloat(account.balance) + parseFloat(transfer.total_amount)
-                });
+            if (account && !accountFetchError) {
+              const { error: refundError } = await supabaseAdmin
+                .from('accounts')
+                .update({
+                  balance: parseFloat(account.balance) + parseFloat(transfer.total_amount),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', transfer.from_account_id);
+
+              if (refundError) {
+                console.error('Error refunding account:', refundError);
+              } else {
+                // Create a refund transaction record
+                await supabaseAdmin
+                  .from('transactions')
+                  .insert({
+                    user_id: transfer.user_id,
+                    account_id: transfer.from_account_id,
+                    type: 'credit',
+                    amount: transfer.total_amount,
+                    description: `Refund for rejected wire transfer - ${reason}`,
+                    reference: `WIRE-REFUND-${wireTransferId}`,
+                    status: 'completed',
+                    balance_before: account.balance,
+                    balance_after: parseFloat(account.balance) + parseFloat(transfer.total_amount)
+                  });
+              }
             }
           }
         }
@@ -337,7 +364,7 @@ export default async function handler(req, res) {
         if (!reason) {
           return res.status(400).json({ error: 'Cancellation reason is required' });
         }
-        if (!['pending', 'processing', 'on_hold'].includes(transfer.status)) {
+        if (!['pending', 'processing', 'on_hold', 'rejected'].includes(transfer.status)) {
           return res.status(400).json({ error: 'Cannot cancel a completed, failed, or already cancelled transfer' });
         }
         updateData.status = 'cancelled';
@@ -356,8 +383,8 @@ export default async function handler(req, res) {
           .eq('account_id', transfer.from_account_id)
           .single();
 
-        if (relatedCancelTransaction && relatedCancelTransaction.status === 'pending') {
-          // Update transaction to cancelled and refund the account
+        if (relatedCancelTransaction && ['pending', 'cancelled'].includes(relatedCancelTransaction.status)) {
+          // Update transaction to cancelled
           const { error: txCancelUpdateError } = await supabaseAdmin
             .from('transactions')
             .update({
@@ -371,39 +398,41 @@ export default async function handler(req, res) {
             console.error('Error updating transaction:', txCancelUpdateError);
           }
 
-          // Refund the account balance
-          const { data: cancelAccount, error: cancelAccountFetchError } = await supabaseAdmin
-            .from('accounts')
-            .select('balance')
-            .eq('id', transfer.from_account_id)
-            .single();
-
-          if (cancelAccount && !cancelAccountFetchError) {
-            const { error: cancelRefundError } = await supabaseAdmin
+          // Only refund if not already refunded (check if transaction was pending)
+          if (relatedCancelTransaction.status === 'pending') {
+            const { data: cancelAccount, error: cancelAccountFetchError } = await supabaseAdmin
               .from('accounts')
-              .update({
-                balance: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', transfer.from_account_id);
+              .select('balance')
+              .eq('id', transfer.from_account_id)
+              .single();
 
-            if (cancelRefundError) {
-              console.error('Error refunding account:', cancelRefundError);
-            } else {
-              // Create a refund transaction record
-              await supabaseAdmin
-                .from('transactions')
-                .insert({
-                  user_id: transfer.user_id,
-                  account_id: transfer.from_account_id,
-                  type: 'credit',
-                  amount: transfer.total_amount,
-                  description: `Refund for cancelled wire transfer - ${reason}`,
-                  reference: `WIRE-REFUND-${wireTransferId}`,
-                  status: 'completed',
-                  balance_before: cancelAccount.balance,
-                  balance_after: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount)
-                });
+            if (cancelAccount && !cancelAccountFetchError) {
+              const { error: cancelRefundError } = await supabaseAdmin
+                .from('accounts')
+                .update({
+                  balance: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', transfer.from_account_id);
+
+              if (cancelRefundError) {
+                console.error('Error refunding account:', cancelRefundError);
+              } else {
+                // Create a refund transaction record
+                await supabaseAdmin
+                  .from('transactions')
+                  .insert({
+                    user_id: transfer.user_id,
+                    account_id: transfer.from_account_id,
+                    type: 'credit',
+                    amount: transfer.total_amount,
+                    description: `Refund for cancelled wire transfer - ${reason}`,
+                    reference: `WIRE-REFUND-${wireTransferId}`,
+                    status: 'completed',
+                    balance_before: cancelAccount.balance,
+                    balance_after: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount)
+                  });
+              }
             }
           }
         }
