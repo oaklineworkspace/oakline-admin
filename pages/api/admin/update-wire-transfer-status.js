@@ -169,14 +169,20 @@ export default async function handler(req, res) {
         newStatus = 'rejected';
         
         // Find and update the related transaction to 'cancelled' status
-        const { data: relatedTransaction, error: txFindError } = await supabaseAdmin
+        const { data: relatedTransactions, error: txFindError } = await supabaseAdmin
           .from('transactions')
           .select('*')
           .eq('reference', `WIRE-${wireTransferId}`)
-          .eq('account_id', transfer.from_account_id)
-          .single();
+          .eq('account_id', transfer.from_account_id);
 
-        if (relatedTransaction && ['pending', 'cancelled'].includes(relatedTransaction.status)) {
+        if (txFindError) {
+          console.error('Error finding transaction:', txFindError);
+        }
+
+        // Handle the transaction - it might be an array or single result
+        const relatedTransaction = relatedTransactions && relatedTransactions.length > 0 ? relatedTransactions[0] : null;
+
+        if (relatedTransaction) {
           // Update transaction to cancelled
           const { error: txUpdateError } = await supabaseAdmin
             .from('transactions')
@@ -189,6 +195,8 @@ export default async function handler(req, res) {
 
           if (txUpdateError) {
             console.error('Error updating transaction:', txUpdateError);
+          } else {
+            console.log(`✅ Transaction ${relatedTransaction.id} updated to cancelled`);
           }
 
           // Only refund if not already refunded (check if transaction was pending)
@@ -211,8 +219,9 @@ export default async function handler(req, res) {
               if (refundError) {
                 console.error('Error refunding account:', refundError);
               } else {
+                console.log(`✅ Account refunded: ${transfer.total_amount}`);
                 // Create a refund transaction record
-                await supabaseAdmin
+                const { error: refundTxError } = await supabaseAdmin
                   .from('transactions')
                   .insert({
                     user_id: transfer.user_id,
@@ -225,9 +234,15 @@ export default async function handler(req, res) {
                     balance_before: account.balance,
                     balance_after: parseFloat(account.balance) + parseFloat(transfer.total_amount)
                   });
+
+                if (refundTxError) {
+                  console.error('Error creating refund transaction:', refundTxError);
+                }
               }
             }
           }
+        } else {
+          console.log('⚠️ No related transaction found to update');
         }
         emailSubject = `Important: Wire Transfer Request Update - ${bankName}`;
         emailHtml = `
@@ -376,14 +391,19 @@ export default async function handler(req, res) {
         newStatus = 'cancelled';
         
         // Find and update the related transaction to 'cancelled' status
-        const { data: relatedCancelTransaction, error: txCancelFindError } = await supabaseAdmin
+        const { data: relatedCancelTransactions, error: txCancelFindError } = await supabaseAdmin
           .from('transactions')
           .select('*')
           .eq('reference', `WIRE-${wireTransferId}`)
-          .eq('account_id', transfer.from_account_id)
-          .single();
+          .eq('account_id', transfer.from_account_id);
 
-        if (relatedCancelTransaction && ['pending', 'cancelled'].includes(relatedCancelTransaction.status)) {
+        if (txCancelFindError) {
+          console.error('Error finding transaction:', txCancelFindError);
+        }
+
+        const relatedCancelTransaction = relatedCancelTransactions && relatedCancelTransactions.length > 0 ? relatedCancelTransactions[0] : null;
+
+        if (relatedCancelTransaction) {
           // Update transaction to cancelled
           const { error: txCancelUpdateError } = await supabaseAdmin
             .from('transactions')
@@ -396,6 +416,8 @@ export default async function handler(req, res) {
 
           if (txCancelUpdateError) {
             console.error('Error updating transaction:', txCancelUpdateError);
+          } else {
+            console.log(`✅ Transaction ${relatedCancelTransaction.id} updated to cancelled`);
           }
 
           // Only refund if not already refunded (check if transaction was pending)
@@ -418,8 +440,9 @@ export default async function handler(req, res) {
               if (cancelRefundError) {
                 console.error('Error refunding account:', cancelRefundError);
               } else {
+                console.log(`✅ Account refunded: ${transfer.total_amount}`);
                 // Create a refund transaction record
-                await supabaseAdmin
+                const { error: refundTxError } = await supabaseAdmin
                   .from('transactions')
                   .insert({
                     user_id: transfer.user_id,
@@ -432,9 +455,15 @@ export default async function handler(req, res) {
                     balance_before: cancelAccount.balance,
                     balance_after: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount)
                   });
+
+                if (refundTxError) {
+                  console.error('Error creating refund transaction:', refundTxError);
+                }
               }
             }
           }
+        } else {
+          console.log('⚠️ No related transaction found to update');
         }
         emailSubject = `⚠️ Wire Transfer Cancelled - ${bankName}`;
         emailHtml = `
@@ -764,7 +793,7 @@ export default async function handler(req, res) {
         newStatus = 'completed';
         
         // Update related transaction status to completed
-        const { error: txCompleteError } = await supabaseAdmin
+        const { data: txCompleteResults, error: txCompleteError } = await supabaseAdmin
           .from('transactions')
           .update({
             status: 'completed',
@@ -772,7 +801,14 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString()
           })
           .eq('reference', `WIRE-${wireTransferId}`)
-          .eq('account_id', transfer.from_account_id);
+          .eq('account_id', transfer.from_account_id)
+          .select();
+
+        if (txCompleteError) {
+          console.error('Error updating transaction:', txCompleteError);
+        } else {
+          console.log(`✅ Transaction updated to completed`);
+        }
         emailSubject = `✅ Wire Transfer Completed - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
@@ -836,6 +872,68 @@ export default async function handler(req, res) {
           </html>
         `;
         break;
+
+      case 'delete':
+        // Delete the wire transfer completely
+        
+        // First, find and handle the related transaction
+        const { data: relatedDeleteTransactions, error: txDeleteFindError } = await supabaseAdmin
+          .from('transactions')
+          .select('*')
+          .eq('reference', `WIRE-${wireTransferId}`)
+          .eq('account_id', transfer.from_account_id);
+
+        const relatedDeleteTransaction = relatedDeleteTransactions && relatedDeleteTransactions.length > 0 ? relatedDeleteTransactions[0] : null;
+
+        // Refund if transaction was pending
+        if (relatedDeleteTransaction && relatedDeleteTransaction.status === 'pending') {
+          const { data: deleteAccount, error: deleteAccountFetchError } = await supabaseAdmin
+            .from('accounts')
+            .select('balance')
+            .eq('id', transfer.from_account_id)
+            .single();
+
+          if (deleteAccount && !deleteAccountFetchError) {
+            await supabaseAdmin
+              .from('accounts')
+              .update({
+                balance: parseFloat(deleteAccount.balance) + parseFloat(transfer.total_amount),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', transfer.from_account_id);
+          }
+        }
+
+        // Delete related transactions
+        if (relatedDeleteTransaction) {
+          await supabaseAdmin
+            .from('transactions')
+            .delete()
+            .eq('id', relatedDeleteTransaction.id);
+        }
+
+        // Delete refund transactions if any
+        await supabaseAdmin
+          .from('transactions')
+          .delete()
+          .eq('reference', `WIRE-REFUND-${wireTransferId}`);
+
+        // Delete the wire transfer
+        const { error: deleteError } = await supabaseAdmin
+          .from('wire_transfers')
+          .delete()
+          .eq('id', wireTransferId);
+
+        if (deleteError) {
+          console.error('Error deleting wire transfer:', deleteError);
+          return res.status(500).json({ error: 'Failed to delete wire transfer', details: deleteError.message });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Wire transfer deleted successfully',
+          deleted: true
+        });
 
       default:
         return res.status(400).json({ error: 'Invalid action' });

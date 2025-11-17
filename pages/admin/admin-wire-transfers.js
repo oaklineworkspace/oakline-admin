@@ -235,6 +235,13 @@ export default function AdminWireTransfers() {
         color: '#059669',
         buttonText: 'Mark as Completed',
         buttonColor: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+      },
+      delete: {
+        title: '🗑️ Delete Wire Transfer',
+        color: '#991b1b',
+        buttonText: 'Delete Transfer',
+        buttonColor: '#991b1b',
+        needsReason: false
       }
     };
 
@@ -332,19 +339,29 @@ export default function AdminWireTransfers() {
               </div>
             )}
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Admin Notes (Optional)</label>
-              <textarea
-                value={formData.adminNotes}
-                onChange={(e) => setFormData({...formData, adminNotes: e.target.value})}
-                style={{...styles.input, minHeight: '60px'}}
-                placeholder="Add any internal notes..."
-              />
-            </div>
+            {showModal !== 'delete' && (
+              <>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Admin Notes (Optional)</label>
+                  <textarea
+                    value={formData.adminNotes}
+                    onChange={(e) => setFormData({...formData, adminNotes: e.target.value})}
+                    style={{...styles.input, minHeight: '60px'}}
+                    placeholder="Add any internal notes..."
+                  />
+                </div>
 
-            <p style={{color: '#64748b', fontSize: '13px', marginBottom: '16px', fontStyle: 'italic'}}>
-              ℹ️ An email notification will be sent to {selectedTransfer.user_email}
-            </p>
+                <p style={{color: '#64748b', fontSize: '13px', marginBottom: '16px', fontStyle: 'italic'}}>
+                  ℹ️ An email notification will be sent to {selectedTransfer.user_email}
+                </p>
+              </>
+            )}
+
+            {showModal === 'delete' && (
+              <p style={{color: '#991b1b', fontSize: '14px', marginBottom: '16px', fontWeight: '600', background: '#fee2e2', padding: '12px', borderRadius: '8px'}}>
+                ⚠️ Warning: This action is permanent and cannot be undone. The wire transfer and all related transactions will be deleted.
+              </p>
+            )}
 
             <button
               onClick={() => handleAction(showModal)}
@@ -767,15 +784,37 @@ export default function AdminWireTransfers() {
                         </div>
                       )}
                       {transfer.status === 'reversed' && (
-                        <div style={{padding: '10px', textAlign: 'center', color: '#64748b', fontSize: '14px'}}>
-                          <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer Reversed</p>
-                          {transfer.reversal_reason && (
-                            <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.reversal_reason}</p>
-                          )}
-                          {transfer.admin_notes && (
-                            <p style={{margin: '4px 0', fontSize: '13px', fontStyle: 'italic'}}>Notes: {transfer.admin_notes}</p>
-                          )}
+                        <div>
+                          <div style={{padding: '10px', textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '12px'}}>
+                            <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer Reversed</p>
+                            {transfer.reversal_reason && (
+                              <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.reversal_reason}</p>
+                            )}
+                            {transfer.admin_notes && (
+                              <p style={{margin: '4px 0', fontSize: '13px', fontStyle: 'italic'}}>Notes: {transfer.admin_notes}</p>
+                            )}
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setSelectedTransfer(transfer);
+                              setShowModal('delete');
+                            }}
+                            style={styles.deleteButton}
+                          >
+                            🗑️ Delete
+                          </button>
                         </div>
+                      )}
+                      {['rejected', 'cancelled', 'failed'].includes(transfer.status) && (
+                        <button 
+                          onClick={() => {
+                            setSelectedTransfer(transfer);
+                            setShowModal('delete');
+                          }}
+                          style={{...styles.deleteButton, marginTop: '8px', width: '100%'}}
+                        >
+                          🗑️ Delete Transfer
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1151,6 +1190,17 @@ const styles = {
     flex: 1,
     padding: '10px',
     background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  deleteButton: {
+    flex: 1,
+    padding: '10px',
+    background: '#991b1b',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
