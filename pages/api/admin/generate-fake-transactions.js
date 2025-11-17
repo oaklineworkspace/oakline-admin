@@ -72,8 +72,8 @@ export default async function handler(req, res) {
       // Random status (weighted towards completed)
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
-      // Random amount
-      const amount = Math.round((10 + Math.random() * 890) * 100) / 100;
+      // Random amount between $10 and $105,000
+      const amount = Math.round((10 + Math.random() * 104990) * 100) / 100;
 
       // Fee logic
       let fee = 0;
@@ -81,25 +81,53 @@ export default async function handler(req, res) {
         fee = Math.round((0.50 + Math.random() * 5.50) * 100) / 100;
       }
 
-      // Description
-      const descriptions = {
-        deposit: 'Account Deposit',
-        withdrawal: 'Cash Withdrawal',
-        transfer: 'Bank Transfer',
-        zelle_send: 'Zelle Payment Sent',
-        zelle_receive: 'Zelle Payment Received',
-        crypto_send: 'Crypto Transfer Sent',
-        crypto_receive: 'Crypto Transfer Received',
-        card_purchase: 'Card POS Purchase',
-        bank_charge: 'Bank Service Charge',
-        refund: 'Merchant Refund',
-        reversal: 'Reversal of Previous Transaction'
+      // Description with variety
+      const descriptionOptions = {
+        deposit: ['Direct Deposit - Payroll', 'Mobile Check Deposit', 'Wire Transfer Received', 'ACH Deposit', 'Cash Deposit at Branch', 'Online Transfer In', 'Tax Refund Deposit', 'Social Security Payment', 'Pension Deposit', 'Dividend Payment'],
+        withdrawal: ['ATM Withdrawal', 'Cash Withdrawal at Branch', 'Emergency Withdrawal', 'International ATM Withdrawal', 'Fee-Free ATM Withdrawal'],
+        transfer: ['Internal Transfer', 'ACH Transfer Out', 'Wire Transfer Out', 'External Bank Transfer', 'Bill Payment Transfer', 'Scheduled Transfer'],
+        zelle_send: ['Zelle Payment to Friend', 'Zelle Rent Payment', 'Zelle Bill Split', 'Zelle Payment Sent', 'Zelle Utility Payment'],
+        zelle_receive: ['Zelle Payment from Friend', 'Zelle Rent Received', 'Zelle Reimbursement', 'Zelle Payment Received', 'Zelle Gift Received'],
+        crypto_send: ['Bitcoin Transfer Out', 'Ethereum Transfer Out', 'USDC Transfer Out', 'Crypto Exchange Transfer', 'Cold Wallet Transfer'],
+        crypto_receive: ['Bitcoin Transfer In', 'Ethereum Transfer In', 'USDC Transfer In', 'Crypto Exchange Deposit', 'Mining Reward Received'],
+        card_purchase: ['Point of Sale Purchase', 'Online Shopping', 'Grocery Store', 'Gas Station', 'Restaurant', 'Subscription Service', 'E-commerce Purchase', 'Contactless Payment', 'Mobile Wallet Purchase'],
+        bank_charge: ['Monthly Maintenance Fee', 'Overdraft Fee', 'Wire Transfer Fee', 'ATM Fee', 'Foreign Transaction Fee', 'Account Service Charge', 'Insufficient Funds Fee'],
+        refund: ['Merchant Refund', 'Purchase Return', 'Cancelled Subscription Refund', 'Dispute Resolution Refund', 'Overpayment Refund'],
+        reversal: ['Transaction Reversal', 'Duplicate Charge Reversal', 'Error Correction', 'Fraudulent Transaction Reversal', 'System Error Reversal'],
+        wire_transfer_in: ['Domestic Wire Received', 'International Wire Received', 'Business Wire Transfer', 'Real Estate Wire', 'Investment Wire Transfer'],
+        wire_transfer_out: ['Domestic Wire Sent', 'International Wire Sent', 'Business Wire Payment', 'Real Estate Wire', 'Investment Wire Transfer'],
+        ach_credit: ['ACH Credit Received', 'Payroll ACH', 'Vendor Payment', 'Government Benefit', 'Insurance Payout'],
+        ach_debit: ['ACH Debit Payment', 'Loan Payment', 'Mortgage Payment', 'Subscription Payment', 'Utility Bill Payment'],
+        check_deposit: ['Check Deposit', 'Business Check Deposit', 'Personal Check Deposit', 'Cashier Check Deposit', 'Money Order Deposit'],
+        check_payment: ['Check Payment', 'Bill Payment by Check', 'Vendor Check', 'Rent Check', 'Business Expense Check'],
+        atm_deposit: ['ATM Cash Deposit', 'ATM Check Deposit', 'Night Deposit', 'Express Deposit'],
+        loan_disbursement: ['Personal Loan Disbursement', 'Auto Loan Disbursement', 'Home Loan Disbursement', 'Student Loan Disbursement', 'Business Loan Disbursement'],
+        loan_payment: ['Loan Payment', 'Auto Loan Payment', 'Mortgage Payment', 'Student Loan Payment', 'Personal Loan Payment'],
+        investment_purchase: ['Stock Purchase', 'Bond Purchase', 'Mutual Fund Purchase', 'ETF Purchase', 'CD Purchase'],
+        investment_sale: ['Stock Sale', 'Bond Sale', 'Mutual Fund Redemption', 'ETF Sale', 'CD Redemption'],
+        dividend_payment: ['Stock Dividend', 'Mutual Fund Dividend', 'REIT Dividend', 'Bond Interest', 'Dividend Reinvestment'],
+        interest_earned: ['Savings Interest', 'CD Interest', 'Money Market Interest', 'Bond Interest', 'Interest Credit'],
+        international_transfer: ['SWIFT Transfer', 'Foreign Currency Exchange', 'International Wire', 'Cross-Border Payment', 'Forex Transaction'],
+        bill_payment: ['Utility Bill Payment', 'Credit Card Payment', 'Insurance Payment', 'Phone Bill', 'Internet Bill'],
+        merchant_settlement: ['Merchant Settlement', 'Business Revenue', 'Sales Settlement', 'Payment Processor Settlement', 'E-commerce Revenue'],
+        chargeback: ['Credit Card Chargeback', 'Disputed Transaction', 'Fraud Chargeback', 'Merchant Dispute', 'Authorization Reversal'],
+        cash_advance: ['Credit Card Cash Advance', 'ATM Cash Advance', 'Over-the-Counter Advance', 'Emergency Cash Advance'],
+        recurring_payment: ['Subscription Renewal', 'Membership Fee', 'Auto-Pay Bill', 'Recurring Transfer', 'Scheduled Payment']
       };
-      const description = descriptions[type] || 'Transaction';
+      
+      const options = descriptionOptions[type] || ['Transaction'];
+      const description = options[Math.floor(Math.random() * options.length)];
 
-      // Calculate balance changes
+      // Calculate balance changes (debit vs credit)
       const balanceBefore = currentBalance;
-      if (['withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'bank_charge'].includes(type)) {
+      const debitTypes = [
+        'withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'bank_charge',
+        'wire_transfer_out', 'ach_debit', 'check_payment', 'loan_payment',
+        'investment_purchase', 'international_transfer', 'bill_payment',
+        'chargeback', 'cash_advance', 'recurring_payment', 'zelle_send'
+      ];
+      
+      if (debitTypes.includes(type)) {
         currentBalance = currentBalance - (amount + fee);
       } else {
         currentBalance = currentBalance + amount;

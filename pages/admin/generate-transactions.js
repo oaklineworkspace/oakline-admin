@@ -34,7 +34,26 @@ export default function GenerateTransactions() {
     { value: 'card_purchase', label: '💳 Card Purchase' },
     { value: 'bank_charge', label: '🏦 Bank Charge' },
     { value: 'refund', label: '↩️ Refund' },
-    { value: 'reversal', label: '🔙 Reversal' }
+    { value: 'reversal', label: '🔙 Reversal' },
+    { value: 'wire_transfer_in', label: '📨 Wire In' },
+    { value: 'wire_transfer_out', label: '📤 Wire Out' },
+    { value: 'ach_credit', label: '🏧 ACH Credit' },
+    { value: 'ach_debit', label: '🏧 ACH Debit' },
+    { value: 'check_deposit', label: '✅ Check Deposit' },
+    { value: 'check_payment', label: '📝 Check Payment' },
+    { value: 'atm_deposit', label: '🏧 ATM Deposit' },
+    { value: 'loan_disbursement', label: '💵 Loan Disbursement' },
+    { value: 'loan_payment', label: '💳 Loan Payment' },
+    { value: 'investment_purchase', label: '📈 Investment Buy' },
+    { value: 'investment_sale', label: '📉 Investment Sell' },
+    { value: 'dividend_payment', label: '💎 Dividend' },
+    { value: 'interest_earned', label: '💹 Interest Earned' },
+    { value: 'international_transfer', label: '🌍 International Transfer' },
+    { value: 'bill_payment', label: '📄 Bill Payment' },
+    { value: 'merchant_settlement', label: '🏪 Merchant Settlement' },
+    { value: 'chargeback', label: '⚠️ Chargeback' },
+    { value: 'cash_advance', label: '💵 Cash Advance' },
+    { value: 'recurring_payment', label: '🔁 Recurring Payment' }
   ];
 
   const currentYear = new Date().getFullYear();
