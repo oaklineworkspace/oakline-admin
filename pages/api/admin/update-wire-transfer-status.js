@@ -82,7 +82,7 @@ export default async function handler(req, res) {
         }
         
         // Update related transaction status to pending
-        const { error: txApproveError } = await supabaseAdmin
+        const { data: txApproveResult, error: txApproveError } = await supabaseAdmin
           .from('transactions')
           .update({
             status: 'pending',
@@ -90,7 +90,14 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString()
           })
           .eq('reference', `WIRE-${wireTransferId}`)
-          .eq('account_id', transfer.from_account_id);
+          .eq('account_id', transfer.from_account_id)
+          .select();
+
+        if (txApproveError) {
+          console.error('Error updating transaction on approve:', txApproveError);
+        } else {
+          console.log(`✅ Updated ${txApproveResult?.length || 0} transaction(s) to pending status`);
+        }
         emailSubject = `✅ Wire Transfer Approved - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
@@ -922,47 +929,66 @@ export default async function handler(req, res) {
       case 'delete':
         // Delete the wire transfer completely
         
-        // First, find and handle the related transaction
+        // First, find ALL related transactions using LIKE pattern to catch all variations
         const { data: relatedDeleteTransactions, error: txDeleteFindError } = await supabaseAdmin
           .from('transactions')
           .select('*')
-          .eq('reference', `WIRE-${wireTransferId}`)
+          .or(`reference.eq.WIRE-${wireTransferId},reference.like.WIRE-REFUND-${wireTransferId}%,reference.like.WIRE-REVERSAL-${wireTransferId}%`)
           .eq('account_id', transfer.from_account_id);
 
-        const relatedDeleteTransaction = relatedDeleteTransactions && relatedDeleteTransactions.length > 0 ? relatedDeleteTransactions[0] : null;
+        if (txDeleteFindError) {
+          console.error('Error finding related transactions:', txDeleteFindError);
+        }
 
-        // Refund if transaction was pending
-        if (relatedDeleteTransaction && relatedDeleteTransaction.status === 'pending') {
-          const { data: deleteAccount, error: deleteAccountFetchError } = await supabaseAdmin
-            .from('accounts')
-            .select('balance')
-            .eq('id', transfer.from_account_id)
-            .single();
+        console.log(`Found ${relatedDeleteTransactions?.length || 0} related transactions to delete for wire transfer ${wireTransferId}`);
 
-          if (deleteAccount && !deleteAccountFetchError) {
-            await supabaseAdmin
+        // Refund account if there are pending or completed transactions
+        if (relatedDeleteTransactions && relatedDeleteTransactions.length > 0) {
+          const pendingOrCompletedTx = relatedDeleteTransactions.find(tx => 
+            ['pending', 'completed'].includes(tx.status)
+          );
+
+          if (pendingOrCompletedTx) {
+            const { data: deleteAccount, error: deleteAccountFetchError } = await supabaseAdmin
               .from('accounts')
-              .update({
-                balance: parseFloat(deleteAccount.balance) + parseFloat(transfer.total_amount),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', transfer.from_account_id);
+              .select('balance')
+              .eq('id', transfer.from_account_id)
+              .single();
+
+            if (deleteAccount && !deleteAccountFetchError) {
+              const refundAmount = parseFloat(transfer.total_amount);
+              const newBalance = parseFloat(deleteAccount.balance) + refundAmount;
+              
+              const { error: refundError } = await supabaseAdmin
+                .from('accounts')
+                .update({
+                  balance: newBalance,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', transfer.from_account_id);
+
+              if (refundError) {
+                console.error('Error refunding account:', refundError);
+              } else {
+                console.log(`✅ Account refunded: $${refundAmount.toFixed(2)}, new balance: $${newBalance.toFixed(2)}`);
+              }
+            }
+          }
+
+          // Delete all related transactions
+          for (const tx of relatedDeleteTransactions) {
+            const { error: txDeleteError } = await supabaseAdmin
+              .from('transactions')
+              .delete()
+              .eq('id', tx.id);
+
+            if (txDeleteError) {
+              console.error(`Error deleting transaction ${tx.id}:`, txDeleteError);
+            } else {
+              console.log(`✅ Deleted transaction ${tx.id} (reference: ${tx.reference})`);
+            }
           }
         }
-
-        // Delete related transactions
-        if (relatedDeleteTransaction) {
-          await supabaseAdmin
-            .from('transactions')
-            .delete()
-            .eq('id', relatedDeleteTransaction.id);
-        }
-
-        // Delete refund transactions if any
-        await supabaseAdmin
-          .from('transactions')
-          .delete()
-          .eq('reference', `WIRE-REFUND-${wireTransferId}`);
 
         // Delete the wire transfer
         const { error: deleteError } = await supabaseAdmin
@@ -975,10 +1001,13 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Failed to delete wire transfer', details: deleteError.message });
         }
 
+        console.log(`✅ Wire transfer ${wireTransferId} deleted successfully`);
+
         return res.status(200).json({
           success: true,
-          message: 'Wire transfer deleted successfully',
-          deleted: true
+          message: 'Wire transfer and all related transactions deleted successfully',
+          deleted: true,
+          transactionsDeleted: relatedDeleteTransactions?.length || 0
         });
 
       default:
