@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
-const VALID_TYPES = ['credit', 'debit'];
+const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit', 'wire_transfer', 'check_deposit', 'atm_withdrawal', 'debit_card', 'transfer_in', 'transfer_out', 'ach_transfer', 'check_payment', 'service_fee', 'refund', 'interest', 'bonus', 'other'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

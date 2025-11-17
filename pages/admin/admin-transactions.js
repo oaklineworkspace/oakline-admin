@@ -7,7 +7,7 @@ import AdminFooter from '../../components/AdminFooter';
 import { supabase } from '../../lib/supabaseClient';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
-const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit'];
+const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit', 'wire_transfer', 'check_deposit', 'atm_withdrawal', 'debit_card', 'transfer_in', 'transfer_out', 'ach_transfer', 'check_payment', 'service_fee', 'refund', 'interest', 'bonus', 'other'];
 
 export default function AdminTransactions() {
   const router = useRouter();
@@ -562,11 +562,11 @@ export default function AdminTransactions() {
           </select>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={styles.filterSelect}>
             <option value="all">All Types</option>
-            <option value="credit">Credit</option>
-            <option value="debit">Debit</option>
-            <option value="deposit">Deposit</option>
-            <option value="withdrawal">Withdrawal</option>
-            <option value="transfer">Transfer</option>
+            {VALID_TYPES.map(type => (
+              <option key={type} value={type}>
+                {type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              </option>
+            ))}
           </select>
           <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={styles.filterSelect}>
             <option value="all">All Time</option>
@@ -709,11 +709,11 @@ export default function AdminTransactions() {
                         style={styles.formInput}
                         required
                       >
-                        <option value="credit">Credit</option>
-                        <option value="debit">Debit</option>
-                        <option value="deposit">Deposit</option>
-                        <option value="withdrawal">Withdrawal</option>
-                        <option value="transfer">Transfer</option>
+                        {VALID_TYPES.map(type => (
+                          <option key={type} value={type}>
+                            {type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -840,8 +840,11 @@ export default function AdminTransactions() {
                         style={styles.formInput}
                         required
                       >
-                        <option value="credit">Credit</option>
-                        <option value="debit">Debit</option>
+                        {VALID_TYPES.map(type => (
+                          <option key={type} value={type}>
+                            {type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
