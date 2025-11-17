@@ -318,21 +318,36 @@ export default function EditUserTimestamps() {
         return;
       }
 
-      let isoDateTime;
-      if (includeTime) {
-        isoDateTime = new Date(bulkDateTime).toISOString();
-      } else {
-        const dateOnly = new Date(bulkDateTime);
-        dateOnly.setHours(0, 0, 0, 0);
-        isoDateTime = dateOnly.toISOString();
-      }
-
       let successCount = 0;
       let failCount = 0;
 
       for (const fieldKey of selectedFields) {
         const field = availableFields.find(f => `${f.table}-${f.id}-${f.field}` === fieldKey);
         if (!field) continue;
+
+        let isoDateTime;
+        
+        if (includeTime) {
+          // Use the selected date and time as-is
+          isoDateTime = new Date(bulkDateTime).toISOString();
+        } else {
+          // Preserve the existing time, only update the date
+          const newDate = new Date(bulkDateTime);
+          
+          if (field.current) {
+            // Extract time from existing timestamp
+            const existingDate = new Date(field.current);
+            newDate.setHours(existingDate.getHours());
+            newDate.setMinutes(existingDate.getMinutes());
+            newDate.setSeconds(existingDate.getSeconds());
+            newDate.setMilliseconds(existingDate.getMilliseconds());
+          } else {
+            // If no existing timestamp, set to midnight
+            newDate.setHours(0, 0, 0, 0);
+          }
+          
+          isoDateTime = newDate.toISOString();
+        }
 
         const response = await fetch('/api/admin/update-user-timestamp', {
           method: 'POST',
@@ -693,7 +708,7 @@ export default function EditUserTimestamps() {
                         onChange={(e) => setIncludeTime(e.target.checked)}
                         style={styles.checkbox}
                       />
-                      <span style={styles.toggleText}>Include time (if unchecked, will set to 00:00:00)</span>
+                      <span style={styles.toggleText}>Include time (if unchecked, will preserve existing time for each field)</span>
                     </label>
                   </div>
                 </div>
