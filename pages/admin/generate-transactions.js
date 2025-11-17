@@ -12,7 +12,8 @@ export default function GenerateTransactions() {
   const [selectedUser, setSelectedUser] = useState('');
   const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -74,7 +75,7 @@ export default function GenerateTransactions() {
 
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      setLoadingUsers(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
@@ -95,13 +96,13 @@ export default function GenerateTransactions() {
     } catch (err) {
       setError('Error fetching users: ' + err.message);
     } finally {
-      setLoading(false);
+      setLoadingUsers(false);
     }
   };
 
   const fetchUserAccounts = async (userId) => {
     try {
-      setLoading(true);
+      setLoadingAccounts(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
@@ -123,7 +124,7 @@ export default function GenerateTransactions() {
     } catch (err) {
       setError('Error fetching accounts: ' + err.message);
     } finally {
-      setLoading(false);
+      setLoadingAccounts(false);
     }
   };
 
@@ -237,7 +238,7 @@ export default function GenerateTransactions() {
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
               style={styles.select}
-              disabled={loading}
+              disabled={loadingUsers || generating}
             >
               <option value="">-- Select User --</option>
               {users.map(user => (
@@ -255,7 +256,7 @@ export default function GenerateTransactions() {
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
                 style={styles.select}
-                disabled={loading || !accounts.length}
+                disabled={loadingAccounts || generating || !accounts.length}
               >
                 <option value="">-- Select Account --</option>
                 {accounts.map(account => (
