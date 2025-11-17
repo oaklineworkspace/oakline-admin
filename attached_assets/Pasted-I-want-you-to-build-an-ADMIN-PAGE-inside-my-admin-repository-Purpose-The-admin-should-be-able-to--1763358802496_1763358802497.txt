@@ -1,0 +1,160 @@
+I want you to build an ADMIN PAGE inside my admin repository.
+
+Purpose:
+The admin should be able to generate fake transaction history for any user.
+
+Here is what the admin must be able to do:
+
+1. Select a USER from a dropdown (fetched from Supabase: `auth.users`).
+2. After selecting user, load the user's accounts from my `accounts` table and display another dropdown to select the account.
+3. Next dropdown for TRANSACTION TYPES:
+   - deposit
+   - withdrawal
+   - transfer
+   - zelle_send
+   - zelle_receive
+   - crypto_send
+   - crypto_receive
+   - card_purchase
+   - bank_charge
+   - refund
+   - reversal
+
+4. A multi-select should be allowed (Admin can choose one or more transaction types).
+
+5. Admin selects a YEAR or YEAR RANGE:
+   Example:
+      - 2019–2025
+      - 2020–2022
+      - Only 2023, etc.
+
+6. Admin also enters how many transactions to generate:
+   Example:
+      - 100
+      - 300
+      - 1000
+      - or "random" mode (300–900)
+
+7. When admin clicks “Generate Transactions”, call a Supabase Edge Function.
+
+You will create a Supabase Edge Function named:
+   `generate_fake_transactions`
+
+The function must accept:
+   - user_id
+   - account_id
+   - transaction_types[]
+   - year_start
+   - year_end
+   - count_mode (“manual” or “random”)
+   - manual_count (optional number)
+
+Inside the edge function, insert realistic fake transactions using the SQL logic I provide below.
+
+Use this SQL generator logic inside the Edge Function:
+
+-- START SQL LOGIC --
+
+(Here paste the SQL generator logic exactly as provided below – do not change it)
+
+DO $$
+DECLARE
+    v_user_id uuid := input_user_id;
+    v_account_id uuid := input_account_id;
+    v_start_date timestamp := make_timestamp(year_start, 1, 1, 0, 0, 0);
+    v_end_date timestamp := make_timestamp(year_end, 12, 31, 23, 59, 59);
+
+    v_current_balance numeric := 5000;
+    v_tx_count int := 0;
+    v_target_count int := (
+        CASE 
+            WHEN count_mode = 'random'
+                THEN (300 + floor(random()*600))::int
+            ELSE manual_count
+        END
+    );
+
+    v_amount numeric;
+    v_type text;
+    v_status text;
+    v_description text;
+    v_fee numeric;
+    v_timestamp timestamp;
+BEGIN
+    WHILE v_tx_count < v_target_count LOOP
+
+        v_timestamp := v_start_date 
+            + (random() * EXTRACT(epoch FROM (v_end_date - v_start_date))) * INTERVAL '1 second';
+
+        v_type := transaction_types[floor(random() * array_length(transaction_types, 1)) + 1];
+
+        v_status := (ARRAY[
+            'completed','completed','completed',
+            'pending','failed','cancelled','reversed'
+        ])[floor(random()*7)+1];
+
+        v_amount := round((10 + random() * 900)::numeric, 2);
+
+        IF v_type IN ('withdrawal','transfer','crypto_send','card_purchase') THEN
+            v_fee := round((0.50 + random() * 6)::numeric,2);
+        ELSE
+            v_fee := 0;
+        END IF;
+
+        v_description := 
+            CASE v_type
+                WHEN 'deposit' THEN 'Account Deposit'
+                WHEN 'withdrawal' THEN 'Cash Withdrawal'
+                WHEN 'transfer' THEN 'Bank Transfer'
+                WHEN 'zelle_send' THEN 'Zelle Payment Sent'
+                WHEN 'zelle_receive' THEN 'Zelle Payment Received'
+                WHEN 'crypto_send' THEN 'Crypto Transfer Sent'
+                WHEN 'crypto_receive' THEN 'Crypto Transfer Received'
+                WHEN 'card_purchase' THEN 'Card POS Purchase'
+                WHEN 'bank_charge' THEN 'Bank Service Charge'
+                WHEN 'refund' THEN 'Merchant Refund'
+                WHEN 'reversal' THEN 'Reversal of Previous Transaction'
+            END;
+
+        IF v_type IN ('withdrawal','transfer','crypto_send','card_purchase','bank_charge') THEN
+            v_current_balance := v_current_balance - (v_amount + v_fee);
+        ELSE
+            v_current_balance := v_current_balance + v_amount;
+        END IF;
+
+        INSERT INTO public.transactions (
+            user_id, account_id, type, amount, description,
+            status, created_at, updated_at,
+            balance_before, balance_after
+        )
+        VALUES (
+            v_user_id,
+            v_account_id,
+            v_type,
+            v_amount,
+            v_description,
+            v_status,
+            v_timestamp,
+            v_timestamp,
+            v_current_balance - (
+                CASE 
+                    WHEN v_type IN ('withdrawal','transfer','crypto_send','card_purchase','bank_charge') 
+                    THEN (v_amount + v_fee)
+                    ELSE v_amount
+                END
+            ),
+            v_current_balance
+        );
+
+        v_tx_count := v_tx_count + 1;
+    END LOOP;
+END $$;
+
+-- END SQL LOGIC --
+
+After inserting, the Edge Function should return:
+   - total_transactions_generated
+   - first_transaction_date
+   - last_transaction_date
+
+Finally, update the admin UI to show a success message with these details.
