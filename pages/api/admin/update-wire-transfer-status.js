@@ -55,6 +55,17 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'processing';
+        
+        // Update related transaction status to processing
+        const { error: txApproveError } = await supabaseAdmin
+          .from('transactions')
+          .update({
+            status: 'pending',
+            description: `Wire transfer approved and processing`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('reference', `WIRE-${wireTransferId}`)
+          .eq('account_id', transfer.from_account_id);
         emailSubject = `✅ Wire Transfer Approved - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
@@ -131,6 +142,66 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'rejected';
+        
+        // Find and update the related transaction to 'cancelled' status
+        const { data: relatedTransaction, error: txFindError } = await supabaseAdmin
+          .from('transactions')
+          .select('*')
+          .eq('reference', `WIRE-${wireTransferId}`)
+          .eq('account_id', transfer.from_account_id)
+          .single();
+
+        if (relatedTransaction && relatedTransaction.status === 'pending') {
+          // Update transaction to cancelled and refund the account
+          const { error: txUpdateError } = await supabaseAdmin
+            .from('transactions')
+            .update({
+              status: 'cancelled',
+              description: `Wire transfer rejected: ${reason}`,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', relatedTransaction.id);
+
+          if (txUpdateError) {
+            console.error('Error updating transaction:', txUpdateError);
+          }
+
+          // Refund the account balance
+          const { data: account, error: accountFetchError } = await supabaseAdmin
+            .from('accounts')
+            .select('balance')
+            .eq('id', transfer.from_account_id)
+            .single();
+
+          if (account && !accountFetchError) {
+            const { error: refundError } = await supabaseAdmin
+              .from('accounts')
+              .update({
+                balance: parseFloat(account.balance) + parseFloat(transfer.total_amount),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', transfer.from_account_id);
+
+            if (refundError) {
+              console.error('Error refunding account:', refundError);
+            } else {
+              // Create a refund transaction record
+              await supabaseAdmin
+                .from('transactions')
+                .insert({
+                  user_id: transfer.user_id,
+                  account_id: transfer.from_account_id,
+                  type: 'credit',
+                  amount: transfer.total_amount,
+                  description: `Refund for rejected wire transfer - ${reason}`,
+                  reference: `WIRE-REFUND-${wireTransferId}`,
+                  status: 'completed',
+                  balance_before: account.balance,
+                  balance_after: parseFloat(account.balance) + parseFloat(transfer.total_amount)
+                });
+            }
+          }
+        }
         emailSubject = `❌ Wire Transfer Rejected - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
@@ -204,6 +275,66 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'cancelled';
+        
+        // Find and update the related transaction to 'cancelled' status
+        const { data: relatedCancelTransaction, error: txCancelFindError } = await supabaseAdmin
+          .from('transactions')
+          .select('*')
+          .eq('reference', `WIRE-${wireTransferId}`)
+          .eq('account_id', transfer.from_account_id)
+          .single();
+
+        if (relatedCancelTransaction && relatedCancelTransaction.status === 'pending') {
+          // Update transaction to cancelled and refund the account
+          const { error: txCancelUpdateError } = await supabaseAdmin
+            .from('transactions')
+            .update({
+              status: 'cancelled',
+              description: `Wire transfer cancelled: ${reason}`,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', relatedCancelTransaction.id);
+
+          if (txCancelUpdateError) {
+            console.error('Error updating transaction:', txCancelUpdateError);
+          }
+
+          // Refund the account balance
+          const { data: cancelAccount, error: cancelAccountFetchError } = await supabaseAdmin
+            .from('accounts')
+            .select('balance')
+            .eq('id', transfer.from_account_id)
+            .single();
+
+          if (cancelAccount && !cancelAccountFetchError) {
+            const { error: cancelRefundError } = await supabaseAdmin
+              .from('accounts')
+              .update({
+                balance: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', transfer.from_account_id);
+
+            if (cancelRefundError) {
+              console.error('Error refunding account:', cancelRefundError);
+            } else {
+              // Create a refund transaction record
+              await supabaseAdmin
+                .from('transactions')
+                .insert({
+                  user_id: transfer.user_id,
+                  account_id: transfer.from_account_id,
+                  type: 'credit',
+                  amount: transfer.total_amount,
+                  description: `Refund for cancelled wire transfer - ${reason}`,
+                  reference: `WIRE-REFUND-${wireTransferId}`,
+                  status: 'completed',
+                  balance_before: cancelAccount.balance,
+                  balance_after: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount)
+                });
+            }
+          }
+        }
         emailSubject = `⚠️ Wire Transfer Cancelled - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
@@ -277,6 +408,51 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'reversed';
+        
+        // Update related transaction to reversed
+        const { error: txReverseError } = await supabaseAdmin
+          .from('transactions')
+          .update({
+            status: 'reversed',
+            description: `Wire transfer reversed: ${reason}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('reference', `WIRE-${wireTransferId}`)
+          .eq('account_id', transfer.from_account_id);
+
+        // Refund the account balance
+        const { data: reverseAccount, error: reverseAccountFetchError } = await supabaseAdmin
+          .from('accounts')
+          .select('balance')
+          .eq('id', transfer.from_account_id)
+          .single();
+
+        if (reverseAccount && !reverseAccountFetchError) {
+          const { error: reverseRefundError } = await supabaseAdmin
+            .from('accounts')
+            .update({
+              balance: parseFloat(reverseAccount.balance) + parseFloat(transfer.total_amount),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', transfer.from_account_id);
+
+          if (!reverseRefundError) {
+            // Create a reversal transaction record
+            await supabaseAdmin
+              .from('transactions')
+              .insert({
+                user_id: transfer.user_id,
+                account_id: transfer.from_account_id,
+                type: 'credit',
+                amount: transfer.total_amount,
+                description: `Reversal of wire transfer - ${reason}`,
+                reference: `WIRE-REVERSAL-${wireTransferId}`,
+                status: 'completed',
+                balance_before: reverseAccount.balance,
+                balance_after: parseFloat(reverseAccount.balance) + parseFloat(transfer.total_amount)
+              });
+          }
+        }
         emailSubject = `🔄 Wire Transfer Reversed - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
@@ -485,6 +661,17 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'completed';
+        
+        // Update related transaction status to completed
+        const { error: txCompleteError } = await supabaseAdmin
+          .from('transactions')
+          .update({
+            status: 'completed',
+            description: `Wire transfer completed successfully`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('reference', `WIRE-${wireTransferId}`)
+          .eq('account_id', transfer.from_account_id);
         emailSubject = `✅ Wire Transfer Completed - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
