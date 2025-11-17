@@ -3,6 +3,62 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
+async function ensureTransactionExists(wireTransfer) {
+  const reference = `WIRE-${wireTransfer.id}`;
+  
+  const { data: existingTx, error: txCheckError } = await supabaseAdmin
+    .from('transactions')
+    .select('id')
+    .eq('reference', reference)
+    .eq('account_id', wireTransfer.from_account_id)
+    .single();
+
+  if (txCheckError && txCheckError.code !== 'PGRST116') {
+    console.error('Error checking for existing transaction:', txCheckError);
+    return;
+  }
+
+  if (!existingTx) {
+    console.log(`⚠️  No transaction found for wire transfer ${wireTransfer.id}, creating one...`);
+    
+    const { data: account, error: accountError } = await supabaseAdmin
+      .from('accounts')
+      .select('balance')
+      .eq('id', wireTransfer.from_account_id)
+      .single();
+
+    if (accountError) {
+      console.error('Error fetching account for transaction creation:', accountError);
+      return;
+    }
+
+    const balanceBefore = parseFloat(account.balance);
+    const balanceAfter = balanceBefore;
+
+    const { error: createError } = await supabaseAdmin
+      .from('transactions')
+      .insert({
+        user_id: wireTransfer.user_id,
+        account_id: wireTransfer.from_account_id,
+        type: `Wire transfer to ${wireTransfer.recipient_name}`,
+        amount: wireTransfer.total_amount,
+        description: `Wire transfer to ${wireTransfer.recipient_name} - ${wireTransfer.recipient_bank}`,
+        reference: reference,
+        status: wireTransfer.status === 'completed' ? 'completed' : 'pending',
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        created_at: wireTransfer.created_at,
+        updated_at: new Date().toISOString()
+      });
+
+    if (createError) {
+      console.error('Error creating transaction for wire transfer:', createError);
+    } else {
+      console.log(`✅ Created transaction for wire transfer ${wireTransfer.id} with reference ${reference}`);
+    }
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -30,6 +86,8 @@ export default async function handler(req, res) {
     if (fetchError || !transfer) {
       return res.status(404).json({ error: 'Wire transfer not found' });
     }
+
+    await ensureTransactionExists(transfer);
 
     let updateData = {
       updated_at: new Date().toISOString(),
