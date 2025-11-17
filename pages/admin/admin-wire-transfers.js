@@ -260,6 +260,10 @@ export default function AdminWireTransfers() {
               <h3 style={{margin: '0 0 12px 0', color: '#1e293b', fontSize: '16px'}}>Transfer Summary</h3>
               <div style={{display: 'grid', gap: '8px'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                  <span style={{color: '#64748b'}}>Transfer ID:</span>
+                  <strong style={{color: '#1e293b', fontSize: '12px', fontFamily: 'monospace'}}>{selectedTransfer.id.slice(0, 13)}...</strong>
+                </div>
+                <div style={{display: 'flex', justifyContent: 'space-between'}}>
                   <span style={{color: '#64748b'}}>User:</span>
                   <strong style={{color: '#1e293b'}}>{selectedTransfer.user_name}</strong>
                 </div>
@@ -289,6 +293,18 @@ export default function AdminWireTransfers() {
                     {selectedTransfer.status.replace('_', ' ').toUpperCase()}
                   </strong>
                 </div>
+                {selectedTransfer.urgent_transfer && (
+                  <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                    <span style={{color: '#64748b'}}>Priority:</span>
+                    <strong style={{color: '#dc2626'}}>⚡ URGENT</strong>
+                  </div>
+                )}
+                {selectedTransfer.created_at && (
+                  <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                    <span style={{color: '#64748b'}}>Created:</span>
+                    <strong style={{color: '#1e293b', fontSize: '13px'}}>{new Date(selectedTransfer.created_at).toLocaleString()}</strong>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -578,6 +594,15 @@ export default function AdminWireTransfers() {
                           >
                             ⏸️ Hold
                           </button>
+                          <button 
+                            onClick={() => {
+                              setSelectedTransfer(transfer);
+                              setShowModal('cancel');
+                            }}
+                            style={styles.cancelButton}
+                          >
+                            ⚠️ Cancel
+                          </button>
                         </>
                       )}
                       {transfer.status === 'processing' && (
@@ -608,6 +633,15 @@ export default function AdminWireTransfers() {
                             style={styles.cancelButton}
                           >
                             ⚠️ Cancel
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSelectedTransfer(transfer);
+                              setShowModal('reject');
+                            }}
+                            style={styles.rejectButton}
+                          >
+                            ❌ Reject
                           </button>
                         </>
                       )}
@@ -653,9 +687,43 @@ export default function AdminWireTransfers() {
                           🔄 Reverse
                         </button>
                       )}
-                      {['rejected', 'cancelled', 'reversed', 'failed'].includes(transfer.status) && (
+                      {transfer.status === 'failed' && (
+                        <>
+                          <button 
+                            onClick={() => {
+                              setSelectedTransfer(transfer);
+                              setShowModal('approve');
+                            }}
+                            style={styles.approveButton}
+                          >
+                            🔄 Retry/Approve
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSelectedTransfer(transfer);
+                              setShowModal('cancel');
+                            }}
+                            style={styles.cancelButton}
+                          >
+                            ⚠️ Cancel
+                          </button>
+                        </>
+                      )}
+                      {['rejected', 'cancelled', 'reversed'].includes(transfer.status) && (
                         <div style={{padding: '10px', textAlign: 'center', color: '#64748b', fontSize: '14px'}}>
-                          No actions available
+                          <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer {transfer.status.charAt(0).toUpperCase() + transfer.status.slice(1)}</p>
+                          {transfer.rejection_reason && (
+                            <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.rejection_reason}</p>
+                          )}
+                          {transfer.cancellation_reason && (
+                            <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.cancellation_reason}</p>
+                          )}
+                          {transfer.reversal_reason && (
+                            <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.reversal_reason}</p>
+                          )}
+                          {transfer.admin_notes && (
+                            <p style={{margin: '4px 0', fontSize: '13px', fontStyle: 'italic'}}>Notes: {transfer.admin_notes}</p>
+                          )}
                         </div>
                       )}
                     </div>
