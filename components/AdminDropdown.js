@@ -84,6 +84,7 @@ export default function AdminDropdown() {
         { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
+        { name: 'Generate Transactions', path: '/admin/generate-transactions', icon: '🎲' },
         { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' },
         { name: 'Transaction Reports', path: '/admin/admin-reports', icon: '📊' },
         { name: 'Account Balances', path: '/admin/admin-balance', icon: '💵' },

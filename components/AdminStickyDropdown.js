@@ -69,6 +69,7 @@ export default function AdminStickyDropdown() {
         { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
         { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✍️' },
         { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
+        { name: 'Generate Transactions', href: '/admin/generate-transactions', icon: '🎲' },
         { name: 'Account Balances', href: '/admin/admin-balance', icon: '💵' },
         { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' }
       ]

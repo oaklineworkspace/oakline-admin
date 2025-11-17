@@ -106,6 +106,7 @@ export default function AdminNavDropdown() {
         { name: 'User Transfers', path: '/admin/admin-transfers', icon: '🔄' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
+        { name: 'Generate Transactions', path: '/admin/generate-transactions', icon: '🎲' },
         { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' }
       ]
     },
