@@ -16,6 +16,19 @@ export default function EditUserTimestamps() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Add CSS animation for spinner
+  if (typeof window !== 'undefined' && !document.getElementById('spinner-animation')) {
+    const style = document.createElement('style');
+    style.id = 'spinner-animation';
+    style.innerHTML = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
   
   // Bulk update states
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -371,11 +384,11 @@ export default function EditUserTimestamps() {
       }
 
       if (successCount > 0) {
-        setSuccess(`✅ Successfully updated ${successCount} field(s)${failCount > 0 ? `, ${failCount} failed` : ''}`);
         await fetchUserTimestamps(selectedUser);
         closeBulkModal();
         setSelectedFields([]);
         setBulkDateTime('');
+        setSuccess(`✅ Successfully updated ${successCount} field(s)${failCount > 0 ? `, ${failCount} failed` : ''}!`);
         setTimeout(() => setSuccess(''), 5000);
       } else {
         setError('Failed to update any fields');
@@ -684,9 +697,16 @@ export default function EditUserTimestamps() {
         {showBulkModal && (
           <div style={styles.modalOverlay} onClick={closeBulkModal}>
             <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              {saving && (
+                <div style={styles.loadingOverlay}>
+                  <div style={styles.loadingSpinner}></div>
+                  <p style={styles.loadingText}>Updating {selectedFields.length} field{selectedFields.length !== 1 ? 's' : ''}...</p>
+                </div>
+              )}
+              
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>⚡ Professional Bulk Timestamp Update</h2>
-                <button style={styles.modalCloseButton} onClick={closeBulkModal}>✕</button>
+                <button style={styles.modalCloseButton} onClick={closeBulkModal} disabled={saving}>✕</button>
               </div>
               
               <div style={styles.modalBody}>
@@ -1569,5 +1589,36 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)'
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(255, 255, 255, 0.95)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    borderRadius: '16px',
+    backdropFilter: 'blur(4px)'
+  },
+  loadingSpinner: {
+    width: '60px',
+    height: '60px',
+    border: '6px solid #f1f5f9',
+    borderTop: '6px solid #667eea',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  loadingText: {
+    marginTop: '24px',
+    fontSize: 'clamp(1rem, 2.5vw, 18px)',
+    fontWeight: '600',
+    color: '#667eea',
+    textAlign: 'center',
+    padding: '0 20px'
   }
 };
