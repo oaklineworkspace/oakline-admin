@@ -1,45 +1,7 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
-
-const VALID_ACTIONS = ['approve', 'reject', 'cancel', 'reverse', 'hold', 'release', 'complete'];
-
-const REASON_OPTIONS = {
-  reject: [
-    'Insufficient documentation',
-    'Suspicious activity detected',
-    'Invalid beneficiary information',
-    'Compliance requirements not met',
-    'Duplicate transfer request',
-    'Account restrictions',
-    'Other'
-  ],
-  cancel: [
-    'User request',
-    'Duplicate transaction',
-    'Incorrect details',
-    'Fraudulent activity suspected',
-    'System error',
-    'Other'
-  ],
-  reverse: [
-    'User request',
-    'Sent to wrong account',
-    'Duplicate transaction',
-    'Incorrect amount',
-    'Fraudulent transaction',
-    'Bank error',
-    'Other'
-  ],
-  hold: [
-    'Under investigation',
-    'Additional verification required',
-    'Compliance review',
-    'Suspicious activity',
-    'Large amount verification',
-    'Other'
-  ]
-};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -51,20 +13,14 @@ export default async function handler(req, res) {
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
-  const adminId = authResult.user.id;
-  const adminEmail = authResult.user.email;
+  const adminId = authResult.userId;
+  const { wireTransferId, action, reason, adminNotes, userEmail, userName } = req.body;
+
+  if (!wireTransferId || !action) {
+    return res.status(400).json({ error: 'Wire transfer ID and action are required' });
+  }
 
   try {
-    const { wireTransferId, action, reason, adminNotes, userEmail, userName } = req.body;
-
-    if (!wireTransferId || !action) {
-      return res.status(400).json({ error: 'Wire transfer ID and action are required' });
-    }
-
-    if (!VALID_ACTIONS.includes(action)) {
-      return res.status(400).json({ error: 'Invalid action' });
-    }
-
     const { data: transfer, error: fetchError } = await supabaseAdmin
       .from('wire_transfers')
       .select('*')
@@ -84,6 +40,10 @@ export default async function handler(req, res) {
     let emailSubject = '';
     let emailHtml = '';
 
+    const bankName = process.env.BANK_NAME || 'Oakline Bank';
+    const supportEmail = process.env.EMAIL_SUPPORT || `support@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`;
+    const supportPhone = process.env.BANK_PHONE || '+1 (636) 635-6122';
+
     switch (action) {
       case 'approve':
         if (transfer.status !== 'pending') {
@@ -95,26 +55,68 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'processing';
-        emailSubject = 'Wire Transfer Approved - Processing';
+        emailSubject = `✅ Wire Transfer Approved - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #059669; margin-bottom: 20px;">✅ Wire Transfer Approved</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>Your wire transfer has been approved and is now being processed.</p>
-              <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Status:</strong> Processing</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .info-box { background-color: #d1fae5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+              .amount { font-size: 24px; color: #059669; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">✅ Wire Transfer Approved</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Admin Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>The funds will be transferred to the recipient's account shortly.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                If you have any questions, please contact our support team.
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <div class="info-box">
+                  <strong>Great news!</strong> Your wire transfer has been approved and is now being processed.
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #111827;">Transfer Details:</h3>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount:</span>
+                    <span class="amount">$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Bank:</span>
+                    <strong>${transfer.recipient_bank}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #059669;">Processing</strong>
+                  </div>
+                </div>
+                <p>Your transfer is now being processed and will be completed shortly. You will receive another notification once the transfer is completed.</p>
+                <p>If you have any questions, please contact us:</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+                <p>This is an automated message. Please do not reply to this email.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
 
@@ -129,26 +131,62 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'rejected';
-        emailSubject = 'Wire Transfer Rejected';
+        emailSubject = `❌ Wire Transfer Rejected - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #dc2626; margin-bottom: 20px;">❌ Wire Transfer Rejected</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>We regret to inform you that your wire transfer request has been rejected.</p>
-              <div style="background-color: #fee2e2; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #dc2626;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Reason:</strong> ${reason}</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .warning-box { background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">❌ Wire Transfer Rejected</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Additional Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>If you believe this was an error or would like more information, please contact our support team.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                You may submit a new wire transfer request after addressing the rejection reason.
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <p>We regret to inform you that your wire transfer request has been rejected.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount:</span>
+                    <strong>$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #dc2626;">Rejected</strong>
+                  </div>
+                </div>
+                <div class="warning-box">
+                  <strong>Reason for Rejection:</strong><br>
+                  ${reason}
+                </div>
+                <p>If you believe this was rejected in error or need further clarification, please contact our support team.</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
 
@@ -166,26 +204,62 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'cancelled';
-        emailSubject = 'Wire Transfer Cancelled';
+        emailSubject = `⚠️ Wire Transfer Cancelled - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #f59e0b; margin-bottom: 20px;">⚠️ Wire Transfer Cancelled</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>Your wire transfer has been cancelled.</p>
-              <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Reason:</strong> ${reason}</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .warning-box { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">⚠️ Wire Transfer Cancelled</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Additional Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>The transfer has been cancelled and no funds have been transferred.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                If you did not request this cancellation, please contact our support team immediately.
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <p>Your wire transfer has been cancelled.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount:</span>
+                    <strong>$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #f59e0b;">Cancelled</strong>
+                  </div>
+                </div>
+                <div class="warning-box">
+                  <strong>Reason for Cancellation:</strong><br>
+                  ${reason}
+                </div>
+                <p>If you have any questions about this cancellation, please contact us.</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
 
@@ -203,26 +277,62 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'reversed';
-        emailSubject = 'Wire Transfer Reversed';
+        emailSubject = `🔄 Wire Transfer Reversed - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #3b82f6; margin-bottom: 20px;">🔄 Wire Transfer Reversed</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>Your wire transfer has been reversed and the funds will be returned to your account.</p>
-              <div style="background-color: #dbeafe; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount to be Refunded:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Original Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Reason:</strong> ${reason}</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .info-box { background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">🔄 Wire Transfer Reversed</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Additional Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>The funds will be credited back to your account within 3-5 business days.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                If you have any questions about this reversal, please contact our support team.
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <p>Your wire transfer has been reversed and the funds will be returned to your account.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount Being Returned:</span>
+                    <strong style="color: #3b82f6; font-size: 18px;">$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Original Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #3b82f6;">Reversed</strong>
+                  </div>
+                </div>
+                <div class="info-box">
+                  <strong>Reason for Reversal:</strong><br>
+                  ${reason}
+                </div>
+                <p>The funds should be credited back to your account within 1-3 business days.</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
 
@@ -231,7 +341,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Hold reason is required' });
         }
         if (!['pending', 'processing'].includes(transfer.status)) {
-          return res.status(400).json({ error: 'Only pending or processing transfers can be put on hold' });
+          return res.status(400).json({ error: 'Can only place pending or processing transfers on hold' });
         }
         updateData.status = 'on_hold';
         updateData.hold_reason = reason;
@@ -240,26 +350,62 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'on_hold';
-        emailSubject = 'Wire Transfer Placed On Hold';
+        emailSubject = `⏸️ Wire Transfer On Hold - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #f97316; margin-bottom: 20px;">⏸️ Wire Transfer On Hold</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>Your wire transfer has been temporarily placed on hold for review.</p>
-              <div style="background-color: #ffedd5; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f97316;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Reason:</strong> ${reason}</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .warning-box { background-color: #ffedd5; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">⏸️ Wire Transfer On Hold</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Additional Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>We are currently reviewing your transfer. You will be notified once the review is complete and the transfer is released or requires further action.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                If you have any questions or need to provide additional information, please contact our support team.
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <p>Your wire transfer has been temporarily placed on hold for review.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount:</span>
+                    <strong>$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #f97316;">On Hold</strong>
+                  </div>
+                </div>
+                <div class="warning-box">
+                  <strong>Reason for Hold:</strong><br>
+                  ${reason}
+                </div>
+                <p>We will review your transfer and contact you shortly. No action is required from your end at this time.</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
 
@@ -273,26 +419,60 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'processing';
-        emailSubject = 'Wire Transfer Released - Processing';
+        emailSubject = `▶️ Wire Transfer Released - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #059669; margin-bottom: 20px;">▶️ Wire Transfer Released</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>Good news! Your wire transfer has been released from hold and is now being processed.</p>
-              <div style="background-color: #d1fae5; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #059669;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Status:</strong> Processing</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .info-box { background-color: #d1fae5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">▶️ Wire Transfer Released</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Admin Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>The funds will be transferred to the recipient's account shortly.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                Thank you for your patience during the review process.
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <div class="info-box">
+                  <strong>Good news!</strong> Your wire transfer has been released from hold and is now being processed.
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount:</span>
+                    <strong style="color: #059669; font-size: 18px;">$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #059669;">Processing</strong>
+                  </div>
+                </div>
+                <p>Your transfer is now being processed and will be completed shortly.</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
 
@@ -305,29 +485,72 @@ export default async function handler(req, res) {
         if (adminNotes) updateData.admin_notes = adminNotes;
         
         newStatus = 'completed';
-        emailSubject = 'Wire Transfer Completed Successfully';
+        emailSubject = `✅ Wire Transfer Completed - ${bankName}`;
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #059669; margin-bottom: 20px;">✅ Wire Transfer Completed</h2>
-              <p>Dear ${userName || 'Customer'},</p>
-              <p>Your wire transfer has been completed successfully!</p>
-              <div style="background-color: #d1fae5; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #059669;">
-                <p style="margin: 5px 0;"><strong>Transfer ID:</strong> ${wireTransferId}</p>
-                <p style="margin: 5px 0;"><strong>Amount Transferred:</strong> $${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p style="margin: 5px 0;"><strong>Recipient:</strong> ${transfer.recipient_name}</p>
-                <p style="margin: 5px 0;"><strong>Recipient Bank:</strong> ${transfer.recipient_bank}</p>
-                <p style="margin: 5px 0;"><strong>Completed:</strong> ${new Date().toLocaleString()}</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+              .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; background-color: #f8f9fa; }
+              .success-box { background-color: #d1fae5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0; border-radius: 4px; }
+              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+              .amount { font-size: 24px; color: #059669; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">✅ Wire Transfer Completed</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
               </div>
-              ${adminNotes ? `<p><strong>Admin Notes:</strong> ${adminNotes}</p>` : ''}
-              <p>The funds have been successfully transferred to the recipient's account. Please allow 1-3 business days for the recipient to receive the funds depending on their bank's processing time.</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                Thank you for using our wire transfer service!
-              </p>
+              <div class="content">
+                <p>Dear ${userName || 'Customer'},</p>
+                <div class="success-box">
+                  <strong>Success!</strong> Your wire transfer has been completed successfully.
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #111827;">Transfer Details:</h3>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Transfer ID:</span>
+                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Amount Transferred:</span>
+                    <span class="amount">$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Recipient:</span>
+                    <strong>${transfer.recipient_name}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #6b7280;">Bank:</span>
+                    <strong>${transfer.recipient_bank}</strong>
+                  </div>
+                  <div class="detail-row" style="border-bottom: none;">
+                    <span style="color: #6b7280;">Status:</span>
+                    <strong style="color: #059669;">Completed</strong>
+                  </div>
+                </div>
+                <p>The funds have been successfully transferred to the recipient's account.</p>
+                <p>Thank you for banking with us!</p>
+                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
+                <strong>📧 Email:</strong> ${supportEmail}</p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+              </div>
             </div>
-          </div>
+          </body>
+          </html>
         `;
         break;
+
+      default:
+        return res.status(400).json({ error: 'Invalid action' });
     }
 
     const { data: updatedTransfer, error: updateError } = await supabaseAdmin
@@ -342,6 +565,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to update wire transfer', details: updateError.message });
     }
 
+    // Send email notification
     if (userEmail && emailSubject && emailHtml) {
       try {
         await sendEmail({
@@ -354,6 +578,7 @@ export default async function handler(req, res) {
         console.log(`✅ Email notification sent successfully to ${userEmail} for ${action} action`);
       } catch (emailError) {
         console.error('❌ Failed to send email notification:', emailError);
+        // Don't fail the entire operation if email fails
       }
     }
 
@@ -361,12 +586,11 @@ export default async function handler(req, res) {
       success: true,
       message: `Wire transfer ${action}ed successfully`,
       transfer: updatedTransfer,
-      newStatus
+      newStatus,
+      emailSent: !!(userEmail && emailSubject && emailHtml)
     });
   } catch (error) {
     console.error('Error in update-wire-transfer-status:', error);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }
-
-export { REASON_OPTIONS };
