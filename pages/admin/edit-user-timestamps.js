@@ -20,17 +20,35 @@ export default function EditUserTimestamps() {
   // Bulk update states
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkDateTime, setBulkDateTime] = useState('');
+  const [includeTime, setIncludeTime] = useState(true);
   const [selectedFields, setSelectedFields] = useState([]);
   const [availableFields, setAvailableFields] = useState([]);
 
-  // Filter states
-  const [filterType, setFilterType] = useState('all'); // 'all', 'date', 'month', 'time', 'range'
-  const [filterDate, setFilterDate] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
-  const [filterTime, setFilterTime] = useState('');
+  // Modal-only filter states (do not affect main page)
+  const [filterType, setFilterType] = useState('all');
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [selectedDates, setSelectedDates] = useState([]);
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [filteredFields, setFilteredFields] = useState([]);
+
+  const months = [
+    { value: 0, label: 'January' },
+    { value: 1, label: 'February' },
+    { value: 2, label: 'March' },
+    { value: 3, label: 'April' },
+    { value: 4, label: 'May' },
+    { value: 5, label: 'June' },
+    { value: 6, label: 'July' },
+    { value: 7, label: 'August' },
+    { value: 8, label: 'September' },
+    { value: 9, label: 'October' },
+    { value: 10, label: 'November' },
+    { value: 11, label: 'December' }
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   useEffect(() => {
     fetchUsers();
@@ -41,10 +59,6 @@ export default function EditUserTimestamps() {
       buildAvailableFields();
     }
   }, [userData]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [availableFields, filterType, filterDate, filterMonth, filterTime, filterStartDate, filterEndDate]);
 
   const fetchUsers = async () => {
     try {
@@ -172,31 +186,34 @@ export default function EditUserTimestamps() {
     setAvailableFields(fields);
   };
 
-  const applyFilters = () => {
+  const getFilteredFields = () => {
     if (filterType === 'all') {
-      setFilteredFields(availableFields);
-      return;
+      return availableFields;
     }
 
-    let filtered = availableFields.filter(field => {
+    return availableFields.filter(field => {
       if (!field.current) return false;
       const fieldDate = new Date(field.current);
 
-      if (filterType === 'date' && filterDate) {
-        const targetDate = new Date(filterDate);
-        return fieldDate.toDateString() === targetDate.toDateString();
+      if (filterType === 'months' && selectedMonths.length > 0) {
+        return selectedMonths.includes(fieldDate.getMonth());
       }
 
-      if (filterType === 'month' && filterMonth) {
-        const [year, month] = filterMonth.split('-');
-        return fieldDate.getFullYear() === parseInt(year) && 
-               fieldDate.getMonth() === parseInt(month) - 1;
+      if (filterType === 'years' && selectedYears.length > 0) {
+        return selectedYears.includes(fieldDate.getFullYear());
       }
 
-      if (filterType === 'time' && filterTime) {
-        const [hours, minutes] = filterTime.split(':');
-        return fieldDate.getHours() === parseInt(hours) && 
-               fieldDate.getMinutes() === parseInt(minutes);
+      if (filterType === 'dates' && selectedDates.length > 0) {
+        return selectedDates.some(date => {
+          const targetDate = new Date(date);
+          return fieldDate.toDateString() === targetDate.toDateString();
+        });
+      }
+
+      if (filterType === 'monthsYears') {
+        const matchesMonth = selectedMonths.length === 0 || selectedMonths.includes(fieldDate.getMonth());
+        const matchesYear = selectedYears.length === 0 || selectedYears.includes(fieldDate.getFullYear());
+        return matchesMonth && matchesYear;
       }
 
       if (filterType === 'range' && filterStartDate && filterEndDate) {
@@ -208,8 +225,32 @@ export default function EditUserTimestamps() {
 
       return true;
     });
+  };
 
-    setFilteredFields(filtered);
+  const toggleMonthSelection = (month) => {
+    setSelectedMonths(prev =>
+      prev.includes(month)
+        ? prev.filter(m => m !== month)
+        : [...prev, month]
+    );
+  };
+
+  const toggleYearSelection = (year) => {
+    setSelectedYears(prev =>
+      prev.includes(year)
+        ? prev.filter(y => y !== year)
+        : [...prev, year]
+    );
+  };
+
+  const addDateToFilter = (date) => {
+    if (date && !selectedDates.includes(date)) {
+      setSelectedDates([...selectedDates, date]);
+    }
+  };
+
+  const removeDateFromFilter = (date) => {
+    setSelectedDates(selectedDates.filter(d => d !== date));
   };
 
   const handleUpdateTimestamp = async (table, recordId, field, value) => {
@@ -261,7 +302,7 @@ export default function EditUserTimestamps() {
     }
 
     if (!bulkDateTime) {
-      setError('Please select a date and time');
+      setError('Please select a date' + (includeTime ? ' and time' : ''));
       return;
     }
 
@@ -277,7 +318,15 @@ export default function EditUserTimestamps() {
         return;
       }
 
-      const isoDateTime = new Date(bulkDateTime).toISOString();
+      let isoDateTime;
+      if (includeTime) {
+        isoDateTime = new Date(bulkDateTime).toISOString();
+      } else {
+        const dateOnly = new Date(bulkDateTime);
+        dateOnly.setHours(0, 0, 0, 0);
+        isoDateTime = dateOnly.toISOString();
+      }
+
       let successCount = 0;
       let failCount = 0;
 
@@ -309,7 +358,7 @@ export default function EditUserTimestamps() {
       if (successCount > 0) {
         setSuccess(`✅ Successfully updated ${successCount} field(s)${failCount > 0 ? `, ${failCount} failed` : ''}`);
         await fetchUserTimestamps(selectedUser);
-        setShowBulkModal(false);
+        closeBulkModal();
         setSelectedFields([]);
         setBulkDateTime('');
         setTimeout(() => setSuccess(''), 5000);
@@ -332,12 +381,26 @@ export default function EditUserTimestamps() {
   };
 
   const selectAllFields = () => {
-    const fieldsToSelect = filterType === 'all' ? availableFields : filteredFields;
+    const fieldsToSelect = getFilteredFields();
     setSelectedFields(fieldsToSelect.map(f => `${f.table}-${f.id}-${f.field}`));
   };
 
   const clearAllFields = () => {
     setSelectedFields([]);
+  };
+
+  const resetFilters = () => {
+    setFilterType('all');
+    setSelectedMonths([]);
+    setSelectedYears([]);
+    setSelectedDates([]);
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
+
+  const closeBulkModal = () => {
+    setShowBulkModal(false);
+    resetFilters();
   };
 
   const formatDateForInput = (dateString) => {
@@ -390,15 +453,13 @@ export default function EditUserTimestamps() {
     return email.includes(query) || firstName.includes(query) || lastName.includes(query);
   });
 
-  const displayFields = filterType === 'all' ? availableFields : filteredFields;
-
   return (
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
             <h1 style={styles.title}>⏰ Edit User Timestamps</h1>
-            <p style={styles.subtitle}>Manually update dates and timestamps across all user tables</p>
+            <p style={styles.subtitle}>Professionally manage dates and timestamps across all user records</p>
           </div>
           <div style={styles.headerActions}>
             <button onClick={fetchUsers} style={styles.refreshButton} disabled={loading}>
@@ -465,7 +526,6 @@ export default function EditUserTimestamps() {
                   </button>
                 </div>
 
-                {/* Applications */}
                 {userData.application && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>📝 Application</h3>
@@ -475,7 +535,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Profile */}
                 {userData.profile && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>👤 Profile</h3>
@@ -485,7 +544,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Accounts */}
                 {userData.accounts && userData.accounts.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>💳 Accounts ({userData.accounts.length})</h3>
@@ -503,7 +561,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Cards */}
                 {userData.cards && userData.cards.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>💳 Cards ({userData.cards.length})</h3>
@@ -520,7 +577,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Loans */}
                 {userData.loans && userData.loans.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>💰 Loans ({userData.loans.length})</h3>
@@ -539,7 +595,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Transactions */}
                 {userData.transactions && userData.transactions.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>🔄 Recent Transactions ({userData.transactions.length})</h3>
@@ -555,7 +610,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Login History */}
                 {userData.login_history && userData.login_history.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>🔐 Recent Login History ({userData.login_history.length})</h3>
@@ -570,7 +624,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Check Deposits */}
                 {userData.check_deposits && userData.check_deposits.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>📝 Check Deposits ({userData.check_deposits.length})</h3>
@@ -587,7 +640,6 @@ export default function EditUserTimestamps() {
                   </div>
                 )}
 
-                {/* Crypto Deposits */}
                 {userData.crypto_deposits && userData.crypto_deposits.length > 0 && (
                   <div style={styles.tableSection}>
                     <h3 style={styles.tableSectionTitle}>₿ Crypto Deposits ({userData.crypto_deposits.length})</h3>
@@ -614,69 +666,180 @@ export default function EditUserTimestamps() {
           </div>
         </div>
 
-        {/* Bulk Update Modal */}
         {showBulkModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowBulkModal(false)}>
+          <div style={styles.modalOverlay} onClick={closeBulkModal}>
             <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>⚡ Bulk Update Timestamps</h2>
-                <button style={styles.modalCloseButton} onClick={() => setShowBulkModal(false)}>✕</button>
+                <h2 style={styles.modalTitle}>⚡ Professional Bulk Timestamp Update</h2>
+                <button style={styles.modalCloseButton} onClick={closeBulkModal}>✕</button>
               </div>
               
               <div style={styles.modalBody}>
                 <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Select Date & Time to Apply</label>
+                  <label style={styles.formLabel}>
+                    Select {includeTime ? 'Date & Time' : 'Date Only'} to Apply
+                  </label>
                   <input
-                    type="datetime-local"
+                    type={includeTime ? "datetime-local" : "date"}
                     value={bulkDateTime}
                     onChange={(e) => setBulkDateTime(e.target.value)}
                     style={styles.bulkDateInput}
                   />
+                  <div style={styles.timeToggleContainer}>
+                    <label style={styles.toggleLabel}>
+                      <input
+                        type="checkbox"
+                        checked={includeTime}
+                        onChange={(e) => setIncludeTime(e.target.checked)}
+                        style={styles.checkbox}
+                      />
+                      <span style={styles.toggleText}>Include time (if unchecked, will set to 00:00:00)</span>
+                    </label>
+                  </div>
                 </div>
 
-                {/* Filter Section */}
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Filter Timestamps</label>
                   <select 
                     value={filterType} 
-                    onChange={(e) => setFilterType(e.target.value)}
+                    onChange={(e) => {
+                      setFilterType(e.target.value);
+                      setSelectedMonths([]);
+                      setSelectedYears([]);
+                      setSelectedDates([]);
+                    }}
                     style={styles.filterSelect}
                   >
                     <option value="all">All Timestamps</option>
-                    <option value="date">By Date</option>
-                    <option value="month">By Month</option>
-                    <option value="time">By Time</option>
+                    <option value="months">By Months (Multi-Select)</option>
+                    <option value="years">By Years (Multi-Select)</option>
+                    <option value="monthsYears">By Months & Years (Multi-Select)</option>
+                    <option value="dates">By Specific Dates (Multi-Select)</option>
                     <option value="range">By Date Range</option>
                   </select>
 
-                  {filterType === 'date' && (
-                    <input
-                      type="date"
-                      value={filterDate}
-                      onChange={(e) => setFilterDate(e.target.value)}
-                      style={styles.filterInput}
-                      placeholder="Select date"
-                    />
+                  {filterType === 'months' && (
+                    <div style={styles.multiSelectContainer}>
+                      <div style={styles.multiSelectLabel}>Select Months:</div>
+                      <div style={styles.chipContainer}>
+                        {months.map(month => (
+                          <button
+                            key={month.value}
+                            onClick={() => toggleMonthSelection(month.value)}
+                            style={{
+                              ...styles.chip,
+                              ...(selectedMonths.includes(month.value) ? styles.chipSelected : {})
+                            }}
+                          >
+                            {month.label}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedMonths.length > 0 && (
+                        <div style={styles.selectedInfo}>
+                          {selectedMonths.length} month{selectedMonths.length !== 1 ? 's' : ''} selected
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                  {filterType === 'month' && (
-                    <input
-                      type="month"
-                      value={filterMonth}
-                      onChange={(e) => setFilterMonth(e.target.value)}
-                      style={styles.filterInput}
-                      placeholder="Select month"
-                    />
+                  {filterType === 'years' && (
+                    <div style={styles.multiSelectContainer}>
+                      <div style={styles.multiSelectLabel}>Select Years:</div>
+                      <div style={styles.chipContainer}>
+                        {years.map(year => (
+                          <button
+                            key={year}
+                            onClick={() => toggleYearSelection(year)}
+                            style={{
+                              ...styles.chip,
+                              ...(selectedYears.includes(year) ? styles.chipSelected : {})
+                            }}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedYears.length > 0 && (
+                        <div style={styles.selectedInfo}>
+                          {selectedYears.length} year{selectedYears.length !== 1 ? 's' : ''} selected
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                  {filterType === 'time' && (
-                    <input
-                      type="time"
-                      value={filterTime}
-                      onChange={(e) => setFilterTime(e.target.value)}
-                      style={styles.filterInput}
-                      placeholder="Select time"
-                    />
+                  {filterType === 'monthsYears' && (
+                    <div style={styles.multiSelectContainer}>
+                      <div style={styles.multiSelectLabel}>Select Months:</div>
+                      <div style={styles.chipContainer}>
+                        {months.map(month => (
+                          <button
+                            key={month.value}
+                            onClick={() => toggleMonthSelection(month.value)}
+                            style={{
+                              ...styles.chip,
+                              ...(selectedMonths.includes(month.value) ? styles.chipSelected : {})
+                            }}
+                          >
+                            {month.label}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      <div style={styles.multiSelectLabel}>Select Years:</div>
+                      <div style={styles.chipContainer}>
+                        {years.map(year => (
+                          <button
+                            key={year}
+                            onClick={() => toggleYearSelection(year)}
+                            style={{
+                              ...styles.chip,
+                              ...(selectedYears.includes(year) ? styles.chipSelected : {})
+                            }}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {(selectedMonths.length > 0 || selectedYears.length > 0) && (
+                        <div style={styles.selectedInfo}>
+                          {selectedMonths.length} month{selectedMonths.length !== 1 ? 's' : ''}, {selectedYears.length} year{selectedYears.length !== 1 ? 's' : ''} selected
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {filterType === 'dates' && (
+                    <div style={styles.multiSelectContainer}>
+                      <div style={styles.multiSelectLabel}>Add Specific Dates:</div>
+                      <div style={styles.datePickerRow}>
+                        <input
+                          type="date"
+                          onChange={(e) => {
+                            addDateToFilter(e.target.value);
+                            e.target.value = '';
+                          }}
+                          style={styles.filterInput}
+                          placeholder="Select a date to add"
+                        />
+                      </div>
+                      {selectedDates.length > 0 && (
+                        <div style={styles.selectedDatesContainer}>
+                          {selectedDates.map(date => (
+                            <div key={date} style={styles.selectedDateChip}>
+                              {new Date(date).toLocaleDateString()}
+                              <button
+                                onClick={() => removeDateFromFilter(date)}
+                                style={styles.removeButton}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {filterType === 'range' && (
@@ -704,23 +867,27 @@ export default function EditUserTimestamps() {
                   <div style={styles.fieldSelectionHeader}>
                     <label style={styles.formLabel}>
                       Select Fields to Update 
-                      {filterType !== 'all' && ` (${displayFields.length} matching)`}
+                      {filterType !== 'all' && ` (${getFilteredFields().length} matching)`}
                     </label>
                     <div style={styles.selectionButtons}>
                       <button onClick={selectAllFields} style={styles.selectButton}>
-                        Select {filterType !== 'all' ? 'Filtered' : 'All'}
+                        ✓ Select {filterType !== 'all' ? 'Filtered' : 'All'}
                       </button>
-                      <button onClick={clearAllFields} style={styles.selectButton}>Clear All</button>
+                      <button onClick={clearAllFields} style={styles.selectButton}>
+                        ✕ Clear All
+                      </button>
                     </div>
                   </div>
                   
                   <div style={styles.fieldsList}>
-                    {displayFields.length === 0 ? (
+                    {getFilteredFields().length === 0 ? (
                       <div style={styles.noFieldsMessage}>
-                        No timestamps match your filter criteria
+                        {filterType === 'all' 
+                          ? 'No timestamps available for this user'
+                          : 'No timestamps match your filter criteria. Try adjusting your filters.'}
                       </div>
                     ) : (
-                      displayFields.map(field => {
+                      getFilteredFields().map(field => {
                         const fieldKey = `${field.table}-${field.id}-${field.field}`;
                         const isSelected = selectedFields.includes(fieldKey);
                         
@@ -749,14 +916,16 @@ export default function EditUserTimestamps() {
                   </div>
                 </div>
 
-                <div style={styles.selectedCount}>
-                  {selectedFields.length} field(s) selected
-                </div>
+                {selectedFields.length > 0 && (
+                  <div style={styles.selectedCount}>
+                    ✅ {selectedFields.length} field{selectedFields.length !== 1 ? 's' : ''} selected for update
+                  </div>
+                )}
               </div>
 
               <div style={styles.modalFooter}>
                 <button 
-                  onClick={() => setShowBulkModal(false)} 
+                  onClick={closeBulkModal} 
                   style={styles.cancelButton}
                   disabled={saving}
                 >
@@ -767,7 +936,7 @@ export default function EditUserTimestamps() {
                   style={styles.confirmButton}
                   disabled={saving || selectedFields.length === 0 || !bulkDateTime}
                 >
-                  {saving ? '⏳ Updating...' : `✅ Update ${selectedFields.length} Field(s)`}
+                  {saving ? '⏳ Updating...' : `✅ Update ${selectedFields.length} Field${selectedFields.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
             </div>
@@ -1058,7 +1227,7 @@ const styles = {
     background: 'white',
     borderRadius: '16px',
     width: '100%',
-    maxWidth: '650px',
+    maxWidth: '750px',
     maxHeight: '90vh',
     display: 'flex',
     flexDirection: 'column',
@@ -1072,25 +1241,30 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    flexShrink: 0
+    flexShrink: 0,
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white'
   },
   modalTitle: {
     margin: 0,
     fontSize: 'clamp(1.1rem, 3vw, 18px)',
     fontWeight: '700',
-    color: '#1A3E6F'
+    color: 'white'
   },
   modalCloseButton: {
-    background: 'none',
+    background: 'rgba(255, 255, 255, 0.2)',
     border: 'none',
     fontSize: 'clamp(1.3rem, 3vw, 20px)',
     cursor: 'pointer',
-    color: '#64748b',
+    color: 'white',
     padding: '0',
-    width: '28px',
-    height: '28px',
+    width: '32px',
+    height: '32px',
     borderRadius: '50%',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   modalBody: {
     padding: 'clamp(1rem, 3vw, 20px)',
@@ -1100,32 +1274,103 @@ const styles = {
     WebkitOverflowScrolling: 'touch'
   },
   formGroup: {
-    marginBottom: '20px'
+    marginBottom: '24px'
   },
   formLabel: {
     display: 'block',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
     fontWeight: '600',
-    color: '#334155',
-    marginBottom: '8px'
+    color: '#1e293b',
+    marginBottom: '10px'
   },
   bulkDateInput: {
     width: '100%',
-    padding: 'clamp(0.6rem, 2vw, 10px)',
+    padding: 'clamp(0.7rem, 2vw, 12px)',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s'
+  },
+  timeToggleContainer: {
+    marginTop: '12px',
+    padding: '12px',
+    background: '#f8fafc',
+    borderRadius: '8px'
+  },
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    cursor: 'pointer',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    boxSizing: 'border-box'
+    color: '#475569'
+  },
+  checkbox: {
+    marginRight: '8px',
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer'
+  },
+  toggleText: {
+    fontWeight: '500'
   },
   filterSelect: {
     width: '100%',
-    padding: 'clamp(0.6rem, 2vw, 10px)',
+    padding: 'clamp(0.7rem, 2vw, 12px)',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
     boxSizing: 'border-box',
-    marginBottom: '10px',
-    background: 'white'
+    background: 'white',
+    cursor: 'pointer'
+  },
+  multiSelectContainer: {
+    marginTop: '16px',
+    padding: '16px',
+    background: '#f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0'
+  },
+  multiSelectLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: '10px'
+  },
+  chipContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginBottom: '12px'
+  },
+  chip: {
+    padding: '8px 16px',
+    background: 'white',
+    border: '2px solid #cbd5e1',
+    borderRadius: '20px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    color: '#475569'
+  },
+  chipSelected: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    borderColor: '#667eea',
+    color: 'white',
+    fontWeight: '600'
+  },
+  selectedInfo: {
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    color: '#667eea',
+    fontWeight: '600',
+    padding: '8px',
+    background: 'white',
+    borderRadius: '6px',
+    textAlign: 'center'
+  },
+  datePickerRow: {
+    marginTop: '8px'
   },
   filterInput: {
     width: '100%',
@@ -1133,14 +1378,44 @@ const styles = {
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    boxSizing: 'border-box',
-    marginTop: '8px'
+    boxSizing: 'border-box'
+  },
+  selectedDatesContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '12px'
+  },
+  selectedDateChip: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    borderRadius: '20px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '500'
+  },
+  removeButton: {
+    background: 'rgba(255, 255, 255, 0.3)',
+    border: 'none',
+    color: 'white',
+    borderRadius: '50%',
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '12px',
+    fontWeight: 'bold'
   },
   dateRangeContainer: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    marginTop: '8px',
+    gap: '12px',
+    marginTop: '12px',
     flexWrap: 'wrap'
   },
   dateRangeTo: {
@@ -1155,7 +1430,7 @@ const styles = {
     alignItems: 'center',
     marginBottom: '12px',
     flexWrap: 'wrap',
-    gap: '8px'
+    gap: '12px'
   },
   selectionButtons: {
     display: 'flex',
@@ -1163,18 +1438,18 @@ const styles = {
     flexWrap: 'wrap'
   },
   selectButton: {
-    padding: 'clamp(0.4rem, 1.5vw, 6px) clamp(0.75rem, 2vw, 12px)',
+    padding: 'clamp(0.5rem, 1.5vw, 8px) clamp(0.9rem, 2vw, 14px)',
     background: '#f1f5f9',
-    border: '1px solid #cbd5e1',
-    borderRadius: '6px',
-    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    border: '2px solid #cbd5e1',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 1.8vw, 13px)',
     cursor: 'pointer',
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#475569',
     transition: 'all 0.2s'
   },
   fieldsList: {
-    maxHeight: '250px',
+    maxHeight: '280px',
     overflowY: 'auto',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
@@ -1184,93 +1459,97 @@ const styles = {
     scrollbarColor: '#cbd5e1 #f1f5f9'
   },
   noFieldsMessage: {
-    padding: '30px 20px',
+    padding: '40px 20px',
     textAlign: 'center',
     color: '#64748b',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    fontStyle: 'italic'
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
+    fontStyle: 'italic',
+    lineHeight: '1.6'
   },
   fieldOption: {
     display: 'flex',
     alignItems: 'flex-start',
-    padding: 'clamp(0.6rem, 2vw, 10px)',
-    borderRadius: '6px',
+    padding: 'clamp(0.7rem, 2vw, 12px)',
+    borderRadius: '8px',
     cursor: 'pointer',
     transition: 'all 0.2s',
     border: '2px solid transparent',
-    marginBottom: '6px',
+    marginBottom: '8px',
     background: '#f8fafc'
   },
   fieldOptionSelected: {
-    background: '#ede9fe',
-    border: '2px solid #7c3aed'
+    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+    border: '2px solid #667eea'
   },
   fieldCheckbox: {
-    width: '20px',
-    height: '20px',
+    width: '24px',
+    height: '24px',
     border: '2px solid #cbd5e1',
-    borderRadius: '4px',
+    borderRadius: '6px',
     marginRight: '12px',
     flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: 'bold',
-    color: '#7c3aed'
+    color: '#667eea',
+    background: 'white'
   },
   fieldInfo: {
     flex: 1,
     minWidth: 0
   },
   fieldOptionLabel: {
-    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    color: '#334155',
-    wordBreak: 'break-word'
+    color: '#1e293b',
+    wordBreak: 'break-word',
+    marginBottom: '4px'
   },
   fieldCurrent: {
-    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    fontSize: 'clamp(0.75rem, 1.6vw, 12px)',
     color: '#64748b',
-    marginTop: '4px',
     wordBreak: 'break-word'
   },
   selectedCount: {
     textAlign: 'center',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    fontWeight: '600',
-    color: '#7c3aed',
-    padding: '12px',
-    background: '#f5f3ff',
-    borderRadius: '8px'
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
+    fontWeight: '700',
+    color: '#667eea',
+    padding: '16px',
+    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+    borderRadius: '8px',
+    border: '2px solid #667eea'
   },
   modalFooter: {
     padding: 'clamp(1rem, 3vw, 20px)',
     borderTop: '2px solid #e2e8f0',
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
     justifyContent: 'flex-end',
     flexShrink: 0,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    background: '#f8fafc'
   },
   cancelButton: {
-    padding: 'clamp(0.6rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    padding: 'clamp(0.7rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
     background: '#f1f5f9',
     color: '#475569',
-    border: '1px solid #cbd5e1',
+    border: '2px solid #cbd5e1',
     borderRadius: '8px',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease'
   },
   confirmButton: {
-    padding: 'clamp(0.6rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    padding: 'clamp(0.7rem, 2vw, 12px) clamp(1.2rem, 3vw, 24px)',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
