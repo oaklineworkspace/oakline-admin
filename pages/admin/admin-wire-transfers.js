@@ -709,15 +709,66 @@ export default function AdminWireTransfers() {
                           </button>
                         </>
                       )}
-                      {['rejected', 'cancelled', 'reversed'].includes(transfer.status) && (
+                      {transfer.status === 'rejected' && (
+                        <div>
+                          <div style={{padding: '10px', textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '12px'}}>
+                            <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer Rejected</p>
+                            {transfer.rejection_reason && (
+                              <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.rejection_reason}</p>
+                            )}
+                            {transfer.admin_notes && (
+                              <p style={{margin: '4px 0', fontSize: '13px', fontStyle: 'italic'}}>Notes: {transfer.admin_notes}</p>
+                            )}
+                          </div>
+                          <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                            <button 
+                              onClick={() => {
+                                setSelectedTransfer(transfer);
+                                setShowModal('approve');
+                              }}
+                              style={styles.approveButton}
+                            >
+                              ✅ Approve
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setSelectedTransfer(transfer);
+                                setShowModal('cancel');
+                              }}
+                              style={styles.cancelButton}
+                            >
+                              ⚠️ Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {transfer.status === 'cancelled' && (
+                        <div>
+                          <div style={{padding: '10px', textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '12px'}}>
+                            <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer Cancelled</p>
+                            {transfer.cancellation_reason && (
+                              <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.cancellation_reason}</p>
+                            )}
+                            {transfer.admin_notes && (
+                              <p style={{margin: '4px 0', fontSize: '13px', fontStyle: 'italic'}}>Notes: {transfer.admin_notes}</p>
+                            )}
+                          </div>
+                          <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                            <button 
+                              onClick={() => {
+                                setSelectedTransfer(transfer);
+                                setShowModal('approve');
+                              }}
+                              style={styles.approveButton}
+                            >
+                              ✅ Approve
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {transfer.status === 'reversed' && (
                         <div style={{padding: '10px', textAlign: 'center', color: '#64748b', fontSize: '14px'}}>
-                          <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer {transfer.status.charAt(0).toUpperCase() + transfer.status.slice(1)}</p>
-                          {transfer.rejection_reason && (
-                            <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.rejection_reason}</p>
-                          )}
-                          {transfer.cancellation_reason && (
-                            <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.cancellation_reason}</p>
-                          )}
+                          <p style={{margin: '0 0 8px 0', fontWeight: '600'}}>Transfer Reversed</p>
                           {transfer.reversal_reason && (
                             <p style={{margin: '4px 0', fontSize: '13px'}}>Reason: {transfer.reversal_reason}</p>
                           )}

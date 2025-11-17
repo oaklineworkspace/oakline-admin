@@ -202,58 +202,130 @@ export default async function handler(req, res) {
             }
           }
         }
-        emailSubject = `❌ Wire Transfer Rejected - ${bankName}`;
+        emailSubject = `Important: Wire Transfer Request Update - ${bankName}`;
         emailHtml = `
           <!DOCTYPE html>
           <html>
           <head>
             <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f9fafb; }
               .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
-              .header { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 30px; text-align: center; }
-              .content { padding: 30px; background-color: #f8f9fa; }
-              .warning-box { background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; border-radius: 4px; }
-              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-              .footer { background-color: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px; }
+              .header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 40px 30px; text-align: center; }
+              .content { padding: 40px 30px; }
+              .info-box { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 8px; }
+              .detail-card { background: #f8fafc; padding: 25px; border-radius: 12px; margin: 25px 0; }
+              .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
+              .detail-row:last-child { border-bottom: none; }
+              .refund-notice { background-color: #d1fae5; border-left: 4px solid #059669; padding: 20px; margin: 25px 0; border-radius: 8px; }
+              .action-section { background-color: #eff6ff; padding: 25px; border-radius: 12px; margin: 25px 0; }
+              .footer { background-color: #f7fafc; padding: 30px; text-align: center; font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0; }
+              .contact-info { margin: 20px 0; }
+              .contact-item { display: inline-block; margin: 0 15px; }
             </style>
           </head>
           <body>
             <div class="container">
               <div class="header">
-                <h1 style="margin: 0;">❌ Wire Transfer Rejected</h1>
-                <p style="margin: 10px 0 0 0; opacity: 0.9;">${bankName}</p>
+                <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Wire Transfer Request Update</h1>
+                <p style="margin: 12px 0 0 0; opacity: 0.95; font-size: 16px;">${bankName}</p>
               </div>
+              
               <div class="content">
-                <p>Dear ${userName || 'Customer'},</p>
-                <p>We regret to inform you that your wire transfer request has been rejected.</p>
-                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="font-size: 16px; margin: 0 0 20px 0;">Dear ${userName || 'Valued Customer'},</p>
+                
+                <p style="font-size: 16px; line-height: 1.8; margin: 0 0 25px 0;">
+                  We appreciate you choosing ${bankName} for your wire transfer needs. After careful review of your recent wire transfer request, we are unable to process this transaction at this time.
+                </p>
+
+                <div class="detail-card">
+                  <h3 style="margin: 0 0 20px 0; color: #1e40af; font-size: 18px; font-weight: 600;">Transfer Details</h3>
                   <div class="detail-row">
-                    <span style="color: #6b7280;">Transfer ID:</span>
-                    <strong>${wireTransferId.slice(0, 8)}...</strong>
+                    <span style="color: #64748b; font-weight: 500;">Reference Number:</span>
+                    <strong style="font-family: monospace; font-size: 14px;">${wireTransferId.slice(0, 13)}</strong>
                   </div>
                   <div class="detail-row">
-                    <span style="color: #6b7280;">Amount:</span>
-                    <strong>$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                    <span style="color: #64748b; font-weight: 500;">Transfer Amount:</span>
+                    <strong style="font-size: 18px; color: #1e40af;">$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
                   </div>
                   <div class="detail-row">
-                    <span style="color: #6b7280;">Recipient:</span>
+                    <span style="color: #64748b; font-weight: 500;">Recipient Name:</span>
                     <strong>${transfer.recipient_name}</strong>
                   </div>
-                  <div class="detail-row" style="border-bottom: none;">
-                    <span style="color: #6b7280;">Status:</span>
-                    <strong style="color: #dc2626;">Rejected</strong>
+                  <div class="detail-row">
+                    <span style="color: #64748b; font-weight: 500;">Recipient Bank:</span>
+                    <strong>${transfer.recipient_bank}</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span style="color: #64748b; font-weight: 500;">Current Status:</span>
+                    <strong style="color: #dc2626;">Unable to Process</strong>
                   </div>
                 </div>
-                <div class="warning-box">
-                  <strong>Reason for Rejection:</strong><br>
-                  ${reason}
+
+                <div class="info-box">
+                  <h3 style="margin: 0 0 12px 0; color: #92400e; font-size: 16px; font-weight: 600;">📋 Why This Occurred</h3>
+                  <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #78350f;">
+                    ${reason === 'Insufficient documentation' ? 'We require additional documentation to verify this transfer. Please ensure all required documents are submitted and accurate.' :
+                      reason === 'Suspicious activity detected' ? 'Our security systems have flagged this transaction for review as part of our commitment to protecting your account. We take the security of your funds very seriously.' :
+                      reason === 'Invalid beneficiary information' ? 'The recipient information provided does not match our records or contains errors. Please verify and resubmit with accurate beneficiary details.' :
+                      reason === 'Compliance requirements not met' ? 'This transfer does not meet certain regulatory compliance requirements. Additional information or documentation may be needed to proceed.' :
+                      reason === 'Duplicate transfer request' ? 'Our records indicate a similar transfer was recently processed or is pending. Please verify this is not a duplicate request.' :
+                      reason === 'Account restrictions' ? 'Your account currently has restrictions that prevent this type of transaction. Please contact us to resolve any outstanding issues.' :
+                      reason}
+                  </p>
                 </div>
-                <p>If you believe this was rejected in error or need further clarification, please contact our support team.</p>
-                <p><strong>📞 Phone:</strong> ${supportPhone}<br>
-                <strong>📧 Email:</strong> ${supportEmail}</p>
+
+                <div class="refund-notice">
+                  <h3 style="margin: 0 0 12px 0; color: #065f46; font-size: 16px; font-weight: 600;">✓ Account Refund Processed</h3>
+                  <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #047857;">
+                    The transfer amount of <strong>$${parseFloat(transfer.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> has been returned to your account. The funds are now available for your use.
+                  </p>
+                </div>
+
+                <div class="action-section">
+                  <h3 style="margin: 0 0 15px 0; color: #1e40af; font-size: 16px; font-weight: 600;">What You Can Do Next</h3>
+                  <ul style="margin: 0; padding-left: 20px; color: #1e40af; line-height: 1.9;">
+                    <li style="margin-bottom: 8px;">Contact our support team for detailed clarification</li>
+                    <li style="margin-bottom: 8px;">Submit a new transfer request with corrected information</li>
+                    <li style="margin-bottom: 8px;">Provide any additional documentation that may be required</li>
+                    <li style="margin-bottom: 8px;">Speak with a banking specialist about alternative transfer options</li>
+                  </ul>
+                </div>
+
+                <p style="font-size: 16px; line-height: 1.8; margin: 25px 0;">
+                  We understand this may be inconvenient, and we're here to help you complete your transfer successfully. Our team is ready to assist you with any questions or concerns.
+                </p>
+
+                <div class="contact-info">
+                  <h3 style="margin: 0 0 15px 0; color: #1e40af; font-size: 16px; font-weight: 600; text-align: center;">Need Assistance?</h3>
+                  <div style="text-align: center;">
+                    <div class="contact-item">
+                      <strong style="color: #1e40af;">📞 Phone:</strong> <a href="tel:${supportPhone}" style="color: #3b82f6; text-decoration: none;">${supportPhone}</a>
+                    </div>
+                    <div class="contact-item">
+                      <strong style="color: #1e40af;">📧 Email:</strong> <a href="mailto:${supportEmail}" style="color: #3b82f6; text-decoration: none;">${supportEmail}</a>
+                    </div>
+                  </div>
+                  <p style="text-align: center; margin: 15px 0 0 0; font-size: 14px; color: #64748b;">
+                    Available 24/7 for your convenience
+                  </p>
+                </div>
+
+                <p style="font-size: 15px; margin: 30px 0 0 0; color: #64748b;">
+                  Thank you for your understanding and for banking with ${bankName}.
+                </p>
               </div>
+              
               <div class="footer">
-                <p>&copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.</p>
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e40af;">
+                  ${bankName}
+                </p>
+                <p style="margin: 0 0 15px 0;">
+                  &copy; ${new Date().getFullYear()} ${bankName}. All rights reserved.
+                </p>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">
+                  This is an automated notification. Please do not reply directly to this email.<br>
+                  For assistance, please use the contact information provided above.
+                </p>
               </div>
             </div>
           </body>
