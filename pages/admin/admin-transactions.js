@@ -718,6 +718,45 @@ export default function AdminTransactions() {
                       >
                         <option value="credit">Credit</option>
                         <option value="debit">Debit</option>
+                        <option value="deposit">Deposit</option>
+                        <option value="withdrawal">Withdrawal</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="zelle_send">Zelle Send</option>
+                        <option value="zelle_receive">Zelle Receive</option>
+                        <option value="crypto_send">Crypto Send</option>
+                        <option value="crypto_receive">Crypto Receive</option>
+                        <option value="card_purchase">Card Purchase</option>
+                        <option value="bank_charge">Bank Charge</option>
+                        <option value="maintenance_fee">Maintenance Fee</option>
+                        <option value="atm_fee">ATM Fee</option>
+                        <option value="overdraft_fee">Overdraft Fee</option>
+                        <option value="wire_fee">Wire Fee</option>
+                        <option value="foreign_transaction_fee">Foreign Transaction Fee</option>
+                        <option value="refund">Refund</option>
+                        <option value="reversal">Reversal</option>
+                        <option value="wire_transfer_in">Wire Transfer In</option>
+                        <option value="wire_transfer_out">Wire Transfer Out</option>
+                        <option value="ach_credit">ACH Credit</option>
+                        <option value="ach_debit">ACH Debit</option>
+                        <option value="check_deposit">Check Deposit</option>
+                        <option value="check_payment">Check Payment</option>
+                        <option value="atm_deposit">ATM Deposit</option>
+                        <option value="atm_withdrawal">ATM Withdrawal</option>
+                        <option value="loan_disbursement">Loan Disbursement</option>
+                        <option value="loan_payment">Loan Payment</option>
+                        <option value="investment_purchase">Investment Purchase</option>
+                        <option value="investment_sale">Investment Sale</option>
+                        <option value="dividend_payment">Dividend Payment</option>
+                        <option value="interest_earned">Interest Earned</option>
+                        <option value="international_transfer">International Transfer</option>
+                        <option value="bill_payment">Bill Payment</option>
+                        <option value="merchant_settlement">Merchant Settlement</option>
+                        <option value="chargeback">Chargeback</option>
+                        <option value="cash_advance">Cash Advance</option>
+                        <option value="recurring_payment">Recurring Payment</option>
+                        <option value="crypto_deposit">Crypto Deposit</option>
+                        <option value="treasury_credit">Treasury Credit</option>
+                        <option value="treasury_debit">Treasury Debit</option>
                       </select>
                     </div>
 

@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -72,26 +71,61 @@ export default async function handler(req, res) {
       // Random status (weighted towards completed)
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
-      // Random amount between $10 and $105,000
-      const amount = Math.round((10 + Math.random() * 104990) * 100) / 100;
-
-      // Fee logic
+      // Random amount based on type
+      let amount = 0;
       let fee = 0;
-      if (['withdrawal', 'transfer', 'crypto_send', 'card_purchase'].includes(type)) {
+
+      if (type === 'deposit' || type === 'check_deposit' || type === 'atm_deposit' || type === 'zelle_receive' || type === 'crypto_receive' || type === 'ach_credit' || type === 'interest_earned' || type === 'dividend_payment' || type === 'loan_disbursement' || type === 'merchant_settlement') {
+        // Larger amounts for income/deposits
+        amount = Math.round((50 + Math.random() * 50000) * 100) / 100;
+      } else if (type === 'withdrawal' || type === 'transfer' || type === 'zelle_send' || type === 'crypto_send' || type === 'wire_transfer_out' || type === 'ach_debit' || type === 'check_payment' || type === 'investment_purchase' || type === 'international_transfer' || type === 'bill_payment' || type === 'loan_payment' || type === 'recurring_payment' || type === 'cash_advance') {
+        // Moderate to large amounts for expenses/outgoing
+        amount = Math.round((20 + Math.random() * 5000) * 100) / 100;
+      } else if (type === 'card_purchase') {
+        // Variable amounts for card purchases
+        amount = Math.round((5 + Math.random() * 500) * 100) / 100;
+      } else if (type === 'bank_charge' || type === 'maintenance_fee' || type === 'atm_fee' || type === 'overdraft_fee' || type === 'wire_fee' || type === 'foreign_transaction_fee') {
+        // Smaller amounts for fees
+        if (type === 'overdraft_fee') {
+          amount = Math.round((25 + Math.random() * 75) * 100) / 100;
+        } else if (type === 'wire_fee') {
+          amount = Math.round((15 + Math.random() * 35) * 100) / 100;
+        } else {
+          amount = Math.round((1 + Math.random() * 20) * 100) / 100;
+        }
+      } else if (type === 'refund' || type === 'reversal' || type === 'investment_sale') {
+        // Variable amounts for refunds/sales
+        amount = Math.round((10 + Math.random() * 1000) * 100) / 100;
+      } else if (type === 'atm_withdrawal') {
+        amount = Math.round((20 + Math.random() * 500) * 100) / 100;
+      } else {
+        // Default for unassigned types
+        amount = Math.round((10 + Math.random() * 100) * 100) / 100;
+      }
+
+      // Fee logic for applicable types
+      if (['withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'wire_transfer_out', 'international_transfer', 'bill_payment', 'zelle_send', 'atm_withdrawal'].includes(type)) {
         fee = Math.round((0.50 + Math.random() * 5.50) * 100) / 100;
+      } else if (type === 'bank_charge' || type === 'maintenance_fee' || type === 'atm_fee' || type === 'wire_fee' || type === 'foreign_transaction_fee') {
+        fee = Math.round((1 + Math.random() * 10) * 100) / 100;
       }
 
       // Description with variety
       const descriptionOptions = {
         deposit: ['Direct Deposit - Payroll', 'Mobile Check Deposit', 'Wire Transfer Received', 'ACH Deposit', 'Cash Deposit at Branch', 'Online Transfer In', 'Tax Refund Deposit', 'Social Security Payment', 'Pension Deposit', 'Dividend Payment'],
-        withdrawal: ['ATM Withdrawal', 'Cash Withdrawal at Branch', 'Emergency Withdrawal', 'International ATM Withdrawal', 'Fee-Free ATM Withdrawal'],
+        withdrawal: ['ATM Withdrawal', 'Cash Withdrawal at Branch', 'Emergency Withdrawal', 'International ATM Withdrawal'],
         transfer: ['Internal Transfer', 'ACH Transfer Out', 'Wire Transfer Out', 'External Bank Transfer', 'Bill Payment Transfer', 'Scheduled Transfer'],
-        zelle_send: ['Zelle Payment to Friend', 'Zelle Rent Payment', 'Zelle Bill Split', 'Zelle Payment Sent', 'Zelle Utility Payment'],
+        zelle_send: ['Zelle Payment to Friend', 'Zelle Rent Payment', 'Zelle Bill Split', 'Zelle Payment Sent'],
         zelle_receive: ['Zelle Payment from Friend', 'Zelle Rent Received', 'Zelle Reimbursement', 'Zelle Payment Received', 'Zelle Gift Received'],
         crypto_send: ['Bitcoin Transfer Out', 'Ethereum Transfer Out', 'USDC Transfer Out', 'Crypto Exchange Transfer', 'Cold Wallet Transfer'],
         crypto_receive: ['Bitcoin Transfer In', 'Ethereum Transfer In', 'USDC Transfer In', 'Crypto Exchange Deposit', 'Mining Reward Received'],
         card_purchase: ['Point of Sale Purchase', 'Online Shopping', 'Grocery Store', 'Gas Station', 'Restaurant', 'Subscription Service', 'E-commerce Purchase', 'Contactless Payment', 'Mobile Wallet Purchase'],
-        bank_charge: ['Monthly Maintenance Fee', 'Overdraft Fee', 'Wire Transfer Fee', 'ATM Fee', 'Foreign Transaction Fee', 'Account Service Charge', 'Insufficient Funds Fee'],
+        bank_charge: ['Account Service Charge', 'Transaction Fee', 'Monthly Service Fee'],
+        maintenance_fee: ['Monthly Maintenance Fee', 'Account Upkeep Charge', 'Service Fee'],
+        atm_fee: ['ATM Withdrawal Fee', 'Out-of-Network ATM Fee', 'Foreign ATM Fee'],
+        overdraft_fee: ['Overdraft Fee', 'NSF Fee', 'Returned Item Fee'],
+        wire_fee: ['Wire Transfer Fee', 'Outgoing Wire Fee', 'Incoming Wire Fee', 'International Wire Fee'],
+        foreign_transaction_fee: ['Foreign Transaction Fee', 'International Purchase Fee', 'Currency Conversion Fee'],
         refund: ['Merchant Refund', 'Purchase Return', 'Cancelled Subscription Refund', 'Dispute Resolution Refund', 'Overpayment Refund'],
         reversal: ['Transaction Reversal', 'Duplicate Charge Reversal', 'Error Correction', 'Fraudulent Transaction Reversal', 'System Error Reversal'],
         wire_transfer_in: ['Domestic Wire Received', 'International Wire Received', 'Business Wire Transfer', 'Real Estate Wire', 'Investment Wire Transfer'],
@@ -101,6 +135,7 @@ export default async function handler(req, res) {
         check_deposit: ['Check Deposit', 'Business Check Deposit', 'Personal Check Deposit', 'Cashier Check Deposit', 'Money Order Deposit'],
         check_payment: ['Check Payment', 'Bill Payment by Check', 'Vendor Check', 'Rent Check', 'Business Expense Check'],
         atm_deposit: ['ATM Cash Deposit', 'ATM Check Deposit', 'Night Deposit', 'Express Deposit'],
+        atm_withdrawal: ['ATM Cash Withdrawal', 'Withdrawal at ATM'],
         loan_disbursement: ['Personal Loan Disbursement', 'Auto Loan Disbursement', 'Home Loan Disbursement', 'Student Loan Disbursement', 'Business Loan Disbursement'],
         loan_payment: ['Loan Payment', 'Auto Loan Payment', 'Mortgage Payment', 'Student Loan Payment', 'Personal Loan Payment'],
         investment_purchase: ['Stock Purchase', 'Bond Purchase', 'Mutual Fund Purchase', 'ETF Purchase', 'CD Purchase'],
@@ -114,19 +149,19 @@ export default async function handler(req, res) {
         cash_advance: ['Credit Card Cash Advance', 'ATM Cash Advance', 'Over-the-Counter Advance', 'Emergency Cash Advance'],
         recurring_payment: ['Subscription Renewal', 'Membership Fee', 'Auto-Pay Bill', 'Recurring Transfer', 'Scheduled Payment']
       };
-      
+
       const options = descriptionOptions[type] || ['Transaction'];
       const description = options[Math.floor(Math.random() * options.length)];
 
       // Calculate balance changes (debit vs credit)
       const balanceBefore = currentBalance;
       const debitTypes = [
-        'withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'bank_charge',
+        'withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'bank_charge', 'maintenance_fee', 'atm_fee', 'overdraft_fee', 'wire_fee', 'foreign_transaction_fee',
         'wire_transfer_out', 'ach_debit', 'check_payment', 'loan_payment',
         'investment_purchase', 'international_transfer', 'bill_payment',
-        'chargeback', 'cash_advance', 'recurring_payment', 'zelle_send'
+        'chargeback', 'cash_advance', 'recurring_payment', 'zelle_send', 'atm_withdrawal'
       ];
-      
+
       if (debitTypes.includes(type)) {
         currentBalance = currentBalance - (amount + fee);
       } else {
@@ -162,8 +197,8 @@ export default async function handler(req, res) {
 
       if (insertError) {
         console.error('Error inserting batch:', insertError);
-        return res.status(500).json({ 
-          error: 'Failed to insert transactions', 
+        return res.status(500).json({
+          error: 'Failed to insert transactions',
           details: insertError.message,
           inserted_count: inserted
         });
