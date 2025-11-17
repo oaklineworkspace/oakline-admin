@@ -37,8 +37,8 @@ export default function ApproveAccounts() {
         'Authorization': `Bearer ${token}`
       };
 
-      // Fetch all accounts except 'active' status
-      const statusesToFetch = ['approve', 'approved', 'pending_funding', 'suspended', 'closed', 'rejected'];
+      // Fetch all accounts including 'active' status
+      const statusesToFetch = ['approve', 'approved', 'pending_funding', 'active', 'suspended', 'closed', 'rejected'];
       
       const responses = await Promise.all(
         statusesToFetch.map(status => 
@@ -207,6 +207,7 @@ export default function ApproveAccounts() {
     
     const matchesTab = activeTab === 'all' ||
                       (activeTab === 'pending' && ['approve', 'approved', 'pending_funding'].includes(account.status)) ||
+                      (activeTab === 'active' && account.status === 'active') ||
                       (activeTab === 'suspended' && account.status === 'suspended') ||
                       (activeTab === 'closed' && account.status === 'closed') ||
                       (activeTab === 'rejected' && account.status === 'rejected');
@@ -217,6 +218,7 @@ export default function ApproveAccounts() {
   const stats = {
     total: accounts.length,
     pending: accounts.filter(a => ['approve', 'approved', 'pending_funding'].includes(a.status)).length,
+    active: accounts.filter(a => a.status === 'active').length,
     suspended: accounts.filter(a => a.status === 'suspended').length,
     closed: accounts.filter(a => a.status === 'closed').length,
     rejected: accounts.filter(a => a.status === 'rejected').length
@@ -256,6 +258,10 @@ export default function ApproveAccounts() {
             <h3 style={styles.statLabel}>Pending Activation</h3>
             <p style={styles.statValue}>{stats.pending}</p>
           </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
+            <h3 style={styles.statLabel}>Active</h3>
+            <p style={styles.statValue}>{stats.active}</p>
+          </div>
           <div style={{...styles.statCard, borderLeft: '4px solid #8b5cf6'}}>
             <h3 style={styles.statLabel}>Suspended</h3>
             <p style={styles.statValue}>{stats.suspended}</p>
@@ -272,7 +278,7 @@ export default function ApproveAccounts() {
 
         {/* Tabs */}
         <div style={styles.tabs}>
-          {['all', 'pending', 'suspended', 'closed', 'rejected'].map(tab => (
+          {['all', 'pending', 'active', 'suspended', 'closed', 'rejected'].map(tab => (
             <button
               key={tab}
               style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
@@ -297,6 +303,7 @@ export default function ApproveAccounts() {
             <option value="approve">Approve</option>
             <option value="approved">Approved</option>
             <option value="pending_funding">Pending Funding</option>
+            <option value="active">Active</option>
             <option value="suspended">Suspended</option>
             <option value="closed">Closed</option>
             <option value="rejected">Rejected</option>
@@ -329,12 +336,14 @@ export default function ApproveAccounts() {
                       background: account.status === 'approved' ? '#fef3c7' :
                                 account.status === 'approve' ? '#fef3c7' :
                                 account.status === 'pending_funding' ? '#dbeafe' :
+                                account.status === 'active' ? '#d1fae5' :
                                 account.status === 'suspended' ? '#fee2e2' :
                                 account.status === 'closed' ? '#f3f4f6' :
                                 account.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
                       color: account.status === 'approved' ? '#92400e' :
                             account.status === 'approve' ? '#92400e' :
                             account.status === 'pending_funding' ? '#1e40af' :
+                            account.status === 'active' ? '#065f46' :
                             account.status === 'suspended' ? '#991b1b' :
                             account.status === 'closed' ? '#374151' :
                             account.status === 'rejected' ? '#991b1b' : '#374151'
