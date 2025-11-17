@@ -3,67 +3,74 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
-async function ensureTransactionExists(wireTransfer) {
+async function findOrUpdateTransactionReference(wireTransfer) {
   const reference = `WIRE-${wireTransfer.id}`;
   
-  const { data: existingTx, error: txCheckError } = await supabaseAdmin
+  const { data: existingTx, error: txCheckError} = await supabaseAdmin
     .from('transactions')
-    .select('id')
+    .select('id, reference')
     .eq('reference', reference)
     .eq('account_id', wireTransfer.from_account_id)
     .single();
 
+  if (existingTx) {
+    console.log(`✅ Found transaction with reference ${reference}`);
+    return existingTx;
+  }
+
   if (txCheckError && txCheckError.code !== 'PGRST116') {
-    console.error('Error checking for existing transaction:', txCheckError);
-    throw new Error('Failed to check for existing transaction');
+    console.error('Error checking for existing transaction by reference:', txCheckError);
   }
 
-  if (!existingTx) {
-    console.log(`⚠️  No transaction found for wire transfer ${wireTransfer.id}, creating placeholder transaction...`);
-    
-    const { data: account, error: accountError } = await supabaseAdmin
-      .from('accounts')
-      .select('balance')
-      .eq('id', wireTransfer.from_account_id)
-      .single();
+  console.log(`⚠️  No transaction found with reference ${reference}, searching by user_id, account_id, amount, and time window...`);
+  
+  const wireCreatedAt = new Date(wireTransfer.created_at);
+  const timeWindowStart = new Date(wireCreatedAt.getTime() - 5 * 60 * 1000);
+  const timeWindowEnd = new Date(wireCreatedAt.getTime() + 5 * 60 * 1000);
+  
+  const { data: matchingTransactions, error: txSearchError } = await supabaseAdmin
+    .from('transactions')
+    .select('id, reference, description, created_at, amount')
+    .eq('user_id', wireTransfer.user_id)
+    .eq('account_id', wireTransfer.from_account_id)
+    .eq('amount', wireTransfer.total_amount)
+    .gte('created_at', timeWindowStart.toISOString())
+    .lte('created_at', timeWindowEnd.toISOString())
+    .ilike('description', `%${wireTransfer.recipient_name}%`);
 
-    if (accountError) {
-      console.error('Error fetching account for transaction creation:', accountError);
-      throw new Error('Failed to fetch account for transaction creation');
-    }
-
-    const currentBalance = parseFloat(account.balance);
-    
-    let transactionStatus = wireTransfer.status;
-    if (wireTransfer.status === 'rejected' || wireTransfer.status === 'cancelled' || wireTransfer.status === 'failed') {
-      transactionStatus = 'cancelled';
-    } else if (wireTransfer.status === 'processing' || wireTransfer.status === 'on_hold') {
-      transactionStatus = 'pending';
-    }
-
-    const { error: createError } = await supabaseAdmin
-      .from('transactions')
-      .insert({
-        user_id: wireTransfer.user_id,
-        account_id: wireTransfer.from_account_id,
-        type: `Wire transfer to ${wireTransfer.recipient_name}`,
-        amount: wireTransfer.total_amount,
-        description: `Wire transfer to ${wireTransfer.recipient_name} - ${wireTransfer.recipient_bank} (status: ${wireTransfer.status})`,
-        reference: reference,
-        status: transactionStatus,
-        balance_before: currentBalance,
-        balance_after: currentBalance,
-        created_at: wireTransfer.created_at,
-        updated_at: new Date().toISOString()
-      });
-
-    if (createError) {
-      console.error('Error creating placeholder transaction for wire transfer:', createError);
-      throw new Error('Failed to create placeholder transaction for wire transfer');
-    }
-    
-    console.log(`✅ Created placeholder transaction for wire transfer ${wireTransfer.id} with reference ${reference} and status ${transactionStatus}. Existing update handlers will manage balance adjustments.`);
+  if (txSearchError) {
+    console.error('Error searching for matching transactions:', txSearchError);
+    throw new Error('Failed to search for matching transaction');
   }
+
+  if (!matchingTransactions || matchingTransactions.length === 0) {
+    console.error(`❌ No matching transaction found for wire transfer ${wireTransfer.id}`);
+    throw new Error(`No transaction found for wire transfer ${wireTransfer.id}. Please ensure a transaction was created when the wire transfer was submitted, or create one manually with reference WIRE-${wireTransfer.id}`);
+  }
+
+  if (matchingTransactions.length > 1) {
+    console.error(`⚠️  Found ${matchingTransactions.length} matching transactions for wire transfer ${wireTransfer.id}, cannot safely determine which one to update`);
+    throw new Error('Multiple matching transactions found - cannot safely determine correct transaction');
+  }
+
+  const matchedTx = matchingTransactions[0];
+  console.log(`✅ Found unique matching transaction: ${matchedTx.id}, updating reference to ${reference}...`);
+  
+  const { error: updateRefError } = await supabaseAdmin
+    .from('transactions')
+    .update({ 
+      reference: reference,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', matchedTx.id);
+
+  if (updateRefError) {
+    console.error('Error updating transaction reference:', updateRefError);
+    throw new Error('Failed to update transaction reference');
+  }
+  
+  console.log(`✅ Updated transaction ${matchedTx.id} with reference ${reference}`);
+  return matchedTx;
 }
 
 export default async function handler(req, res) {
@@ -94,7 +101,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Wire transfer not found' });
     }
 
-    await ensureTransactionExists(transfer);
+    await findOrUpdateTransactionReference(transfer);
 
     let updateData = {
       updated_at: new Date().toISOString(),
