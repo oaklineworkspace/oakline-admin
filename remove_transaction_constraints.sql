@@ -2,10 +2,22 @@
 -- Remove restrictive constraints on transactions table to allow admin updates
 -- This will allow admins to update any transaction field including timestamps and descriptions
 
--- 1. Drop the restrictive type constraint
+-- STEP 1: First, identify and fix any invalid transaction types
+-- Update any invalid types to 'other'
+UPDATE public.transactions 
+SET type = 'other'
+WHERE type NOT IN (
+    'credit', 'debit', 'deposit', 'withdrawal', 'transfer',
+    'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit',
+    'wire_transfer', 'check_deposit', 'atm_withdrawal', 'debit_card',
+    'transfer_in', 'transfer_out', 'ach_transfer', 'check_payment',
+    'service_fee', 'refund', 'interest', 'bonus', 'other'
+);
+
+-- STEP 2: Drop the restrictive type constraint
 ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_type_check;
 
--- 2. Add a more permissive type constraint that matches the application code
+-- STEP 3: Add a more permissive type constraint that matches the application code
 ALTER TABLE public.transactions 
 ADD CONSTRAINT transactions_type_check 
 CHECK (type = ANY (ARRAY[
@@ -33,13 +45,13 @@ CHECK (type = ANY (ARRAY[
     'other'::text
 ]));
 
--- 3. Make amount constraint more permissive (allow any positive or zero amount)
+-- STEP 4: Make amount constraint more permissive (allow any positive or zero amount)
 ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_amount_check;
 ALTER TABLE public.transactions 
 ADD CONSTRAINT transactions_amount_check 
 CHECK (amount >= 0::numeric);
 
--- 4. Ensure status constraint is comprehensive
+-- STEP 5: Ensure status constraint is comprehensive
 ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE public.transactions 
 ADD CONSTRAINT transactions_status_check 
@@ -53,14 +65,7 @@ CHECK (status = ANY (ARRAY[
     'reversed'::text
 ]));
 
--- 5. Remove NOT NULL constraint from type if it prevents updates
--- (Keep it but this shows how to remove if needed)
--- ALTER TABLE public.transactions ALTER COLUMN type DROP NOT NULL;
-
--- 6. Allow timestamps to be updated freely (they should already be updatable)
--- No constraint needed here, timestamps are already flexible
-
--- Verify the changes
+-- STEP 6: Verify the changes
 SELECT 
     constraint_name, 
     constraint_type,
