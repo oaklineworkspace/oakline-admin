@@ -18,18 +18,7 @@ async function handleGetLinkedCards(req, res) {
 
     let query = supabaseAdmin
       .from('linked_debit_cards')
-      .select(`
-        *,
-        users:user_id (
-          id,
-          email,
-          profiles (
-            first_name,
-            last_name,
-            phone
-          )
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -46,6 +35,31 @@ async function handleGetLinkedCards(req, res) {
     if (error) {
       console.error('Error fetching linked cards:', error);
       return res.status(500).json({ error: 'Failed to fetch linked cards' });
+    }
+
+    // Fetch user data separately for each card
+    if (cards && cards.length > 0) {
+      for (let card of cards) {
+        if (card.user_id) {
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('first_name, last_name, phone, email')
+            .eq('id', card.user_id)
+            .single();
+          
+          if (profile) {
+            card.users = {
+              id: card.user_id,
+              email: profile.email,
+              profiles: {
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                phone: profile.phone
+              }
+            };
+          }
+        }
+      }
     }
 
     // Get statistics
@@ -103,22 +117,32 @@ async function handleCardAction(req, res) {
     // Get card details
     const { data: card, error: cardError } = await supabaseAdmin
       .from('linked_debit_cards')
-      .select(`
-        *,
-        users:user_id (
-          id,
-          email,
-          profiles (
-            first_name,
-            last_name
-          )
-        )
-      `)
+      .select('*')
       .eq('id', card_id)
       .single();
 
     if (cardError || !card) {
       return res.status(404).json({ error: 'Card not found' });
+    }
+
+    // Fetch user profile separately
+    if (card.user_id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('id', card.user_id)
+        .single();
+      
+      if (profile) {
+        card.users = {
+          id: card.user_id,
+          email: profile.email,
+          profiles: {
+            first_name: profile.first_name,
+            last_name: profile.last_name
+          }
+        };
+      }
     }
 
     if (card.status !== 'pending') {
