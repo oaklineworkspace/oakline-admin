@@ -122,6 +122,7 @@ export default function AdminPageDropdown() {
         { name: 'Admin Settings', href: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🔑' },
         { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
+        { name: 'Edit User Timestamps', href: '/admin/edit-user-timestamps', icon: '⏰' },
         { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
         { name: 'File Browser', href: '/admin/file-browser', icon: '📁' }
       ]

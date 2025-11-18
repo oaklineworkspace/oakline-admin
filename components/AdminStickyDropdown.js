@@ -118,6 +118,7 @@ export default function AdminStickyDropdown() {
         { name: 'Storage Diagnostics', href: '/admin/storage-diagnostics', icon: '🔍' },
         { name: 'Security Dashboard', href: '/admin/security-dashboard', icon: '🔐' },
         { name: 'User Activity Monitor', href: '/admin/user-activity-monitor', icon: '👁️' },
+        { name: 'Edit User Timestamps', href: '/admin/edit-user-timestamps', icon: '⏰' },
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
         { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' },
         { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
