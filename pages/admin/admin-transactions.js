@@ -28,6 +28,7 @@ export default function AdminTransactions() {
   const [activeTab, setActiveTab] = useState('all');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [editForm, setEditForm] = useState({
     type: '',
     amount: '',
@@ -412,6 +413,121 @@ export default function AdminTransactions() {
     }
   };
 
+  const handleSelectTransaction = (transactionId) => {
+    setSelectedTransactions(prev => {
+      if (prev.includes(transactionId)) {
+        return prev.filter(id => id !== transactionId);
+      } else {
+        return [...prev, transactionId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTransactions.length === filteredTransactions.length) {
+      setSelectedTransactions([]);
+    } else {
+      setSelectedTransactions(filteredTransactions.map(tx => tx.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTransactions.length === 0) {
+      setError('Please select at least one transaction to delete');
+      return;
+    }
+
+    const transactionsToDelete = filteredTransactions.filter(tx => 
+      selectedTransactions.includes(tx.id)
+    );
+
+    const completedCount = transactionsToDelete.filter(tx => tx.status === 'completed').length;
+    const totalAmount = transactionsToDelete.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+
+    let confirmMessage = `⚠️ BULK DELETE CONFIRMATION\n\n`;
+    confirmMessage += `You are about to delete ${selectedTransactions.length} transaction(s):\n`;
+    confirmMessage += `- Total Amount: ${formatCurrency(totalAmount)}\n`;
+    
+    if (completedCount > 0) {
+      confirmMessage += `- ${completedCount} completed transaction(s) will have their balances reverted\n\n`;
+      confirmMessage += `⚠️ WARNING: This will affect account balances!\n\n`;
+    }
+    
+    confirmMessage += `This action cannot be undone!\n\nType "DELETE" to confirm:`;
+
+    const userInput = prompt(confirmMessage);
+    if (userInput !== 'DELETE') {
+      setError('Bulk delete cancelled');
+      return;
+    }
+
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        setActionLoading(false);
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+      let errors = [];
+
+      for (const transaction of transactionsToDelete) {
+        try {
+          const response = await fetch('/api/admin/delete-transaction', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              transactionId: transaction.id,
+              accountId: transaction.account_id,
+              transactionType: transaction.type,
+              amount: transaction.amount,
+              status: transaction.status
+            })
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            const result = await response.json();
+            failCount++;
+            errors.push(`${transaction.id.slice(0, 8)}: ${result.error || 'Unknown error'}`);
+          }
+        } catch (err) {
+          failCount++;
+          errors.push(`${transaction.id.slice(0, 8)}: ${err.message}`);
+        }
+      }
+
+      let resultMessage = `✅ Bulk Delete Complete!\n\n`;
+      resultMessage += `Successfully deleted: ${successCount} transaction(s)\n`;
+      
+      if (failCount > 0) {
+        resultMessage += `Failed: ${failCount} transaction(s)\n\n`;
+        resultMessage += `Errors:\n${errors.join('\n')}`;
+        setError(resultMessage);
+      } else {
+        setSuccess(resultMessage);
+      }
+
+      setSelectedTransactions([]);
+      await fetchTransactions();
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      setError('❌ Bulk delete failed: ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const maskAccountNumber = (accountNumber) => {
     if (!accountNumber) return 'N/A';
     const str = String(accountNumber);
@@ -479,8 +595,22 @@ export default function AdminTransactions() {
           <div>
             <h1 style={styles.title}>💸 Transaction Management</h1>
             <p style={styles.subtitle}>View, edit, and manage all user transactions</p>
+            {selectedTransactions.length > 0 && (
+              <p style={styles.selectedCount}>
+                {selectedTransactions.length} transaction(s) selected
+              </p>
+            )}
           </div>
           <div style={styles.headerActions}>
+            {selectedTransactions.length > 0 && (
+              <button 
+                onClick={handleBulkDelete} 
+                style={styles.bulkDeleteButton}
+                disabled={actionLoading}
+              >
+                {actionLoading ? '⏳ Deleting...' : `🗑️ Delete ${selectedTransactions.length}`}
+              </button>
+            )}
             <button onClick={fetchTransactions} style={styles.refreshButton} disabled={loading}>
               {loading ? '⏳' : '🔄'} Refresh
             </button>
@@ -539,6 +669,19 @@ export default function AdminTransactions() {
 
         {/* Filters */}
         <div style={styles.filtersSection}>
+          <div style={styles.selectAllContainer}>
+            <input
+              type="checkbox"
+              id="selectAll"
+              checked={filteredTransactions.length > 0 && selectedTransactions.length === filteredTransactions.length}
+              onChange={handleSelectAll}
+              style={styles.checkbox}
+              disabled={filteredTransactions.length === 0}
+            />
+            <label htmlFor="selectAll" style={styles.selectAllLabel}>
+              Select All ({filteredTransactions.length})
+            </label>
+          </div>
           <input
             type="text"
             placeholder="🔍 Search by name, email or account..."
@@ -630,9 +773,24 @@ export default function AdminTransactions() {
           ) : (
             <div style={styles.transactionsGrid}>
               {filteredTransactions.map((tx) => (
-                <div key={tx.id} style={styles.transactionCard}>
+                <div 
+                  key={tx.id} 
+                  style={{
+                    ...styles.transactionCard,
+                    ...(selectedTransactions.includes(tx.id) ? styles.transactionCardSelected : {})
+                  }}
+                >
                   <div style={styles.transactionHeader}>
-                    <div>
+                    <div style={styles.checkboxContainer}>
+                      <input
+                        type="checkbox"
+                        checked={selectedTransactions.includes(tx.id)}
+                        onChange={() => handleSelectTransaction(tx.id)}
+                        style={styles.cardCheckbox}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div style={styles.transactionInfoContainer}>
                       <h3 style={styles.transactionType}>
                         {tx.type?.toUpperCase() || 'TRANSACTION'}
                       </h3>
@@ -945,10 +1103,29 @@ const styles = {
     color: '#718096',
     fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
+  selectedCount: {
+    margin: '8px 0 0 0',
+    color: '#1e40af',
+    fontSize: 'clamp(0.9rem, 2.2vw, 16px)',
+    fontWeight: '600'
+  },
   headerActions: {
     display: 'flex',
     gap: '12px',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    alignItems: 'center'
+  },
+  bulkDeleteButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
   },
   refreshButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
@@ -1062,7 +1239,30 @@ const styles = {
     display: 'flex',
     gap: '12px',
     flexWrap: 'wrap',
+    alignItems: 'center',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  selectAllContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    background: '#f8fafc',
+    borderRadius: '8px',
+    border: '2px solid #e2e8f0'
+  },
+  selectAllLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#1A3E6F',
+    cursor: 'pointer',
+    userSelect: 'none'
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+    accentColor: '#1e40af'
   },
   searchInput: {
     flex: 1,
@@ -1176,7 +1376,12 @@ const styles = {
     borderRadius: 'clamp(6px, 1.5vw, 12px)',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
     border: '1px solid #e2e8f0',
-    transition: 'transform 0.2s, box-shadow 0.2s'
+    transition: 'all 0.2s ease'
+  },
+  transactionCardSelected: {
+    border: '2px solid #1e40af',
+    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.2)',
+    background: '#f0f9ff'
   },
   transactionHeader: {
     display: 'flex',
@@ -1184,6 +1389,22 @@ const styles = {
     alignItems: 'flex-start',
     marginBottom: '16px',
     gap: '12px'
+  },
+  checkboxContainer: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    paddingTop: '2px'
+  },
+  cardCheckbox: {
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    accentColor: '#1e40af',
+    flexShrink: 0
+  },
+  transactionInfoContainer: {
+    flex: 1,
+    minWidth: 0
   },
   transactionType: {
     margin: '0 0 4px 0',
