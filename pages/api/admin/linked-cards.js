@@ -123,6 +123,38 @@ async function handleCardAction(req, res) {
 
     // Handle suspend action
     if (action === 'suspend') {
+      // Get card details for email notification
+      const { data: cardToSuspend, error: fetchError } = await supabaseAdmin
+        .from('linked_debit_cards')
+        .select('*')
+        .eq('id', card_id)
+        .single();
+
+      if (fetchError || !cardToSuspend) {
+        console.error('Error fetching card for suspension:', fetchError);
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      // Fetch user profile for email
+      if (cardToSuspend.user_id) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', cardToSuspend.user_id)
+          .single();
+
+        if (profile) {
+          cardToSuspend.users = {
+            id: cardToSuspend.user_id,
+            email: profile.email,
+            profiles: {
+              first_name: profile.first_name,
+              last_name: profile.last_name
+            }
+          };
+        }
+      }
+
       const { error: suspendError } = await supabaseAdmin
         .from('linked_debit_cards')
         .update({ 
@@ -137,6 +169,18 @@ async function handleCardAction(req, res) {
       }
 
       console.log(`⏸️ Suspended linked card ${card_id}`);
+
+      // Send email notification
+      const userEmail = cardToSuspend.users?.email;
+      const userName = `${cardToSuspend.users?.profiles?.first_name || ''} ${cardToSuspend.users?.profiles?.last_name || ''}`.trim() || 'Valued Customer';
+
+      if (userEmail) {
+        try {
+          await sendSuspendEmail(userEmail, userName, cardToSuspend);
+        } catch (emailError) {
+          console.error('Error sending suspension email:', emailError);
+        }
+      }
       
       return res.status(200).json({
         success: true,
@@ -147,6 +191,38 @@ async function handleCardAction(req, res) {
 
     // Handle reactivate action
     if (action === 'reactivate') {
+      // Get card details for email notification
+      const { data: cardToReactivate, error: fetchError } = await supabaseAdmin
+        .from('linked_debit_cards')
+        .select('*')
+        .eq('id', card_id)
+        .single();
+
+      if (fetchError || !cardToReactivate) {
+        console.error('Error fetching card for reactivation:', fetchError);
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      // Fetch user profile for email
+      if (cardToReactivate.user_id) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', cardToReactivate.user_id)
+          .single();
+
+        if (profile) {
+          cardToReactivate.users = {
+            id: cardToReactivate.user_id,
+            email: profile.email,
+            profiles: {
+              first_name: profile.first_name,
+              last_name: profile.last_name
+            }
+          };
+        }
+      }
+
       const { error: reactivateError } = await supabaseAdmin
         .from('linked_debit_cards')
         .update({ 
@@ -161,6 +237,18 @@ async function handleCardAction(req, res) {
       }
 
       console.log(`✅ Reactivated linked card ${card_id}`);
+
+      // Send email notification
+      const userEmail = cardToReactivate.users?.email;
+      const userName = `${cardToReactivate.users?.profiles?.first_name || ''} ${cardToReactivate.users?.profiles?.last_name || ''}`.trim() || 'Valued Customer';
+
+      if (userEmail) {
+        try {
+          await sendReactivateEmail(userEmail, userName, cardToReactivate);
+        } catch (emailError) {
+          console.error('Error sending reactivation email:', emailError);
+        }
+      }
       
       return res.status(200).json({
         success: true,
@@ -319,7 +407,7 @@ async function sendApprovalEmail(email, userName, card) {
           </h2>
 
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-            Your linked debit card has been successfully verified and is now connected to your Oakline Bank account.
+            Your linked debit card has been successfully verified and is now securely connected to your Oakline Bank account.
           </p>
 
           <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
@@ -363,6 +451,161 @@ async function sendApprovalEmail(email, userName, card) {
   await sendEmail({
     to: email,
     subject: '✅ Your Linked Debit Card Has Been Verified',
+    html: emailHtml,
+    type: EMAIL_TYPES.NOTIFY
+  });
+}
+
+async function sendSuspendEmail(email, userName, card) {
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 32px 24px; text-align: center;">
+          <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">⏸️ Linked Card Suspended</h1>
+          <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank Security</p>
+        </div>
+
+        <div style="padding: 40px 32px;">
+          <h2 style="color: #1e40af; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+            Dear ${userName},
+          </h2>
+
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+            We're writing to inform you that your linked debit card has been temporarily suspended for security purposes.
+          </p>
+
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #92400e; font-size: 18px; margin: 0 0 12px 0;">Card Details</h3>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Card Brand:</strong> ${card.card_brand?.toUpperCase() || 'DEBIT'}</p>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Card Number:</strong> ****${card.card_number_last4}</p>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Cardholder:</strong> ${card.cardholder_name}</p>
+            ${card.bank_name ? `<p style="color: #4a5568; margin: 4px 0;"><strong>Issuing Bank:</strong> ${card.bank_name}</p>` : ''}
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Status:</strong> <span style="color: #d97706; font-weight: bold;">Suspended</span></p>
+          </div>
+
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
+            This card can no longer be used for withdrawals or fund transfers until it has been reactivated.
+          </p>
+
+          <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #1e40af; font-size: 16px; margin: 0 0 12px 0;">What This Means:</h3>
+            <ul style="color: #4a5568; margin: 0; padding-left: 20px;">
+              <li>This card is temporarily inactive</li>
+              <li>No transactions can be processed using this card</li>
+              <li>Your other linked cards (if any) remain unaffected</li>
+            </ul>
+          </div>
+
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
+            If you have questions or believe this suspension was made in error, please contact our customer support team immediately.
+          </p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com'}/dashboard" 
+               style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                      color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; 
+                      font-weight: 600; font-size: 16px;">
+              Go to Dashboard
+            </a>
+          </div>
+
+          <p style="color: #64748b; font-size: 14px; margin: 24px 0 0 0;">
+            Best regards,<br>
+            <strong>Oakline Bank Security Team</strong>
+          </p>
+        </div>
+
+        <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; font-size: 12px; margin: 0;">
+            © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+            Member FDIC | Routing: 075915826
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: email,
+    subject: '⏸️ Your Linked Debit Card Has Been Suspended - Oakline Bank',
+    html: emailHtml,
+    type: EMAIL_TYPES.SECURITY
+  });
+}
+
+async function sendReactivateEmail(email, userName, card) {
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 24px; text-align: center;">
+          <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Linked Card Reactivated</h1>
+          <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
+        </div>
+
+        <div style="padding: 40px 32px;">
+          <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+            Great news, ${userName}!
+          </h2>
+
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+            Your linked debit card has been successfully reactivated and is now available for use.
+          </p>
+
+          <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #059669; font-size: 18px; margin: 0 0 12px 0;">Card Details</h3>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Card Brand:</strong> ${card.card_brand?.toUpperCase() || 'DEBIT'}</p>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Card Number:</strong> ****${card.card_number_last4}</p>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Cardholder:</strong> ${card.cardholder_name}</p>
+            ${card.bank_name ? `<p style="color: #4a5568; margin: 4px 0;"><strong>Issuing Bank:</strong> ${card.bank_name}</p>` : ''}
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Status:</strong> <span style="color: #059669; font-weight: bold;">Active</span></p>
+          </div>
+
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
+            You can now use this card for secure withdrawals and fund transfers through your Oakline Bank dashboard.
+          </p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com'}/dashboard" 
+               style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                      color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; 
+                      font-weight: 600; font-size: 16px;">
+              Go to Dashboard
+            </a>
+          </div>
+
+          <p style="color: #64748b; font-size: 14px; margin: 24px 0 0 0;">
+            Best regards,<br>
+            <strong>Oakline Bank Team</strong>
+          </p>
+        </div>
+
+        <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; font-size: 12px; margin: 0;">
+            © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+            Member FDIC | Routing: 075915826
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: email,
+    subject: '✅ Your Linked Debit Card Has Been Reactivated - Oakline Bank',
     html: emailHtml,
     type: EMAIL_TYPES.NOTIFY
   });
