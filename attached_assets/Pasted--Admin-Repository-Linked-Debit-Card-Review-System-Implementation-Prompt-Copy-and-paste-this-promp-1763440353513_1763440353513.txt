@@ -1,0 +1,158 @@
+ Admin Repository - Linked Debit Card Review System Implementation Prompt
+
+Copy and paste this prompt to Replit AI in your **admin repository**:
+
+---
+
+## Goal
+I need you to implement a complete system for admins to review and approve/reject linked debit card submissions from users. When a user links an external debit card, it should be pending admin verification. Admins need to view the card photos, verify the information, and approve or reject the submission.
+
+## Backend Implementation Required
+
+### 1. Create Admin API Endpoint for Linked Card Reviews
+Create a new API endpoint at `pages/api/admin/linked-cards.js` with the following functionality:
+
+**GET endpoint** - Fetch all linked card requests:
+- Query the `linked_debit_cards` table from the frontend database
+- Filter by status ('pending', 'active', 'rejected')
+- Join with user information to show who submitted it
+- Include the card photo URLs for verification
+- Return linked cards with user details
+
+**POST endpoint** - Approve or reject linked card requests:
+- Accept `card_id`, `action` ('approve' or 'reject'), and optional `rejection_reason`
+- If approved:
+  1. Update the `linked_debit_cards` table status to 'active'
+  2. Send a confirmation email to the user notifying them of approval
+- If rejected:
+  1. Update the `linked_debit_cards` table status to 'rejected' with the reason
+  2. Send an email to the user explaining the rejection
+
+### 2. Database Queries Needed
+The endpoint should interact with this table:
+
+**linked_debit_cards table** (already exists in frontend):
+- `id`, `user_id`, `cardholder_name`, `card_number_last4`, `card_brand`, `expiry_month`, `expiry_year`
+- `billing_address`, `billing_city`, `billing_state`, `billing_zip`, `billing_country`
+- `card_front_photo`, `card_back_photo` (URLs to Supabase storage)
+- `is_primary`, `status`, `created_at`, `updated_at`
+
+### 3. Admin Dashboard UI Component
+Create a new page at `pages/admin/linked-cards.js` to display and manage linked card requests:
+
+**Table/List View** showing:
+- User name and email
+- Card brand and last 4 digits
+- Cardholder name
+- Submission date
+- Current status (Pending/Active/Rejected)
+- Action buttons (View Details, Approve/Reject for pending requests)
+
+**Detail Modal** for reviewing requests:
+- Display card information (brand, last 4, cardholder, expiry, billing address)
+- Show card front and back photos in a lightbox/modal
+- Display user details
+- For rejection: text area for rejection reason
+- Approve and Reject buttons
+
+### 4. Email Notifications
+Implement email sending for:
+
+**Approval Email Template**:
+```
+Subject: Your Linked Debit Card Has Been Approved
+
+Dear [User Name],
+
+Great news! Your linked debit card has been approved and is now active.
+
+Card Details:
+- Card Brand: [Card Brand]
+- Card Number: ****[Last 4 Digits]
+- Cardholder: [Cardholder Name]
+
+You can now use this card for withdrawals and transactions from your Oakline Bank dashboard.
+
+Best regards,
+Oakline Bank Team
+```
+
+**Rejection Email Template**:
+```
+Subject: Linked Debit Card Status Update
+
+Dear [User Name],
+
+We regret to inform you that your linked debit card submission could not be approved at this time.
+
+Card Details:
+- Card Brand: [Card Brand]
+- Card Number: ****[Last 4 Digits]
+
+Reason: [Rejection Reason]
+
+Please ensure that:
+- The card photos are clear and readable
+- All card information matches the photos
+- The card is valid and not expired
+
+You may submit a new request with corrected information.
+
+If you have any questions, please contact our support team.
+
+Best regards,
+Oakline Bank Team
+```
+
+### 5. Card Photo Viewer
+Create a component to display card photos:
+- Show front and back photos side by side
+- Allow clicking to enlarge photos
+- Zoom functionality to verify card details
+- Download option for record keeping
+
+### 6. Security & Validation
+**Security Requirements:**
+- All endpoints must verify admin authentication
+- Use proper RLS (Row Level Security) policies
+- Validate all input data
+- Log all approval/rejection actions
+- Ensure card photos are only accessible to admins
+
+**Verification Checklist (Display in UI):**
+- [ ] Card photos are clear and readable
+- [ ] Cardholder name matches the photo
+- [ ] Last 4 digits match the photo
+- [ ] Expiry date matches the photo
+- [ ] Card is not expired
+- [ ] Card brand is correctly identified
+- [ ] Billing information is complete
+
+## Expected Flow
+1. User submits linked card from frontend with photos
+2. Card appears in admin dashboard as 'pending'
+3. Admin clicks "View Details" to review
+4. Admin views card photos and verifies information
+5. Admin checks verification checklist
+6. Admin clicks Approve or Reject
+7. If approved: System updates status to 'active', sends approval email
+8. If rejected: System updates status to 'rejected', sends rejection email with reason
+9. User receives email notification
+10. If approved, user can use the card for transactions
+
+## Database Connection
+Use the same Supabase connection details as the frontend repository since both databases are the same.
+
+## Additional Features
+- Search/filter by user, status, submission date
+- Bulk actions (approve/reject multiple)
+- Activity log showing who approved/rejected and when
+- Statistics dashboard showing:
+  - Total pending reviews
+  - Total approved cards
+  - Total rejected cards
+  - Average review time
+
+---
+
+Please implement all of the above components in the admin repository, ensuring proper error handling, validation, and user feedback. Make sure the card photo viewer is secure and only accessible to authenticated admins.
