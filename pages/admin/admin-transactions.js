@@ -88,6 +88,7 @@ export default function AdminTransactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
+      setError(''); // Clear any previous errors
 
       const { data: txData, error: txError } = await supabase
         .from('transactions')
@@ -102,7 +103,10 @@ export default function AdminTransactions() {
         .order('created_at', { ascending: false })
         .limit(500);
 
-      if (txError) throw txError;
+      if (txError) {
+        console.error('Supabase error fetching transactions:', txError);
+        throw new Error(txError.message || 'Failed to fetch transactions from database');
+      }
 
       const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
       let applications = [];
@@ -266,11 +270,12 @@ export default function AdminTransactions() {
         })
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update transaction');
+        const result = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(result.error || `Server returned ${response.status}: Failed to update transaction`);
       }
+
+      const result = await response.json();
 
       const { data: accountAfter } = await supabase
         .from('accounts')

@@ -70,33 +70,25 @@ export default async function handler(req, res) {
 
     const updates = {};
     
-    // Always allow type changes
+    // Build updates object - always include fields that are provided
     if (type !== undefined) {
       updates.type = type;
     }
     
-    // Always allow amount changes
     if (amount !== undefined) {
       updates.amount = parseFloat(amount);
     }
     
-    // Always allow description changes (including empty strings)
     if (description !== undefined) {
       updates.description = description;
     }
     
-    // Always allow status changes
     if (status !== undefined) {
       updates.status = status;
     }
     
-    // Always allow created_at changes if provided
     if (created_at !== undefined) {
-      const oldCreatedAt = new Date(oldTransaction.created_at).toISOString();
-      const newCreatedAt = new Date(created_at).toISOString();
-      if (oldCreatedAt !== newCreatedAt) {
-        updates.created_at = newCreatedAt;
-      }
+      updates.created_at = new Date(created_at).toISOString();
     }
 
     // Handle updated_at timestamp
@@ -104,7 +96,7 @@ export default async function handler(req, res) {
       // Admin manually changed the updated_at timestamp
       updates.updated_at = new Date(updated_at).toISOString();
     } else {
-      // Auto-update to current time if any other field changed
+      // Auto-update to current time when saving
       updates.updated_at = new Date().toISOString();
     }
 
