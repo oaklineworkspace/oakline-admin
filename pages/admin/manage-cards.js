@@ -50,8 +50,14 @@ export default function ManageCards() {
       const cardsData = await cardsRes.json();
       const usersData = await usersRes.json();
 
+      console.log('Cards data:', cardsData);
+      console.log('Users data:', usersData);
+
       if (cardsData.success) setCards(cardsData.cards || []);
-      if (usersData.success) setUsers(usersData.users || []);
+      if (usersData.users && Array.isArray(usersData.users)) {
+        setUsers(usersData.users);
+        console.log('Users set:', usersData.users.length);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setMessage('❌ Failed to load data');
@@ -73,15 +79,20 @@ export default function ManageCards() {
   };
 
   const handleUserChange = (userId) => {
+    console.log('Selected user ID:', userId);
+    console.log('Available users:', users);
     setIssueForm(prev => ({ ...prev, userId, accountId: '' }));
     setAccounts([]);
     if (userId) {
       fetchUserAccounts(userId);
       const user = users.find(u => u.id === userId);
+      console.log('Found user:', user);
       if (user && user.profiles) {
+        const cardholderName = `${user.profiles.first_name || ''} ${user.profiles.last_name || ''}`.trim();
+        console.log('Setting cardholder name:', cardholderName);
         setIssueForm(prev => ({
           ...prev,
-          cardholderName: `${user.profiles.first_name || ''} ${user.profiles.last_name || ''}`.trim()
+          cardholderName: cardholderName
         }));
       }
     }
@@ -433,12 +444,21 @@ export default function ManageCards() {
                     style={styles.select}
                   >
                     <option value="">Choose a user...</option>
-                    {users.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.profiles?.first_name} {user.profiles?.last_name} ({user.email})
-                      </option>
-                    ))}
+                    {users && users.length > 0 ? (
+                      users.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.profiles?.first_name || 'No'} {user.profiles?.last_name || 'Name'} ({user.email || 'No email'})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No users available</option>
+                    )}
                   </select>
+                  {users && users.length === 0 && (
+                    <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                      No users found. Please check if users exist in the system.
+                    </p>
+                  )}
                 </div>
 
                 {accounts.length > 0 && (
