@@ -94,6 +94,7 @@ export default function AdminNavDropdown() {
         { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
         { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
         { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝' },
+        { name: 'Linked Cards Review', path: '/admin/linked-cards', icon: '🔗' },
         { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗' },
         { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' }

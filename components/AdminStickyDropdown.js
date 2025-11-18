@@ -39,39 +39,40 @@ export default function AdminStickyDropdown() {
     {
       category: '👥 User Management',
       pages: [
-        { name: 'All Users', href: '/admin/manage-all-users', icon: '👥' },
+        { name: 'Manage All Users', href: '/admin/manage-all-users', icon: '👥' },
         { name: 'Customer Users', href: '/admin/admin-users', icon: '👨‍💼' },
+        { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '📝' },
         { name: 'Create User', href: '/admin/create-user', icon: '➕' },
-        { name: 'User Enrollment', href: '/admin/manage-user-enrollment', icon: '🔑' },
-        { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '📧' },
+        { name: 'Resend Enrollment', href: '/admin/resend-enrollment', icon: '🔄' },
         { name: 'View User Documents', href: '/admin/view-user-documents', icon: '📄' },
-        { name: 'Delete User By ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
+        { name: 'Delete User by ID', href: '/admin/delete-user-by-id', icon: '🗑️' },
         { name: 'Delete Users', href: '/admin/delete-users', icon: '⚠️' },
-        { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '💰' }
+        { name: 'Delete User Loans', href: '/admin/delete-user-loans', icon: '🏠' },
+        { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' }
       ]
     },
     {
       category: '💳 Card Management',
       pages: [
-        { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '📝' },
-        { name: 'Cards Dashboard', href: '/admin/admin-cards-dashboard', icon: '💳' },
+        { name: 'Cards Dashboard', href: '/admin/admin-cards-dashboard', icon: '📊' },
         { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' },
+        { name: 'Card Applications', href: '/admin/admin-card-applications', icon: '📝' },
+        { name: 'Linked Cards Review', href: '/admin/linked-cards', icon: '🔗' },
         { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Assign Card', href: '/admin/admin-assign-card', icon: '🔗' },
-        { name: 'Test Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
+        { name: 'Test Card Transactions', href: '/admin/test-card-transactions', icon: '🧪' }
       ]
     },
     {
-      category: '💰 Financial Operations',
+      category: '💸 Transactions',
       pages: [
         { name: 'All Transactions', href: '/admin/admin-transactions', icon: '💸' },
-        { name: 'Transfers', href: '/admin/admin-transfers', icon: '🔄' },
-        { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
-        { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✍️' },
+        { name: 'User Transfers', href: '/admin/admin-transfers', icon: '🔄' },
+        { name: 'Wire Transfers', href: '/admin/admin-wire-transfers', icon: '🌐' },
+        { name: 'Manual Transactions', href: '/admin/manual-transactions', icon: '✏️' },
         { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
         { name: 'Generate Transactions', href: '/admin/generate-transactions', icon: '🎲' },
-        { name: 'Account Balances', href: '/admin/admin-balance', icon: '💵' },
-        { name: 'Treasury Account', href: '/admin/treasury', icon: '🏛️' }
+        { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' }
       ]
     },
     {
@@ -110,18 +111,18 @@ export default function AdminStickyDropdown() {
       ]
     },
     {
-      category: '🔧 System & Security',
+      category: '📁 System Tools',
       pages: [
+        { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
+        { name: 'File Browser', href: '/admin/file-browser', icon: '📁' },
+        { name: 'Storage Diagnostics', href: '/admin/storage-diagnostics', icon: '🔍' },
         { name: 'Security Dashboard', href: '/admin/security-dashboard', icon: '🔐' },
         { name: 'User Activity Monitor', href: '/admin/user-activity-monitor', icon: '👁️' },
         { name: 'Bank Details', href: '/admin/manage-bank-details', icon: '🏦' },
-        { name: 'Database Explorer', href: '/admin/database-explorer', icon: '🗄️' },
-        { name: 'Storage Diagnostics', href: '/admin/storage-diagnostics', icon: '🔍' },
         { name: 'Credit Scores', href: '/admin/credit-scores', icon: '📊' },
         { name: 'Settings', href: '/admin/admin-settings', icon: '⚙️' },
         { name: 'Roles & Permissions', href: '/admin/admin-roles', icon: '🎭' },
-        { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' },
-        { name: 'File Browser', href: '/admin/file-browser', icon: '📁' }
+        { name: 'Notifications', href: '/admin/admin-notifications', icon: '🔔' }
       ]
     },
     {
