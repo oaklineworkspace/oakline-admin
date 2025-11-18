@@ -133,6 +133,12 @@ export default function AdminDashboard() {
                 <p style={styles.cardDescription}>Manage all cards</p>
               </Link>
 
+              <Link href="/admin/linked-cards" style={styles.adminPageCard}>
+                <div style={styles.cardIcon}>🔗</div>
+                <h3 style={styles.cardTitle}>Linked Cards Review</h3>
+                <p style={styles.cardDescription}>Review & approve user linked cards</p>
+              </Link>
+
               <Link href="/admin/admin-transactions" style={styles.adminPageCard}>
                 <div style={styles.cardIcon}>💸</div>
                 <h3 style={styles.cardTitle}>Transactions</h3>
