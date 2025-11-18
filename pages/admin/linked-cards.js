@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import AdminAuth from '../../components/AdminAuth';
 import AdminBackButton from '../../components/AdminBackButton';
@@ -120,7 +119,8 @@ export default function LinkedCardsReview() {
     const statusStyles = {
       pending: { backgroundColor: '#fef3c7', color: '#92400e' },
       active: { backgroundColor: '#d1fae5', color: '#065f46' },
-      rejected: { backgroundColor: '#fee2e2', color: '#991b1b' }
+      rejected: { backgroundColor: '#fee2e2', color: '#991b1b' },
+      suspended: { backgroundColor: '#fef3c7', color: '#92400e' } // Added suspended state style
     };
     return statusStyles[status] || statusStyles.pending;
   };
@@ -169,7 +169,7 @@ export default function LinkedCardsReview() {
 
         {/* Tabs */}
         <div style={styles.tabs}>
-          {['all', 'pending', 'active', 'rejected'].map(tab => (
+          {['all', 'pending', 'active', 'rejected', 'suspended'].map(tab => ( // Added 'suspended' tab
             <button
               key={tab}
               style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
@@ -214,9 +214,22 @@ export default function LinkedCardsReview() {
                     </div>
                     <span style={{
                       ...styles.statusBadge,
-                      ...getStatusStyle(card.status)
+                      backgroundColor:
+                        card.status === 'pending' ? '#fef3c7' :
+                        card.status === 'active' ? '#d1fae5' :
+                        card.status === 'suspended' ? '#fef3c7' :
+                        card.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
+                      color:
+                        card.status === 'pending' ? '#92400e' :
+                        card.status === 'active' ? '#065f46' :
+                        card.status === 'suspended' ? '#92400e' :
+                        card.status === 'rejected' ? '#991b1b' : '#4b5563'
                     }}>
-                      {card.status?.toUpperCase() || 'PENDING'}
+                      {card.status === 'pending' && '⏳'}
+                      {card.status === 'active' && '✅'}
+                      {card.status === 'suspended' && '⏸️'}
+                      {card.status === 'rejected' && '❌'}
+                      {' '}{card.status.charAt(0).toUpperCase() + card.status.slice(1)}
                     </span>
                   </div>
 
@@ -318,16 +331,51 @@ export default function LinkedCardsReview() {
                         </button>
                       </>
                     )}
-                    <button
-                      onClick={() => setShowDeleteConfirm(card.id)}
-                      disabled={processing}
-                      style={{
-                        ...styles.deleteButton,
-                        ...(processing ? styles.buttonDisabled : {})
-                      }}
-                    >
-                      {processing ? '⏳' : '🗑️'} Delete
-                    </button>
+                    {card.status === 'active' && (
+                      <>
+                        <button
+                          onClick={() => handleAction('suspend', card.id)}
+                          style={{
+                            ...styles.actionButton,
+                            backgroundColor: '#f59e0b',
+                            marginLeft: '8px'
+                          }}
+                          disabled={processing}
+                        >
+                          ⏸️ Suspend
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+                              handleAction('delete', card.id);
+                            }
+                          }}
+                          style={{
+                            ...styles.actionButton,
+                            backgroundColor: '#dc2626',
+                            marginLeft: '8px'
+                          }}
+                          disabled={processing}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </>
+                    )}
+
+                    {card.status === 'suspended' && (
+                      <button
+                        onClick={() => handleAction('reactivate', card.id)}
+                        style={{
+                          ...styles.actionButton,
+                          backgroundColor: '#10b981',
+                          marginLeft: '8px'
+                        }}
+                        disabled={processing}
+                      >
+                        ✅ Reactivate
+                      </button>
+                    )}
+                    {/* Removed the delete button from here as it's handled above for 'active' status */}
                   </div>
                 </div>
               ))}
@@ -390,14 +438,14 @@ export default function LinkedCardsReview() {
                   <div style={styles.photosGrid}>
                     {selectedCard.card_front_photo && (
                       <div style={styles.photoContainer}>
-                        <img 
-                          src={selectedCard.card_front_photo} 
-                          alt="Card Front" 
+                        <img
+                          src={selectedCard.card_front_photo}
+                          alt="Card Front"
                           style={styles.photoThumbnail}
                           onClick={() => openPhotoModal(selectedCard.card_front_photo, 'Card Front')}
                         />
                         <div style={styles.photoActions}>
-                          <button 
+                          <button
                             onClick={() => openPhotoModal(selectedCard.card_front_photo, 'Card Front')}
                             style={styles.photoButton}
                           >
@@ -409,14 +457,14 @@ export default function LinkedCardsReview() {
                     )}
                     {selectedCard.card_back_photo && (
                       <div style={styles.photoContainer}>
-                        <img 
-                          src={selectedCard.card_back_photo} 
-                          alt="Card Back" 
+                        <img
+                          src={selectedCard.card_back_photo}
+                          alt="Card Back"
                           style={styles.photoThumbnail}
                           onClick={() => openPhotoModal(selectedCard.card_back_photo, 'Card Back')}
                         />
                         <div style={styles.photoActions}>
-                          <button 
+                          <button
                             onClick={() => openPhotoModal(selectedCard.card_back_photo, 'Card Back')}
                             style={styles.photoButton}
                           >
@@ -460,7 +508,7 @@ export default function LinkedCardsReview() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Action Buttons for pending status */}
                 {selectedCard.status === 'pending' && (
                   <div style={styles.actionButtons}>
                     <button
@@ -479,7 +527,47 @@ export default function LinkedCardsReview() {
                     </button>
                   </div>
                 )}
-                
+
+                {/* Action Buttons for active status */}
+                {selectedCard.status === 'active' && (
+                  <div style={styles.actionButtons}>
+                    <button
+                      onClick={() => handleAction('suspend', selectedCard.id)}
+                      style={styles.approveModalButton} // Reusing approve button style for consistency
+                      disabled={processing}
+                    >
+                      {processing ? '⏳ Processing...' : '⏸️ Suspend Card'}
+                    </button>
+                    <button
+                      onClick={() => handleAction('delete', selectedCard.id)}
+                      style={styles.rejectModalButton} // Reusing reject button style for delete
+                      disabled={processing}
+                    >
+                      {processing ? '⏳ Processing...' : '🗑️ Delete Card'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Action Buttons for suspended status */}
+                {selectedCard.status === 'suspended' && (
+                  <div style={styles.actionButtons}>
+                    <button
+                      onClick={() => handleAction('reactivate', selectedCard.id)}
+                      style={styles.approveModalButton} // Reusing approve button style for reactivate
+                      disabled={processing}
+                    >
+                      {processing ? '⏳ Processing...' : '✅ Reactivate Card'}
+                    </button>
+                    <button
+                      onClick={() => handleAction('delete', selectedCard.id)}
+                      style={styles.rejectModalButton} // Reusing reject button style for delete
+                      disabled={processing}
+                    >
+                      {processing ? '⏳ Processing...' : '🗑️ Delete Card'}
+                    </button>
+                  </div>
+                )}
+
                 {/* Delete Button - Available for all statuses */}
                 <div style={styles.actionButtons}>
                   <button
@@ -856,6 +944,17 @@ const styles = {
     cursor: 'not-allowed',
     opacity: 0.6
   },
+  actionButton: { // Added for new buttons
+    flex: 1,
+    padding: '10px',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -969,11 +1068,6 @@ const styles = {
     background: '#3b82f6',
     color: 'white',
     fontWeight: '500'
-  },
-  photoLabel: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#666'
   },
   textarea: {
     width: '100%',

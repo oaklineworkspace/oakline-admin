@@ -113,12 +113,60 @@ async function handleCardAction(req, res) {
       return res.status(400).json({ error: 'Card ID and action are required' });
     }
 
-    if (!['approve', 'reject', 'delete'].includes(action)) {
+    if (!['approve', 'reject', 'delete', 'suspend', 'reactivate'].includes(action)) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
     if (action === 'reject' && !rejection_reason) {
       return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    // Handle suspend action
+    if (action === 'suspend') {
+      const { error: suspendError } = await supabaseAdmin
+        .from('linked_debit_cards')
+        .update({ 
+          status: 'suspended',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', card_id);
+
+      if (suspendError) {
+        console.error('Error suspending card:', suspendError);
+        return res.status(500).json({ error: 'Failed to suspend card' });
+      }
+
+      console.log(`⏸️ Suspended linked card ${card_id}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Linked card suspended successfully',
+        card: { id: card_id, status: 'suspended' }
+      });
+    }
+
+    // Handle reactivate action
+    if (action === 'reactivate') {
+      const { error: reactivateError } = await supabaseAdmin
+        .from('linked_debit_cards')
+        .update({ 
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', card_id);
+
+      if (reactivateError) {
+        console.error('Error reactivating card:', reactivateError);
+        return res.status(500).json({ error: 'Failed to reactivate card' });
+      }
+
+      console.log(`✅ Reactivated linked card ${card_id}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Linked card reactivated successfully',
+        card: { id: card_id, status: 'active' }
+      });
     }
 
     // Handle delete action - permanently removes the card row from database
@@ -271,18 +319,19 @@ async function sendApprovalEmail(email, userName, card) {
           </h2>
 
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-            Your linked debit card has been verified and is now active.
+            Your linked debit card has been successfully verified and is now connected to your Oakline Bank account.
           </p>
 
           <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
             <h3 style="color: #059669; font-size: 18px; margin: 0 0 12px 0;">Card Details</h3>
-            <p style="color: #4a5568; margin: 4px 0;"><strong>Card Brand:</strong> ${card.card_brand}</p>
+            <p style="color: #4a5568; margin: 4px 0;"><strong>Card Brand:</strong> ${card.card_brand.toUpperCase()}</p>
             <p style="color: #4a5568; margin: 4px 0;"><strong>Card Number:</strong> ****${card.card_number_last4}</p>
             <p style="color: #4a5568; margin: 4px 0;"><strong>Cardholder:</strong> ${card.cardholder_name}</p>
+            ${card.bank_name ? `<p style="color: #4a5568; margin: 4px 0;"><strong>Issuing Bank:</strong> ${card.bank_name}</p>` : ''}
           </div>
 
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
-            You can now use this card for withdrawals and transactions from your Oakline Bank dashboard.
+            You can now use this linked card for secure withdrawals and fund transfers through your Oakline Bank dashboard.
           </p>
 
           <div style="text-align: center; margin: 32px 0;">
