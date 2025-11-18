@@ -70,38 +70,42 @@ export default async function handler(req, res) {
 
     const updates = {};
     
-    if (type !== undefined && type !== oldTransaction.type) {
+    // Always allow type changes
+    if (type !== undefined) {
       updates.type = type;
     }
     
-    if (amount !== undefined && parseFloat(amount) !== parseFloat(oldTransaction.amount)) {
+    // Always allow amount changes
+    if (amount !== undefined) {
       updates.amount = parseFloat(amount);
     }
     
-    if (description !== undefined && description !== oldTransaction.description) {
+    // Always allow description changes (including empty strings)
+    if (description !== undefined) {
       updates.description = description;
     }
     
-    if (status !== undefined && status !== oldTransaction.status) {
+    // Always allow status changes
+    if (status !== undefined) {
       updates.status = status;
     }
     
-    if (created_at !== undefined && created_at !== oldTransaction.created_at) {
-      updates.created_at = created_at;
-    }
-
-    if (manuallyEditUpdatedAt && updated_at !== undefined) {
-      const oldUpdatedAt = new Date(oldTransaction.updated_at).toISOString();
-      const newUpdatedAt = new Date(updated_at).toISOString();
-      if (oldUpdatedAt !== newUpdatedAt) {
-        updates.updated_at = newUpdatedAt;
+    // Always allow created_at changes if provided
+    if (created_at !== undefined) {
+      const oldCreatedAt = new Date(oldTransaction.created_at).toISOString();
+      const newCreatedAt = new Date(created_at).toISOString();
+      if (oldCreatedAt !== newCreatedAt) {
+        updates.created_at = newCreatedAt;
       }
-    } else if (Object.keys(updates).length > 0) {
-      updates.updated_at = new Date().toISOString();
     }
 
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No changes detected' });
+    // Handle updated_at timestamp
+    if (manuallyEditUpdatedAt && updated_at !== undefined) {
+      // Admin manually changed the updated_at timestamp
+      updates.updated_at = new Date(updated_at).toISOString();
+    } else {
+      // Auto-update to current time if any other field changed
+      updates.updated_at = new Date().toISOString();
     }
 
     const { data: updatedTransaction, error: updateError } = await supabaseAdmin

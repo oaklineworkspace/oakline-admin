@@ -931,11 +931,15 @@ export default function AdminTransactions() {
                         value={editForm.updated_at}
                         onChange={(e) => {
                           setEditForm({ ...editForm, updated_at: e.target.value });
-                          setManuallyEditUpdatedAt(e.target.value !== originalUpdatedAt);
+                          // Mark as manually edited if the value differs from original
+                          const isManualEdit = e.target.value !== originalUpdatedAt;
+                          setManuallyEditUpdatedAt(isManualEdit);
                         }}
                         style={styles.formInput}
                       />
-                      <small style={styles.helpText}>Leave unchanged to auto-update to current time</small>
+                      <small style={styles.helpText}>
+                        {manuallyEditUpdatedAt ? '⚠️ Manually set timestamp' : 'Auto-updates to current time when saving'}
+                      </small>
                     </div>
                   </div>
 
