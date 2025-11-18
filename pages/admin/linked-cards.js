@@ -2,38 +2,32 @@
 import { useState, useEffect } from 'react';
 import AdminAuth from '../../components/AdminAuth';
 import AdminBackButton from '../../components/AdminBackButton';
+import Link from 'next/link';
 
 export default function LinkedCardsReview() {
   const [cards, setCards] = useState([]);
   const [statistics, setStatistics] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCard, setSelectedCard] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [photoModal, setPhotoModal] = useState(null);
-  const [verificationChecklist, setVerificationChecklist] = useState({
-    photosReadable: false,
-    nameMatches: false,
-    last4Matches: false,
-    expiryMatches: false,
-    notExpired: false,
-    brandCorrect: false,
-    billingComplete: false
-  });
+  const [expandedCard, setExpandedCard] = useState(null);
 
   useEffect(() => {
     fetchCards();
-  }, [filterStatus, searchTerm]);
+  }, [activeTab, searchTerm]);
 
   const fetchCards = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        status: filterStatus,
+        status: activeTab,
         search: searchTerm
       });
 
@@ -58,29 +52,12 @@ export default function LinkedCardsReview() {
     setSelectedCard(card);
     setShowDetailModal(true);
     setRejectionReason('');
-    setVerificationChecklist({
-      photosReadable: false,
-      nameMatches: false,
-      last4Matches: false,
-      expiryMatches: false,
-      notExpired: false,
-      brandCorrect: false,
-      billingComplete: false
-    });
   };
 
   const handleAction = async (action) => {
     if (action === 'reject' && !rejectionReason.trim()) {
       alert('Please provide a rejection reason');
       return;
-    }
-
-    if (action === 'approve') {
-      const allChecked = Object.values(verificationChecklist).every(v => v === true);
-      if (!allChecked) {
-        const confirm = window.confirm('Not all verification items are checked. Are you sure you want to approve?');
-        if (!confirm) return;
-      }
     }
 
     setProcessing(true);
@@ -98,7 +75,8 @@ export default function LinkedCardsReview() {
       const data = await response.json();
 
       if (data.success) {
-        alert(`Card ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+        setSuccessMessage(`Card ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+        setTimeout(() => setSuccessMessage(''), 5000);
         setShowDetailModal(false);
         fetchCards();
       } else {
@@ -116,11 +94,32 @@ export default function LinkedCardsReview() {
     setPhotoModal({ url: photoUrl, title });
   };
 
-  const downloadPhoto = (photoUrl, filename) => {
-    const link = document.createElement('a');
-    link.href = photoUrl;
-    link.download = filename;
-    link.click();
+  const toggleExpanded = (cardId) => {
+    setExpandedCard(expandedCard === cardId ? null : cardId);
+  };
+
+  const filteredCards = cards.filter(card => {
+    const matchesTab = activeTab === 'all' || card.status === activeTab;
+    const matchesSearch = card.cardholder_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         card.card_number_last4?.includes(searchTerm) ||
+                         card.users?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
+
+  const stats = {
+    total: statistics.total || 0,
+    pending: statistics.pending || 0,
+    active: statistics.active || 0,
+    rejected: statistics.rejected || 0
+  };
+
+  const getStatusStyle = (status) => {
+    const statusStyles = {
+      pending: { backgroundColor: '#fef3c7', color: '#92400e' },
+      active: { backgroundColor: '#d1fae5', color: '#065f46' },
+      rejected: { backgroundColor: '#fee2e2', color: '#991b1b' }
+    };
+    return statusStyles[status] || statusStyles.pending;
   };
 
   return (
@@ -129,65 +128,81 @@ export default function LinkedCardsReview() {
         <div style={styles.header}>
           <div>
             <AdminBackButton />
-            <h1 style={styles.title}>💳 Linked Card Reviews</h1>
-            <p style={styles.subtitle}>Review and approve user-submitted linked debit cards</p>
+            <h1 style={styles.title}>💳 Linked Card Review System</h1>
+            <p style={styles.subtitle}>Review and approve user-submitted linked debit cards with comprehensive verification</p>
+          </div>
+          <div style={styles.headerActions}>
+            <button onClick={fetchCards} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              ← Dashboard
+            </Link>
           </div>
         </div>
 
-        {/* Statistics */}
+        {error && <div style={styles.errorBanner}>{error}</div>}
+        {successMessage && <div style={styles.successBanner}>{successMessage}</div>}
+
+        {/* Statistics Cards */}
         <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={styles.statValue}>{statistics.total || 0}</div>
-            <div style={styles.statLabel}>Total Cards</div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+            <h3 style={styles.statLabel}>Total Cards</h3>
+            <p style={styles.statValue}>{stats.total}</p>
           </div>
-          <div style={{...styles.statCard, borderColor: '#fbbf24'}}>
-            <div style={{...styles.statValue, color: '#fbbf24'}}>{statistics.pending || 0}</div>
-            <div style={styles.statLabel}>Pending Review</div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+            <h3 style={styles.statLabel}>Pending Review</h3>
+            <p style={styles.statValue}>{stats.pending}</p>
           </div>
-          <div style={{...styles.statCard, borderColor: '#10b981'}}>
-            <div style={{...styles.statValue, color: '#10b981'}}>{statistics.active || 0}</div>
-            <div style={styles.statLabel}>Approved</div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
+            <h3 style={styles.statLabel}>Approved</h3>
+            <p style={styles.statValue}>{stats.active}</p>
           </div>
-          <div style={{...styles.statCard, borderColor: '#ef4444'}}>
-            <div style={{...styles.statValue, color: '#ef4444'}}>{statistics.rejected || 0}</div>
-            <div style={styles.statLabel}>Rejected</div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+            <h3 style={styles.statLabel}>Rejected</h3>
+            <p style={styles.statValue}>{stats.rejected}</p>
           </div>
         </div>
 
-        {/* Filters */}
-        <div style={styles.controls}>
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {['all', 'pending', 'active', 'rejected'].map(tab => (
+            <button
+              key={tab}
+              style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div style={styles.filtersSection}>
           <input
             type="text"
-            placeholder="Search by cardholder name or last 4 digits..."
+            placeholder="🔍 Search by cardholder name, email, or last 4 digits..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
           />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={styles.filterSelect}
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="rejected">Rejected</option>
-          </select>
         </div>
 
-        {error && <div style={styles.error}>{error}</div>}
-
-        {loading ? (
-          <div style={styles.loading}>Loading cards...</div>
-        ) : (
-          <div style={styles.cardsGrid}>
-            {cards.length === 0 ? (
-              <div style={styles.noCards}>
-                <h3>No linked cards found</h3>
-                <p>Cards will appear here when users submit linked debit cards.</p>
-              </div>
-            ) : (
-              cards.map((card) => (
+        {/* Cards Grid */}
+        <div style={styles.tableContainer}>
+          {loading ? (
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
+              <p>Loading cards...</p>
+            </div>
+          ) : filteredCards.length === 0 ? (
+            <div style={styles.emptyState}>
+              <p style={styles.emptyIcon}>📋</p>
+              <p style={styles.emptyText}>No linked cards found</p>
+            </div>
+          ) : (
+            <div style={styles.cardsGrid}>
+              {filteredCards.map((card) => (
                 <div key={card.id} style={styles.cardItem}>
                   <div style={styles.cardHeader}>
                     <div>
@@ -196,57 +211,122 @@ export default function LinkedCardsReview() {
                     </div>
                     <span style={{
                       ...styles.statusBadge,
-                      backgroundColor: card.status === 'pending' ? '#fbbf24' : 
-                                     card.status === 'active' ? '#10b981' : '#ef4444'
+                      ...getStatusStyle(card.status)
                     }}>
-                      {card.status}
+                      {card.status?.toUpperCase() || 'PENDING'}
                     </span>
                   </div>
 
-                  <div style={styles.cardDetails}>
-                    <div style={styles.detailRow}>
-                      <span style={styles.label}>Card Brand:</span>
-                      <span>{card.card_brand}</span>
+                  <div style={styles.cardBody}>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Card Brand:</span>
+                      <span style={styles.infoValue}>{card.card_brand}</span>
                     </div>
-                    <div style={styles.detailRow}>
-                      <span style={styles.label}>Last 4:</span>
-                      <span>****{card.card_number_last4}</span>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Last 4:</span>
+                      <span style={styles.infoValue}>****{card.card_number_last4}</span>
                     </div>
-                    <div style={styles.detailRow}>
-                      <span style={styles.label}>Expiry:</span>
-                      <span>{card.expiry_month}/{card.expiry_year}</span>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Expiry:</span>
+                      <span style={styles.infoValue}>{card.expiry_month}/{card.expiry_year}</span>
                     </div>
-                    <div style={styles.detailRow}>
-                      <span style={styles.label}>Submitted:</span>
-                      <span>{new Date(card.created_at).toLocaleDateString()}</span>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Submitted:</span>
+                      <span style={styles.infoValue}>{new Date(card.created_at).toLocaleDateString()}</span>
                     </div>
+
+                    {expandedCard === card.id && (
+                      <div style={styles.expandedDetails}>
+                        <div style={styles.detailsGrid}>
+                          <div style={styles.detailItem}>
+                            <span style={styles.detailLabel}>User Name:</span>
+                            <span style={styles.detailValue}>
+                              {card.users?.profiles?.first_name} {card.users?.profiles?.last_name}
+                            </span>
+                          </div>
+                          <div style={styles.detailItem}>
+                            <span style={styles.detailLabel}>Phone:</span>
+                            <span style={styles.detailValue}>{card.users?.profiles?.phone || 'N/A'}</span>
+                          </div>
+                          <div style={styles.detailItem}>
+                            <span style={styles.detailLabel}>Billing Address:</span>
+                            <span style={styles.detailValue}>
+                              {card.billing_address}, {card.billing_city}, {card.billing_state} {card.billing_zip}
+                            </span>
+                          </div>
+                          <div style={styles.detailItem}>
+                            <span style={styles.detailLabel}>Country:</span>
+                            <span style={styles.detailValue}>{card.billing_country || 'United States'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <button
-                    onClick={() => handleViewDetails(card)}
-                    style={styles.viewDetailsButton}
-                  >
-                    👁️ View Details
-                  </button>
+                  <div style={styles.cardFooter}>
+                    <button
+                      onClick={() => toggleExpanded(card.id)}
+                      style={styles.detailsButton}
+                    >
+                      {expandedCard === card.id ? '⬆️ Hide' : '⬇️ Show'} Details
+                    </button>
+                    <button
+                      onClick={() => handleViewDetails(card)}
+                      style={styles.viewFullButton}
+                    >
+                      👁️ Full Review
+                    </button>
+                    {card.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSelectedCard(card);
+                            setRejectionReason('');
+                            handleAction('reject');
+                          }}
+                          disabled={processing}
+                          style={{
+                            ...styles.rejectButton,
+                            ...(processing ? styles.buttonDisabled : {})
+                          }}
+                        >
+                          {processing ? '⏳' : '❌'} Reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedCard(card);
+                            handleAction('approve');
+                          }}
+                          disabled={processing}
+                          style={{
+                            ...styles.approveButton,
+                            ...(processing ? styles.buttonDisabled : {})
+                          }}
+                        >
+                          {processing ? '⏳' : '✅'} Approve
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Detail Modal */}
         {showDetailModal && selectedCard && (
           <div style={styles.modalOverlay} onClick={() => setShowDetailModal(false)}>
             <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Card Review</h2>
+                <h2 style={styles.modalTitle}>💳 Card Review - Full Details</h2>
                 <button onClick={() => setShowDetailModal(false)} style={styles.closeButton}>×</button>
               </div>
 
               <div style={styles.modalBody}>
                 {/* User Info */}
                 <div style={styles.section}>
-                  <h3 style={styles.sectionTitle}>User Information</h3>
+                  <h3 style={styles.sectionTitle}>👤 User Information</h3>
                   <div style={styles.infoGrid}>
                     <div><strong>Name:</strong> {selectedCard.users?.profiles?.first_name} {selectedCard.users?.profiles?.last_name}</div>
                     <div><strong>Email:</strong> {selectedCard.users?.email}</div>
@@ -254,24 +334,35 @@ export default function LinkedCardsReview() {
                   </div>
                 </div>
 
-                {/* Card Info */}
+                {/* Full Card Information */}
                 <div style={styles.section}>
-                  <h3 style={styles.sectionTitle}>Card Information</h3>
+                  <h3 style={styles.sectionTitle}>💳 Complete Card Information</h3>
                   <div style={styles.infoGrid}>
                     <div><strong>Cardholder Name:</strong> {selectedCard.cardholder_name}</div>
                     <div><strong>Card Brand:</strong> {selectedCard.card_brand}</div>
                     <div><strong>Last 4 Digits:</strong> ****{selectedCard.card_number_last4}</div>
-                    <div><strong>Expiry:</strong> {selectedCard.expiry_month}/{selectedCard.expiry_year}</div>
-                    <div><strong>Billing Address:</strong> {selectedCard.billing_address}</div>
-                    <div><strong>City/State:</strong> {selectedCard.billing_city}, {selectedCard.billing_state}</div>
+                    <div><strong>Expiration:</strong> {selectedCard.expiry_month}/{selectedCard.expiry_year}</div>
+                  </div>
+                  <div style={styles.warningBox}>
+                    <p style={styles.warningText}>⚠️ Full card details are masked for security. Only the last 4 digits are stored in the database.</p>
+                  </div>
+                </div>
+
+                {/* Billing Address */}
+                <div style={styles.section}>
+                  <h3 style={styles.sectionTitle}>📍 Billing Address</h3>
+                  <div style={styles.infoGrid}>
+                    <div><strong>Street Address:</strong> {selectedCard.billing_address}</div>
+                    <div><strong>City:</strong> {selectedCard.billing_city}</div>
+                    <div><strong>State:</strong> {selectedCard.billing_state}</div>
                     <div><strong>ZIP:</strong> {selectedCard.billing_zip}</div>
-                    <div><strong>Country:</strong> {selectedCard.billing_country}</div>
+                    <div><strong>Country:</strong> {selectedCard.billing_country || 'United States'}</div>
                   </div>
                 </div>
 
                 {/* Card Photos */}
                 <div style={styles.section}>
-                  <h3 style={styles.sectionTitle}>Card Photos</h3>
+                  <h3 style={styles.sectionTitle}>📸 Card Photos</h3>
                   <div style={styles.photosGrid}>
                     {selectedCard.card_front_photo && (
                       <div style={styles.photoContainer}>
@@ -286,16 +377,10 @@ export default function LinkedCardsReview() {
                             onClick={() => openPhotoModal(selectedCard.card_front_photo, 'Card Front')}
                             style={styles.photoButton}
                           >
-                            🔍 View
-                          </button>
-                          <button 
-                            onClick={() => downloadPhoto(selectedCard.card_front_photo, 'card_front.jpg')}
-                            style={styles.photoButton}
-                          >
-                            💾 Download
+                            🔍 View Full Size
                           </button>
                         </div>
-                        <p style={styles.photoLabel}>Front</p>
+                        <p style={styles.photoLabel}>Front of Card</p>
                       </div>
                     )}
                     {selectedCard.card_back_photo && (
@@ -311,56 +396,19 @@ export default function LinkedCardsReview() {
                             onClick={() => openPhotoModal(selectedCard.card_back_photo, 'Card Back')}
                             style={styles.photoButton}
                           >
-                            🔍 View
-                          </button>
-                          <button 
-                            onClick={() => downloadPhoto(selectedCard.card_back_photo, 'card_back.jpg')}
-                            style={styles.photoButton}
-                          >
-                            💾 Download
+                            🔍 View Full Size
                           </button>
                         </div>
-                        <p style={styles.photoLabel}>Back</p>
+                        <p style={styles.photoLabel}>Back of Card</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Verification Checklist */}
-                {selectedCard.status === 'pending' && (
-                  <div style={styles.section}>
-                    <h3 style={styles.sectionTitle}>Verification Checklist</h3>
-                    <div style={styles.checklistGrid}>
-                      {Object.entries({
-                        photosReadable: 'Card photos are clear and readable',
-                        nameMatches: 'Cardholder name matches the photo',
-                        last4Matches: 'Last 4 digits match the photo',
-                        expiryMatches: 'Expiry date matches the photo',
-                        notExpired: 'Card is not expired',
-                        brandCorrect: 'Card brand is correctly identified',
-                        billingComplete: 'Billing information is complete'
-                      }).map(([key, label]) => (
-                        <label key={key} style={styles.checkboxLabel}>
-                          <input
-                            type="checkbox"
-                            checked={verificationChecklist[key]}
-                            onChange={(e) => setVerificationChecklist({
-                              ...verificationChecklist,
-                              [key]: e.target.checked
-                            })}
-                            style={styles.checkbox}
-                          />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* Rejection Reason */}
                 {selectedCard.status === 'pending' && (
                   <div style={styles.section}>
-                    <h3 style={styles.sectionTitle}>Rejection Reason (if rejecting)</h3>
+                    <h3 style={styles.sectionTitle}>❌ Rejection Reason (if rejecting)</h3>
                     <textarea
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
@@ -377,16 +425,16 @@ export default function LinkedCardsReview() {
                     <button
                       onClick={() => handleAction('approve')}
                       disabled={processing}
-                      style={styles.approveButton}
+                      style={styles.approveModalButton}
                     >
-                      {processing ? '⏳ Processing...' : '✅ Approve'}
+                      {processing ? '⏳ Processing...' : '✅ Approve Card'}
                     </button>
                     <button
                       onClick={() => handleAction('reject')}
                       disabled={processing}
-                      style={styles.rejectButton}
+                      style={styles.rejectModalButton}
                     >
-                      {processing ? '⏳ Processing...' : '❌ Reject'}
+                      {processing ? '⏳ Processing...' : '❌ Reject Card'}
                     </button>
                   </div>
                 )}
@@ -413,152 +461,320 @@ export default function LinkedCardsReview() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-    padding: '20px'
+    background: '#f5f7fa',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
-    marginBottom: '30px',
     background: 'white',
-    padding: '20px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
     borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '16px'
   },
   title: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1e3c72',
-    margin: '10px 0 0 0'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1a202c',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: '14px',
-    color: '#666',
-    margin: '5px 0 0 0'
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  refreshButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  backButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    background: '#718096',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block',
+    transition: 'all 0.3s ease'
+  },
+  errorBanner: {
+    background: '#fed7d7',
+    color: '#c53030',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500'
+  },
+  successBanner: {
+    background: '#c6f6d5',
+    color: '#2f855a',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500'
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    marginBottom: '20px'
   },
   statCard: {
     background: 'white',
-    padding: '20px',
+    padding: 'clamp(1rem, 3vw, 20px)',
     borderRadius: '12px',
-    textAlign: 'center',
-    borderLeft: '4px solid #3b82f6',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-  },
-  statValue: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    color: '#3b82f6',
-    margin: '0 0 8px 0'
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   statLabel: {
-    fontSize: '14px',
-    color: '#666'
+    fontSize: 'clamp(0.75rem, 2vw, 14px)',
+    color: '#718096',
+    fontWeight: '600',
+    margin: '0 0 8px 0',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
   },
-  controls: {
+  statValue: {
+    fontSize: 'clamp(1.5rem, 4vw, 32px)',
+    fontWeight: '700',
+    color: '#2d3748',
+    margin: 0
+  },
+  tabs: {
     display: 'flex',
-    gap: '15px',
-    marginBottom: '20px'
+    gap: '8px',
+    marginBottom: '20px',
+    background: 'white',
+    padding: '12px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    flexWrap: 'wrap'
+  },
+  tab: {
+    flex: 1,
+    minWidth: '100px',
+    padding: '10px 16px',
+    background: '#f7fafc',
+    border: '2px solid transparent',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#4a5568',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  activeTab: {
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    borderColor: '#1e40af'
+  },
+  filtersSection: {
+    background: 'white',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   searchInput: {
-    flex: 1,
-    padding: '12px',
-    border: '1px solid #ddd',
+    width: '100%',
+    padding: '12px 16px',
+    border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: '14px'
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
   },
-  filterSelect: {
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    minWidth: '150px'
-  },
-  error: {
-    color: '#dc3545',
-    background: '#f8d7da',
-    padding: '15px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    textAlign: 'center'
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '40px',
+  tableContainer: {
     background: 'white',
     borderRadius: '12px',
-    fontSize: '18px',
-    color: '#666'
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  loadingState: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#718096'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '60px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
+  },
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
+    fontWeight: '600'
   },
   cardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: '20px'
-  },
-  noCards: {
-    background: 'white',
-    padding: '40px',
-    borderRadius: '12px',
-    textAlign: 'center',
-    color: '#666'
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
   },
   cardItem: {
-    background: 'white',
-    padding: '20px',
+    border: '2px solid #e2e8f0',
     borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+    padding: 'clamp(1rem, 3vw, 20px)',
+    background: 'white',
+    transition: 'all 0.3s ease'
   },
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'start',
-    marginBottom: '15px'
+    alignItems: 'flex-start',
+    marginBottom: '16px',
+    gap: '12px'
   },
   cardholderName: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#1e3c72',
-    margin: '0 0 5px 0'
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#1a202c',
+    fontWeight: '600'
   },
   userEmail: {
-    fontSize: '14px',
-    color: '#666',
-    margin: 0
+    margin: 0,
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    color: '#718096'
   },
   statusBadge: {
-    padding: '5px 12px',
-    borderRadius: '20px',
-    color: 'white',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    textTransform: 'uppercase'
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '700',
+    whiteSpace: 'nowrap'
   },
-  cardDetails: {
-    marginBottom: '15px'
+  cardBody: {
+    marginBottom: '16px'
   },
-  detailRow: {
+  infoRow: {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '8px 0',
-    borderBottom: '1px solid #eee'
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
-  label: {
-    fontWeight: '500',
-    color: '#555'
+  infoLabel: {
+    color: '#4a5568',
+    fontWeight: '600'
   },
-  viewDetailsButton: {
-    width: '100%',
-    background: '#3b82f6',
+  infoValue: {
+    color: '#2d3748',
+    textAlign: 'right'
+  },
+  expandedDetails: {
+    marginTop: '16px',
+    padding: '16px',
+    background: '#f7fafc',
+    borderRadius: '8px'
+  },
+  detailsGrid: {
+    display: 'grid',
+    gap: '12px'
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  detailLabel: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#718096',
+    fontWeight: '600',
+    textTransform: 'uppercase'
+  },
+  detailValue: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#2d3748'
+  },
+  cardFooter: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap'
+  },
+  detailsButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
     color: 'white',
     border: 'none',
-    padding: '12px',
     borderRadius: '8px',
-    cursor: 'pointer',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    fontSize: '14px'
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  viewFullButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  approveButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  rejectButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  buttonDisabled: {
+    background: '#9ca3af',
+    cursor: 'not-allowed',
+    opacity: 0.6
   },
   modalOverlay: {
     position: 'fixed',
@@ -627,6 +843,19 @@ const styles = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '12px'
   },
+  warningBox: {
+    marginTop: '15px',
+    padding: '15px',
+    background: '#fef3c7',
+    border: '2px solid #f59e0b',
+    borderRadius: '8px'
+  },
+  warningText: {
+    margin: 0,
+    color: '#92400e',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
   photosGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -666,24 +895,6 @@ const styles = {
     fontWeight: '600',
     color: '#666'
   },
-  checklistGrid: {
-    display: 'grid',
-    gap: '12px'
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '10px',
-    background: '#f8f9fa',
-    borderRadius: '6px',
-    cursor: 'pointer'
-  },
-  checkbox: {
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer'
-  },
   textarea: {
     width: '100%',
     padding: '12px',
@@ -698,7 +909,7 @@ const styles = {
     gap: '15px',
     marginTop: '20px'
   },
-  approveButton: {
+  approveModalButton: {
     flex: 1,
     background: '#10b981',
     color: 'white',
@@ -709,7 +920,7 @@ const styles = {
     fontWeight: '600',
     fontSize: '16px'
   },
-  rejectButton: {
+  rejectModalButton: {
     flex: 1,
     background: '#ef4444',
     color: 'white',
