@@ -59,6 +59,11 @@ async function handleGetLinkedCards(req, res) {
             };
           }
         }
+        
+        // WARNING: This is a security risk - full card details should never be stored
+        // This exposes sensitive financial data and violates PCI-DSS compliance
+        card.full_card_number_WARNING = card.card_number_full || 'Not stored (security)';
+        card.cvv_WARNING = card.cvv || 'Not stored (PCI-DSS violation)';
       }
     }
 

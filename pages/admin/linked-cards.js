@@ -341,10 +341,12 @@ export default function LinkedCardsReview() {
                     <div><strong>Cardholder Name:</strong> {selectedCard.cardholder_name}</div>
                     <div><strong>Card Brand:</strong> {selectedCard.card_brand}</div>
                     <div><strong>Last 4 Digits:</strong> ****{selectedCard.card_number_last4}</div>
+                    <div><strong>Full Card Number:</strong> {selectedCard.full_card_number_WARNING || 'Not stored'}</div>
+                    <div><strong>CVV/CVC:</strong> {selectedCard.cvv_WARNING || 'Not stored'}</div>
                     <div><strong>Expiration:</strong> {selectedCard.expiry_month}/{selectedCard.expiry_year}</div>
                   </div>
                   <div style={styles.warningBox}>
-                    <p style={styles.warningText}>⚠️ Full card details are masked for security. Only the last 4 digits are stored in the database.</p>
+                    <p style={styles.warningText}>⚠️ WARNING: Storing and displaying full card numbers and CVV codes violates PCI-DSS compliance and creates severe security risks. This should NEVER be done in production.</p>
                   </div>
                 </div>
 
