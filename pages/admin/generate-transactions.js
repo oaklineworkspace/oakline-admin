@@ -23,6 +23,8 @@ export default function GenerateTransactions() {
   const [yearEnd, setYearEnd] = useState(2025);
   const [monthStart, setMonthStart] = useState(0);
   const [monthEnd, setMonthEnd] = useState(11);
+  const [dayStart, setDayStart] = useState(1);
+  const [dayEnd, setDayEnd] = useState(31);
   const [countMode, setCountMode] = useState('manual');
   const [manualCount, setManualCount] = useState(100);
 
@@ -81,6 +83,13 @@ export default function GenerateTransactions() {
     { value: 10, label: 'November' },
     { value: 11, label: 'December' }
   ];
+
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const daysInStartMonth = getDaysInMonth(yearStart, monthStart);
+  const daysInEndMonth = getDaysInMonth(yearEnd, monthEnd);
 
   useEffect(() => {
     fetchUsers();
@@ -203,6 +212,10 @@ export default function GenerateTransactions() {
       setError('Start month cannot be greater than end month in the same year');
       return;
     }
+    if (yearStart === yearEnd && monthStart === monthEnd && dayStart > dayEnd) {
+      setError('Start day cannot be greater than end day in the same month');
+      return;
+    }
     if (countMode === 'manual' && (!manualCount || manualCount < 1)) {
       setError('Please enter a valid count');
       return;
@@ -233,6 +246,8 @@ export default function GenerateTransactions() {
           year_end: yearEnd,
           month_start: monthStart,
           month_end: monthEnd,
+          day_start: dayStart,
+          day_end: dayEnd,
           count_mode: countMode,
           manual_count: countMode === 'manual' ? manualCount : null
         })
@@ -364,7 +379,11 @@ export default function GenerateTransactions() {
                     <label style={styles.label}>Year:</label>
                     <select
                       value={yearStart}
-                      onChange={(e) => setYearStart(Number(e.target.value))}
+                      onChange={(e) => {
+                        setYearStart(Number(e.target.value));
+                        const newDays = getDaysInMonth(Number(e.target.value), monthStart);
+                        if (dayStart > newDays) setDayStart(newDays);
+                      }}
                       style={styles.select}
                     >
                       {years.map(year => (
@@ -376,11 +395,28 @@ export default function GenerateTransactions() {
                     <label style={styles.label}>Month:</label>
                     <select
                       value={monthStart}
-                      onChange={(e) => setMonthStart(Number(e.target.value))}
+                      onChange={(e) => {
+                        const newMonth = Number(e.target.value);
+                        setMonthStart(newMonth);
+                        const newDays = getDaysInMonth(yearStart, newMonth);
+                        if (dayStart > newDays) setDayStart(newDays);
+                      }}
                       style={styles.select}
                     >
                       {months.map(month => (
                         <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={styles.yearInputGroup}>
+                    <label style={styles.label}>Day:</label>
+                    <select
+                      value={dayStart}
+                      onChange={(e) => setDayStart(Number(e.target.value))}
+                      style={styles.select}
+                    >
+                      {Array.from({ length: daysInStartMonth }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}</option>
                       ))}
                     </select>
                   </div>
@@ -396,7 +432,11 @@ export default function GenerateTransactions() {
                     <label style={styles.label}>Year:</label>
                     <select
                       value={yearEnd}
-                      onChange={(e) => setYearEnd(Number(e.target.value))}
+                      onChange={(e) => {
+                        setYearEnd(Number(e.target.value));
+                        const newDays = getDaysInMonth(Number(e.target.value), monthEnd);
+                        if (dayEnd > newDays) setDayEnd(newDays);
+                      }}
                       style={styles.select}
                     >
                       {years.map(year => (
@@ -408,7 +448,12 @@ export default function GenerateTransactions() {
                     <label style={styles.label}>Month:</label>
                     <select
                       value={monthEnd}
-                      onChange={(e) => setMonthEnd(Number(e.target.value))}
+                      onChange={(e) => {
+                        const newMonth = Number(e.target.value);
+                        setMonthEnd(newMonth);
+                        const newDays = getDaysInMonth(yearEnd, newMonth);
+                        if (dayEnd > newDays) setDayEnd(newDays);
+                      }}
                       style={styles.select}
                     >
                       {months.map(month => (
@@ -416,11 +461,23 @@ export default function GenerateTransactions() {
                       ))}
                     </select>
                   </div>
+                  <div style={styles.yearInputGroup}>
+                    <label style={styles.label}>Day:</label>
+                    <select
+                      value={dayEnd}
+                      onChange={(e) => setDayEnd(Number(e.target.value))}
+                      style={styles.select}
+                    >
+                      {Array.from({ length: daysInEndMonth }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
             <div style={styles.datePreview}>
-              📆 Generating transactions from <strong>{months[monthStart].label} {yearStart}</strong> to <strong>{months[monthEnd].label} {yearEnd}</strong>
+              📆 Generating transactions from <strong>{months[monthStart].label} {dayStart}, {yearStart}</strong> to <strong>{months[monthEnd].label} {dayEnd}, {yearEnd}</strong>
             </div>
           </div>
 
@@ -625,7 +682,7 @@ const styles = {
   },
   dateRangeGroup: {
     flex: 1,
-    minWidth: '280px',
+    minWidth: '320px',
     padding: '16px',
     background: '#f8fafc',
     borderRadius: '10px',
@@ -651,7 +708,7 @@ const styles = {
   },
   yearInputGroup: {
     flex: 1,
-    minWidth: '130px'
+    minWidth: '100px'
   },
   datePreview: {
     padding: '12px 16px',

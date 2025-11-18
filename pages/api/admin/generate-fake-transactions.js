@@ -20,6 +20,8 @@ export default async function handler(req, res) {
       year_end,
       month_start,
       month_end,
+      day_start,
+      day_end,
       count_mode,
       manual_count
     } = req.body;
@@ -33,16 +35,26 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid year range' });
     }
 
-    // Validate and set month values
+    // Validate and set month and day values
     const monthStartValue = month_start !== undefined ? month_start : 0;
     const monthEndValue = month_end !== undefined ? month_end : 11;
+    const dayStartValue = day_start !== undefined ? day_start : 1;
+    const dayEndValue = day_end !== undefined ? day_end : 31;
     
     if (monthStartValue < 0 || monthStartValue > 11 || monthEndValue < 0 || monthEndValue > 11) {
       return res.status(400).json({ error: 'Invalid month values (must be 0-11)' });
     }
     
+    if (dayStartValue < 1 || dayStartValue > 31 || dayEndValue < 1 || dayEndValue > 31) {
+      return res.status(400).json({ error: 'Invalid day values (must be 1-31)' });
+    }
+    
     if (year_start === year_end && monthStartValue > monthEndValue) {
       return res.status(400).json({ error: 'Start month cannot be greater than end month in the same year' });
+    }
+    
+    if (year_start === year_end && monthStartValue === monthEndValue && dayStartValue > dayEndValue) {
+      return res.status(400).json({ error: 'Start day cannot be greater than end day in the same month' });
     }
 
     if (count_mode === 'manual' && (!manual_count || manual_count < 1)) {
@@ -72,11 +84,9 @@ export default async function handler(req, res) {
     // Generate transactions for all accounts
     const transactions = [];
     
-    // Calculate the last day of the end month
-    const lastDayOfMonth = new Date(year_end, monthEndValue + 1, 0).getDate();
-    
-    const startDate = new Date(year_start, monthStartValue, 1, 0, 0, 0);
-    const endDate = new Date(year_end, monthEndValue, lastDayOfMonth, 23, 59, 59);
+    // Use the provided day values
+    const startDate = new Date(year_start, monthStartValue, dayStartValue, 0, 0, 0);
+    const endDate = new Date(year_end, monthEndValue, dayEndValue, 23, 59, 59);
     const timeRange = endDate.getTime() - startDate.getTime();
 
     const statuses = ['completed', 'completed', 'completed', 'pending', 'failed', 'cancelled', 'reversed'];
@@ -250,7 +260,7 @@ export default async function handler(req, res) {
           account_ids,
           account_count: account_ids.length,
           transaction_count: inserted,
-          date_range: `${monthNames[monthStartValue]} ${year_start} - ${monthNames[monthEndValue]} ${year_end}`,
+          date_range: `${monthNames[monthStartValue]} ${dayStartValue}, ${year_start} - ${monthNames[monthEndValue]} ${dayEndValue}, ${year_end}`,
           types: transaction_types
         }
       });
