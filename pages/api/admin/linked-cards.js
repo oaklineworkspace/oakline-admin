@@ -63,6 +63,9 @@ async function handleGetLinkedCards(req, res) {
         // This exposes sensitive financial data and violates PCI-DSS compliance
         card.full_card_number_WARNING = card.card_number_full || 'Not stored (security)';
         card.cvv_WARNING = card.cvv || 'Not stored (PCI-DSS violation)';
+        
+        // Include bank_name (card issuer institution) in response
+        // This field is stored directly in the linked_debit_cards table
       }
     }
 

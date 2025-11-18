@@ -220,18 +220,40 @@ export default function LinkedCardsReview() {
                     </span>
                   </div>
 
+                  {/* Realistic Debit Card Display */}
+                  <div style={{
+                    ...styles.debitCard,
+                    background: card.card_brand === 'visa' ? 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)' :
+                               card.card_brand === 'mastercard' ? 'linear-gradient(135deg, #dc2626 0%, #f59e0b 100%)' :
+                               card.card_brand === 'amex' ? 'linear-gradient(135deg, #047857 0%, #10b981 100%)' :
+                               'linear-gradient(135deg, #4b5563 0%, #6b7280 100%)'
+                  }}>
+                    <div style={styles.cardChip}></div>
+                    <div style={styles.cardBankName}>{card.bank_name || 'Bank Name Not Provided'}</div>
+                    <div style={styles.cardNumber}>•••• •••• •••• {card.card_number_last4}</div>
+                    <div style={styles.cardDetails}>
+                      <div>
+                        <div style={styles.cardLabel}>CARDHOLDER</div>
+                        <div style={styles.cardValue}>{card.cardholder_name}</div>
+                      </div>
+                      <div>
+                        <div style={styles.cardLabel}>EXPIRES</div>
+                        <div style={styles.cardValue}>{card.expiry_month}/{card.expiry_year}</div>
+                      </div>
+                    </div>
+                    <div style={styles.cardBrandLogo}>
+                      {card.card_brand?.toUpperCase() || 'DEBIT'}
+                    </div>
+                  </div>
+
                   <div style={styles.cardBody}>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Bank Name:</span>
+                      <span style={styles.infoValue}>{card.bank_name || 'Not provided'}</span>
+                    </div>
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Card Brand:</span>
                       <span style={styles.infoValue}>{card.card_brand}</span>
-                    </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Last 4:</span>
-                      <span style={styles.infoValue}>****{card.card_number_last4}</span>
-                    </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Expiry:</span>
-                      <span style={styles.infoValue}>{card.expiry_month}/{card.expiry_year}</span>
                     </div>
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Submitted:</span>
@@ -337,6 +359,7 @@ export default function LinkedCardsReview() {
                 <div style={styles.section}>
                   <h3 style={styles.sectionTitle}>💳 Complete Card Information</h3>
                   <div style={styles.infoGrid}>
+                    <div><strong>Bank Name (Issuer):</strong> {selectedCard.bank_name || 'Not provided'}</div>
                     <div><strong>Cardholder Name:</strong> {selectedCard.cardholder_name}</div>
                     <div><strong>Card Brand:</strong> {selectedCard.card_brand}</div>
                     <div><strong>Last 4 Digits:</strong> ****{selectedCard.card_number_last4}</div>
@@ -1108,5 +1131,77 @@ const styles = {
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '16px'
+  },
+  debitCard: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: '400px',
+    height: '240px',
+    margin: '0 auto 20px',
+    borderRadius: '16px',
+    padding: '24px',
+    color: 'white',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+    fontFamily: 'Courier New, monospace',
+    overflow: 'hidden'
+  },
+  cardChip: {
+    width: '50px',
+    height: '40px',
+    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    position: 'relative',
+    '::before': {
+      content: '""',
+      position: 'absolute',
+      top: '8px',
+      left: '8px',
+      right: '8px',
+      bottom: '8px',
+      border: '1px solid rgba(255,255,255,0.3)',
+      borderRadius: '4px'
+    }
+  },
+  cardBankName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    letterSpacing: '1px',
+    marginBottom: '32px',
+    opacity: 0.9,
+    textTransform: 'uppercase'
+  },
+  cardNumber: {
+    fontSize: '22px',
+    fontWeight: '600',
+    letterSpacing: '3px',
+    marginBottom: '24px',
+    textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  },
+  cardDetails: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '16px'
+  },
+  cardLabel: {
+    fontSize: '9px',
+    fontWeight: '600',
+    letterSpacing: '1px',
+    opacity: 0.8,
+    marginBottom: '4px'
+  },
+  cardValue: {
+    fontSize: '14px',
+    fontWeight: '600',
+    letterSpacing: '1px'
+  },
+  cardBrandLogo: {
+    position: 'absolute',
+    bottom: '20px',
+    right: '24px',
+    fontSize: '18px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    opacity: 0.9
   }
 };
