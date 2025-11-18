@@ -54,8 +54,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
     }
 
-    if (amount !== undefined && (isNaN(amount) || parseFloat(amount) <= 0)) {
-      return res.status(400).json({ error: 'Amount must be a positive number' });
+    if (amount !== undefined && isNaN(amount)) {
+      return res.status(400).json({ error: 'Amount must be a valid number' });
     }
 
     const { data: oldTransaction, error: fetchError } = await supabaseAdmin
