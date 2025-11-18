@@ -121,8 +121,21 @@ async function handleCardAction(req, res) {
       return res.status(400).json({ error: 'Rejection reason is required' });
     }
 
-    // Handle delete action
+    // Handle delete action - permanently removes the card row from database
     if (action === 'delete') {
+      // First, get the card details for logging purposes
+      const { data: cardToDelete, error: fetchError } = await supabaseAdmin
+        .from('linked_debit_cards')
+        .select('*')
+        .eq('id', card_id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching card for deletion:', fetchError);
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      // Permanently delete the card row from the database
       const { error: deleteError } = await supabaseAdmin
         .from('linked_debit_cards')
         .delete()
@@ -130,12 +143,20 @@ async function handleCardAction(req, res) {
 
       if (deleteError) {
         console.error('Error deleting card:', deleteError);
-        return res.status(500).json({ error: 'Failed to delete card' });
+        return res.status(500).json({ error: 'Failed to delete card from database' });
       }
+
+      console.log(`✅ Permanently deleted linked card ${card_id} for user ${cardToDelete.user_id}`);
+      
       return res.status(200).json({
         success: true,
-        message: 'Card deleted successfully',
-        card: { id: card_id, status: 'deleted' }
+        message: 'Linked card permanently deleted from database',
+        card: { 
+          id: card_id, 
+          user_id: cardToDelete.user_id,
+          card_last4: cardToDelete.card_number_last4,
+          status: 'deleted' 
+        }
       });
     }
 
