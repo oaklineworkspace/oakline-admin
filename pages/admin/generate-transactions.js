@@ -19,6 +19,7 @@ export default function GenerateTransactions() {
   const [success, setSuccess] = useState('');
 
   const [selectedTypes, setSelectedTypes] = useState([]);
+  const [typeCounts, setTypeCounts] = useState({});
   const [yearStart, setYearStart] = useState(2023);
   const [yearEnd, setYearEnd] = useState(2025);
   const [monthStart, setMonthStart] = useState(0);
@@ -160,19 +161,39 @@ export default function GenerateTransactions() {
   };
 
   const toggleTransactionType = (type) => {
-    setSelectedTypes(prev =>
-      prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
-    );
+    setSelectedTypes(prev => {
+      if (prev.includes(type)) {
+        // Remove type and its count
+        const newCounts = { ...typeCounts };
+        delete newCounts[type];
+        setTypeCounts(newCounts);
+        return prev.filter(t => t !== type);
+      } else {
+        // Add type with default count of 1
+        setTypeCounts(prev => ({ ...prev, [type]: 1 }));
+        return [...prev, type];
+      }
+    });
+  };
+
+  const updateTypeCount = (type, count) => {
+    const numCount = parseInt(count) || 1;
+    setTypeCounts(prev => ({ ...prev, [type]: numCount }));
   };
 
   const selectAllTypes = () => {
-    setSelectedTypes(transactionTypes.map(t => t.value));
+    const allTypes = transactionTypes.map(t => t.value);
+    setSelectedTypes(allTypes);
+    const counts = {};
+    allTypes.forEach(type => {
+      counts[type] = 1;
+    });
+    setTypeCounts(counts);
   };
 
   const clearAllTypes = () => {
     setSelectedTypes([]);
+    setTypeCounts({});
   };
 
   const toggleAccount = (accountId) => {
@@ -242,6 +263,7 @@ export default function GenerateTransactions() {
           user_id: selectedUser,
           account_ids: selectedAccounts,
           transaction_types: selectedTypes,
+          type_counts: typeCounts,
           year_start: yearStart,
           year_end: yearEnd,
           month_start: monthStart,
@@ -349,22 +371,39 @@ export default function GenerateTransactions() {
             </div>
             <div style={styles.typeGrid}>
               {transactionTypes.map(type => (
-                <button
-                  key={type.value}
-                  onClick={() => toggleTransactionType(type.value)}
-                  style={{
-                    ...styles.typeButton,
-                    ...(selectedTypes.includes(type.value) ? styles.typeButtonSelected : {})
-                  }}
-                >
-                  {type.label}
-                  {selectedTypes.includes(type.value) && ' ✓'}
-                </button>
+                <div key={type.value} style={styles.typeCard}>
+                  <button
+                    onClick={() => toggleTransactionType(type.value)}
+                    style={{
+                      ...styles.typeButton,
+                      ...(selectedTypes.includes(type.value) ? styles.typeButtonSelected : {})
+                    }}
+                  >
+                    {type.label}
+                    {selectedTypes.includes(type.value) && ' ✓'}
+                  </button>
+                  {selectedTypes.includes(type.value) && (
+                    <div style={styles.countInputWrapper}>
+                      <label style={styles.countLabel}>Count:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10000"
+                        value={typeCounts[type.value] || 1}
+                        onChange={(e) => updateTypeCount(type.value, e.target.value)}
+                        style={styles.countInput}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
             {selectedTypes.length > 0 && (
               <div style={styles.selectedCount}>
                 {selectedTypes.length} type{selectedTypes.length !== 1 ? 's' : ''} selected
+                {' • '}
+                Total: {Object.values(typeCounts).reduce((sum, count) => sum + count, 0)} transactions
               </div>
             )}
           </div>
@@ -643,9 +682,14 @@ const styles = {
   },
   typeGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-    gap: '10px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '12px',
     marginBottom: '15px'
+  },
+  typeCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
   },
   typeButton: {
     padding: '12px 16px',
@@ -656,12 +700,37 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    color: '#475569'
+    color: '#475569',
+    width: '100%'
   },
   typeButtonSelected: {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     borderColor: '#667eea',
     color: 'white',
+    fontWeight: '600'
+  },
+  countInputWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px',
+    background: '#f8fafc',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0'
+  },
+  countLabel: {
+    fontSize: 'clamp(0.8rem, 1.8vw, 13px)',
+    fontWeight: '600',
+    color: '#475569',
+    minWidth: '45px'
+  },
+  countInput: {
+    flex: 1,
+    padding: '6px 10px',
+    border: '2px solid #cbd5e1',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    textAlign: 'center',
     fontWeight: '600'
   },
   selectedCount: {

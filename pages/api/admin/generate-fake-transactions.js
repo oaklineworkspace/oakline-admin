@@ -16,6 +16,7 @@ export default async function handler(req, res) {
       user_id,
       account_ids,
       transaction_types,
+      type_counts,
       year_start,
       year_end,
       month_start,
@@ -76,11 +77,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Some account IDs are invalid or do not belong to user' });
     }
 
-    // Determine transaction count per account
-    const targetCount = count_mode === 'random'
-      ? Math.floor(300 + Math.random() * 600)
-      : manual_count;
-
     // Generate transactions for all accounts
     const transactions = [];
     
@@ -95,12 +91,13 @@ export default async function handler(req, res) {
     for (const account of accounts) {
       let currentBalance = parseFloat(account.balance) || 5000;
 
-      for (let i = 0; i < targetCount; i++) {
+      // Generate transactions for each type based on its count
+      for (const type of transaction_types) {
+        const typeCount = type_counts && type_counts[type] ? type_counts[type] : 1;
+        
+        for (let i = 0; i < typeCount; i++) {
       // Random timestamp within range
       const timestamp = new Date(startDate.getTime() + Math.random() * timeRange);
-
-      // Random transaction type from selected types
-      const type = transaction_types[Math.floor(Math.random() * transaction_types.length)];
 
       // Random status (weighted towards completed)
       const status = statuses[Math.floor(Math.random() * statuses.length)];
@@ -221,6 +218,7 @@ export default async function handler(req, res) {
           balance_before: balanceBefore,
           balance_after: balanceAfter
         });
+        }
       }
     }
 
@@ -261,7 +259,8 @@ export default async function handler(req, res) {
           account_count: account_ids.length,
           transaction_count: inserted,
           date_range: `${monthNames[monthStartValue]} ${dayStartValue}, ${year_start} - ${monthNames[monthEndValue]} ${dayEndValue}, ${year_end}`,
-          types: transaction_types
+          types: transaction_types,
+          type_counts: type_counts
         }
       });
 
