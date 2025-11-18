@@ -112,9 +112,18 @@ export default function ManualTransactions() {
 
   const fetchData = async () => {
     try {
+      const adminToken = localStorage.getItem('adminToken');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (adminToken) {
+        headers['Authorization'] = `Bearer ${adminToken}`;
+      }
+
       const [accountsRes, transactionsRes] = await Promise.all([
-        fetch('/api/admin/get-accounts'),
-        fetch('/api/admin/get-transactions')
+        fetch('/api/admin/get-accounts', { headers }),
+        fetch('/api/admin/get-transactions', { headers })
       ]);
 
       const accountsData = await accountsRes.json();
@@ -158,9 +167,18 @@ export default function ManualTransactions() {
         return;
       }
 
+      const adminToken = localStorage.getItem('adminToken');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (adminToken) {
+        headers['Authorization'] = `Bearer ${adminToken}`;
+      }
+
       const response = await fetch('/api/admin/manual-transaction', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({
           accountId: formData.accountId,
           userId: selectedAccount.user_id,
