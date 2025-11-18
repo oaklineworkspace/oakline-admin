@@ -21,6 +21,8 @@ export default function GenerateTransactions() {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [yearStart, setYearStart] = useState(2023);
   const [yearEnd, setYearEnd] = useState(2025);
+  const [monthStart, setMonthStart] = useState(0);
+  const [monthEnd, setMonthEnd] = useState(11);
   const [countMode, setCountMode] = useState('manual');
   const [manualCount, setManualCount] = useState(100);
 
@@ -65,6 +67,20 @@ export default function GenerateTransactions() {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 20 }, (_, i) => currentYear - i + 5);
+  const months = [
+    { value: 0, label: 'January' },
+    { value: 1, label: 'February' },
+    { value: 2, label: 'March' },
+    { value: 3, label: 'April' },
+    { value: 4, label: 'May' },
+    { value: 5, label: 'June' },
+    { value: 6, label: 'July' },
+    { value: 7, label: 'August' },
+    { value: 8, label: 'September' },
+    { value: 9, label: 'October' },
+    { value: 10, label: 'November' },
+    { value: 11, label: 'December' }
+  ];
 
   useEffect(() => {
     fetchUsers();
@@ -183,6 +199,10 @@ export default function GenerateTransactions() {
       setError('Start year cannot be greater than end year');
       return;
     }
+    if (yearStart === yearEnd && monthStart > monthEnd) {
+      setError('Start month cannot be greater than end month in the same year');
+      return;
+    }
     if (countMode === 'manual' && (!manualCount || manualCount < 1)) {
       setError('Please enter a valid count');
       return;
@@ -211,6 +231,8 @@ export default function GenerateTransactions() {
           transaction_types: selectedTypes,
           year_start: yearStart,
           year_end: yearEnd,
+          month_start: monthStart,
+          month_end: monthEnd,
           count_mode: countMode,
           manual_count: countMode === 'manual' ? manualCount : null
         })
@@ -333,33 +355,72 @@ export default function GenerateTransactions() {
           </div>
 
           <div style={styles.formSection}>
-            <h3 style={styles.sectionTitle}>4️⃣ Select Year Range</h3>
-            <div style={styles.yearRangeContainer}>
-              <div style={styles.yearInputGroup}>
-                <label style={styles.label}>Start Year:</label>
-                <select
-                  value={yearStart}
-                  onChange={(e) => setYearStart(Number(e.target.value))}
-                  style={styles.select}
-                >
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+            <h3 style={styles.sectionTitle}>4️⃣ Select Date Range</h3>
+            <div style={styles.dateRangeWrapper}>
+              <div style={styles.dateRangeGroup}>
+                <h4 style={styles.dateRangeLabel}>📅 Start Date</h4>
+                <div style={styles.yearMonthContainer}>
+                  <div style={styles.yearInputGroup}>
+                    <label style={styles.label}>Year:</label>
+                    <select
+                      value={yearStart}
+                      onChange={(e) => setYearStart(Number(e.target.value))}
+                      style={styles.select}
+                    >
+                      {years.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={styles.yearInputGroup}>
+                    <label style={styles.label}>Month:</label>
+                    <select
+                      value={monthStart}
+                      onChange={(e) => setMonthStart(Number(e.target.value))}
+                      style={styles.select}
+                    >
+                      {months.map(month => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
+              
               <span style={styles.yearRangeSeparator}>to</span>
-              <div style={styles.yearInputGroup}>
-                <label style={styles.label}>End Year:</label>
-                <select
-                  value={yearEnd}
-                  onChange={(e) => setYearEnd(Number(e.target.value))}
-                  style={styles.select}
-                >
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+              
+              <div style={styles.dateRangeGroup}>
+                <h4 style={styles.dateRangeLabel}>📅 End Date</h4>
+                <div style={styles.yearMonthContainer}>
+                  <div style={styles.yearInputGroup}>
+                    <label style={styles.label}>Year:</label>
+                    <select
+                      value={yearEnd}
+                      onChange={(e) => setYearEnd(Number(e.target.value))}
+                      style={styles.select}
+                    >
+                      {years.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={styles.yearInputGroup}>
+                    <label style={styles.label}>Month:</label>
+                    <select
+                      value={monthEnd}
+                      onChange={(e) => setMonthEnd(Number(e.target.value))}
+                      style={styles.select}
+                    >
+                      {months.map(month => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
+            </div>
+            <div style={styles.datePreview}>
+              📆 Generating transactions from <strong>{months[monthStart].label} {yearStart}</strong> to <strong>{months[monthEnd].label} {yearEnd}</strong>
             </div>
           </div>
 
@@ -555,6 +616,33 @@ const styles = {
     borderRadius: '6px',
     textAlign: 'center'
   },
+  dateRangeWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    flexWrap: 'wrap',
+    marginBottom: '20px'
+  },
+  dateRangeGroup: {
+    flex: 1,
+    minWidth: '280px',
+    padding: '16px',
+    background: '#f8fafc',
+    borderRadius: '10px',
+    border: '2px solid #e2e8f0'
+  },
+  dateRangeLabel: {
+    fontSize: 'clamp(0.9rem, 2.2vw, 15px)',
+    fontWeight: '700',
+    color: '#3730a3',
+    marginBottom: '12px',
+    marginTop: 0
+  },
+  yearMonthContainer: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
   yearRangeContainer: {
     display: 'flex',
     alignItems: 'center',
@@ -563,7 +651,16 @@ const styles = {
   },
   yearInputGroup: {
     flex: 1,
-    minWidth: '150px'
+    minWidth: '130px'
+  },
+  datePreview: {
+    padding: '12px 16px',
+    background: 'linear-gradient(135deg, #667eea20 0%, #764ba220 100%)',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.9rem, 2vw, 15px)',
+    color: '#3730a3',
+    textAlign: 'center',
+    border: '2px solid #667eea40'
   },
   label: {
     display: 'block',

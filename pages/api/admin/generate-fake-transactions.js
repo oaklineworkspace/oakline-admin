@@ -18,6 +18,8 @@ export default async function handler(req, res) {
       transaction_types,
       year_start,
       year_end,
+      month_start,
+      month_end,
       count_mode,
       manual_count
     } = req.body;
@@ -29,6 +31,18 @@ export default async function handler(req, res) {
 
     if (!year_start || !year_end || year_start > year_end) {
       return res.status(400).json({ error: 'Invalid year range' });
+    }
+
+    // Validate and set month values
+    const monthStartValue = month_start !== undefined ? month_start : 0;
+    const monthEndValue = month_end !== undefined ? month_end : 11;
+    
+    if (monthStartValue < 0 || monthStartValue > 11 || monthEndValue < 0 || monthEndValue > 11) {
+      return res.status(400).json({ error: 'Invalid month values (must be 0-11)' });
+    }
+    
+    if (year_start === year_end && monthStartValue > monthEndValue) {
+      return res.status(400).json({ error: 'Start month cannot be greater than end month in the same year' });
     }
 
     if (count_mode === 'manual' && (!manual_count || manual_count < 1)) {
@@ -57,8 +71,12 @@ export default async function handler(req, res) {
 
     // Generate transactions for all accounts
     const transactions = [];
-    const startDate = new Date(year_start, 0, 1, 0, 0, 0);
-    const endDate = new Date(year_end, 11, 31, 23, 59, 59);
+    
+    // Calculate the last day of the end month
+    const lastDayOfMonth = new Date(year_end, monthEndValue + 1, 0).getDate();
+    
+    const startDate = new Date(year_start, monthStartValue, 1, 0, 0, 0);
+    const endDate = new Date(year_end, monthEndValue, lastDayOfMonth, 23, 59, 59);
     const timeRange = endDate.getTime() - startDate.getTime();
 
     const statuses = ['completed', 'completed', 'completed', 'pending', 'failed', 'cancelled', 'reversed'];
@@ -220,6 +238,7 @@ export default async function handler(req, res) {
     }
 
     // Log the action
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     await supabaseAdmin
       .from('audit_logs')
       .insert({
@@ -231,7 +250,7 @@ export default async function handler(req, res) {
           account_ids,
           account_count: account_ids.length,
           transaction_count: inserted,
-          year_range: `${year_start}-${year_end}`,
+          date_range: `${monthNames[monthStartValue]} ${year_start} - ${monthNames[monthEndValue]} ${year_end}`,
           types: transaction_types
         }
       });
