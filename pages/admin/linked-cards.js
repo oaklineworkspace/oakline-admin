@@ -18,6 +18,7 @@ export default function LinkedCardsReview() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [photoModal, setPhotoModal] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
   useEffect(() => {
     fetchCards();
@@ -54,7 +55,7 @@ export default function LinkedCardsReview() {
     setRejectionReason('');
   };
 
-  const handleAction = async (action) => {
+  const handleAction = async (action, cardId = null) => {
     if (action === 'reject' && !rejectionReason.trim()) {
       alert('Please provide a rejection reason');
       return;
@@ -66,7 +67,7 @@ export default function LinkedCardsReview() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          card_id: selectedCard.id,
+          card_id: cardId || selectedCard.id,
           action,
           rejection_reason: action === 'reject' ? rejectionReason : undefined
         })
@@ -75,9 +76,11 @@ export default function LinkedCardsReview() {
       const data = await response.json();
 
       if (data.success) {
-        setSuccessMessage(`Card ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+        const actionText = action === 'approve' ? 'verified' : action === 'reject' ? 'rejected' : 'deleted';
+        setSuccessMessage(`Card ${actionText} successfully`);
         setTimeout(() => setSuccessMessage(''), 5000);
         setShowDetailModal(false);
+        setShowDeleteConfirm(null);
         fetchCards();
       } else {
         alert(data.error || 'Failed to process card');
@@ -281,20 +284,6 @@ export default function LinkedCardsReview() {
                         <button
                           onClick={() => {
                             setSelectedCard(card);
-                            setRejectionReason('');
-                            handleAction('reject');
-                          }}
-                          disabled={processing}
-                          style={{
-                            ...styles.rejectButton,
-                            ...(processing ? styles.buttonDisabled : {})
-                          }}
-                        >
-                          {processing ? '⏳' : '❌'} Reject
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedCard(card);
                             handleAction('approve');
                           }}
                           disabled={processing}
@@ -303,10 +292,20 @@ export default function LinkedCardsReview() {
                             ...(processing ? styles.buttonDisabled : {})
                           }}
                         >
-                          {processing ? '⏳' : '✅'} Approve
+                          {processing ? '⏳' : '✅'} Verify
                         </button>
                       </>
                     )}
+                    <button
+                      onClick={() => setShowDeleteConfirm(card.id)}
+                      disabled={processing}
+                      style={{
+                        ...styles.deleteButton,
+                        ...(processing ? styles.buttonDisabled : {})
+                      }}
+                    >
+                      {processing ? '⏳' : '🗑️'} Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -411,13 +410,30 @@ export default function LinkedCardsReview() {
                 {selectedCard.status === 'pending' && (
                   <div style={styles.section}>
                     <h3 style={styles.sectionTitle}>❌ Rejection Reason (if rejecting)</h3>
-                    <textarea
+                    <select
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Provide a detailed reason for rejection..."
-                      style={styles.textarea}
-                      rows={4}
-                    />
+                      style={styles.selectInput}
+                    >
+                      <option value="">Select a reason...</option>
+                      <option value="Card photos are unclear or unreadable">Card photos are unclear or unreadable</option>
+                      <option value="Card information does not match the photos">Card information does not match the photos</option>
+                      <option value="Card is expired">Card is expired</option>
+                      <option value="Card does not belong to the account holder">Card does not belong to the account holder</option>
+                      <option value="Billing address verification failed">Billing address verification failed</option>
+                      <option value="Suspected fraudulent activity">Suspected fraudulent activity</option>
+                      <option value="Card brand not supported">Card brand not supported</option>
+                      <option value="Other - Custom reason">Other - Custom reason</option>
+                    </select>
+                    {rejectionReason === 'Other - Custom reason' && (
+                      <textarea
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder="Provide a detailed custom reason for rejection..."
+                        style={{...styles.textarea, marginTop: '12px'}}
+                        rows={4}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -429,7 +445,7 @@ export default function LinkedCardsReview() {
                       disabled={processing}
                       style={styles.approveModalButton}
                     >
-                      {processing ? '⏳ Processing...' : '✅ Approve Card'}
+                      {processing ? '⏳ Processing...' : '✅ Verify Card'}
                     </button>
                     <button
                       onClick={() => handleAction('reject')}
@@ -440,6 +456,17 @@ export default function LinkedCardsReview() {
                     </button>
                   </div>
                 )}
+                
+                {/* Delete Button - Available for all statuses */}
+                <div style={styles.actionButtons}>
+                  <button
+                    onClick={() => setShowDeleteConfirm(selectedCard.id)}
+                    disabled={processing}
+                    style={styles.deleteModalButton}
+                  >
+                    🗑️ Delete Card
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -452,6 +479,34 @@ export default function LinkedCardsReview() {
               <button onClick={() => setPhotoModal(null)} style={styles.lightboxClose}>×</button>
               <h3 style={styles.lightboxTitle}>{photoModal.title}</h3>
               <img src={photoModal.url} alt={photoModal.title} style={styles.lightboxImage} />
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div style={styles.modalOverlay} onClick={() => setShowDeleteConfirm(null)}>
+            <div style={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+              <h3 style={styles.confirmTitle}>⚠️ Confirm Deletion</h3>
+              <p style={styles.confirmText}>
+                Are you sure you want to delete this linked card? This action cannot be undone.
+              </p>
+              <div style={styles.confirmButtons}>
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  style={styles.cancelButton}
+                  disabled={processing}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleAction('delete', showDeleteConfirm)}
+                  style={styles.confirmDeleteButton}
+                  disabled={processing}
+                >
+                  {processing ? '⏳ Deleting...' : '🗑️ Delete'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -974,5 +1029,84 @@ const styles = {
     maxHeight: '80vh',
     borderRadius: '8px',
     boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+  },
+  deleteButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  deleteModalButton: {
+    flex: 1,
+    background: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    padding: '14px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '16px'
+  },
+  selectInput: {
+    width: '100%',
+    padding: '12px',
+    border: '2px solid #ddd',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    outline: 'none'
+  },
+  confirmModal: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '32px',
+    maxWidth: '500px',
+    width: '90%',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+  },
+  confirmTitle: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#dc2626',
+    marginBottom: '16px',
+    textAlign: 'center'
+  },
+  confirmText: {
+    fontSize: '16px',
+    color: '#4a5568',
+    marginBottom: '24px',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  confirmButtons: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center'
+  },
+  cancelButton: {
+    padding: '12px 24px',
+    background: '#e5e7eb',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '16px'
+  },
+  confirmDeleteButton: {
+    padding: '12px 24px',
+    background: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '16px'
   }
 };
