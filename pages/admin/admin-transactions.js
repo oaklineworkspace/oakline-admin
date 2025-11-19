@@ -93,7 +93,7 @@ export default function AdminTransactions() {
         .from('transactions')
         .select(`
           *,
-          accounts!inner (
+          accounts (
             account_number,
             user_id,
             application_id
@@ -111,7 +111,7 @@ export default function AdminTransactions() {
         .from('account_opening_crypto_deposits')
         .select(`
           *,
-          accounts!inner (
+          accounts (
             account_number,
             user_id,
             application_id
