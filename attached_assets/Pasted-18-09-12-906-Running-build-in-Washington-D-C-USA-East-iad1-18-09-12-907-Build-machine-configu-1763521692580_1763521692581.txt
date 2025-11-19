@@ -1,0 +1,71 @@
+18:09:12.906 Running build in Washington, D.C., USA (East) – iad1
+18:09:12.907 Build machine configuration: 2 cores, 8 GB
+18:09:13.039 Cloning github.com/oaklineworkspace/oakline-admin (Branch: main, Commit: a9d06d0)
+18:09:16.802 Cloning completed: 3.763s
+18:09:16.974 Restored build cache from previous deployment (38y3CDiz4Z2Uk3144xELtyFA69Si)
+18:09:17.511 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+18:09:17.512 Running "vercel build"
+18:09:17.915 Vercel CLI 48.10.3
+18:09:18.295 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+18:09:18.305 Running "install" command: `npm install`...
+18:09:24.684 
+18:09:24.684 up to date, audited 384 packages in 6s
+18:09:24.684 
+18:09:24.685 144 packages are looking for funding
+18:09:24.685   run `npm fund` for details
+18:09:24.740 
+18:09:24.741 6 vulnerabilities (3 moderate, 3 high)
+18:09:24.741 
+18:09:24.741 To address issues that do not require attention, run:
+18:09:24.741   npm audit fix
+18:09:24.741 
+18:09:24.741 To address all issues (including breaking changes), run:
+18:09:24.741   npm audit fix --force
+18:09:24.741 
+18:09:24.741 Run `npm audit` for details.
+18:09:24.753 Detected Next.js version: 14.2.33
+18:09:24.754 Running "npm run build"
+18:09:24.876 
+18:09:24.876 > oakline-bank@1.0.0 build
+18:09:24.876 > next build
+18:09:24.876 
+18:09:25.568   ▲ Next.js 14.2.33
+18:09:25.569 
+18:09:25.570    Linting and checking validity of types ...
+18:09:25.785    Creating an optimized production build ...
+18:09:33.159  ✓ Compiled successfully
+18:09:33.161    Collecting page data ...
+18:09:36.303    Generating static pages (0/72) ...
+18:09:39.000 ReferenceError: React is not defined
+18:09:39.001     at x (/vercel/path0/.next/server/pages/admin/admin-transactions.js:47:876)
+18:09:39.001     at Wc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:68:44)
+18:09:39.002     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:70:253)
+18:09:39.002     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.006     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:74:209)
+18:09:39.006     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.006     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:70:481)
+18:09:39.006     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.007     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:74:209)
+18:09:39.007     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.007 
+18:09:39.007 Error occurred prerendering page "/admin/admin-transactions". Read more: https://nextjs.org/docs/messages/prerender-error
+18:09:39.007 
+18:09:39.008 ReferenceError: React is not defined
+18:09:39.008     at x (/vercel/path0/.next/server/pages/admin/admin-transactions.js:47:876)
+18:09:39.008     at Wc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:68:44)
+18:09:39.008     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:70:253)
+18:09:39.008     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.009     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:74:209)
+18:09:39.009     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.009     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:70:481)
+18:09:39.009     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.009     at Zc (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:74:209)
+18:09:39.010     at Z (/vercel/path0/node_modules/react-dom/cjs/react-dom-server.browser.production.min.js:76:89)
+18:09:39.451    Generating static pages (18/72) 
+18:09:41.898    Generating static pages (36/72) 
+18:09:43.634    Generating static pages (54/72) 
+18:09:45.482  ✓ Generating static pages (72/72)
+18:09:45.530 
+18:09:45.530 > Export encountered errors on following paths:
+18:09:45.530 	/admin/admin-transactions
+18:09:45.570 Error: Command "npm run build" exited with 1
