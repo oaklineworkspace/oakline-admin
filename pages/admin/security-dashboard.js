@@ -92,14 +92,14 @@ export default function SecurityDashboard() {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) throw new Error(data.error || 'Action failed');
 
       setSuccess(data.message || 'Action completed successfully');
       setShowActionModal(false);
       setActionReason('');
       setActionData({});
-      
+
       // Refresh security data
       fetchUserSecurity(selectedUser.id);
 
@@ -135,6 +135,53 @@ export default function SecurityDashboard() {
   const getPasswordStrengthLabel = (score) => {
     const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Excellent'];
     return labels[score] || 'Unknown';
+  };
+
+  const getDeviceInfo = (userAgent) => {
+    if (!userAgent) return 'Unknown Device';
+
+    // Simple device detection
+    if (userAgent.includes('Mobile')) return '📱 Mobile Device';
+    if (userAgent.includes('Tablet')) return '📱 Tablet';
+    if (userAgent.includes('Windows')) return '💻 Windows PC';
+    if (userAgent.includes('Mac')) return '💻 Mac';
+    if (userAgent.includes('Linux')) return '💻 Linux';
+    if (userAgent.includes('Android')) return '📱 Android';
+    if (userAgent.includes('iPhone') || userAgent.includes('iPad')) return '📱 iOS Device';
+
+    return '💻 Computer';
+  };
+
+  const getActivityIcon = (activity) => {
+    const action = activity.action?.toLowerCase() || '';
+    const type = activity.type?.toLowerCase() || '';
+    const table = activity.table_name?.toLowerCase() || '';
+    const category = activity.activity_category?.toLowerCase() || '';
+    const message = activity.message?.toLowerCase() || '';
+
+    if (category === 'login' || action.includes('login') || action.includes('sign') || type === 'auth' || message.includes('login')) return '🔐';
+    if (category === 'password' || action.includes('password') || message.includes('password')) return '🔑';
+    if (action.includes('create') || action.includes('insert')) return '➕';
+    if (action.includes('update') || action.includes('modify')) return '✏️';
+    if (action.includes('delete') || action.includes('remove')) return '🗑️';
+    if (category === 'transaction' || table === 'transactions' || type === 'transaction') return '💸';
+    if (category === 'card' || table === 'cards' || type === 'card') return '💳';
+    if (table === 'accounts') return '🏦';
+    if (table === 'loans') return '🏠';
+    if (category === 'profile' || table === 'profiles') return '👤';
+    return '📋';
+  };
+
+  const getActivityTypeColor = (activity) => {
+    const action = activity.action?.toLowerCase() || '';
+    const level = activity.level?.toLowerCase() || '';
+
+    if (level === 'error' || action.includes('delete') || action.includes('reject')) return '#dc2626';
+    if (level === 'warning' || action.includes('suspend') || action.includes('block')) return '#f59e0b';
+    if (action.includes('login') || action.includes('sign')) return '#3b82f6';
+    if (action.includes('create') || action.includes('approve')) return '#10b981';
+    if (action.includes('update') || action.includes('modify')) return '#8b5cf6';
+    return '#6b7280';
   };
 
   return (
@@ -259,28 +306,28 @@ export default function SecurityDashboard() {
                       🔒 Lock Account
                     </button>
                   )}
-                  
+
                   <button 
                     onClick={() => openActionModal('force_password_reset')}
                     style={{...styles.actionButton, background: '#f59e0b'}}
                   >
                     🔑 Force Password Reset
                   </button>
-                  
+
                   <button 
                     onClick={() => openActionModal('sign_out_all_devices')}
                     style={{...styles.actionButton, background: '#3b82f6'}}
                   >
                     🚪 Sign Out All Devices
                   </button>
-                  
+
                   <button 
                     onClick={() => openActionModal('block_ip')}
                     style={{...styles.actionButton, background: '#8b5cf6'}}
                   >
                     🚫 Block IP Address
                   </button>
-                  
+
                   {securityData.security.twoFactorEnabled ? (
                     <button 
                       onClick={() => openActionModal('disable_2fa')}
@@ -296,7 +343,7 @@ export default function SecurityDashboard() {
                       ✓ Enable 2FA
                     </button>
                   )}
-                  
+
                   <button 
                     onClick={() => openActionModal('reset_failed_attempts')}
                     style={{...styles.actionButton, background: '#6b7280'}}
