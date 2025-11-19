@@ -32,6 +32,27 @@ export default function AdminWireTransfers() {
     action: '',
     message: ''
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    transfer_type: '',
+    recipient_name: '',
+    recipient_account: '',
+    recipient_bank: '',
+    recipient_bank_address: '',
+    swift_code: '',
+    routing_number: '',
+    amount: '',
+    fee: '',
+    urgent_transfer: false,
+    reference: '',
+    description: '',
+    status: '',
+    created_at: '',
+    updated_at: ''
+  });
+  const [selectedTransfers, setSelectedTransfers] = useState([]);
+  const [manuallyEditUpdatedAt, setManuallyEditUpdatedAt] = useState(false);
+  const [originalUpdatedAt, setOriginalUpdatedAt] = useState('');
 
   useEffect(() => {
     fetchWireTransfers();
@@ -72,6 +93,216 @@ export default function AdminWireTransfers() {
       console.error('Error fetching wire transfers:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditTransfer = (transfer) => {
+    setSelectedTransfer(transfer);
+    const updatedAtValue = new Date(transfer.updated_at).toISOString().slice(0, 16);
+    setEditForm({
+      transfer_type: transfer.transfer_type || 'domestic',
+      recipient_name: transfer.recipient_name || '',
+      recipient_account: transfer.recipient_account || '',
+      recipient_bank: transfer.recipient_bank || '',
+      recipient_bank_address: transfer.recipient_bank_address || '',
+      swift_code: transfer.swift_code || '',
+      routing_number: transfer.routing_number || '',
+      amount: transfer.amount || '',
+      fee: transfer.fee || 0,
+      urgent_transfer: transfer.urgent_transfer || false,
+      reference: transfer.reference || '',
+      description: transfer.description || '',
+      status: transfer.status || 'pending',
+      created_at: new Date(transfer.created_at).toISOString().slice(0, 16),
+      updated_at: updatedAtValue
+    });
+    setOriginalUpdatedAt(updatedAtValue);
+    setManuallyEditUpdatedAt(false);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateTransfer = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/update-wire-transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          wireTransferId: selectedTransfer.id,
+          transfer_type: editForm.transfer_type,
+          recipient_name: editForm.recipient_name,
+          recipient_account: editForm.recipient_account,
+          recipient_bank: editForm.recipient_bank,
+          recipient_bank_address: editForm.recipient_bank_address,
+          swift_code: editForm.swift_code,
+          routing_number: editForm.routing_number,
+          amount: parseFloat(editForm.amount),
+          fee: parseFloat(editForm.fee),
+          urgent_transfer: editForm.urgent_transfer,
+          reference: editForm.reference,
+          description: editForm.description,
+          status: editForm.status,
+          created_at: new Date(editForm.created_at).toISOString(),
+          updated_at: new Date(editForm.updated_at).toISOString(),
+          manuallyEditUpdatedAt: manuallyEditUpdatedAt,
+          userEmail: selectedTransfer.user_email,
+          userName: selectedTransfer.user_name
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update wire transfer');
+      }
+
+      setSuccess('✅ Wire transfer updated successfully!');
+      setShowEditModal(false);
+      setSelectedTransfer(null);
+      await fetchWireTransfers();
+    } catch (error) {
+      console.error('Error updating wire transfer:', error);
+      setError('❌ Failed to update wire transfer: ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSelectTransfer = (transferId) => {
+    setSelectedTransfers(prev => {
+      if (prev.includes(transferId)) {
+        return prev.filter(id => id !== transferId);
+      } else {
+        return [...prev, transferId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTransfers.length === filteredWireTransfers.length) {
+      setSelectedTransfers([]);
+    } else {
+      setSelectedTransfers(filteredWireTransfers.map(tx => tx.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTransfers.length === 0) {
+      setError('Please select at least one wire transfer to delete');
+      return;
+    }
+
+    const transfersToDelete = filteredWireTransfers.filter(tx => 
+      selectedTransfers.includes(tx.id)
+    );
+
+    const totalAmount = transfersToDelete.reduce((sum, tx) => sum + parseFloat(tx.total_amount), 0);
+
+    let confirmMessage = `⚠️ BULK DELETE CONFIRMATION\n\n`;
+    confirmMessage += `You are about to delete ${selectedTransfers.length} wire transfer(s):\n`;
+    confirmMessage += `- Total Amount: $${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n\n`;
+    confirmMessage += `This action cannot be undone!\n\nType "DELETE" to confirm:`;
+
+    const userInput = prompt(confirmMessage);
+    if (userInput !== 'DELETE') {
+      setError('Bulk delete cancelled');
+      return;
+    }
+
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+
+    setLoadingBanner({
+      visible: true,
+      current: 0,
+      total: transfersToDelete.length,
+      action: 'Deleting Wire Transfers',
+      message: 'Please wait while we process your request...'
+    });
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        setActionLoading(false);
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+      let errors = [];
+
+      for (let i = 0; i < transfersToDelete.length; i++) {
+        const transfer = transfersToDelete[i];
+        
+        setLoadingBanner(prev => ({
+          ...prev,
+          current: i + 1,
+          message: `Deleting wire transfer ${transfer.id.slice(0, 8)}...`
+        }));
+
+        try {
+          const response = await fetch('/api/admin/update-wire-transfer-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              wireTransferId: transfer.id,
+              action: 'delete',
+              userEmail: transfer.user_email,
+              userName: transfer.user_name
+            })
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            const result = await response.json();
+            failCount++;
+            errors.push(`${transfer.id.slice(0, 8)}: ${result.error || 'Unknown error'}`);
+          }
+        } catch (err) {
+          failCount++;
+          errors.push(`${transfer.id.slice(0, 8)}: ${err.message}`);
+        }
+      }
+
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+
+      let resultMessage = `✅ Bulk Delete Complete!\n\n`;
+      resultMessage += `Successfully deleted: ${successCount} wire transfer(s)\n`;
+      
+      if (failCount > 0) {
+        resultMessage += `Failed: ${failCount} wire transfer(s)\n\n`;
+        resultMessage += `Errors:\n${errors.join('\n')}`;
+        setError(resultMessage);
+      } else {
+        setSuccess(resultMessage);
+      }
+
+      setSelectedTransfers([]);
+      await fetchWireTransfers();
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      setError('❌ Bulk delete failed: ' + error.message);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -431,8 +662,22 @@ export default function AdminWireTransfers() {
           <div>
             <h1 style={styles.title}>💸 Wire Transfers Management</h1>
             <p style={styles.subtitle}>Comprehensive wire transfer administration and monitoring</p>
+            {selectedTransfers.length > 0 && (
+              <p style={styles.selectedCount}>
+                {selectedTransfers.length} wire transfer(s) selected
+              </p>
+            )}
           </div>
           <div style={styles.headerActions}>
+            {selectedTransfers.length > 0 && (
+              <button 
+                onClick={handleBulkDelete} 
+                style={styles.bulkDeleteButton}
+                disabled={actionLoading}
+              >
+                {actionLoading ? '⏳ Deleting...' : `🗑️ Delete ${selectedTransfers.length}`}
+              </button>
+            )}
             <button onClick={fetchWireTransfers} style={styles.refreshButton} disabled={loading}>
               {loading ? '⏳' : '🔄'} Refresh
             </button>
@@ -485,6 +730,19 @@ export default function AdminWireTransfers() {
         </div>
 
         <div style={styles.filtersSection}>
+          <div style={styles.selectAllContainer}>
+            <input
+              type="checkbox"
+              id="selectAll"
+              checked={filteredWireTransfers.length > 0 && selectedTransfers.length === filteredWireTransfers.length}
+              onChange={handleSelectAll}
+              style={styles.checkbox}
+              disabled={filteredWireTransfers.length === 0}
+            />
+            <label htmlFor="selectAll" style={styles.selectAllLabel}>
+              Select All ({filteredWireTransfers.length})
+            </label>
+          </div>
           <input
             type="text"
             placeholder="🔍 Search by name, email, recipient or transfer ID..."
@@ -564,8 +822,23 @@ export default function AdminWireTransfers() {
               {filteredWireTransfers.map(transfer => {
                 const statusColor = getStatusColor(transfer.status);
                 return (
-                  <div key={transfer.id} style={styles.transferCard}>
+                  <div 
+                    key={transfer.id} 
+                    style={{
+                      ...styles.transferCard,
+                      ...(selectedTransfers.includes(transfer.id) ? styles.transferCardSelected : {})
+                    }}
+                  >
                     <div style={styles.transferHeader}>
+                      <div style={styles.checkboxContainer}>
+                        <input
+                          type="checkbox"
+                          checked={selectedTransfers.includes(transfer.id)}
+                          onChange={() => handleSelectTransfer(transfer.id)}
+                          style={styles.cardCheckbox}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
                       <div>
                         <h3 style={styles.transferType}>
                           {transfer.transfer_type === 'domestic' ? '🏠' : '🌍'} {transfer.transfer_type?.toUpperCase() || 'WIRE'}
@@ -619,6 +892,12 @@ export default function AdminWireTransfers() {
                     </div>
 
                     <div style={styles.transferFooter}>
+                      <button
+                        onClick={() => handleEditTransfer(transfer)}
+                        style={styles.editButton}
+                      >
+                        ✏️ Edit
+                      </button>
                       {transfer.status === 'pending' && (
                         <>
                           <button 
@@ -860,6 +1139,226 @@ export default function AdminWireTransfers() {
             </div>
           )}
         </div>
+
+        {/* Edit Modal */}
+        {showEditModal && selectedTransfer && (
+          <div style={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Edit Wire Transfer</h2>
+                <button onClick={() => setShowEditModal(false)} style={styles.closeButton}>×</button>
+              </div>
+              <form onSubmit={handleUpdateTransfer}>
+                <div style={styles.modalBody}>
+                  <div style={styles.formGrid}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Transfer Type *</label>
+                      <select
+                        value={editForm.transfer_type}
+                        onChange={(e) => setEditForm({ ...editForm, transfer_type: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      >
+                        <option value="domestic">Domestic</option>
+                        <option value="international">International</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Recipient Name *</label>
+                      <input
+                        type="text"
+                        value={editForm.recipient_name}
+                        onChange={(e) => setEditForm({ ...editForm, recipient_name: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Recipient Account *</label>
+                      <input
+                        type="text"
+                        value={editForm.recipient_account}
+                        onChange={(e) => setEditForm({ ...editForm, recipient_account: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Recipient Bank *</label>
+                      <input
+                        type="text"
+                        value={editForm.recipient_bank}
+                        onChange={(e) => setEditForm({ ...editForm, recipient_bank: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Bank Address</label>
+                      <input
+                        type="text"
+                        value={editForm.recipient_bank_address}
+                        onChange={(e) => setEditForm({ ...editForm, recipient_bank_address: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>SWIFT Code</label>
+                      <input
+                        type="text"
+                        value={editForm.swift_code}
+                        onChange={(e) => setEditForm({ ...editForm, swift_code: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Routing Number</label>
+                      <input
+                        type="text"
+                        value={editForm.routing_number}
+                        onChange={(e) => setEditForm({ ...editForm, routing_number: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Amount *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Fee</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editForm.fee}
+                        onChange={(e) => setEditForm({ ...editForm, fee: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Status *</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="reversed">Reversed</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={editForm.urgent_transfer}
+                          onChange={(e) => setEditForm({ ...editForm, urgent_transfer: e.target.checked })}
+                          style={styles.checkbox}
+                        />
+                        <span style={{marginLeft: '8px'}}>Urgent Transfer</span>
+                      </label>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Reference</label>
+                      <input
+                        type="text"
+                        value={editForm.reference}
+                        onChange={(e) => setEditForm({ ...editForm, reference: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Description</label>
+                      <textarea
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        style={{ ...styles.formInput, minHeight: '80px', resize: 'vertical' }}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Created At</label>
+                      <input
+                        type="datetime-local"
+                        value={editForm.created_at}
+                        onChange={(e) => setEditForm({ ...editForm, created_at: e.target.value })}
+                        style={styles.formInput}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Updated At</label>
+                      <input
+                        type="datetime-local"
+                        value={editForm.updated_at}
+                        onChange={(e) => {
+                          setEditForm({ ...editForm, updated_at: e.target.value });
+                          const isManualEdit = e.target.value !== originalUpdatedAt;
+                          setManuallyEditUpdatedAt(isManualEdit);
+                        }}
+                        style={styles.formInput}
+                      />
+                      <small style={styles.helpText}>
+                        {manuallyEditUpdatedAt ? '⚠️ Manually set timestamp' : 'Auto-updates to current time when saving'}
+                      </small>
+                    </div>
+                  </div>
+
+                  <div style={styles.infoBox}>
+                    <strong>Transfer ID:</strong> {selectedTransfer.id}<br />
+                    <strong>User:</strong> {selectedTransfer.user_name}<br />
+                    <strong>Email:</strong> {selectedTransfer.user_email}<br />
+                    <strong>Account:</strong> {selectedTransfer.accounts?.account_number || 'N/A'}
+                  </div>
+                </div>
+                <div style={styles.modalFooter}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    style={styles.cancelButton}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={styles.saveButton}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {renderActionModal()}
 
@@ -1241,6 +1740,143 @@ const styles = {
     color: 'white',
     border: 'none',
     borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  editButton: {
+    flex: 1,
+    padding: '10px',
+    background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  selectedCount: {
+    margin: '8px 0 0 0',
+    color: '#1e40af',
+    fontSize: 'clamp(0.9rem, 2.2vw, 16px)',
+    fontWeight: '600'
+  },
+  bulkDeleteButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+  },
+  selectAllContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    border: '2px solid #e2e8f0'
+  },
+  selectAllLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#1A3E6F',
+    cursor: 'pointer',
+    userSelect: 'none'
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+    accentColor: '#1e40af'
+  },
+  checkboxContainer: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    paddingTop: '2px'
+  },
+  cardCheckbox: {
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    accentColor: '#1e40af',
+    flexShrink: 0
+  },
+  transferCardSelected: {
+    border: '2px solid #1e40af',
+    boxShadow: '0 4px 12px rgba(30, 64, 175, 0.2)',
+    backgroundColor: '#f0f9ff'
+  },
+  formGrid: {
+    display: 'grid',
+    gap: '16px',
+    marginBottom: '16px'
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  formLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  formInput: {
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748',
+    cursor: 'pointer'
+  },
+  helpText: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#64748b'
+  },
+  infoBox: {
+    padding: '16px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    lineHeight: '1.6',
+    color: '#475569'
+  },
+  modalFooter: {
+    padding: '20px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px'
+  },
+  cancelButton: {
+    padding: '12px 24px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    color: '#475569',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  saveButton: {
+    padding: '12px 24px',
+    border: 'none',
+    borderRadius: '8px',
+    backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
