@@ -140,9 +140,18 @@ export default function AdminTransactions() {
         return {
           ...tx,
           source: 'transaction',
-          accounts: {
+          accounts: tx.accounts ? {
             ...tx.accounts,
             applications: application || {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'N/A'
+            }
+          } : {
+            account_number: 'N/A',
+            user_id: tx.user_id || null,
+            application_id: null,
+            applications: {
               first_name: 'Unknown',
               last_name: 'User',
               email: 'N/A'
@@ -167,9 +176,18 @@ export default function AdminTransactions() {
           updated_at: deposit.updated_at,
           source: 'account_opening_deposit',
           original_data: deposit,
-          accounts: {
+          accounts: deposit.accounts ? {
             ...deposit.accounts,
             applications: application || {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'N/A'
+            }
+          } : {
+            account_number: 'N/A',
+            user_id: deposit.user_id || null,
+            application_id: null,
+            applications: {
               first_name: 'Unknown',
               last_name: 'User',
               email: 'N/A'
