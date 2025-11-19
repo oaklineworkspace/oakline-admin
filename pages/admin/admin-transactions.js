@@ -98,13 +98,17 @@ export default function AdminTransactions() {
             user_id,
             application_id
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(0, 9999);
 
       if (txError) {
         console.error('Supabase error fetching transactions:', txError);
         throw new Error(txError.message || 'Failed to fetch transactions from database');
       }
+
+      console.log('Fetched transactions from transactions table:', txData?.length || 0);
+      console.log('Sample transaction:', txData?.[0]);
 
       // Fetch account opening deposits
       const { data: accountOpeningData, error: accountOpeningError } = await supabase
@@ -116,12 +120,16 @@ export default function AdminTransactions() {
             user_id,
             application_id
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(0, 9999);
 
       if (accountOpeningError) {
         console.warn('Error fetching account opening deposits:', accountOpeningError);
       }
+
+      console.log('Fetched account opening deposits:', accountOpeningData?.length || 0);
+      console.log('Sample account opening deposit:', accountOpeningData?.[0]);
 
       const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
       let applications = [];
@@ -200,6 +208,10 @@ export default function AdminTransactions() {
       const mergedData = [...enrichedData, ...enrichedAccountOpeningData].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
+
+      console.log('Total merged transactions:', mergedData.length);
+      console.log('Transactions from transactions table:', enrichedData.length);
+      console.log('Transactions from account_opening_crypto_deposits:', enrichedAccountOpeningData.length);
 
       setTransactions(mergedData || []);
     } catch (error) {
