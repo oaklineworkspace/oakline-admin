@@ -196,6 +196,16 @@ export default function EditUserTimestamps() {
       });
     }
 
+    if (userData.account_opening_deposits) {
+      userData.account_opening_deposits.forEach((deposit, idx) => {
+        fields.push({ table: 'account_opening_crypto_deposits', id: deposit.id, field: 'created_at', label: `🏦 Account Opening Deposit ${idx + 1} - Created At`, current: deposit.created_at });
+        fields.push({ table: 'account_opening_crypto_deposits', id: deposit.id, field: 'updated_at', label: `🏦 Account Opening Deposit ${idx + 1} - Updated At`, current: deposit.updated_at });
+        fields.push({ table: 'account_opening_crypto_deposits', id: deposit.id, field: 'approved_at', label: `🏦 Account Opening Deposit ${idx + 1} - Approved At`, current: deposit.approved_at });
+        fields.push({ table: 'account_opening_crypto_deposits', id: deposit.id, field: 'completed_at', label: `🏦 Account Opening Deposit ${idx + 1} - Completed At`, current: deposit.completed_at });
+        fields.push({ table: 'account_opening_crypto_deposits', id: deposit.id, field: 'rejected_at', label: `🏦 Account Opening Deposit ${idx + 1} - Rejected At`, current: deposit.rejected_at });
+      });
+    }
+
     setAvailableFields(fields);
   };
 
@@ -680,6 +690,24 @@ export default function EditUserTimestamps() {
                         {renderTimestampField('crypto_deposits', deposit.id, 'updated_at', deposit.updated_at, 'Updated At')}
                         {renderTimestampField('crypto_deposits', deposit.id, 'approved_at', deposit.approved_at, 'Approved At')}
                         {renderTimestampField('crypto_deposits', deposit.id, 'completed_at', deposit.completed_at, 'Completed At')}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {userData.account_opening_deposits && userData.account_opening_deposits.length > 0 && (
+                  <div style={styles.tableSection}>
+                    <h3 style={styles.tableSectionTitle}>🏦 Account Opening Deposits ({userData.account_opening_deposits.length})</h3>
+                    {userData.account_opening_deposits.map((deposit, idx) => (
+                      <div key={deposit.id} style={styles.recordGroup}>
+                        <h4 style={styles.recordTitle}>
+                          Deposit {idx + 1}: ${parseFloat(deposit.amount || 0).toFixed(2)} - {deposit.status}
+                        </h4>
+                        {renderTimestampField('account_opening_crypto_deposits', deposit.id, 'created_at', deposit.created_at, 'Created At')}
+                        {renderTimestampField('account_opening_crypto_deposits', deposit.id, 'updated_at', deposit.updated_at, 'Updated At')}
+                        {renderTimestampField('account_opening_crypto_deposits', deposit.id, 'approved_at', deposit.approved_at, 'Approved At')}
+                        {renderTimestampField('account_opening_crypto_deposits', deposit.id, 'completed_at', deposit.completed_at, 'Completed At')}
+                        {renderTimestampField('account_opening_crypto_deposits', deposit.id, 'rejected_at', deposit.rejected_at, 'Rejected At')}
                       </div>
                     ))}
                   </div>

@@ -108,6 +108,24 @@ export default function AdminTransactions() {
         throw new Error(txError.message || 'Failed to fetch transactions from database');
       }
 
+      // Fetch account opening deposits
+      const { data: accountOpeningData, error: accountOpeningError } = await supabase
+        .from('account_opening_crypto_deposits')
+        .select(`
+          *,
+          accounts!inner (
+            account_number,
+            user_id,
+            application_id
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (accountOpeningError) {
+        console.warn('Error fetching account opening deposits:', accountOpeningError);
+      }
+
       const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
       let applications = [];
 
@@ -124,6 +142,7 @@ export default function AdminTransactions() {
 
         return {
           ...tx,
+          source: 'transaction',
           accounts: {
             ...tx.accounts,
             applications: application || {
@@ -135,7 +154,39 @@ export default function AdminTransactions() {
         };
       });
 
-      setTransactions(enrichedData || []);
+      // Enrich account opening deposits
+      const enrichedAccountOpeningData = (accountOpeningData || []).map(deposit => {
+        const application = applications?.find(a => a.id === deposit.accounts?.application_id);
+
+        return {
+          id: deposit.id,
+          user_id: deposit.user_id,
+          account_id: deposit.account_id,
+          type: 'account_opening_deposit',
+          amount: deposit.amount,
+          description: `Account Opening Deposit - ${deposit.status}`,
+          status: deposit.status === 'completed' ? 'completed' : deposit.status === 'rejected' ? 'failed' : 'pending',
+          created_at: deposit.created_at,
+          updated_at: deposit.updated_at,
+          source: 'account_opening_deposit',
+          original_data: deposit,
+          accounts: {
+            ...deposit.accounts,
+            applications: application || {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'N/A'
+            }
+          }
+        };
+      });
+
+      // Merge both data sources and sort by created_at
+      const mergedData = [...enrichedData, ...enrichedAccountOpeningData].sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      );
+
+      setTransactions(mergedData || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
       setError('Failed to fetch transactions: ' + error.message);
@@ -814,14 +865,20 @@ export default function AdminTransactions() {
                     </div>
                     <div style={styles.transactionInfo}>
                       <span style={styles.infoLabel}>Amount:</span>
-                      <span style={{...styles.infoValue, color: tx.type === 'credit' ? '#059669' : '#dc2626', fontWeight: '700'}}>
-                        {tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      <span style={{...styles.infoValue, color: tx.type === 'credit' || tx.type === 'account_opening_deposit' ? '#059669' : '#dc2626', fontWeight: '700'}}>
+                        {tx.type === 'credit' || tx.type === 'account_opening_deposit' ? '+' : '-'}{formatCurrency(tx.amount)}
                       </span>
                     </div>
                     <div style={styles.transactionInfo}>
                       <span style={styles.infoLabel}>Description:</span>
                       <span style={styles.infoValue}>{tx.description || 'No description'}</span>
                     </div>
+                    {tx.source === 'account_opening_deposit' && tx.original_data?.tx_hash && (
+                      <div style={styles.transactionInfo}>
+                        <span style={styles.infoLabel}>TX Hash:</span>
+                        <span style={styles.infoValue}>{tx.original_data.tx_hash.slice(0, 16)}...</span>
+                      </div>
+                    )}
                     <div style={styles.transactionInfo}>
                       <span style={styles.infoLabel}>Date:</span>
                       <span style={styles.infoValue}>{formatDateTime(tx.created_at)}</span>
@@ -831,21 +888,37 @@ export default function AdminTransactions() {
                         ✓ Balance Applied
                       </div>
                     )}
+                    {tx.source === 'account_opening_deposit' && (
+                      <div style={{...styles.completedBadge, background: '#dbeafe', color: '#1e40af'}}>
+                        🏦 Account Opening Deposit
+                      </div>
+                    )}
                   </div>
 
                   <div style={styles.transactionFooter}>
-                    <button
-                      onClick={() => handleEditTransaction(tx)}
-                      style={styles.editButton}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTransaction(tx)}
-                      style={styles.deleteButton}
-                    >
-                      🗑️ Delete
-                    </button>
+                    {tx.source === 'account_opening_deposit' ? (
+                      <button
+                        onClick={() => router.push('/admin/manage-account-opening-deposits')}
+                        style={{...styles.editButton, flex: '1 1 100%'}}
+                      >
+                        📋 Manage in Account Opening Deposits
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleEditTransaction(tx)}
+                          style={styles.editButton}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTransaction(tx)}
+                          style={styles.deleteButton}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
