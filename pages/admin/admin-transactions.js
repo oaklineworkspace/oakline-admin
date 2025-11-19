@@ -923,28 +923,25 @@ export default function AdminTransactions() {
                   </div>
 
                   <div style={styles.transactionFooter}>
-                    {tx.source === 'account_opening_deposit' ? (
+                    <button
+                      onClick={() => handleEditTransaction(tx)}
+                      style={styles.editButton}
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTransaction(tx)}
+                      style={styles.deleteButton}
+                    >
+                      🗑️ Delete
+                    </button>
+                    {tx.source === 'account_opening_deposit' && (
                       <button
                         onClick={() => router.push('/admin/manage-account-opening-deposits')}
-                        style={{...styles.editButton, flex: '1 1 100%'}}
+                        style={{...styles.editButton, flex: '1 1 100%', marginTop: '8px'}}
                       >
                         📋 Manage in Account Opening Deposits
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleEditTransaction(tx)}
-                          style={styles.editButton}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTransaction(tx)}
-                          style={styles.deleteButton}
-                        >
-                          🗑️ Delete
-                        </button>
-                      </>
                     )}
                   </div>
                 </div>

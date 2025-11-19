@@ -16,6 +16,13 @@ export default function EditUserTimestamps() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Transaction filter states
+  const [txSearchTerm, setTxSearchTerm] = useState('');
+  const [txStatusFilter, setTxStatusFilter] = useState('all');
+  const [txTypeFilter, setTxTypeFilter] = useState('all');
+  const [txDateFilter, setTxDateFilter] = useState('all');
+  const [txDateRange, setTxDateRange] = useState({ start: '', end: '' });
 
   // Add CSS animation for spinner
   if (typeof window !== 'undefined' && !document.getElementById('spinner-animation')) {
@@ -491,6 +498,66 @@ export default function EditUserTimestamps() {
     return email.includes(query) || firstName.includes(query) || lastName.includes(query);
   });
 
+  const getFilteredTransactions = () => {
+    if (!userData || !userData.transactions) return [];
+    
+    let filtered = [...userData.transactions];
+
+    // Search filter
+    if (txSearchTerm) {
+      const search = txSearchTerm.toLowerCase();
+      filtered = filtered.filter(tx => 
+        tx.description?.toLowerCase().includes(search) ||
+        tx.type?.toLowerCase().includes(search) ||
+        tx.reference?.toLowerCase().includes(search) ||
+        tx.id?.toLowerCase().includes(search)
+      );
+    }
+
+    // Status filter
+    if (txStatusFilter !== 'all') {
+      filtered = filtered.filter(tx => tx.status === txStatusFilter);
+    }
+
+    // Type filter
+    if (txTypeFilter !== 'all') {
+      filtered = filtered.filter(tx => tx.type === txTypeFilter);
+    }
+
+    // Date filter
+    if (txDateFilter === 'custom' && (txDateRange.start || txDateRange.end)) {
+      const start = txDateRange.start ? new Date(txDateRange.start) : null;
+      const end = txDateRange.end ? new Date(txDateRange.end) : null;
+      
+      filtered = filtered.filter(tx => {
+        const txDate = new Date(tx.created_at);
+        if (start && end) return txDate >= start && txDate <= end;
+        if (start) return txDate >= start;
+        if (end) return txDate <= end;
+        return true;
+      });
+    } else if (txDateFilter !== 'all') {
+      const now = new Date();
+      const startDate = new Date();
+
+      switch (txDateFilter) {
+        case 'today':
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+      }
+
+      filtered = filtered.filter(tx => new Date(tx.created_at) >= startDate);
+    }
+
+    return filtered;
+  };
+
   return (
     <AdminAuth>
       <div style={styles.container}>
@@ -635,12 +702,101 @@ export default function EditUserTimestamps() {
 
                 {userData.transactions && userData.transactions.length > 0 && (
                   <div style={styles.tableSection}>
-                    <h3 style={styles.tableSectionTitle}>🔄 All Transactions ({userData.transactions.length})</h3>
-                    {userData.transactions.map((txn, idx) => (
+                    <h3 style={styles.tableSectionTitle}>🔄 All Transactions ({getFilteredTransactions().length} of {userData.transactions.length})</h3>
+                    
+                    <div style={styles.txFilterContainer}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Search by description, type, reference, or ID..."
+                        value={txSearchTerm}
+                        onChange={(e) => setTxSearchTerm(e.target.value)}
+                        style={styles.txSearchInput}
+                      />
+                      
+                      <div style={styles.txFilterRow}>
+                        <select
+                          value={txStatusFilter}
+                          onChange={(e) => setTxStatusFilter(e.target.value)}
+                          style={styles.txFilterSelect}
+                        >
+                          <option value="all">All Statuses</option>
+                          <option value="pending">Pending</option>
+                          <option value="completed">Completed</option>
+                          <option value="failed">Failed</option>
+                          <option value="hold">Hold</option>
+                          <option value="cancelled">Cancelled</option>
+                          <option value="reversed">Reversed</option>
+                        </select>
+
+                        <select
+                          value={txTypeFilter}
+                          onChange={(e) => setTxTypeFilter(e.target.value)}
+                          style={styles.txFilterSelect}
+                        >
+                          <option value="all">All Types</option>
+                          <option value="credit">Credit</option>
+                          <option value="debit">Debit</option>
+                          <option value="deposit">Deposit</option>
+                          <option value="withdrawal">Withdrawal</option>
+                          <option value="transfer">Transfer</option>
+                          <option value="crypto_deposit">Crypto Deposit</option>
+                        </select>
+
+                        <select
+                          value={txDateFilter}
+                          onChange={(e) => setTxDateFilter(e.target.value)}
+                          style={styles.txFilterSelect}
+                        >
+                          <option value="all">All Time</option>
+                          <option value="today">Today</option>
+                          <option value="week">Last 7 Days</option>
+                          <option value="month">Last 30 Days</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
+                      </div>
+
+                      {txDateFilter === 'custom' && (
+                        <div style={styles.txDateRangeRow}>
+                          <input
+                            type="date"
+                            value={txDateRange.start}
+                            onChange={(e) => setTxDateRange({ ...txDateRange, start: e.target.value })}
+                            style={styles.txDateInput}
+                            placeholder="Start date"
+                          />
+                          <span style={{ margin: '0 10px' }}>to</span>
+                          <input
+                            type="date"
+                            value={txDateRange.end}
+                            onChange={(e) => setTxDateRange({ ...txDateRange, end: e.target.value })}
+                            style={styles.txDateInput}
+                            placeholder="End date"
+                          />
+                        </div>
+                      )}
+
+                      {(txSearchTerm || txStatusFilter !== 'all' || txTypeFilter !== 'all' || txDateFilter !== 'all') && (
+                        <button
+                          onClick={() => {
+                            setTxSearchTerm('');
+                            setTxStatusFilter('all');
+                            setTxTypeFilter('all');
+                            setTxDateFilter('all');
+                            setTxDateRange({ start: '', end: '' });
+                          }}
+                          style={styles.txClearFiltersBtn}
+                        >
+                          ✖ Clear Filters
+                        </button>
+                      )}
+                    </div>
+
+                    {getFilteredTransactions().map((txn, idx) => (
                       <div key={txn.id} style={styles.recordGroup}>
                         <h4 style={styles.recordTitle}>
-                          Transaction {idx + 1}: {txn.type} - ${parseFloat(txn.amount).toFixed(2)}
+                          Transaction {idx + 1}: {txn.type} - ${parseFloat(txn.amount).toFixed(2)} - {txn.status}
                         </h4>
+                        {txn.description && <p style={styles.txDescription}>{txn.description}</p>}
                         {renderTimestampField('transactions', txn.id, 'created_at', txn.created_at, 'Created At')}
                         {renderTimestampField('transactions', txn.id, 'updated_at', txn.updated_at, 'Updated At')}
                       </div>
@@ -1648,5 +1804,75 @@ const styles = {
     color: '#667eea',
     textAlign: 'center',
     padding: '0 20px'
+  },
+  txFilterContainer: {
+    background: 'white',
+    padding: 'clamp(0.8rem, 2vw, 16px)',
+    borderRadius: '12px',
+    marginBottom: '16px',
+    border: '2px solid #e2e8f0',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+  },
+  txSearchInput: {
+    width: '100%',
+    padding: 'clamp(0.7rem, 2vw, 12px)',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    marginBottom: '12px',
+    boxSizing: 'border-box',
+    outline: 'none',
+    transition: 'border-color 0.2s'
+  },
+  txFilterRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: 'clamp(0.5rem, 2vw, 12px)',
+    marginBottom: '12px'
+  },
+  txFilterSelect: {
+    padding: 'clamp(0.6rem, 2vw, 10px)',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    background: 'white',
+    cursor: 'pointer',
+    outline: 'none',
+    transition: 'border-color 0.2s'
+  },
+  txDateRangeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '12px',
+    flexWrap: 'wrap'
+  },
+  txDateInput: {
+    padding: 'clamp(0.6rem, 2vw, 10px)',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    outline: 'none',
+    flex: '1 1 140px',
+    minWidth: '140px'
+  },
+  txClearFiltersBtn: {
+    padding: 'clamp(0.5rem, 1.5vw, 8px) clamp(0.9rem, 2vw, 16px)',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    marginTop: '8px'
+  },
+  txDescription: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#64748b',
+    marginTop: '4px',
+    marginBottom: '8px',
+    fontStyle: 'italic'
   }
 };
