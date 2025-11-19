@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
@@ -28,6 +29,13 @@ export default function AdminTransactions() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedTransactions, setSelectedTransactions] = useState([]);
+  const [loadingBanner, setLoadingBanner] = useState({
+    visible: false,
+    current: 0,
+    total: 0,
+    action: '',
+    message: ''
+  });
   const [editForm, setEditForm] = useState({
     type: '',
     amount: '',
@@ -548,11 +556,21 @@ export default function AdminTransactions() {
     setError('');
     setSuccess('');
 
+    // Show loading banner
+    setLoadingBanner({
+      visible: true,
+      current: 0,
+      total: transactionsToDelete.length,
+      action: 'Deleting Transactions',
+      message: 'Please wait while we process your request...'
+    });
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
         setActionLoading(false);
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
         return;
       }
 
@@ -560,7 +578,16 @@ export default function AdminTransactions() {
       let failCount = 0;
       let errors = [];
 
-      for (const transaction of transactionsToDelete) {
+      for (let i = 0; i < transactionsToDelete.length; i++) {
+        const transaction = transactionsToDelete[i];
+        
+        // Update progress
+        setLoadingBanner(prev => ({
+          ...prev,
+          current: i + 1,
+          message: `Deleting transaction ${transaction.id.slice(0, 8)}...`
+        }));
+
         try {
           const response = await fetch('/api/admin/delete-transaction', {
             method: 'POST',
@@ -590,6 +617,9 @@ export default function AdminTransactions() {
         }
       }
 
+      // Hide loading banner
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+
       let resultMessage = `✅ Bulk Delete Complete!\n\n`;
       resultMessage += `Successfully deleted: ${successCount} transaction(s)\n`;
       
@@ -606,6 +636,7 @@ export default function AdminTransactions() {
     } catch (error) {
       console.error('Error in bulk delete:', error);
       setError('❌ Bulk delete failed: ' + error.message);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     } finally {
       setActionLoading(false);
     }
@@ -673,6 +704,13 @@ export default function AdminTransactions() {
 
   return (
     <AdminAuth>
+      <AdminLoadingBanner
+        isVisible={loadingBanner.visible}
+        current={loadingBanner.current}
+        total={loadingBanner.total}
+        action={loadingBanner.action}
+        message={loadingBanner.message}
+      />
       <div style={styles.container}>
         <div style={styles.header}>
           <div>

@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function AdminWireTransfers() {
@@ -23,6 +24,13 @@ export default function AdminWireTransfers() {
     reason: '',
     adminNotes: '',
     selectedReason: ''
+  });
+  const [loadingBanner, setLoadingBanner] = useState({
+    visible: false,
+    current: 0,
+    total: 0,
+    action: '',
+    message: ''
   });
 
   useEffect(() => {
@@ -84,6 +92,26 @@ export default function AdminWireTransfers() {
       setLoading(true);
       setError('');
 
+      // Show loading banner
+      const actionMessages = {
+        approve: 'Approving Wire Transfer',
+        reject: 'Rejecting Wire Transfer',
+        cancel: 'Cancelling Wire Transfer',
+        reverse: 'Reversing Wire Transfer',
+        hold: 'Placing Wire Transfer On Hold',
+        release: 'Releasing Wire Transfer',
+        complete: 'Completing Wire Transfer',
+        delete: 'Deleting Wire Transfer'
+      };
+
+      setLoadingBanner({
+        visible: true,
+        current: 1,
+        total: 1,
+        action: actionMessages[action] || 'Processing Wire Transfer',
+        message: `Processing ${selectedTransfer.recipient_name} - $${parseFloat(selectedTransfer.total_amount).toLocaleString()}`
+      });
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Session expired. Please login again.');
@@ -113,6 +141,7 @@ export default function AdminWireTransfers() {
         throw new Error(data.error || `Failed to ${action} wire transfer`);
       }
 
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
       setSuccess(`Wire transfer ${action}ed successfully! Email notification sent to user.`);
       setShowModal(null);
       setSelectedTransfer(null);
@@ -121,6 +150,7 @@ export default function AdminWireTransfers() {
     } catch (error) {
       console.error(`Wire transfer ${action} error:`, error);
       setError(error.message || `Failed to ${action} wire transfer`);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     } finally {
       setLoading(false);
     }
@@ -389,6 +419,13 @@ export default function AdminWireTransfers() {
 
   return (
     <AdminAuth>
+      <AdminLoadingBanner
+        isVisible={loadingBanner.visible}
+        current={loadingBanner.current}
+        total={loadingBanner.total}
+        action={loadingBanner.action}
+        message={loadingBanner.message}
+      />
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
