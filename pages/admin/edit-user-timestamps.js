@@ -173,7 +173,7 @@ export default function EditUserTimestamps() {
     }
 
     if (userData.transactions) {
-      userData.transactions.slice(0, 10).forEach((txn, idx) => {
+      userData.transactions.forEach((txn, idx) => {
         fields.push({ table: 'transactions', id: txn.id, field: 'created_at', label: `🔄 Transaction ${idx + 1} - Created At`, current: txn.created_at });
         fields.push({ table: 'transactions', id: txn.id, field: 'updated_at', label: `🔄 Transaction ${idx + 1} - Updated At`, current: txn.updated_at });
       });
@@ -635,8 +635,8 @@ export default function EditUserTimestamps() {
 
                 {userData.transactions && userData.transactions.length > 0 && (
                   <div style={styles.tableSection}>
-                    <h3 style={styles.tableSectionTitle}>🔄 Recent Transactions ({userData.transactions.length})</h3>
-                    {userData.transactions.slice(0, 10).map((txn, idx) => (
+                    <h3 style={styles.tableSectionTitle}>🔄 All Transactions ({userData.transactions.length})</h3>
+                    {userData.transactions.map((txn, idx) => (
                       <div key={txn.id} style={styles.recordGroup}>
                         <h4 style={styles.recordTitle}>
                           Transaction {idx + 1}: {txn.type} - ${parseFloat(txn.amount).toFixed(2)}

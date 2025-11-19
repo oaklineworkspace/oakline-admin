@@ -60,13 +60,12 @@ export default async function handler(req, res) {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    // Fetch transactions (recent 20)
+    // Fetch transactions (all)
     const { data: transactions } = await supabaseAdmin
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20);
+      .order('created_at', { ascending: false });
 
     // Fetch login history (recent 10)
     const { data: login_history } = await supabaseAdmin
