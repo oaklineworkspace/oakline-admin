@@ -242,26 +242,66 @@ export default async function handler(req, res) {
         console.log(`Found ${relatedTransactions?.length || 0} related transaction(s) for wire transfer ${wireTransferId}`);
 
         // Find the main wire transfer transaction (not refund transactions)
-        const relatedTransaction = relatedTransactions?.find(tx => tx.reference === `WIRE-${wireTransferId}`);
+        let relatedTransaction = relatedTransactions?.find(tx => tx.reference === `WIRE-${wireTransferId}`);
+
+        // If no transaction exists, create one
+        if (!relatedTransaction) {
+          console.log(`⚠️ No transaction found, creating one for wire transfer ${wireTransferId}`);
+          
+          const { data: rejectAccount, error: rejectAccountError } = await supabaseAdmin
+            .from('accounts')
+            .select('balance')
+            .eq('id', transfer.from_account_id)
+            .single();
+
+          if (rejectAccount && !rejectAccountError) {
+            const { data: createdTransaction, error: createTxError } = await supabaseAdmin
+              .from('transactions')
+              .insert({
+                user_id: transfer.user_id,
+                account_id: transfer.from_account_id,
+                type: 'debit',
+                amount: parseFloat(transfer.total_amount),
+                description: `Wire transfer rejected: ${reason}`,
+                reference: `WIRE-${wireTransferId}`,
+                status: 'cancelled',
+                balance_before: rejectAccount.balance,
+                balance_after: rejectAccount.balance,
+                created_at: transfer.created_at,
+                updated_at: new Date().toISOString()
+              })
+              .select()
+              .single();
+
+            if (createTxError) {
+              console.error('Error creating transaction:', createTxError);
+            } else {
+              console.log(`✅ Created transaction ${createdTransaction.id} with cancelled status`);
+              relatedTransaction = createdTransaction;
+            }
+          }
+        }
 
         if (relatedTransaction) {
           console.log(`✅ Found main transaction: ${relatedTransaction.id}, status: ${relatedTransaction.status}`);
           
-          // Update transaction to cancelled
-          const { error: txUpdateError } = await supabaseAdmin
-            .from('transactions')
-            .update({
-              status: 'cancelled',
-              description: `Wire transfer rejected: ${reason}`,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', relatedTransaction.id);
+          // Update transaction to cancelled if not already
+          if (relatedTransaction.status !== 'cancelled') {
+            const { error: txUpdateError } = await supabaseAdmin
+              .from('transactions')
+              .update({
+                status: 'cancelled',
+                description: `Wire transfer rejected: ${reason}`,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', relatedTransaction.id);
 
-          if (txUpdateError) {
-            console.error('Error updating transaction:', txUpdateError);
-            return res.status(500).json({ error: 'Failed to update transaction status' });
-          } else {
-            console.log(`✅ Transaction ${relatedTransaction.id} updated to cancelled`);
+            if (txUpdateError) {
+              console.error('Error updating transaction:', txUpdateError);
+              return res.status(500).json({ error: 'Failed to update transaction status' });
+            } else {
+              console.log(`✅ Transaction ${relatedTransaction.id} updated to cancelled`);
+            }
           }
 
           // Check if already refunded
@@ -324,12 +364,12 @@ export default async function handler(req, res) {
               return res.status(500).json({ error: 'Failed to fetch account for refund' });
             }
           } else if (relatedTransaction.status === 'cancelled') {
-            console.log(`⚠️ Transaction already cancelled, checking for existing refund...`);
+            console.log(`⚠️ Transaction already cancelled, no refund needed`);
           } else {
             console.log(`⚠️ Transaction status is ${relatedTransaction.status}, skipping refund`);
           }
         } else {
-          console.log('⚠️ No main wire transfer transaction found to update');
+          console.log('⚠️ Could not create or find transaction for wire transfer');
         }
         emailSubject = `Important: Wire Transfer Request Update - ${bankName}`;
         emailHtml = `
@@ -491,26 +531,66 @@ export default async function handler(req, res) {
         console.log(`Found ${relatedCancelTransactions?.length || 0} related transaction(s) for wire transfer ${wireTransferId}`);
 
         // Find the main wire transfer transaction (not refund transactions)
-        const relatedCancelTransaction = relatedCancelTransactions?.find(tx => tx.reference === `WIRE-${wireTransferId}`);
+        let relatedCancelTransaction = relatedCancelTransactions?.find(tx => tx.reference === `WIRE-${wireTransferId}`);
+
+        // If no transaction exists, create one
+        if (!relatedCancelTransaction) {
+          console.log(`⚠️ No transaction found, creating one for wire transfer ${wireTransferId}`);
+          
+          const { data: cancelAccount, error: cancelAccountError } = await supabaseAdmin
+            .from('accounts')
+            .select('balance')
+            .eq('id', transfer.from_account_id)
+            .single();
+
+          if (cancelAccount && !cancelAccountError) {
+            const { data: createdTransaction, error: createTxError } = await supabaseAdmin
+              .from('transactions')
+              .insert({
+                user_id: transfer.user_id,
+                account_id: transfer.from_account_id,
+                type: 'debit',
+                amount: parseFloat(transfer.total_amount),
+                description: `Wire transfer cancelled - ${reason}`,
+                reference: `WIRE-${wireTransferId}`,
+                status: 'cancelled',
+                balance_before: cancelAccount.balance,
+                balance_after: cancelAccount.balance,
+                created_at: transfer.created_at,
+                updated_at: new Date().toISOString()
+              })
+              .select()
+              .single();
+
+            if (createTxError) {
+              console.error('Error creating transaction:', createTxError);
+            } else {
+              console.log(`✅ Created transaction ${createdTransaction.id} with cancelled status`);
+              relatedCancelTransaction = createdTransaction;
+            }
+          }
+        }
 
         if (relatedCancelTransaction) {
           console.log(`✅ Found main transaction: ${relatedCancelTransaction.id}, status: ${relatedCancelTransaction.status}`);
           
-          // Update transaction to cancelled
-          const { error: txCancelUpdateError } = await supabaseAdmin
-            .from('transactions')
-            .update({
-              status: 'cancelled',
-              description: `Wire transfer cancelled - ${reason}`,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', relatedCancelTransaction.id);
+          // Update transaction to cancelled if not already
+          if (relatedCancelTransaction.status !== 'cancelled') {
+            const { error: txCancelUpdateError } = await supabaseAdmin
+              .from('transactions')
+              .update({
+                status: 'cancelled',
+                description: `Wire transfer cancelled - ${reason}`,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', relatedCancelTransaction.id);
 
-          if (txCancelUpdateError) {
-            console.error('Error updating transaction:', txCancelUpdateError);
-            return res.status(500).json({ error: 'Failed to update transaction status' });
-          } else {
-            console.log(`✅ Transaction ${relatedCancelTransaction.id} updated to cancelled`);
+            if (txCancelUpdateError) {
+              console.error('Error updating transaction:', txCancelUpdateError);
+              return res.status(500).json({ error: 'Failed to update transaction status' });
+            } else {
+              console.log(`✅ Transaction ${relatedCancelTransaction.id} updated to cancelled`);
+            }
           }
 
           // Check if already refunded
@@ -573,14 +653,12 @@ export default async function handler(req, res) {
               return res.status(500).json({ error: 'Failed to fetch account for refund' });
             }
           } else if (relatedCancelTransaction.status === 'cancelled') {
-            console.log(`⚠️ Transaction already cancelled, checking for existing refund...`);
-            // Already cancelled, just verify no double refund
+            console.log(`⚠️ Transaction already cancelled, no refund needed`);
           } else {
             console.log(`⚠️ Transaction status is ${relatedCancelTransaction.status}, skipping refund`);
           }
         } else {
-          console.log('⚠️ No main wire transfer transaction found to update');
-          // This shouldn't happen, but log it for debugging
+          console.log('⚠️ Could not create or find transaction for wire transfer');
         }
         emailSubject = `⚠️ Wire Transfer Cancelled - ${bankName}`;
         emailHtml = `
