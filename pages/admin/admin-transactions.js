@@ -99,8 +99,7 @@ export default function AdminTransactions() {
             application_id
           )
         `)
-        .order('created_at', { ascending: false })
-        .limit(500);
+        .order('created_at', { ascending: false });
 
       if (txError) {
         console.error('Supabase error fetching transactions:', txError);
@@ -118,8 +117,7 @@ export default function AdminTransactions() {
             application_id
           )
         `)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .order('created_at', { ascending: false });
 
       if (accountOpeningError) {
         console.warn('Error fetching account opening deposits:', accountOpeningError);
