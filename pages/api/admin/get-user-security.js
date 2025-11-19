@@ -87,13 +87,70 @@ export default async function handler(req, res) {
       .order('changed_at', { ascending: false })
       .limit(10);
 
-    // Get suspicious activity (unresolved)
+    // Get suspicious activity (all, not just unresolved)
     const { data: suspiciousActivity } = await supabaseAdmin
       .from('suspicious_activity')
       .select('*')
       .eq('user_id', userId)
-      .eq('resolved', false)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Get audit logs for security-related actions
+    const { data: auditLogs } = await supabaseAdmin
+      .from('audit_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    // Get system logs related to this user
+    const { data: systemLogs } = await supabaseAdmin
+      .from('system_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    // Get blocked IPs (if any exist for this user's IPs)
+    const userIPs = [...new Set(loginHistory?.map(l => l.ip_address).filter(Boolean) || [])];
+    let blockedIPs = [];
+    if (userIPs.length > 0) {
+      const { data: ips } = await supabaseAdmin
+        .from('blocked_ips')
+        .select('*')
+        .in('ip_address', userIPs)
+        .order('created_at', { ascending: false });
+      blockedIPs = ips || [];
+    }
+
+    // Get user's devices from login history
+    const devices = [...new Map(
+      loginHistory?.map(l => [
+        `${l.device_type}-${l.browser}-${l.os}`,
+        {
+          deviceType: l.device_type,
+          browser: l.browser,
+          os: l.os,
+          lastUsed: l.login_time,
+          ipAddress: l.ip_address
+        }
+      ]) || []
+    ).values()];
+
+    // Get user's locations from login history
+    const locations = [...new Map(
+      loginHistory?.filter(l => l.city && l.country).map(l => [
+        `${l.city}-${l.country}`,
+        {
+          city: l.city,
+          country: l.country,
+          latitude: l.latitude,
+          longitude: l.longitude,
+          lastUsed: l.login_time,
+          ipAddress: l.ip_address
+        }
+      ]) || []
+    ).values()];
 
     // Calculate security metrics
     const lastPasswordChange = passwordHistory?.[0]?.changed_at || authUser.created_at;
@@ -112,6 +169,49 @@ export default async function handler(req, res) {
       l.city && l.country ? `${l.city}, ${l.country}` : null
     ).filter(Boolean) || [])];
 
+    // Count security events by type
+    const securityEvents = {
+      passwordChanges: passwordHistory?.length || 0,
+      suspiciousActivities: suspiciousActivity?.length || 0,
+      unresolvedSuspicious: suspiciousActivity?.filter(a => !a.resolved).length || 0,
+      failedLogins: failedLogins?.length || 0,
+      successfulLogins: loginHistory?.filter(l => l.success).length || 0,
+      blockedIPCount: blockedIPs.length,
+      uniqueDevices: devices.length,
+      uniqueLocations: locations.length,
+    };
+
+    // Risk assessment
+    let riskScore = 0;
+    let riskFactors = [];
+
+    if (loginAttemptsCount > 3) {
+      riskScore += 20;
+      riskFactors.push(`${loginAttemptsCount} failed login attempts`);
+    }
+    if (daysSincePasswordChange > 90) {
+      riskScore += 15;
+      riskFactors.push(`Password not changed in ${daysSincePasswordChange} days`);
+    }
+    if (!twoFactorEnabled) {
+      riskScore += 10;
+      riskFactors.push('Two-factor authentication not enabled');
+    }
+    if (suspiciousActivity?.filter(a => !a.resolved).length > 0) {
+      riskScore += 25;
+      riskFactors.push(`${suspiciousActivity.filter(a => !a.resolved).length} unresolved suspicious activities`);
+    }
+    if (uniqueIPs.length > 10) {
+      riskScore += 10;
+      riskFactors.push(`Access from ${uniqueIPs.length} different IPs`);
+    }
+    if (blockedIPs.length > 0) {
+      riskScore += 30;
+      riskFactors.push(`${blockedIPs.length} blocked IP(s) used`);
+    }
+
+    const riskLevel = riskScore >= 60 ? 'critical' : riskScore >= 40 ? 'high' : riskScore >= 20 ? 'medium' : 'low';
+
     return res.status(200).json({
       success: true,
       user: {
@@ -122,6 +222,9 @@ export default async function handler(req, res) {
         createdAt: authUser.created_at,
         emailVerified: authUser.email_confirmed_at ? true : false,
         lastSignInAt: authUser.last_sign_in_at,
+        phone: profile?.phone || '',
+        country: profile?.country || '',
+        enrollmentCompleted: profile?.enrollment_completed || false,
       },
       security: {
         accountLocked,
@@ -131,19 +234,33 @@ export default async function handler(req, res) {
         daysSincePasswordChange,
         passwordStrengthScore: passwordHistory?.[0]?.password_strength_score || 0,
         lastLogin,
+        riskScore,
+        riskLevel,
+        riskFactors,
+        emailAlerts: securitySettings?.emailalerts ?? true,
+        smsAlerts: securitySettings?.smsalerts ?? false,
+        loginAlerts: securitySettings?.loginalerts ?? true,
+        transactionAlerts: securitySettings?.transactionalerts ?? true,
+        fraudAlerts: securitySettings?.fraudalerts ?? true,
       },
       sessions: sessions || [],
       loginHistory: loginHistory || [],
       failedLogins: failedLogins || [],
       passwordHistory: passwordHistory || [],
       suspiciousActivity: suspiciousActivity || [],
+      auditLogs: auditLogs || [],
+      systemLogs: systemLogs || [],
+      blockedIPs: blockedIPs || [],
+      devices: devices || [],
+      locations: locations || [],
       stats: {
         totalLogins: loginHistory?.length || 0,
         failedLoginsLast7Days: failedLogins?.length || 0,
         activeSessions: sessions?.length || 0,
         uniqueIPs: uniqueIPs.length,
         uniqueLocations: uniqueLocations.length,
-        unresolvedSuspiciousActivity: suspiciousActivity?.length || 0,
+        unresolvedSuspiciousActivity: suspiciousActivity?.filter(a => !a.resolved).length || 0,
+        ...securityEvents
       }
     });
 

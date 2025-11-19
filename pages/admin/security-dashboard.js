@@ -374,6 +374,12 @@ export default function SecurityDashboard() {
                   💻 Active Sessions
                 </button>
                 <button
+                  onClick={() => setActiveTab('devices')}
+                  style={activeTab === 'devices' ? styles.tabActive : styles.tab}
+                >
+                  📱 Devices & Locations
+                </button>
+                <button
                   onClick={() => setActiveTab('password')}
                   style={activeTab === 'password' ? styles.tabActive : styles.tab}
                 >
@@ -384,6 +390,18 @@ export default function SecurityDashboard() {
                   style={activeTab === 'suspicious' ? styles.tabActive : styles.tab}
                 >
                   ⚠️ Suspicious Activity
+                </button>
+                <button
+                  onClick={() => setActiveTab('audit')}
+                  style={activeTab === 'audit' ? styles.tabActive : styles.tab}
+                >
+                  📋 Audit Logs
+                </button>
+                <button
+                  onClick={() => setActiveTab('system')}
+                  style={activeTab === 'system' ? styles.tabActive : styles.tab}
+                >
+                  🖥️ System Logs
                 </button>
               </div>
 
@@ -397,6 +415,12 @@ export default function SecurityDashboard() {
                         <span>Account Status:</span>
                         <strong style={{ color: securityData.security.accountLocked ? '#dc2626' : '#10b981' }}>
                           {securityData.security.accountLocked ? 'LOCKED' : 'Active'}
+                        </strong>
+                      </div>
+                      <div style={styles.infoRow}>
+                        <span>Risk Level:</span>
+                        <strong style={{ color: getRiskLevelColor(securityData.security.riskLevel) }}>
+                          {securityData.security.riskLevel?.toUpperCase() || 'UNKNOWN'} ({securityData.security.riskScore || 0}/100)
                         </strong>
                       </div>
                       <div style={styles.infoRow}>
@@ -415,6 +439,16 @@ export default function SecurityDashboard() {
                         <span>Email Verified:</span>
                         <strong>{securityData.user.emailVerified ? 'Yes ✓' : 'No'}</strong>
                       </div>
+                      {securityData.security.riskFactors && securityData.security.riskFactors.length > 0 && (
+                        <div style={{ marginTop: '12px', padding: '12px', background: '#fef3c7', borderRadius: '8px' }}>
+                          <strong style={{ color: '#92400e' }}>⚠️ Risk Factors:</strong>
+                          <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '14px', color: '#78350f' }}>
+                            {securityData.security.riskFactors.map((factor, idx) => (
+                              <li key={idx}>{factor}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
 
                     <div style={styles.infoCard}>
@@ -580,6 +614,74 @@ export default function SecurityDashboard() {
                   </div>
                 )}
 
+                {activeTab === 'devices' && (
+                  <div style={styles.tableContainer}>
+                    <h3 style={styles.cardTitle}>Devices & Locations</h3>
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>Known Devices</h4>
+                      {!securityData.devices || securityData.devices.length === 0 ? (
+                        <p style={styles.emptyText}>No device information available</p>
+                      ) : (
+                        <div style={styles.sessionsGrid}>
+                          {securityData.devices.map((device, idx) => (
+                            <div key={idx} style={styles.sessionCard}>
+                              <div style={styles.sessionHeader}>
+                                <span style={styles.sessionIcon}>{getDeviceInfo(device.deviceType)}</span>
+                                <div>
+                                  <h4 style={styles.sessionDevice}>{device.deviceType || 'Unknown Device'}</h4>
+                                  <p style={styles.sessionIP}>{device.browser} on {device.os}</p>
+                                </div>
+                              </div>
+                              <div style={styles.sessionInfo}>
+                                <div style={styles.infoRow}>
+                                  <span>Last Used:</span>
+                                  <strong>{formatDate(device.lastUsed)}</strong>
+                                </div>
+                                <div style={styles.infoRow}>
+                                  <span>IP Address:</span>
+                                  <strong>{device.ipAddress}</strong>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>Login Locations</h4>
+                      {!securityData.locations || securityData.locations.length === 0 ? (
+                        <p style={styles.emptyText}>No location information available</p>
+                      ) : (
+                        <table style={styles.table}>
+                          <thead>
+                            <tr>
+                              <th style={styles.th}>Location</th>
+                              <th style={styles.th}>IP Address</th>
+                              <th style={styles.th}>Last Used</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {securityData.locations.map((location, idx) => (
+                              <tr key={idx} style={styles.tr}>
+                                <td style={styles.td}>
+                                  {location.city}, {location.country}
+                                  {location.latitude && location.longitude && (
+                                    <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '8px' }}>
+                                      ({location.latitude.toFixed(2)}, {location.longitude.toFixed(2)})
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={styles.td}>{location.ipAddress}</td>
+                                <td style={styles.td}>{formatDate(location.lastUsed)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'suspicious' && (
                   <div style={styles.tableContainer}>
                     <h3 style={styles.cardTitle}>Suspicious Activity</h3>
@@ -594,22 +696,131 @@ export default function SecurityDashboard() {
                           }}>
                             <div style={styles.suspiciousHeader}>
                               <span style={styles.activityType}>{activity.activity_type.replace('_', ' ').toUpperCase()}</span>
-                              <span style={{
-                                ...styles.statusBadge,
-                                background: getRiskLevelColor(activity.risk_level),
-                                fontSize: '12px'
-                              }}>
-                                {activity.risk_level.toUpperCase()}
-                              </span>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span style={{
+                                  ...styles.statusBadge,
+                                  background: getRiskLevelColor(activity.risk_level),
+                                  fontSize: '12px'
+                                }}>
+                                  {activity.risk_level.toUpperCase()}
+                                </span>
+                                {activity.resolved && (
+                                  <span style={{
+                                    ...styles.statusBadge,
+                                    background: '#10b981',
+                                    fontSize: '12px'
+                                  }}>
+                                    RESOLVED
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p style={styles.activityDescription}>{activity.description}</p>
                             <div style={styles.activityMeta}>
                               <span>{formatDate(activity.created_at)}</span>
                               {activity.ip_address && <span>IP: {activity.ip_address}</span>}
+                              {activity.resolved_at && <span>Resolved: {formatDate(activity.resolved_at)}</span>}
                             </div>
+                            {activity.notes && (
+                              <div style={{ marginTop: '8px', padding: '8px', background: '#f9fafb', borderRadius: '4px', fontSize: '13px' }}>
+                                <strong>Notes:</strong> {activity.notes}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'audit' && (
+                  <div style={styles.tableContainer}>
+                    <h3 style={styles.cardTitle}>Audit Logs (Last 100 Actions)</h3>
+                    {!securityData.auditLogs || securityData.auditLogs.length === 0 ? (
+                      <p style={styles.emptyText}>No audit logs available</p>
+                    ) : (
+                      <table style={styles.table}>
+                        <thead>
+                          <tr>
+                            <th style={styles.th}>Date & Time</th>
+                            <th style={styles.th}>Action</th>
+                            <th style={styles.th}>Table</th>
+                            <th style={styles.th}>Details</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {securityData.auditLogs.map(log => (
+                            <tr key={log.id} style={styles.tr}>
+                              <td style={styles.td}>{formatDate(log.created_at)}</td>
+                              <td style={styles.td}>
+                                <span style={{ fontWeight: '600' }}>
+                                  {getActivityIcon(log)} {log.action}
+                                </span>
+                              </td>
+                              <td style={styles.td}>{log.table_name || 'N/A'}</td>
+                              <td style={styles.td}>
+                                {log.new_data && (
+                                  <details style={{ cursor: 'pointer' }}>
+                                    <summary style={{ fontSize: '12px', color: '#6b7280' }}>View Data</summary>
+                                    <pre style={{ fontSize: '11px', marginTop: '4px', padding: '8px', background: '#f9fafb', borderRadius: '4px', overflow: 'auto', maxHeight: '200px' }}>
+                                      {JSON.stringify(log.new_data, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'system' && (
+                  <div style={styles.tableContainer}>
+                    <h3 style={styles.cardTitle}>System Logs (Last 100 Events)</h3>
+                    {!securityData.systemLogs || securityData.systemLogs.length === 0 ? (
+                      <p style={styles.emptyText}>No system logs available</p>
+                    ) : (
+                      <table style={styles.table}>
+                        <thead>
+                          <tr>
+                            <th style={styles.th}>Date & Time</th>
+                            <th style={styles.th}>Level</th>
+                            <th style={styles.th}>Type</th>
+                            <th style={styles.th}>Message</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {securityData.systemLogs.map(log => (
+                            <tr key={log.id} style={styles.tr}>
+                              <td style={styles.td}>{formatDate(log.created_at)}</td>
+                              <td style={styles.td}>
+                                <span style={{
+                                  ...styles.statusBadge,
+                                  background: log.level === 'error' ? '#dc2626' : log.level === 'warning' ? '#f59e0b' : '#3b82f6',
+                                  fontSize: '12px',
+                                  padding: '4px 8px'
+                                }}>
+                                  {log.level?.toUpperCase() || 'INFO'}
+                                </span>
+                              </td>
+                              <td style={styles.td}>{log.type || 'N/A'}</td>
+                              <td style={styles.td}>
+                                {log.message}
+                                {log.details && (
+                                  <details style={{ cursor: 'pointer', marginTop: '4px' }}>
+                                    <summary style={{ fontSize: '12px', color: '#6b7280' }}>View Details</summary>
+                                    <pre style={{ fontSize: '11px', marginTop: '4px', padding: '8px', background: '#f9fafb', borderRadius: '4px', overflow: 'auto', maxHeight: '200px' }}>
+                                      {JSON.stringify(log.details, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 )}
