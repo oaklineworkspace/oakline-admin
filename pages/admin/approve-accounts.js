@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -26,7 +25,7 @@ export default function ApproveAccounts() {
     setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error('No active session. Please log in again.');
       }
@@ -39,7 +38,7 @@ export default function ApproveAccounts() {
 
       // Fetch all accounts including 'active' status
       const statusesToFetch = ['approve', 'approved', 'pending_funding', 'active', 'suspended', 'closed', 'rejected'];
-      
+
       const responses = await Promise.all(
         statusesToFetch.map(status => 
           fetch(`/api/admin/get-accounts?status=${status}`, { headers })
@@ -77,14 +76,14 @@ export default function ApproveAccounts() {
             if (depositsResponse.ok) {
               const depositsData = await depositsResponse.json();
               const deposits = depositsData.deposits || [];
-              
+
               const totalDeposited = deposits
                 .filter(d => ['approved', 'completed'].includes(d.status))
                 .reduce((sum, d) => sum + parseFloat(d.approved_amount || 0), 0);
-              
+
               const minDeposit = parseFloat(account.min_deposit || 0);
               const depositMet = minDeposit === 0 || totalDeposited >= minDeposit;
-              
+
               return {
                 ...account,
                 deposits,
@@ -100,7 +99,7 @@ export default function ApproveAccounts() {
           } catch (err) {
             console.error(`Failed to fetch deposits for account ${account.id}:`, err);
           }
-          
+
           const minDeposit = parseFloat(account.min_deposit || 0);
           return {
             ...account,
@@ -115,7 +114,7 @@ export default function ApproveAccounts() {
           };
         })
       );
-      
+
       accountsWithDeposits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setAccounts(accountsWithDeposits);
     } catch (error) {
@@ -160,7 +159,7 @@ export default function ApproveAccounts() {
       };
 
       let successMessage = `${statusEmojis[newStatus]} Account ${accountNumber} has been ${actionName} successfully!`;
-      
+
       // Add email notification status to the message
       if (result.emailSent) {
         successMessage += ` 📧 Email notification sent to user.`;
@@ -202,16 +201,16 @@ export default function ApproveAccounts() {
                          account.applications?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          account.applications?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          account.applications?.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || account.status === filterStatus;
-    
+
     const matchesTab = activeTab === 'all' ||
                       (activeTab === 'pending' && ['approve', 'approved', 'pending_funding'].includes(account.status)) ||
                       (activeTab === 'active' && account.status === 'active') ||
                       (activeTab === 'suspended' && account.status === 'suspended') ||
                       (activeTab === 'closed' && account.status === 'closed') ||
                       (activeTab === 'rejected' && account.status === 'rejected');
-    
+
     return matchesSearch && matchesStatus && matchesTab;
   });
 
@@ -427,6 +426,8 @@ export default function ApproveAccounts() {
                       disabled={processing === account.id || !account.depositMet}
                       style={{
                         ...styles.activateButton,
+                        opacity: processing === account.id ? 0.7 : 1,
+                        cursor: processing === account.id ? 'not-allowed' : 'pointer',
                         ...((!account.depositMet) && {
                           background: '#9ca3af',
                           cursor: 'not-allowed',
@@ -439,30 +440,42 @@ export default function ApproveAccounts() {
                           : 'Activate account'
                       }
                     >
-                      {processing === account.id ? '⏳ Processing...' : 
+                      {processing === account.id ? '⏳ Activating...' : 
                        !account.depositMet ? '🔒 Deposit Required' :
                        '🚀 Activate'}
                     </button>
                     <button
                       onClick={() => suspendAccount(account.id, account.account_number)}
                       disabled={processing === account.id}
-                      style={styles.suspendButton}
+                      style={{
+                        ...styles.suspendButton,
+                        opacity: processing === account.id ? 0.7 : 1,
+                        cursor: processing === account.id ? 'not-allowed' : 'pointer'
+                      }}
                     >
-                      {processing === account.id ? '⏳' : '⏸️'} Suspend
+                      {processing === account.id ? '⏳ Suspending...' : '⏸️ Suspend'}
                     </button>
                     <button
                       onClick={() => closeAccount(account.id, account.account_number)}
                       disabled={processing === account.id}
-                      style={styles.closeButton}
+                      style={{
+                        ...styles.closeButton,
+                        opacity: processing === account.id ? 0.7 : 1,
+                        cursor: processing === account.id ? 'not-allowed' : 'pointer'
+                      }}
                     >
-                      {processing === account.id ? '⏳' : '🔒'} Close
+                      {processing === account.id ? '⏳ Closing...' : '🔒 Close'}
                     </button>
                     <button
                       onClick={() => rejectAccount(account.id, account.account_number)}
                       disabled={processing === account.id}
-                      style={styles.rejectButton}
+                      style={{
+                        ...styles.rejectButton,
+                        opacity: processing === account.id ? 0.7 : 1,
+                        cursor: processing === account.id ? 'not-allowed' : 'pointer'
+                      }}
                     >
-                      {processing === account.id ? '⏳' : '❌'} Reject
+                      {processing === account.id ? '⏳ Rejecting...' : '❌ Reject'}
                     </button>
                   </div>
                 </div>

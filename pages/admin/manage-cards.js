@@ -178,7 +178,7 @@ export default function ManageCards() {
   };
 
   const handleCardAction = async (cardId, action) => {
-    setProcessing(true);
+    setProcessing(cardId);
     setMessage('');
 
     try {
@@ -200,7 +200,7 @@ export default function ManageCards() {
       console.error(`Error ${action} card:`, error);
       setMessage(`❌ Failed to ${action} card`);
     } finally {
-      setProcessing(false);
+      setProcessing(null);
     }
   };
 
@@ -366,10 +366,14 @@ export default function ManageCards() {
               <div style={styles.cardActions}>
                 <button
                   onClick={() => openEditModal(card)}
-                  style={styles.editButton}
-                  disabled={processing}
+                  style={{
+                    ...styles.editButton,
+                    opacity: processing === card.id ? 0.7 : 1,
+                    cursor: processing === card.id ? 'not-allowed' : 'pointer'
+                  }}
+                  disabled={processing === card.id}
                 >
-                  ✏️ Edit
+                  {processing === card.id ? '⏳ Processing...' : '✏️ Edit'}
                 </button>
 
                 {card.status === 'active' && (

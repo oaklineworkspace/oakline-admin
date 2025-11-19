@@ -131,14 +131,22 @@ export default function AdminCardApplications() {
                 {app.application_status === 'pending' && (
                   <div style={styles.actionButtons}>
                     <button
-                      style={styles.approveButton}
+                      style={{
+                        ...styles.approveButton,
+                        opacity: processing === app.id ? 0.7 : 1,
+                        cursor: processing === app.id ? 'not-allowed' : 'pointer'
+                      }}
                       onClick={() => handleApplication(app.id, 'approve')}
                       disabled={processing === app.id}
                     >
                       {processing === app.id ? '⏳ Processing...' : '✅ Approve'}
                     </button>
                     <button
-                      style={styles.rejectButton}
+                      style={{
+                        ...styles.rejectButton,
+                        opacity: processing === app.id ? 0.7 : 1,
+                        cursor: processing === app.id ? 'not-allowed' : 'pointer'
+                      }}
                       onClick={() => handleApplication(app.id, 'reject')}
                       disabled={processing === app.id}
                     >

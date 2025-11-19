@@ -251,21 +251,33 @@ export default function ManageAllUsersPage() {
                 <button
                   onClick={() => handleResendEnrollment(user)}
                   disabled={actionLoading[`resend_${user.id}`]}
-                  style={styles.actionButton}
+                  style={{
+                    ...styles.actionButton,
+                    opacity: actionLoading[`resend_${user.id}`] ? 0.7 : 1,
+                    cursor: actionLoading[`resend_${user.id}`] ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   {actionLoading[`resend_${user.id}`] ? '⏳ Sending...' : '📧 Send Credentials'}
                 </button>
                 <button
                   onClick={() => handleForcePasswordReset(user)}
                   disabled={actionLoading[`reset_${user.id}`]}
-                  style={styles.actionButtonSecondary}
+                  style={{
+                    ...styles.actionButtonSecondary,
+                    opacity: actionLoading[`reset_${user.id}`] ? 0.7 : 1,
+                    cursor: actionLoading[`reset_${user.id}`] ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   {actionLoading[`reset_${user.id}`] ? '⏳ Sending...' : '🔑 Reset Password'}
                 </button>
                 <button
                   onClick={() => handleDeleteUser(user)}
                   disabled={actionLoading[`delete_${user.id}`]}
-                  style={styles.actionButtonDanger}
+                  style={{
+                    ...styles.actionButtonDanger,
+                    opacity: actionLoading[`delete_${user.id}`] ? 0.7 : 1,
+                    cursor: actionLoading[`delete_${user.id}`] ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   {actionLoading[`delete_${user.id}`] ? '⏳ Deleting...' : '🗑️ Delete User'}
                 </button>

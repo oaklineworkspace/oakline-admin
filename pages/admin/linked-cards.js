@@ -13,7 +13,7 @@ export default function LinkedCardsReview() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCard, setSelectedCard] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const [processing, setProcessing] = useState(false); // This state will be used to track overall processing, but we'll use selectedCard.id for specific button processing
   const [rejectionReason, setRejectionReason] = useState('');
   const [photoModal, setPhotoModal] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
@@ -60,13 +60,15 @@ export default function LinkedCardsReview() {
       return;
     }
 
-    setProcessing(true);
+    // Set processing state for the specific card being acted upon
+    setProcessing(cardId || (selectedCard && selectedCard.id));
+
     try {
       const response = await fetch('/api/admin/linked-cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          card_id: cardId || selectedCard.id,
+          card_id: cardId || (selectedCard ? selectedCard.id : null),
           action,
           rejection_reason: action === 'reject' ? rejectionReason : undefined
         })
@@ -75,20 +77,20 @@ export default function LinkedCardsReview() {
       const data = await response.json();
 
       if (data.success) {
-        const actionText = action === 'approve' ? 'verified' : action === 'reject' ? 'rejected' : 'deleted';
+        const actionText = action === 'approve' ? 'verified' : action === 'reject' ? 'rejected' : action === 'delete' ? 'deleted' : action === 'suspend' ? 'suspended' : action === 'reactivate' ? 'reactivated' : 'processed';
         setSuccessMessage(`Card ${actionText} successfully`);
         setTimeout(() => setSuccessMessage(''), 5000);
         setShowDetailModal(false);
         setShowDeleteConfirm(null);
         fetchCards();
       } else {
-        alert(data.error || 'Failed to process card');
+        alert(data.error || `Failed to ${action} card`);
       }
     } catch (error) {
-      console.error('Error processing card:', error);
-      alert('Error processing card');
+      console.error(`Error processing card (${action}):`, error);
+      alert(`Error processing card. Please try again.`);
     } finally {
-      setProcessing(false);
+      setProcessing(false); // Reset processing state
     }
   };
 
@@ -120,7 +122,7 @@ export default function LinkedCardsReview() {
       pending: { backgroundColor: '#fef3c7', color: '#92400e' },
       active: { backgroundColor: '#d1fae5', color: '#065f46' },
       rejected: { backgroundColor: '#fee2e2', color: '#991b1b' },
-      suspended: { backgroundColor: '#fef3c7', color: '#92400e' } // Added suspended state style
+      suspended: { backgroundColor: '#fef3c7', color: '#92400e' }
     };
     return statusStyles[status] || statusStyles.pending;
   };
@@ -169,7 +171,7 @@ export default function LinkedCardsReview() {
 
         {/* Tabs */}
         <div style={styles.tabs}>
-          {['all', 'pending', 'active', 'rejected', 'suspended'].map(tab => ( // Added 'suspended' tab
+          {['all', 'pending', 'active', 'rejected', 'suspended'].map(tab => (
             <button
               key={tab}
               style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
@@ -318,64 +320,78 @@ export default function LinkedCardsReview() {
                       <>
                         <button
                           onClick={() => {
-                            setSelectedCard(card);
+                            // Here, we set processing to card.id to indicate this specific card is being processed
+                            setProcessing(card.id);
                             handleAction('approve');
                           }}
-                          disabled={processing}
+                          disabled={processing === card.id}
                           style={{
                             ...styles.approveButton,
-                            ...(processing ? styles.buttonDisabled : {})
+                            opacity: processing === card.id ? 0.7 : 1,
+                            cursor: processing === card.id ? 'not-allowed' : 'pointer'
                           }}
                         >
-                          {processing ? '⏳' : '✅'} Verify
+                          {processing === card.id ? '⏳ Processing...' : '✅ Verify'}
                         </button>
                       </>
                     )}
                     {card.status === 'active' && (
                       <>
                         <button
-                          onClick={() => handleAction('suspend', card.id)}
+                          onClick={() => {
+                            setProcessing(card.id);
+                            handleAction('suspend', card.id);
+                          }}
                           style={{
                             ...styles.actionButton,
                             backgroundColor: '#f59e0b',
-                            marginLeft: '8px'
+                            marginLeft: '8px',
+                            opacity: processing === card.id ? 0.7 : 1,
+                            cursor: processing === card.id ? 'not-allowed' : 'pointer'
                           }}
-                          disabled={processing}
+                          disabled={processing === card.id}
                         >
-                          ⏸️ Suspend
+                          {processing === card.id ? '⏳ Suspending...' : '⏸️ Suspend'}
                         </button>
                         <button
                           onClick={() => {
                             if (window.confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+                              setProcessing(card.id);
                               handleAction('delete', card.id);
                             }
                           }}
                           style={{
                             ...styles.actionButton,
                             backgroundColor: '#dc2626',
-                            marginLeft: '8px'
+                            marginLeft: '8px',
+                            opacity: processing === card.id ? 0.7 : 1,
+                            cursor: processing === card.id ? 'not-allowed' : 'pointer'
                           }}
-                          disabled={processing}
+                          disabled={processing === card.id}
                         >
-                          🗑️ Delete
+                          {processing === card.id ? '⏳ Deleting...' : '🗑️ Delete'}
                         </button>
                       </>
                     )}
 
                     {card.status === 'suspended' && (
                       <button
-                        onClick={() => handleAction('reactivate', card.id)}
+                        onClick={() => {
+                          setProcessing(card.id);
+                          handleAction('reactivate', card.id);
+                        }}
                         style={{
                           ...styles.actionButton,
                           backgroundColor: '#10b981',
-                          marginLeft: '8px'
+                          marginLeft: '8px',
+                          opacity: processing === card.id ? 0.7 : 1,
+                          cursor: processing === card.id ? 'not-allowed' : 'pointer'
                         }}
-                        disabled={processing}
+                        disabled={processing === card.id}
                       >
-                        ✅ Reactivate
+                        {processing === card.id ? '⏳ Reactivating...' : '✅ Reactivate'}
                       </button>
                     )}
-                    {/* Removed the delete button from here as it's handled above for 'active' status */}
                   </div>
                 </div>
               ))}
@@ -385,11 +401,11 @@ export default function LinkedCardsReview() {
 
         {/* Detail Modal */}
         {showDetailModal && selectedCard && (
-          <div style={styles.modalOverlay} onClick={() => setShowDetailModal(false)}>
+          <div style={styles.modalOverlay} onClick={() => { if (!processing) setShowDetailModal(false); }}>
             <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>💳 Card Review - Full Details</h2>
-                <button onClick={() => setShowDetailModal(false)} style={styles.closeButton}>×</button>
+                <button onClick={() => { if (!processing) setShowDetailModal(false); }} style={styles.closeButton} disabled={processing === selectedCard.id}>×</button>
               </div>
 
               <div style={styles.modalBody}>
@@ -485,6 +501,7 @@ export default function LinkedCardsReview() {
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
                       style={styles.selectInput}
+                      disabled={processing === selectedCard.id}
                     >
                       <option value="">Select a reason...</option>
                       <option value="Card photos are unclear or unreadable">Card photos are unclear or unreadable</option>
@@ -503,6 +520,7 @@ export default function LinkedCardsReview() {
                         placeholder="Provide a detailed custom reason for rejection..."
                         style={{...styles.textarea, marginTop: '12px'}}
                         rows={4}
+                        disabled={processing === selectedCard.id}
                       />
                     )}
                   </div>
@@ -512,18 +530,27 @@ export default function LinkedCardsReview() {
                 {selectedCard.status === 'pending' && (
                   <div style={styles.actionButtons}>
                     <button
-                      onClick={() => handleAction('approve')}
-                      disabled={processing}
-                      style={styles.approveModalButton}
+                      onClick={() => {
+                        setProcessing(selectedCard.id);
+                        handleAction('approve');
+                      }}
+                      style={{
+                        ...styles.approveModalButton,
+                        opacity: processing === selectedCard.id ? 0.7 : 1,
+                        cursor: processing === selectedCard.id ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={processing === selectedCard.id}
                     >
-                      {processing ? '⏳ Processing...' : '✅ Verify Card'}
+                      {processing === selectedCard.id ? '⏳ Processing...' : '✅ Verify Card'}
                     </button>
                     <button
-                      onClick={() => handleAction('reject')}
-                      disabled={processing}
-                      style={styles.rejectModalButton}
+                      onClick={() => {
+                        if (!processing) setShowDetailModal(false);
+                      }}
+                      style={styles.cancelButton}
+                      disabled={processing === selectedCard.id}
                     >
-                      {processing ? '⏳ Processing...' : '❌ Reject Card'}
+                      Cancel
                     </button>
                   </div>
                 )}
@@ -532,18 +559,34 @@ export default function LinkedCardsReview() {
                 {selectedCard.status === 'active' && (
                   <div style={styles.actionButtons}>
                     <button
-                      onClick={() => handleAction('suspend', selectedCard.id)}
-                      style={styles.approveModalButton} // Reusing approve button style for consistency
-                      disabled={processing}
+                      onClick={() => {
+                        setProcessing(selectedCard.id);
+                        handleAction('suspend', selectedCard.id);
+                      }}
+                      style={{
+                        ...styles.approveModalButton, // Reusing approve button style for consistency
+                        opacity: processing === selectedCard.id ? 0.7 : 1,
+                        cursor: processing === selectedCard.id ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={processing === selectedCard.id}
                     >
-                      {processing ? '⏳ Processing...' : '⏸️ Suspend Card'}
+                      {processing === selectedCard.id ? '⏳ Suspending...' : '⏸️ Suspend Card'}
                     </button>
                     <button
-                      onClick={() => handleAction('delete', selectedCard.id)}
-                      style={styles.rejectModalButton} // Reusing reject button style for delete
-                      disabled={processing}
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+                          setProcessing(selectedCard.id);
+                          handleAction('delete', selectedCard.id);
+                        }
+                      }}
+                      style={{
+                        ...styles.rejectModalButton, // Reusing reject button style for delete
+                        opacity: processing === selectedCard.id ? 0.7 : 1,
+                        cursor: processing === selectedCard.id ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={processing === selectedCard.id}
                     >
-                      {processing ? '⏳ Processing...' : '🗑️ Delete Card'}
+                      {processing === selectedCard.id ? '⏳ Deleting...' : '🗑️ Delete Card'}
                     </button>
                   </div>
                 )}
@@ -552,18 +595,34 @@ export default function LinkedCardsReview() {
                 {selectedCard.status === 'suspended' && (
                   <div style={styles.actionButtons}>
                     <button
-                      onClick={() => handleAction('reactivate', selectedCard.id)}
-                      style={styles.approveModalButton} // Reusing approve button style for reactivate
-                      disabled={processing}
+                      onClick={() => {
+                        setProcessing(selectedCard.id);
+                        handleAction('reactivate', selectedCard.id);
+                      }}
+                      style={{
+                        ...styles.approveModalButton, // Reusing approve button style for reactivate
+                        opacity: processing === selectedCard.id ? 0.7 : 1,
+                        cursor: processing === selectedCard.id ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={processing === selectedCard.id}
                     >
-                      {processing ? '⏳ Processing...' : '✅ Reactivate Card'}
+                      {processing === selectedCard.id ? '⏳ Reactivating...' : '✅ Reactivate Card'}
                     </button>
                     <button
-                      onClick={() => handleAction('delete', selectedCard.id)}
-                      style={styles.rejectModalButton} // Reusing reject button style for delete
-                      disabled={processing}
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+                          setProcessing(selectedCard.id);
+                          handleAction('delete', selectedCard.id);
+                        }
+                      }}
+                      style={{
+                        ...styles.rejectModalButton, // Reusing reject button style for delete
+                        opacity: processing === selectedCard.id ? 0.7 : 1,
+                        cursor: processing === selectedCard.id ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={processing === selectedCard.id}
                     >
-                      {processing ? '⏳ Processing...' : '🗑️ Delete Card'}
+                      {processing === selectedCard.id ? '⏳ Deleting...' : '🗑️ Delete Card'}
                     </button>
                   </div>
                 )}
@@ -572,8 +631,12 @@ export default function LinkedCardsReview() {
                 <div style={styles.actionButtons}>
                   <button
                     onClick={() => setShowDeleteConfirm(selectedCard.id)}
-                    disabled={processing}
-                    style={styles.deleteModalButton}
+                    style={{
+                      ...styles.deleteModalButton,
+                      opacity: processing === selectedCard.id ? 0.7 : 1,
+                      cursor: processing === selectedCard.id ? 'not-allowed' : 'pointer'
+                    }}
+                    disabled={processing === selectedCard.id}
                   >
                     🗑️ Delete Card
                   </button>
@@ -606,16 +669,23 @@ export default function LinkedCardsReview() {
                 <button
                   onClick={() => setShowDeleteConfirm(null)}
                   style={styles.cancelButton}
-                  disabled={processing}
+                  disabled={processing === showDeleteConfirm}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleAction('delete', showDeleteConfirm)}
-                  style={styles.confirmDeleteButton}
-                  disabled={processing}
+                  onClick={() => {
+                    setProcessing(showDeleteConfirm);
+                    handleAction('delete', showDeleteConfirm);
+                  }}
+                  style={{
+                    ...styles.confirmDeleteButton,
+                    opacity: processing === showDeleteConfirm ? 0.7 : 1,
+                    cursor: processing === showDeleteConfirm ? 'not-allowed' : 'pointer'
+                  }}
+                  disabled={processing === showDeleteConfirm}
                 >
-                  {processing ? '⏳ Deleting...' : '🗑️ Delete'}
+                  {processing === showDeleteConfirm ? '⏳ Deleting...' : '🗑️ Delete'}
                 </button>
               </div>
             </div>
