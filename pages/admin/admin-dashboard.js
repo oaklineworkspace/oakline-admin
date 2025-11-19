@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import AdminAuth from '../../components/AdminAuth';
 import AdminNavDropdown from '../../components/AdminNavDropdown';
 import AdminStickyDropdown from '../../components/AdminStickyDropdown';
+import AdminSearchBar from '../../components/AdminSearchBar';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -49,7 +50,12 @@ export default function AdminDashboard() {
           <div>
             <h1 style={styles.title}>📊 Admin Dashboard</h1>
           </div>
-          <AdminNavDropdown />
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+            <div style={{ flex: 1, maxWidth: '500px' }}>
+              <AdminSearchBar />
+            </div>
+            <AdminNavDropdown />
+          </div>
         </div>
 
         {loading ? (

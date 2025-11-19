@@ -6,6 +6,7 @@ import AdminFooter from '../../components/AdminFooter';
 import AdminNavDropdown from '../../components/AdminNavDropdown';
 import AdminPageDropdown from '../../components/AdminPageDropdown';
 import AdminStickyDropdown from '../../components/AdminStickyDropdown';
+import AdminSearchBar from '../../components/AdminSearchBar';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -253,8 +254,11 @@ export default function AdminNavigationHub() {
             Logged in as: {user.email} ({user.role})
           </p>}
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <AdminPageDropdown /> {/* New Admin Page Dropdown */}
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
+          <div style={{ flex: '1', minWidth: '300px', maxWidth: '500px' }}>
+            <AdminSearchBar />
+          </div>
+          <AdminPageDropdown />
           <AdminNavDropdown />
           <button onClick={handleLogout} style={styles.logoutButton}>
             🚪 Logout

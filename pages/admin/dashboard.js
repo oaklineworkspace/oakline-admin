@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import AdminPageDropdown from '../../components/AdminPageDropdown';
+import AdminSearchBar from '../../components/AdminSearchBar';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -17,15 +17,28 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (searchTerm) {
+      const results = admins.filter(admin =>
+        admin.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchTerm, admins]);
+
   const checkAuth = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push('/admin/login');
         return;
@@ -137,6 +150,10 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSearchChange = (term) => {
+    setSearchTerm(term);
+  };
+
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -153,9 +170,9 @@ export default function AdminDashboard() {
         <div style={styles.headerContainer}>
           <div style={styles.headerLeft}>
             <div style={styles.logoSection}>
-              <img 
-                src="/images/Oakline_Bank_logo_design_c1b04ae0.png" 
-                alt="Oakline Bank" 
+              <img
+                src="/images/Oakline_Bank_logo_design_c1b04ae0.png"
+                alt="Oakline Bank"
                 style={styles.logo}
               />
               <div style={styles.brandInfo}>
@@ -164,8 +181,9 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-          
+
           <div style={styles.headerRight}>
+            <AdminSearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
             <div style={styles.adminInfo}>
               <div style={styles.adminAvatar}>
                 {currentAdmin?.email.charAt(0).toUpperCase()}
@@ -182,7 +200,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.headerActions}>
               <AdminPageDropdown />
               <button onClick={handleLogout} style={styles.logoutButton}>
@@ -271,7 +289,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {admins.map((admin) => {
+                {(searchTerm ? searchResults : admins).map((admin) => {
                   const roleColors = getRoleBadgeClass(admin.role);
                   return (
                     <tr key={admin.id} style={styles.tableRow}>
@@ -329,9 +347,11 @@ export default function AdminDashboard() {
               </tbody>
             </table>
 
-            {admins.length === 0 && (
+            {(searchTerm ? searchResults : admins).length === 0 && (
               <div style={styles.emptyState}>
-                <p style={styles.emptyStateText}>No administrators found</p>
+                <p style={styles.emptyStateText}>
+                  {searchTerm ? 'No admin found matching your search.' : 'No administrators found'}
+                </p>
               </div>
             )}
           </div>
