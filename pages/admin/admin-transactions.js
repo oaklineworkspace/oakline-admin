@@ -634,7 +634,7 @@ export default function AdminTransactions() {
     });
   };
 
-  const stats = {
+  const stats = React.useMemo(() => ({
     total: transactions.length,
     completed: transactions.filter(t => t.status === 'completed').length,
     pending: transactions.filter(t => t.status === 'pending').length,
@@ -642,7 +642,7 @@ export default function AdminTransactions() {
     totalVolume: transactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
     totalCredit: transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
     totalDebit: transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
-  };
+  }), [transactions]);
 
   return (
     <AdminAuth>
@@ -1158,12 +1158,12 @@ export default function AdminTransactions() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    backgroundImage: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     padding: 'clamp(1rem, 3vw, 20px)',
     paddingBottom: '100px'
   },
   header: {
-    background: 'white',
+    backgroundColor: 'white',
     padding: 'clamp(1.5rem, 4vw, 24px)',
     borderRadius: '12px',
     marginBottom: '20px',
@@ -1199,7 +1199,7 @@ const styles = {
   },
   bulkDeleteButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1211,7 +1211,7 @@ const styles = {
   },
   refreshButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-    background: '#4299e1',
+    backgroundColor: '#4299e1',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1222,7 +1222,7 @@ const styles = {
   },
   createButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+    backgroundImage: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1233,7 +1233,7 @@ const styles = {
   },
   backButton: {
     padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-    background: '#718096',
+    backgroundColor: '#718096',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1244,7 +1244,7 @@ const styles = {
     display: 'inline-block'
   },
   errorBanner: {
-    background: '#fee2e2',
+    backgroundColor: '#fee2e2',
     color: '#dc2626',
     padding: '16px',
     borderRadius: '8px',
@@ -1253,7 +1253,7 @@ const styles = {
     fontWeight: '500'
   },
   successBanner: {
-    background: '#d1fae5',
+    backgroundColor: '#d1fae5',
     color: '#065f46',
     padding: '16px',
     borderRadius: '8px',
@@ -1269,7 +1269,7 @@ const styles = {
     marginBottom: '20px'
   },
   statCard: {
-    background: 'white',
+    backgroundColor: 'white',
     padding: '20px',
     borderRadius: '12px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
@@ -1288,7 +1288,7 @@ const styles = {
   },
   tabs: {
     display: 'flex',
-    background: 'white',
+    backgroundColor: 'white',
     borderRadius: '12px',
     padding: '5px',
     marginBottom: '20px',
@@ -1301,7 +1301,7 @@ const styles = {
     minWidth: '100px',
     padding: '12px 20px',
     border: 'none',
-    background: 'transparent',
+    backgroundColor: 'transparent',
     borderRadius: '8px',
     cursor: 'pointer',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
@@ -1310,11 +1310,11 @@ const styles = {
     transition: 'all 0.3s'
   },
   activeTab: {
-    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
     color: 'white'
   },
   filtersSection: {
-    background: 'white',
+    backgroundColor: 'white',
     padding: '20px',
     borderRadius: '12px',
     marginBottom: '20px',
@@ -1329,7 +1329,7 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     padding: '8px 12px',
-    background: '#f8fafc',
+    backgroundColor: '#f8fafc',
     borderRadius: '8px',
     border: '2px solid #e2e8f0'
   },
@@ -1364,7 +1364,7 @@ const styles = {
     outline: 'none'
   },
   dateRangeSection: {
-    background: 'white',
+    backgroundColor: 'white',
     padding: '20px',
     borderRadius: '12px',
     marginBottom: '20px',
@@ -1415,7 +1415,7 @@ const styles = {
     whiteSpace: 'nowrap'
   },
   tableContainer: {
-    background: 'white',
+    backgroundColor: 'white',
     borderRadius: '12px',
     padding: 'clamp(1.5rem, 4vw, 24px)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
@@ -1463,7 +1463,7 @@ const styles = {
   transactionCardSelected: {
     border: '2px solid #1e40af',
     boxShadow: '0 4px 12px rgba(30, 64, 175, 0.2)',
-    background: '#f0f9ff'
+    backgroundColor: '#f0f9ff'
   },
   transactionHeader: {
     display: 'flex',
@@ -1520,7 +1520,7 @@ const styles = {
   completedBadge: {
     marginTop: '12px',
     padding: '8px',
-    background: '#d1fae5',
+    backgroundColor: '#d1fae5',
     color: '#065f46',
     borderRadius: '6px',
     textAlign: 'center',
@@ -1535,7 +1535,7 @@ const styles = {
   editButton: {
     flex: 1,
     padding: '10px',
-    background: '#4299e1',
+    backgroundColor: '#4299e1',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1546,7 +1546,7 @@ const styles = {
   deleteButton: {
     flex: 1,
     padding: '10px',
-    background: '#dc2626',
+    backgroundColor: '#dc2626',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1560,7 +1560,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1568,7 +1568,7 @@ const styles = {
     padding: '20px'
   },
   modal: {
-    background: 'white',
+    backgroundColor: 'white',
     borderRadius: '12px',
     maxWidth: '600px',
     width: '100%',
@@ -1628,7 +1628,7 @@ const styles = {
   },
   infoBox: {
     padding: '16px',
-    background: '#f8fafc',
+    backgroundColor: '#f8fafc',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     lineHeight: '1.6',
@@ -1645,7 +1645,7 @@ const styles = {
     padding: '12px 24px',
     border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    background: 'white',
+    backgroundColor: 'white',
     color: '#475569',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
@@ -1655,7 +1655,7 @@ const styles = {
     padding: '12px 24px',
     border: 'none',
     borderRadius: '8px',
-    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
     color: 'white',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
