@@ -228,21 +228,25 @@ export default async function handler(req, res) {
 
         newStatus = 'rejected';
 
-        // Find and update the related transaction to 'cancelled' status
+        // Find ALL related transactions (including refunds)
         const { data: relatedTransactions, error: txFindError } = await supabaseAdmin
           .from('transactions')
           .select('*')
-          .eq('reference', `WIRE-${wireTransferId}`)
+          .or(`reference.eq.WIRE-${wireTransferId},reference.like.WIRE-REFUND-${wireTransferId}%`)
           .eq('account_id', transfer.from_account_id);
 
         if (txFindError) {
-          console.error('Error finding transaction:', txFindError);
+          console.error('Error finding transactions:', txFindError);
         }
 
-        // Handle the transaction - it might be an array or single result
-        const relatedTransaction = relatedTransactions && relatedTransactions.length > 0 ? relatedTransactions[0] : null;
+        console.log(`Found ${relatedTransactions?.length || 0} related transaction(s) for wire transfer ${wireTransferId}`);
+
+        // Find the main wire transfer transaction (not refund transactions)
+        const relatedTransaction = relatedTransactions?.find(tx => tx.reference === `WIRE-${wireTransferId}`);
 
         if (relatedTransaction) {
+          console.log(`✅ Found main transaction: ${relatedTransaction.id}, status: ${relatedTransaction.status}`);
+          
           // Update transaction to cancelled
           const { error: txUpdateError } = await supabaseAdmin
             .from('transactions')
@@ -255,12 +259,20 @@ export default async function handler(req, res) {
 
           if (txUpdateError) {
             console.error('Error updating transaction:', txUpdateError);
+            return res.status(500).json({ error: 'Failed to update transaction status' });
           } else {
             console.log(`✅ Transaction ${relatedTransaction.id} updated to cancelled`);
           }
 
-          // Only refund if not already refunded (check if transaction was pending)
-          if (relatedTransaction.status === 'pending') {
+          // Check if already refunded
+          const existingRefund = relatedTransactions?.find(tx => 
+            tx.reference && tx.reference.startsWith(`WIRE-REFUND-${wireTransferId}`)
+          );
+
+          if (existingRefund) {
+            console.log(`⚠️ Refund already exists: ${existingRefund.id}`);
+          } else if (['pending', 'completed', 'hold'].includes(relatedTransaction.status)) {
+            // Need to refund
             const { data: account, error: accountFetchError } = await supabaseAdmin
               .from('accounts')
               .select('balance')
@@ -268,18 +280,23 @@ export default async function handler(req, res) {
               .single();
 
             if (account && !accountFetchError) {
+              const refundAmount = parseFloat(transfer.total_amount);
+              const newBalance = parseFloat(account.balance) + refundAmount;
+              
               const { error: refundError } = await supabaseAdmin
                 .from('accounts')
                 .update({
-                  balance: parseFloat(account.balance) + parseFloat(transfer.total_amount),
+                  balance: newBalance,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', transfer.from_account_id);
 
               if (refundError) {
                 console.error('Error refunding account:', refundError);
+                return res.status(500).json({ error: 'Failed to refund account balance' });
               } else {
-                console.log(`✅ Account refunded: ${transfer.total_amount}`);
+                console.log(`✅ Account refunded: $${refundAmount.toFixed(2)}, new balance: $${newBalance.toFixed(2)}`);
+                
                 // Create a refund transaction record
                 const { error: refundTxError } = await supabaseAdmin
                   .from('transactions')
@@ -287,22 +304,32 @@ export default async function handler(req, res) {
                     user_id: transfer.user_id,
                     account_id: transfer.from_account_id,
                     type: 'credit',
-                    amount: transfer.total_amount,
+                    amount: refundAmount,
                     description: `Refund for rejected wire transfer - ${reason}`,
                     reference: `WIRE-REFUND-${wireTransferId}`,
                     status: 'completed',
                     balance_before: account.balance,
-                    balance_after: parseFloat(account.balance) + parseFloat(transfer.total_amount)
+                    balance_after: newBalance
                   });
 
                 if (refundTxError) {
                   console.error('Error creating refund transaction:', refundTxError);
+                  return res.status(500).json({ error: 'Failed to create refund transaction' });
+                } else {
+                  console.log(`✅ Refund transaction created successfully`);
                 }
               }
+            } else {
+              console.error('Error fetching account for refund:', accountFetchError);
+              return res.status(500).json({ error: 'Failed to fetch account for refund' });
             }
+          } else if (relatedTransaction.status === 'cancelled') {
+            console.log(`⚠️ Transaction already cancelled, checking for existing refund...`);
+          } else {
+            console.log(`⚠️ Transaction status is ${relatedTransaction.status}, skipping refund`);
           }
         } else {
-          console.log('⚠️ No related transaction found to update');
+          console.log('⚠️ No main wire transfer transaction found to update');
         }
         emailSubject = `Important: Wire Transfer Request Update - ${bankName}`;
         emailHtml = `
@@ -450,20 +477,25 @@ export default async function handler(req, res) {
 
         newStatus = 'cancelled';
 
-        // Find and update the related transaction to 'cancelled' status
+        // Find ALL related transactions (including refunds)
         const { data: relatedCancelTransactions, error: txCancelFindError } = await supabaseAdmin
           .from('transactions')
           .select('*')
-          .eq('reference', `WIRE-${wireTransferId}`)
+          .or(`reference.eq.WIRE-${wireTransferId},reference.like.WIRE-REFUND-${wireTransferId}%`)
           .eq('account_id', transfer.from_account_id);
 
         if (txCancelFindError) {
-          console.error('Error finding transaction:', txCancelFindError);
+          console.error('Error finding transactions:', txCancelFindError);
         }
 
-        const relatedCancelTransaction = relatedCancelTransactions && relatedCancelTransactions.length > 0 ? relatedCancelTransactions[0] : null;
+        console.log(`Found ${relatedCancelTransactions?.length || 0} related transaction(s) for wire transfer ${wireTransferId}`);
+
+        // Find the main wire transfer transaction (not refund transactions)
+        const relatedCancelTransaction = relatedCancelTransactions?.find(tx => tx.reference === `WIRE-${wireTransferId}`);
 
         if (relatedCancelTransaction) {
+          console.log(`✅ Found main transaction: ${relatedCancelTransaction.id}, status: ${relatedCancelTransaction.status}`);
+          
           // Update transaction to cancelled
           const { error: txCancelUpdateError } = await supabaseAdmin
             .from('transactions')
@@ -476,12 +508,20 @@ export default async function handler(req, res) {
 
           if (txCancelUpdateError) {
             console.error('Error updating transaction:', txCancelUpdateError);
+            return res.status(500).json({ error: 'Failed to update transaction status' });
           } else {
             console.log(`✅ Transaction ${relatedCancelTransaction.id} updated to cancelled`);
           }
 
-          // Only refund if not already refunded (check if transaction was pending or completed)
-          if (['pending', 'completed'].includes(relatedCancelTransaction.status)) {
+          // Check if already refunded
+          const existingRefund = relatedCancelTransactions?.find(tx => 
+            tx.reference && tx.reference.startsWith(`WIRE-REFUND-${wireTransferId}`)
+          );
+
+          if (existingRefund) {
+            console.log(`⚠️ Refund already exists: ${existingRefund.id}`);
+          } else if (['pending', 'completed', 'hold'].includes(relatedCancelTransaction.status)) {
+            // Need to refund
             const { data: cancelAccount, error: cancelAccountFetchError } = await supabaseAdmin
               .from('accounts')
               .select('balance')
@@ -489,18 +529,23 @@ export default async function handler(req, res) {
               .single();
 
             if (cancelAccount && !cancelAccountFetchError) {
+              const refundAmount = parseFloat(transfer.total_amount);
+              const newBalance = parseFloat(cancelAccount.balance) + refundAmount;
+              
               const { error: cancelRefundError } = await supabaseAdmin
                 .from('accounts')
                 .update({
-                  balance: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount),
+                  balance: newBalance,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', transfer.from_account_id);
 
               if (cancelRefundError) {
                 console.error('Error refunding account:', cancelRefundError);
+                return res.status(500).json({ error: 'Failed to refund account balance' });
               } else {
-                console.log(`✅ Account refunded: ${transfer.total_amount}`);
+                console.log(`✅ Account refunded: $${refundAmount.toFixed(2)}, new balance: $${newBalance.toFixed(2)}`);
+                
                 // Create a refund transaction record
                 const { error: refundTxError } = await supabaseAdmin
                   .from('transactions')
@@ -508,22 +553,34 @@ export default async function handler(req, res) {
                     user_id: transfer.user_id,
                     account_id: transfer.from_account_id,
                     type: 'credit',
-                    amount: transfer.total_amount,
+                    amount: refundAmount,
                     description: `Refund for cancelled wire transfer - ${reason}`,
                     reference: `WIRE-REFUND-${wireTransferId}`,
                     status: 'completed',
                     balance_before: cancelAccount.balance,
-                    balance_after: parseFloat(cancelAccount.balance) + parseFloat(transfer.total_amount)
+                    balance_after: newBalance
                   });
 
                 if (refundTxError) {
                   console.error('Error creating refund transaction:', refundTxError);
+                  return res.status(500).json({ error: 'Failed to create refund transaction' });
+                } else {
+                  console.log(`✅ Refund transaction created successfully`);
                 }
               }
+            } else {
+              console.error('Error fetching account for refund:', cancelAccountFetchError);
+              return res.status(500).json({ error: 'Failed to fetch account for refund' });
             }
+          } else if (relatedCancelTransaction.status === 'cancelled') {
+            console.log(`⚠️ Transaction already cancelled, checking for existing refund...`);
+            // Already cancelled, just verify no double refund
+          } else {
+            console.log(`⚠️ Transaction status is ${relatedCancelTransaction.status}, skipping refund`);
           }
         } else {
-          console.log('⚠️ No related transaction found to update');
+          console.log('⚠️ No main wire transfer transaction found to update');
+          // This shouldn't happen, but log it for debugging
         }
         emailSubject = `⚠️ Wire Transfer Cancelled - ${bankName}`;
         emailHtml = `
