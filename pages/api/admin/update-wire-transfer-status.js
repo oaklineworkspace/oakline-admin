@@ -1,11 +1,10 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 async function findOrUpdateTransactionReference(wireTransfer) {
   const reference = `WIRE-${wireTransfer.id}`;
-  
+
   const { data: existingTx, error: txCheckError} = await supabaseAdmin
     .from('transactions')
     .select('id, reference')
@@ -20,57 +19,38 @@ async function findOrUpdateTransactionReference(wireTransfer) {
 
   if (txCheckError && txCheckError.code !== 'PGRST116') {
     console.error('Error checking for existing transaction by reference:', txCheckError);
+
   }
 
-  console.log(`⚠️  No transaction found with reference ${reference}, searching by user_id, account_id, amount, and time window...`);
-  
-  const wireCreatedAt = new Date(wireTransfer.created_at);
-  const timeWindowStart = new Date(wireCreatedAt.getTime() - 5 * 60 * 1000);
-  const timeWindowEnd = new Date(wireCreatedAt.getTime() + 5 * 60 * 1000);
-  
-  const { data: matchingTransactions, error: txSearchError } = await supabaseAdmin
-    .from('transactions')
-    .select('id, reference, description, created_at, amount')
-    .eq('user_id', wireTransfer.user_id)
-    .eq('account_id', wireTransfer.from_account_id)
-    .eq('amount', wireTransfer.total_amount)
-    .gte('created_at', timeWindowStart.toISOString())
-    .lte('created_at', timeWindowEnd.toISOString())
-    .ilike('description', `%${wireTransfer.recipient_name}%`);
+  return null;
+}
 
-  if (txSearchError) {
-    console.error('Error searching for matching transactions:', txSearchError);
-    throw new Error('Failed to search for matching transaction');
+async function getBankDetails() {
+  const { data: bankDetails, error } = await supabaseAdmin
+    .from('bank_details')
+    .select('*')
+    .eq('name', 'Oakline Bank')
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching bank details:', error);
   }
 
-  if (!matchingTransactions || matchingTransactions.length === 0) {
-    console.error(`❌ No matching transaction found for wire transfer ${wireTransfer.id}`);
-    throw new Error(`No transaction found for wire transfer ${wireTransfer.id}. Please ensure a transaction was created when the wire transfer was submitted, or create one manually with reference WIRE-${wireTransfer.id}`);
-  }
+  const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
 
-  if (matchingTransactions.length > 1) {
-    console.error(`⚠️  Found ${matchingTransactions.length} matching transactions for wire transfer ${wireTransfer.id}, cannot safely determine which one to update`);
-    throw new Error('Multiple matching transactions found - cannot safely determine correct transaction');
-  }
-
-  const matchedTx = matchingTransactions[0];
-  console.log(`✅ Found unique matching transaction: ${matchedTx.id}, updating reference to ${reference}...`);
-  
-  const { error: updateRefError } = await supabaseAdmin
-    .from('transactions')
-    .update({ 
-      reference: reference,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', matchedTx.id);
-
-  if (updateRefError) {
-    console.error('Error updating transaction reference:', updateRefError);
-    throw new Error('Failed to update transaction reference');
-  }
-  
-  console.log(`✅ Updated transaction ${matchedTx.id} with reference ${reference}`);
-  return matchedTx;
+  return bankDetails || {
+    name: 'Oakline Bank',
+    branch_name: 'Oklahoma City Branch',
+    address: '12201 N May Avenue, Oklahoma City, OK 73120, United States',
+    phone: '+1 (636) 635-6122',
+    email_info: `info@${emailDomain}`,
+    email_contact: `contact-us@${emailDomain}`,
+    email_support: `support@${emailDomain}`,
+    email_notify: `notify@${emailDomain}`,
+    routing_number: '075915826',
+    swift_code: 'OAKLUS33',
+    nmls_id: '574160'
+  };
 }
 
 export default async function handler(req, res) {
@@ -112,9 +92,10 @@ export default async function handler(req, res) {
     let emailSubject = '';
     let emailHtml = '';
 
-    const bankName = process.env.BANK_NAME || 'Oakline Bank';
-    const supportEmail = process.env.EMAIL_SUPPORT || `support@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`;
-    const supportPhone = process.env.BANK_PHONE || '+1 (636) 635-6122';
+    const bankDetails = await getBankDetails();
+    const bankName = bankDetails.name || process.env.BANK_NAME || 'Oakline Bank';
+    const supportEmail = bankDetails.email_support || process.env.EMAIL_SUPPORT || `support@${process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com'}`;
+    const supportPhone = bankDetails.phone || process.env.BANK_PHONE || '+1 (636) 635-6122';
 
     switch (action) {
       case 'approve':
@@ -125,9 +106,9 @@ export default async function handler(req, res) {
         updateData.approved_by = adminId;
         updateData.approved_at = new Date().toISOString();
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'processing';
-        
+
         // If approving a previously rejected/cancelled transfer, we need to deduct from account again
         if (['rejected', 'cancelled'].includes(transfer.status)) {
           const { data: account, error: accountFetchError } = await supabaseAdmin
@@ -152,7 +133,7 @@ export default async function handler(req, res) {
             }
           }
         }
-        
+
         // Update related transaction status to pending
         const { data: txApproveResult, error: txApproveError } = await supabaseAdmin
           .from('transactions')
@@ -244,9 +225,9 @@ export default async function handler(req, res) {
         updateData.rejected_by = adminId;
         updateData.rejected_at = new Date().toISOString();
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'rejected';
-        
+
         // Find and update the related transaction to 'cancelled' status
         const { data: relatedTransactions, error: txFindError } = await supabaseAdmin
           .from('transactions')
@@ -350,10 +331,10 @@ export default async function handler(req, res) {
                 <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Wire Transfer Request Update</h1>
                 <p style="margin: 12px 0 0 0; opacity: 0.95; font-size: 16px;">${bankName}</p>
               </div>
-              
+
               <div class="content">
                 <p style="font-size: 16px; margin: 0 0 20px 0;">Dear ${userName || 'Valued Customer'},</p>
-                
+
                 <p style="font-size: 16px; line-height: 1.8; margin: 0 0 25px 0;">
                   We appreciate you choosing ${bankName} for your wire transfer needs. After careful review of your recent wire transfer request, we are unable to process this transaction at this time.
                 </p>
@@ -435,7 +416,7 @@ export default async function handler(req, res) {
                   Thank you for your understanding and for banking with ${bankName}.
                 </p>
               </div>
-              
+
               <div class="footer">
                 <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e40af;">
                   ${bankName}
@@ -466,9 +447,9 @@ export default async function handler(req, res) {
         updateData.cancelled_by = adminId;
         updateData.cancelled_at = new Date().toISOString();
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'cancelled';
-        
+
         // Find and update the related transaction to 'cancelled' status
         const { data: relatedCancelTransactions, error: txCancelFindError } = await supabaseAdmin
           .from('transactions')
@@ -615,9 +596,9 @@ export default async function handler(req, res) {
         updateData.reversed_by = adminId;
         updateData.reversed_at = new Date().toISOString();
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'reversed';
-        
+
         // Update related transaction to reversed
         const { error: txReverseError } = await supabaseAdmin
           .from('transactions')
@@ -667,7 +648,7 @@ export default async function handler(req, res) {
                 balance_before: reverseAccount.balance,
                 balance_after: parseFloat(reverseAccount.balance) + parseFloat(transfer.total_amount)
               });
-            
+
             if (reversalTxError) {
               console.error('Error creating reversal transaction:', reversalTxError);
             }
@@ -746,9 +727,9 @@ export default async function handler(req, res) {
         updateData.held_by = adminId;
         updateData.held_at = new Date().toISOString();
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'on_hold';
-        
+
         // Update related transaction status to hold
         const { error: txHoldError } = await supabaseAdmin
           .from('transactions')
@@ -832,9 +813,9 @@ export default async function handler(req, res) {
         updateData.released_at = new Date().toISOString();
         updateData.released_by = adminId;
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'processing';
-        
+
         // Update related transaction status
         const { error: txReleaseError } = await supabaseAdmin
           .from('transactions')
@@ -915,9 +896,9 @@ export default async function handler(req, res) {
         updateData.status = 'completed';
         updateData.processed_at = new Date().toISOString();
         if (adminNotes) updateData.admin_notes = adminNotes;
-        
+
         newStatus = 'completed';
-        
+
         // Update related transaction status to completed
         const { error: txCompleteError } = await supabaseAdmin
           .from('transactions')
@@ -1000,7 +981,7 @@ export default async function handler(req, res) {
 
       case 'delete':
         // Delete the wire transfer completely
-        
+
         // First, find ALL related transactions using LIKE pattern to catch all variations
         const { data: relatedDeleteTransactions, error: txDeleteFindError } = await supabaseAdmin
           .from('transactions')
@@ -1030,7 +1011,7 @@ export default async function handler(req, res) {
             if (deleteAccount && !deleteAccountFetchError) {
               const refundAmount = parseFloat(transfer.total_amount);
               const newBalance = parseFloat(deleteAccount.balance) + refundAmount;
-              
+
               const { error: refundError } = await supabaseAdmin
                 .from('accounts')
                 .update({
@@ -1107,7 +1088,7 @@ export default async function handler(req, res) {
           html: emailHtml,
           type: EMAIL_TYPES.NOTIFY
         });
-        
+
         console.log(`✅ Email notification sent successfully to ${userEmail} for ${action} action`);
       } catch (emailError) {
         console.error('❌ Failed to send email notification:', emailError);
