@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -7,102 +8,204 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function SecurityDashboard() {
   const router = useRouter();
-  const [dashboardData, setDashboardData] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState('logins');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [actionType, setActionType] = useState('');
+  const [actionReason, setActionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   
-  const [filters, setFilters] = useState({
-    dateRange: '',
-    startDate: '',
-    endDate: '',
-    deviceType: 'all',
-    location: 'all',
-    userEmail: '',
-    status: 'all',
-    limit: 100
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  
+  const [securityData, setSecurityData] = useState({
+    loginHistory: [],
+    activeSessions: [],
+    suspiciousActivity: [],
+    auditLogs: [],
+    systemLogs: [],
+    passwordHistory: []
   });
 
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [logoutReason, setLogoutReason] = useState('');
-  
-  const refreshIntervalRef = useRef(null);
+  useEffect(() => {
+    fetchSecurityData();
+  }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-    
-    if (autoRefresh) {
-      refreshIntervalRef.current = setInterval(() => {
-        fetchDashboardData(true);
-      }, 30000);
-    }
+    filterUsers();
+  }, [users, searchTerm, statusFilter, riskFilter, dateFilter, dateRange, activeTab]);
 
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, [filters, autoRefresh]);
-
-  const fetchDashboardData = async (silent = false) => {
-    if (!silent) setLoading(true);
-    setError('');
-    
+  const fetchSecurityData = async () => {
     try {
+      setLoading(true);
+      setError('');
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
-        setLoading(false);
         return;
       }
 
-      const params = new URLSearchParams();
-      
-      if (filters.startDate && filters.endDate) {
-        params.append('dateRange', `${filters.startDate},${filters.endDate}`);
-      }
-      if (filters.deviceType !== 'all') {
-        params.append('deviceType', filters.deviceType);
-      }
-      if (filters.location !== 'all') {
-        params.append('location', filters.location);
-      }
-      if (filters.userEmail) {
-        params.append('userEmail', filters.userEmail);
-      }
-      if (filters.status !== 'all') {
-        params.append('status', filters.status);
-      }
-      params.append('limit', filters.limit);
+      // Fetch all users with profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      const response = await fetch(`/api/admin/get-security-dashboard-data?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+      if (profilesError) throw profilesError;
+
+      // Fetch login history
+      const { data: loginHistory, error: loginError } = await supabase
+        .from('login_history')
+        .select('*')
+        .order('login_time', { ascending: false })
+        .limit(1000);
+
+      if (loginError) console.error('Login history error:', loginError);
+
+      // Fetch active sessions
+      const { data: activeSessions, error: sessionsError } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (sessionsError) console.error('Sessions error:', sessionsError);
+
+      // Fetch suspicious activity
+      const { data: suspiciousActivity, error: suspiciousError } = await supabase
+        .from('suspicious_activity')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (suspiciousError) console.error('Suspicious activity error:', suspiciousError);
+
+      // Fetch audit logs
+      const { data: auditLogs, error: auditError } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (auditError) console.error('Audit logs error:', auditError);
+
+      // Fetch system logs
+      const { data: systemLogs, error: systemError } = await supabase
+        .from('system_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (systemError) console.error('System logs error:', systemError);
+
+      // Fetch password history
+      const { data: passwordHistory, error: passwordError } = await supabase
+        .from('password_history')
+        .select('*')
+        .order('changed_at', { ascending: false })
+        .limit(500);
+
+      if (passwordError) console.error('Password history error:', passwordError);
+
+      setSecurityData({
+        loginHistory: loginHistory || [],
+        activeSessions: activeSessions || [],
+        suspiciousActivity: suspiciousActivity || [],
+        auditLogs: auditLogs || [],
+        systemLogs: systemLogs || [],
+        passwordHistory: passwordHistory || []
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch dashboard data');
-      }
-      
-      const result = await response.json();
-      setDashboardData(result.data);
+      // Enrich users with security data
+      const enrichedUsers = (profilesData || []).map(profile => {
+        const userLogins = (loginHistory || []).filter(l => l.user_id === profile.id);
+        const userSessions = (activeSessions || []).filter(s => s.user_id === profile.id);
+        const userSuspicious = (suspiciousActivity || []).filter(s => s.user_id === profile.id);
+        const failedLogins = userLogins.filter(l => !l.success);
+        const lastLogin = userLogins[0];
+        
+        return {
+          ...profile,
+          loginCount: userLogins.length,
+          failedLoginCount: failedLogins.length,
+          activeSessionsCount: userSessions.length,
+          suspiciousActivityCount: userSuspicious.filter(s => !s.resolved).length,
+          lastLoginTime: lastLogin?.login_time,
+          lastLoginSuccess: lastLogin?.success,
+          lastIpAddress: lastLogin?.ip_address,
+          riskLevel: calculateRiskLevel(failedLogins.length, userSuspicious.length, userSessions.length)
+        };
+      });
+
+      setUsers(enrichedUsers);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching dashboard data:', err);
+      console.error('Error fetching security data:', err);
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleForceLogout = async () => {
-    if (!selectedSession) return;
+  const calculateRiskLevel = (failedLogins, suspiciousCount, sessionsCount) => {
+    if (failedLogins > 5 || suspiciousCount > 3) return 'high';
+    if (failedLogins > 2 || suspiciousCount > 1 || sessionsCount > 3) return 'medium';
+    return 'low';
+  };
 
-    setLoading(true);
+  const filterUsers = () => {
+    let filtered = [...users];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(user => {
+        const email = user.email?.toLowerCase() || '';
+        const firstName = user.first_name?.toLowerCase() || '';
+        const lastName = user.last_name?.toLowerCase() || '';
+        return email.includes(search) || firstName.includes(search) || lastName.includes(search);
+      });
+    }
+
+    if (riskFilter !== 'all') {
+      filtered = filtered.filter(user => user.riskLevel === riskFilter);
+    }
+
+    if (dateFilter === 'custom' && (dateRange.start || dateRange.end)) {
+      filtered = filtered.filter(user => {
+        if (!user.lastLoginTime) return false;
+        const loginDate = new Date(user.lastLoginTime);
+        const start = dateRange.start ? new Date(dateRange.start) : null;
+        const end = dateRange.end ? new Date(dateRange.end + 'T23:59:59') : null;
+        
+        if (start && end) return loginDate >= start && loginDate <= end;
+        if (start) return loginDate >= start;
+        if (end) return loginDate <= end;
+        return true;
+      });
+    }
+
+    setFilteredUsers(filtered);
+  };
+
+  const handleSecurityAction = async (user, action) => {
+    setSelectedUser(user);
+    setActionType(action);
+    setActionReason('');
+    setShowActionModal(true);
+  };
+
+  const executeSecurityAction = async () => {
+    if (!selectedUser || !actionType) return;
+
+    setActionLoading(true);
     setError('');
     setSuccess('');
 
@@ -110,157 +213,87 @@ export default function SecurityDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
-        setLoading(false);
         return;
       }
 
-      const response = await fetch('/api/admin/force-logout-session', {
+      const response = await fetch('/api/admin/security-actions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          sessionId: selectedSession.id,
-          reason: logoutReason
+          action: actionType,
+          userId: selectedUser.id,
+          reason: actionReason
         })
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (!response.ok) throw new Error(data.error || 'Failed to terminate session');
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to execute security action');
+      }
 
-      setSuccess('Session terminated successfully');
-      setShowLogoutModal(false);
-      setSelectedSession(null);
-      setLogoutReason('');
-      
-      fetchDashboardData();
+      setSuccess(`✅ ${getActionLabel(actionType)} executed successfully!`);
+      setShowActionModal(false);
+      await fetchSecurityData();
     } catch (err) {
-      setError(err.message);
+      setError('❌ ' + err.message);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
-  const exportToCSV = () => {
-    if (!dashboardData) return;
-
-    let csvContent = '';
-    let data = [];
-    let headers = [];
-
-    switch (activeTab) {
-      case 'logins':
-        headers = ['Date & Time', 'User Email', 'Name', 'Status', 'IP Address', 'Device Type', 'Browser', 'OS', 'Location', 'Failure Reason'];
-        data = dashboardData.recentLogins.map(login => [
-          formatDate(login.login_time),
-          login.profiles?.email || 'N/A',
-          login.profiles?.first_name && login.profiles?.last_name 
-            ? `${login.profiles.first_name} ${login.profiles.last_name}` 
-            : 'N/A',
-          login.success ? 'Success' : 'Failed',
-          login.ip_address || 'N/A',
-          login.device_type || 'Unknown',
-          login.browser || 'N/A',
-          login.os || 'N/A',
-          login.city && login.country ? `${login.city}, ${login.country}` : 'Unknown',
-          login.failure_reason || 'N/A'
-        ]);
-        break;
-
-      case 'sessions':
-        headers = ['User Email', 'Name', 'Device Type', 'IP Address', 'User Agent', 'Login Time', 'Last Activity', 'Duration'];
-        data = dashboardData.activeSessions.map(session => [
-          session.profiles?.email || 'N/A',
-          session.profiles?.first_name && session.profiles?.last_name 
-            ? `${session.profiles.first_name} ${session.profiles.last_name}` 
-            : 'N/A',
-          session.device_type || 'Unknown',
-          session.ip_address || 'N/A',
-          session.user_agent || 'N/A',
-          formatDate(session.created_at),
-          formatDate(session.last_activity),
-          getSessionDuration(session.created_at)
-        ]);
-        break;
-
-      case 'pins':
-        headers = ['Date & Time', 'User Email', 'Name', 'Action', 'IP Address', 'Device Info'];
-        data = dashboardData.pinActivity.map(activity => [
-          formatDate(activity.created_at),
-          activity.profiles?.email || 'N/A',
-          activity.profiles?.first_name && activity.profiles?.last_name 
-            ? `${activity.profiles.first_name} ${activity.profiles.last_name}` 
-            : 'N/A',
-          activity.message?.includes('created') ? 'Setup' : 'Reset',
-          activity.details?.ip_address || 'N/A',
-          activity.details?.user_agent || 'N/A'
-        ]);
-        break;
-
-      case 'banned':
-        headers = ['User Email', 'Name', 'Banned Until', 'Ban Duration', 'Created At'];
-        data = dashboardData.bannedUsers.map(user => [
-          user.email || 'N/A',
-          user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'N/A',
-          user.banned_until ? formatDate(user.banned_until) : 'N/A',
-          user.ban_duration || 'N/A',
-          formatDate(user.created_at)
-        ]);
-        break;
-    }
-
-    csvContent = headers.join(',') + '\n';
-    csvContent += data.map(row => 
-      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `security_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const getActionLabel = (action) => {
+    const labels = {
+      lock_account: 'Lock Account',
+      unlock_account: 'Unlock Account',
+      force_password_reset: 'Force Password Reset',
+      sign_out_all_devices: 'Sign Out All Devices',
+      enable_2fa: 'Enable 2FA',
+      disable_2fa: 'Disable 2FA',
+      reset_failed_attempts: 'Reset Failed Attempts'
+    };
+    return labels[action] || action;
   };
 
-  const formatDate = (dateString) => {
+  const getRiskBadge = (level) => {
+    const styles = {
+      high: { bg: '#fee2e2', color: '#991b1b' },
+      medium: { bg: '#fef3c7', color: '#92400e' },
+      low: { bg: '#d1fae5', color: '#065f46' }
+    };
+    const style = styles[level] || styles.low;
+    return (
+      <span style={{
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+        fontWeight: '700',
+        backgroundColor: style.bg,
+        color: style.color,
+        textTransform: 'uppercase'
+      }}>
+        {level || 'Unknown'}
+      </span>
+    );
+  };
+
+  const formatDateTime = (dateString) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleString();
   };
 
-  const getSessionDuration = (startDate) => {
-    if (!startDate) return 'N/A';
-    const start = new Date(startDate);
-    const now = new Date();
-    const diff = now - start;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
+  const stats = {
+    totalUsers: users.length,
+    activeUsers: users.filter(u => u.activeSessionsCount > 0).length,
+    highRiskUsers: users.filter(u => u.riskLevel === 'high').length,
+    suspiciousActivities: users.reduce((sum, u) => sum + u.suspiciousActivityCount, 0),
+    totalLogins: securityData.loginHistory.length,
+    failedLogins: securityData.loginHistory.filter(l => !l.success).length,
+    activeSessions: securityData.activeSessions.length
   };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'high': return '#ef4444';
-      case 'medium': return '#f59e0b';
-      case 'low': return '#3b82f6';
-      default: return '#6b7280';
-    }
-  };
-
-  if (loading && !dashboardData) {
-    return (
-      <AdminAuth>
-        <div style={styles.loadingContainer}>
-          <div style={styles.spinner}></div>
-          <p>Loading security dashboard...</p>
-        </div>
-      </AdminAuth>
-    );
-  }
 
   return (
     <AdminAuth>
@@ -268,493 +301,389 @@ export default function SecurityDashboard() {
         <div style={styles.header}>
           <div>
             <h1 style={styles.title}>🔒 Security Monitoring Dashboard</h1>
-            <p style={styles.subtitle}>System-wide security and authentication monitoring</p>
+            <p style={styles.subtitle}>Monitor user security, sessions, and suspicious activities</p>
           </div>
-          <Link href="/admin" style={styles.backButton}>
-            ← Admin Hub
-          </Link>
+          <div style={styles.headerActions}>
+            <button onClick={fetchSecurityData} style={styles.refreshButton} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Refresh
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              ← Dashboard
+            </Link>
+          </div>
         </div>
 
         {error && (
           <div style={styles.errorBanner}>
-            ⚠️ {error}
+            {error}
             <button onClick={() => setError('')} style={styles.closeButton}>✕</button>
           </div>
         )}
 
         {success && (
           <div style={styles.successBanner}>
-            ✓ {success}
+            {success}
             <button onClick={() => setSuccess('')} style={styles.closeButton}>✕</button>
           </div>
         )}
 
-        {dashboardData && (
-          <>
-            <div style={styles.statsGrid}>
-              <div style={{...styles.statCard, borderLeft: '4px solid #3b82f6'}}>
-                <h3 style={styles.statLabel}>Total Logins</h3>
-                <p style={styles.statValue}>{dashboardData.stats.totalLogins}</p>
-              </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #ef4444'}}>
-                <h3 style={styles.statLabel}>Failed Logins</h3>
-                <p style={styles.statValue}>{dashboardData.stats.failedLogins}</p>
-              </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
-                <h3 style={styles.statLabel}>Active Sessions</h3>
-                <p style={styles.statValue}>{dashboardData.stats.activeSessions}</p>
-              </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #8b5cf6'}}>
-                <h3 style={styles.statLabel}>PIN Setups</h3>
-                <p style={styles.statValue}>{dashboardData.stats.pinSetups}</p>
-              </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
-                <h3 style={styles.statLabel}>PIN Resets</h3>
-                <p style={styles.statValue}>{dashboardData.stats.pinResets}</p>
-              </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
-                <h3 style={styles.statLabel}>Banned Users</h3>
-                <p style={styles.statValue}>{dashboardData.stats.bannedUsers}</p>
-              </div>
+        {/* Statistics Cards */}
+        <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+            <h3 style={styles.statLabel}>Total Users</h3>
+            <p style={styles.statValue}>{stats.totalUsers}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
+            <h3 style={styles.statLabel}>Active Sessions</h3>
+            <p style={styles.statValue}>{stats.activeSessions}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+            <h3 style={styles.statLabel}>High Risk Users</h3>
+            <p style={styles.statValue}>{stats.highRiskUsers}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+            <h3 style={styles.statLabel}>Suspicious Activities</h3>
+            <p style={styles.statValue}>{stats.suspiciousActivities}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #7c3aed'}}>
+            <h3 style={styles.statLabel}>Total Logins</h3>
+            <p style={styles.statValue}>{stats.totalLogins}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #ef4444'}}>
+            <h3 style={styles.statLabel}>Failed Logins</h3>
+            <p style={styles.statValue}>{stats.failedLogins}</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {['overview', 'login_history', 'active_sessions', 'suspicious', 'audit_logs', 'system_logs', 'password_history'].map(tab => (
+            <button
+              key={tab}
+              style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'overview' && '📊 Overview'}
+              {tab === 'login_history' && '📜 Login History'}
+              {tab === 'active_sessions' && '💻 Active Sessions'}
+              {tab === 'suspicious' && '⚠️ Suspicious Activity'}
+              {tab === 'audit_logs' && '📋 Audit Logs'}
+              {tab === 'system_logs' && '🖥️ System Logs'}
+              {tab === 'password_history' && '🔑 Password History'}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={styles.filtersSection}>
+          <input
+            type="text"
+            placeholder="🔍 Search by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+          />
+          <select value={riskFilter} onChange={(e) => setRiskFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Risk Levels</option>
+            <option value="high">High Risk</option>
+            <option value="medium">Medium Risk</option>
+            <option value="low">Low Risk</option>
+          </select>
+          <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">Last 7 Days</option>
+            <option value="month">Last 30 Days</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+
+        {/* Date Range */}
+        {dateFilter === 'custom' && (
+          <div style={styles.dateRangeSection}>
+            <div style={styles.dateRangeLabel}>
+              <span>📅</span>
+              <span>Filter by Date Range:</span>
             </div>
-
-            {dashboardData.alerts && dashboardData.alerts.length > 0 && (
-              <div style={styles.alertsSection}>
-                <h3 style={styles.alertsTitle}>🚨 Suspicious Activity Alerts ({dashboardData.alerts.length})</h3>
-                <div style={styles.alertsGrid}>
-                  {dashboardData.alerts.map((alert, index) => (
-                    <div 
-                      key={index} 
-                      style={{
-                        ...styles.alertCard,
-                        borderLeft: `4px solid ${getSeverityColor(alert.severity)}`
-                      }}
-                    >
-                      <div style={styles.alertHeader}>
-                        <span style={{
-                          ...styles.severityBadge,
-                          backgroundColor: getSeverityColor(alert.severity)
-                        }}>
-                          {alert.severity.toUpperCase()}
-                        </span>
-                        <span style={styles.alertType}>
-                          {alert.type === 'failed_logins' ? '🔐 Failed Logins' : '💻 Concurrent Sessions'}
-                        </span>
-                      </div>
-                      <p style={styles.alertMessage}>{alert.message}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={styles.controlsSection}>
-              <div style={styles.controlsRow}>
-                <div style={styles.filterGroup}>
-                  <label style={styles.label}>Search User Email:</label>
-                  <input
-                    type="text"
-                    value={filters.userEmail}
-                    onChange={(e) => setFilters({...filters, userEmail: e.target.value})}
-                    placeholder="email@example.com"
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.filterGroup}>
-                  <label style={styles.label}>Date Range:</label>
-                  <div style={styles.dateRange}>
-                    <input
-                      type="date"
-                      value={filters.startDate}
-                      onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-                      style={styles.dateInput}
-                    />
-                    <span>to</span>
-                    <input
-                      type="date"
-                      value={filters.endDate}
-                      onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-                      style={styles.dateInput}
-                    />
-                  </div>
-                </div>
-
-                <div style={styles.filterGroup}>
-                  <label style={styles.label}>Device Type:</label>
-                  <select
-                    value={filters.deviceType}
-                    onChange={(e) => setFilters({...filters, deviceType: e.target.value})}
-                    style={styles.select}
-                  >
-                    <option value="all">All Devices</option>
-                    <option value="mobile">Mobile</option>
-                    <option value="tablet">Tablet</option>
-                    <option value="desktop">Desktop</option>
-                  </select>
-                </div>
-
-                {activeTab === 'logins' && (
-                  <div style={styles.filterGroup}>
-                    <label style={styles.label}>Status:</label>
-                    <select
-                      value={filters.status}
-                      onChange={(e) => setFilters({...filters, status: e.target.value})}
-                      style={styles.select}
-                    >
-                      <option value="all">All Status</option>
-                      <option value="success">Success Only</option>
-                      <option value="failed">Failed Only</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div style={styles.actionsRow}>
-                <button
-                  onClick={() => fetchDashboardData()}
-                  style={styles.refreshButton}
-                  disabled={loading}
-                >
-                  🔄 Refresh
-                </button>
-                
-                <label style={styles.autoRefreshLabel}>
-                  <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                  />
-                  Auto-refresh (30s)
-                </label>
-
-                <button
-                  onClick={exportToCSV}
-                  style={styles.exportButton}
-                >
-                  📊 Export to CSV
-                </button>
-
-                {filters.startDate && (
-                  <button
-                    onClick={() => setFilters({
-                      dateRange: '',
-                      startDate: '',
-                      endDate: '',
-                      deviceType: 'all',
-                      location: 'all',
-                      userEmail: '',
-                      status: 'all',
-                      limit: 100
-                    })}
-                    style={styles.clearButton}
-                  >
-                    ✕ Clear Filters
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div style={styles.tabsContainer}>
-              <div style={styles.tabs}>
-                <button
-                  onClick={() => setActiveTab('logins')}
-                  style={{
-                    ...styles.tab,
-                    ...(activeTab === 'logins' ? styles.activeTab : {})
-                  }}
-                >
-                  🔐 Login History ({dashboardData.recentLogins.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('sessions')}
-                  style={{
-                    ...styles.tab,
-                    ...(activeTab === 'sessions' ? styles.activeTab : {})
-                  }}
-                >
-                  💻 Active Sessions ({dashboardData.activeSessions.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('pins')}
-                  style={{
-                    ...styles.tab,
-                    ...(activeTab === 'pins' ? styles.activeTab : {})
-                  }}
-                >
-                  🔑 PIN Activity ({dashboardData.pinActivity.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('banned')}
-                  style={{
-                    ...styles.tab,
-                    ...(activeTab === 'banned' ? styles.activeTab : {})
-                  }}
-                >
-                  🚫 Banned Users ({dashboardData.bannedUsers.length})
-                </button>
-              </div>
-
-              <div style={styles.tabContent}>
-                {activeTab === 'logins' && (
-                  <div style={styles.tableContainer}>
-                    <h3 style={styles.tableTitle}>Recent Login Attempts</h3>
-                    {dashboardData.recentLogins.length === 0 ? (
-                      <p style={styles.emptyText}>No login data available</p>
-                    ) : (
-                      <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
-                          <thead>
-                            <tr>
-                              <th style={styles.th}>Date & Time</th>
-                              <th style={styles.th}>User Email</th>
-                              <th style={styles.th}>Name</th>
-                              <th style={styles.th}>Status</th>
-                              <th style={styles.th}>IP Address</th>
-                              <th style={styles.th}>Device</th>
-                              <th style={styles.th}>Browser</th>
-                              <th style={styles.th}>OS</th>
-                              <th style={styles.th}>Location</th>
-                              <th style={styles.th}>Failure Reason</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dashboardData.recentLogins.map(login => (
-                              <tr 
-                                key={login.id} 
-                                style={{
-                                  ...styles.tr,
-                                  backgroundColor: !login.success ? '#fef2f2' : 'white'
-                                }}
-                              >
-                                <td style={styles.td}>{formatDate(login.login_time)}</td>
-                                <td style={styles.td}>{login.profiles?.email || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  {login.profiles?.first_name && login.profiles?.last_name 
-                                    ? `${login.profiles.first_name} ${login.profiles.last_name}` 
-                                    : 'N/A'}
-                                </td>
-                                <td style={styles.td}>
-                                  <span style={{
-                                    ...styles.statusBadge,
-                                    backgroundColor: login.success ? '#10b981' : '#ef4444'
-                                  }}>
-                                    {login.success ? '✓ Success' : '✕ Failed'}
-                                  </span>
-                                </td>
-                                <td style={styles.td}>{login.ip_address || 'N/A'}</td>
-                                <td style={styles.td}>{login.device_type || 'Unknown'}</td>
-                                <td style={styles.td}>{login.browser || 'N/A'}</td>
-                                <td style={styles.td}>{login.os || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  {login.city && login.country 
-                                    ? `${login.city}, ${login.country}` 
-                                    : 'Unknown'}
-                                </td>
-                                <td style={styles.td}>
-                                  {!login.success ? (login.failure_reason || 'Unknown') : '-'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'sessions' && (
-                  <div style={styles.tableContainer}>
-                    <h3 style={styles.tableTitle}>Active User Sessions</h3>
-                    {dashboardData.activeSessions.length === 0 ? (
-                      <p style={styles.emptyText}>No active sessions</p>
-                    ) : (
-                      <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
-                          <thead>
-                            <tr>
-                              <th style={styles.th}>User Email</th>
-                              <th style={styles.th}>Name</th>
-                              <th style={styles.th}>Device Type</th>
-                              <th style={styles.th}>IP Address</th>
-                              <th style={styles.th}>User Agent</th>
-                              <th style={styles.th}>Login Time</th>
-                              <th style={styles.th}>Last Activity</th>
-                              <th style={styles.th}>Duration</th>
-                              <th style={styles.th}>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dashboardData.activeSessions.map(session => (
-                              <tr key={session.id} style={styles.tr}>
-                                <td style={styles.td}>{session.profiles?.email || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  {session.profiles?.first_name && session.profiles?.last_name 
-                                    ? `${session.profiles.first_name} ${session.profiles.last_name}` 
-                                    : 'N/A'}
-                                </td>
-                                <td style={styles.td}>{session.device_type || 'Unknown'}</td>
-                                <td style={styles.td}>{session.ip_address || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  <div style={styles.truncate}>{session.user_agent || 'N/A'}</div>
-                                </td>
-                                <td style={styles.td}>{formatDate(session.created_at)}</td>
-                                <td style={styles.td}>{formatDate(session.last_activity)}</td>
-                                <td style={styles.td}>{getSessionDuration(session.created_at)}</td>
-                                <td style={styles.td}>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedSession(session);
-                                      setShowLogoutModal(true);
-                                    }}
-                                    style={styles.logoutButton}
-                                  >
-                                    🚫 Force Logout
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'pins' && (
-                  <div style={styles.tableContainer}>
-                    <h3 style={styles.tableTitle}>Transaction PIN Activity</h3>
-                    {dashboardData.pinActivity.length === 0 ? (
-                      <p style={styles.emptyText}>No PIN activity recorded</p>
-                    ) : (
-                      <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
-                          <thead>
-                            <tr>
-                              <th style={styles.th}>Date & Time</th>
-                              <th style={styles.th}>User Email</th>
-                              <th style={styles.th}>Name</th>
-                              <th style={styles.th}>Action</th>
-                              <th style={styles.th}>IP Address</th>
-                              <th style={styles.th}>Device Info</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dashboardData.pinActivity.map(activity => (
-                              <tr key={activity.id} style={styles.tr}>
-                                <td style={styles.td}>{formatDate(activity.created_at)}</td>
-                                <td style={styles.td}>{activity.profiles?.email || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  {activity.profiles?.first_name && activity.profiles?.last_name 
-                                    ? `${activity.profiles.first_name} ${activity.profiles.last_name}` 
-                                    : 'N/A'}
-                                </td>
-                                <td style={styles.td}>
-                                  <span style={{
-                                    ...styles.statusBadge,
-                                    backgroundColor: activity.message?.includes('created') 
-                                      ? '#10b981' 
-                                      : '#f59e0b'
-                                  }}>
-                                    {activity.message?.includes('created') ? '🔐 Setup' : '🔄 Reset'}
-                                  </span>
-                                </td>
-                                <td style={styles.td}>{activity.details?.ip_address || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  <div style={styles.truncate}>
-                                    {activity.details?.user_agent || 'N/A'}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'banned' && (
-                  <div style={styles.tableContainer}>
-                    <h3 style={styles.tableTitle}>Banned Users</h3>
-                    {dashboardData.bannedUsers.length === 0 ? (
-                      <p style={styles.emptyText}>No banned users</p>
-                    ) : (
-                      <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
-                          <thead>
-                            <tr>
-                              <th style={styles.th}>User Email</th>
-                              <th style={styles.th}>Name</th>
-                              <th style={styles.th}>Banned Until</th>
-                              <th style={styles.th}>Ban Duration</th>
-                              <th style={styles.th}>Account Created</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dashboardData.bannedUsers.map(user => (
-                              <tr key={user.id} style={styles.tr}>
-                                <td style={styles.td}>{user.email || 'N/A'}</td>
-                                <td style={styles.td}>
-                                  {user.first_name && user.last_name 
-                                    ? `${user.first_name} ${user.last_name}` 
-                                    : 'N/A'}
-                                </td>
-                                <td style={styles.td}>
-                                  {user.banned_until ? formatDate(user.banned_until) : 'Permanent'}
-                                </td>
-                                <td style={styles.td}>{user.ban_duration || 'N/A'}</td>
-                                <td style={styles.td}>{formatDate(user.created_at)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {showLogoutModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <h2 style={styles.modalTitle}>Force Logout Session</h2>
-              <p style={styles.modalText}>
-                Are you sure you want to terminate this session?
-              </p>
-              {selectedSession && (
-                <div style={styles.sessionInfo}>
-                  <p><strong>User:</strong> {selectedSession.profiles?.email}</p>
-                  <p><strong>IP:</strong> {selectedSession.ip_address}</p>
-                  <p><strong>Device:</strong> {selectedSession.device_type}</p>
-                </div>
-              )}
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Reason (required):</label>
-                <textarea
-                  value={logoutReason}
-                  onChange={(e) => setLogoutReason(e.target.value)}
-                  placeholder="e.g., Suspicious activity detected"
-                  style={styles.textarea}
-                  rows={3}
+            <div style={styles.dateRangeInputs}>
+              <div style={styles.dateInputGroup}>
+                <label style={styles.dateLabel}>From:</label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                  style={styles.dateInput}
                 />
               </div>
-              <div style={styles.modalActions}>
+              <div style={styles.dateInputGroup}>
+                <label style={styles.dateLabel}>To:</label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                  style={styles.dateInput}
+                />
+              </div>
+              {(dateRange.start || dateRange.end) && (
                 <button
-                  onClick={() => setShowLogoutModal(false)}
+                  onClick={() => setDateRange({ start: '', end: '' })}
+                  style={styles.clearDateButton}
+                >
+                  ✕ Clear Dates
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Content Grid */}
+        <div style={styles.tableContainer}>
+          {loading ? (
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
+              <p>Loading security data...</p>
+            </div>
+          ) : activeTab === 'overview' ? (
+            <div style={styles.usersGrid}>
+              {filteredUsers.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <p style={styles.emptyIcon}>👥</p>
+                  <p style={styles.emptyText}>No users found</p>
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div key={user.id} style={styles.userCard}>
+                    <div style={styles.userCardHeader}>
+                      <div>
+                        <h3 style={styles.userName}>
+                          {user.first_name} {user.last_name}
+                        </h3>
+                        <p style={styles.userEmail}>{user.email}</p>
+                      </div>
+                      {getRiskBadge(user.riskLevel)}
+                    </div>
+
+                    <div style={styles.userCardBody}>
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Last Login:</span>
+                        <span style={styles.infoValue}>{formatDateTime(user.lastLoginTime)}</span>
+                      </div>
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Last IP:</span>
+                        <span style={styles.infoValue}>{user.lastIpAddress || 'N/A'}</span>
+                      </div>
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Active Sessions:</span>
+                        <span style={styles.infoValue}>{user.activeSessionsCount}</span>
+                      </div>
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Failed Logins:</span>
+                        <span style={{...styles.infoValue, color: user.failedLoginCount > 0 ? '#dc2626' : '#059669'}}>
+                          {user.failedLoginCount}
+                        </span>
+                      </div>
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Suspicious Activities:</span>
+                        <span style={{...styles.infoValue, color: user.suspiciousActivityCount > 0 ? '#dc2626' : '#059669'}}>
+                          {user.suspiciousActivityCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={styles.userCardFooter}>
+                      <button
+                        onClick={() => handleSecurityAction(user, 'lock_account')}
+                        style={styles.actionButton}
+                      >
+                        🔒 Lock
+                      </button>
+                      <button
+                        onClick={() => handleSecurityAction(user, 'force_password_reset')}
+                        style={styles.actionButton}
+                      >
+                        🔑 Reset Password
+                      </button>
+                      <button
+                        onClick={() => handleSecurityAction(user, 'sign_out_all_devices')}
+                        style={styles.actionButton}
+                      >
+                        🚪 Sign Out All
+                      </button>
+                      <button
+                        onClick={() => router.push(`/admin/user-details?userId=${user.id}`)}
+                        style={{...styles.actionButton, flex: '1 1 100%', marginTop: '8px', background: '#1e40af'}}
+                      >
+                        👁️ View Details
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : activeTab === 'login_history' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Recent Login Attempts ({securityData.loginHistory.length})</h3>
+              {securityData.loginHistory.slice(0, 100).map(log => (
+                <div key={log.id} style={{...styles.logCard, backgroundColor: log.success ? 'white' : '#fef2f2'}}>
+                  <div style={styles.logHeader}>
+                    <span style={log.success ? styles.successBadge : styles.failedBadge}>
+                      {log.success ? '✓ Success' : '✕ Failed'}
+                    </span>
+                    <span style={styles.logTime}>{formatDateTime(log.login_time)}</span>
+                  </div>
+                  <div style={styles.logBody}>
+                    <p><strong>IP:</strong> {log.ip_address || 'N/A'}</p>
+                    <p><strong>Device:</strong> {log.device_type || 'Unknown'} • {log.browser || 'N/A'} • {log.os || 'N/A'}</p>
+                    {log.city && log.country && <p><strong>Location:</strong> {log.city}, {log.country}</p>}
+                    {!log.success && log.failure_reason && <p><strong>Reason:</strong> {log.failure_reason}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'active_sessions' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Active User Sessions ({securityData.activeSessions.length})</h3>
+              {securityData.activeSessions.map(session => (
+                <div key={session.id} style={styles.logCard}>
+                  <div style={styles.logHeader}>
+                    <span style={styles.activeBadge}>🟢 Active</span>
+                    <span style={styles.logTime}>Started: {formatDateTime(session.created_at)}</span>
+                  </div>
+                  <div style={styles.logBody}>
+                    <p><strong>IP:</strong> {session.ip_address || 'N/A'}</p>
+                    <p><strong>Device:</strong> {session.device_type || 'Unknown'}</p>
+                    <p><strong>Last Activity:</strong> {formatDateTime(session.last_activity)}</p>
+                    <p><strong>User Agent:</strong> {session.user_agent || 'N/A'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'suspicious' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Suspicious Activity Reports ({securityData.suspiciousActivity.length})</h3>
+              {securityData.suspiciousActivity.map(activity => (
+                <div key={activity.id} style={{...styles.logCard, borderLeft: `4px solid ${activity.risk_level === 'high' ? '#dc2626' : activity.risk_level === 'medium' ? '#f59e0b' : '#10b981'}`}}>
+                  <div style={styles.logHeader}>
+                    <span style={{
+                      ...styles.riskBadge,
+                      backgroundColor: activity.risk_level === 'high' ? '#fee2e2' : activity.risk_level === 'medium' ? '#fef3c7' : '#d1fae5',
+                      color: activity.risk_level === 'high' ? '#991b1b' : activity.risk_level === 'medium' ? '#92400e' : '#065f46'
+                    }}>
+                      {activity.risk_level?.toUpperCase() || 'UNKNOWN'}
+                    </span>
+                    <span style={styles.logTime}>{formatDateTime(activity.created_at)}</span>
+                  </div>
+                  <div style={styles.logBody}>
+                    <p><strong>Type:</strong> {activity.activity_type}</p>
+                    <p><strong>Description:</strong> {activity.description}</p>
+                    {activity.ip_address && <p><strong>IP:</strong> {activity.ip_address}</p>}
+                    <p><strong>Status:</strong> {activity.resolved ? '✅ Resolved' : '⏳ Pending'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'audit_logs' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Audit Trail ({securityData.auditLogs.length})</h3>
+              {securityData.auditLogs.slice(0, 100).map(log => (
+                <div key={log.id} style={styles.logCard}>
+                  <div style={styles.logHeader}>
+                    <span style={styles.auditBadge}>{log.action}</span>
+                    <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+                  </div>
+                  <div style={styles.logBody}>
+                    {log.table_name && <p><strong>Table:</strong> {log.table_name}</p>}
+                    {log.old_data && <p><strong>Old Data:</strong> {JSON.stringify(log.old_data).substring(0, 100)}...</p>}
+                    {log.new_data && <p><strong>New Data:</strong> {JSON.stringify(log.new_data).substring(0, 100)}...</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'system_logs' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>System Events ({securityData.systemLogs.length})</h3>
+              {securityData.systemLogs.slice(0, 100).map(log => (
+                <div key={log.id} style={styles.logCard}>
+                  <div style={styles.logHeader}>
+                    <span style={{
+                      ...styles.levelBadge,
+                      backgroundColor: log.level === 'error' ? '#fee2e2' : log.level === 'warning' ? '#fef3c7' : '#e0f2fe',
+                      color: log.level === 'error' ? '#991b1b' : log.level === 'warning' ? '#92400e' : '#075985'
+                    }}>
+                      {log.level?.toUpperCase() || 'INFO'}
+                    </span>
+                    <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+                  </div>
+                  <div style={styles.logBody}>
+                    <p><strong>Type:</strong> {log.type}</p>
+                    <p><strong>Message:</strong> {log.message}</p>
+                    {log.details && <p><strong>Details:</strong> {JSON.stringify(log.details).substring(0, 100)}...</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'password_history' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Password Changes ({securityData.passwordHistory.length})</h3>
+              {securityData.passwordHistory.slice(0, 100).map(log => (
+                <div key={log.id} style={styles.logCard}>
+                  <div style={styles.logHeader}>
+                    <span style={styles.passwordBadge}>{log.method || 'user_settings'}</span>
+                    <span style={styles.logTime}>{formatDateTime(log.changed_at)}</span>
+                  </div>
+                  <div style={styles.logBody}>
+                    <p><strong>Changed By:</strong> {log.changed_by || 'User'}</p>
+                    {log.ip_address && <p><strong>IP:</strong> {log.ip_address}</p>}
+                    {log.user_agent && <p><strong>User Agent:</strong> {log.user_agent.substring(0, 60)}...</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Action Modal */}
+        {showActionModal && selectedUser && (
+          <div style={styles.modalOverlay} onClick={() => setShowActionModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>{getActionLabel(actionType)}</h2>
+                <button onClick={() => setShowActionModal(false)} style={styles.closeBtn}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <p style={styles.modalText}>
+                  You are about to <strong>{getActionLabel(actionType).toLowerCase()}</strong> for:
+                </p>
+                <div style={styles.userInfoBox}>
+                  <p><strong>User:</strong> {selectedUser.first_name} {selectedUser.last_name}</p>
+                  <p><strong>Email:</strong> {selectedUser.email}</p>
+                  <p><strong>Risk Level:</strong> {selectedUser.riskLevel?.toUpperCase()}</p>
+                </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Reason (required):</label>
+                  <textarea
+                    value={actionReason}
+                    onChange={(e) => setActionReason(e.target.value)}
+                    placeholder="e.g., Suspicious activity detected, multiple failed login attempts, etc."
+                    style={styles.textarea}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div style={styles.modalFooter}>
+                <button
+                  onClick={() => setShowActionModal(false)}
                   style={styles.cancelButton}
+                  disabled={actionLoading}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleForceLogout}
+                  onClick={executeSecurityAction}
                   style={styles.confirmButton}
-                  disabled={!logoutReason || loading}
+                  disabled={!actionReason || actionLoading}
                 >
-                  {loading ? 'Terminating...' : 'Force Logout'}
+                  {actionLoading ? 'Processing...' : 'Confirm Action'}
                 </button>
               </div>
             </div>
@@ -770,76 +699,81 @@ export default function SecurityDashboard() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
-    padding: '20px'
-  },
-  loadingContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
-    color: 'white'
-  },
-  spinner: {
-    border: '4px solid rgba(255, 255, 255, 0.3)',
-    borderTop: '4px solid white',
-    borderRadius: '50%',
-    width: '50px',
-    height: '50px',
-    animation: 'spin 1s linear infinite',
-    marginBottom: '20px'
+    backgroundImage: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
   },
   header: {
+    backgroundColor: 'white',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
     flexWrap: 'wrap',
-    gap: '15px'
+    gap: '16px'
   },
   title: {
-    fontSize: 'clamp(24px, 4vw, 32px)',
-    fontWeight: 'bold',
-    color: 'white',
-    margin: '0 0 5px 0'
+    margin: '0 0 8px 0',
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    fontSize: '16px',
-    color: 'rgba(255, 255, 255, 0.8)',
-    margin: 0
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
-  backButton: {
-    padding: '12px 24px',
-    background: 'white',
-    color: '#1e3a5f',
+  headerActions: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'center'
+  },
+  refreshButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    backgroundColor: '#4299e1',
+    color: 'white',
     border: 'none',
     borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '16px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
+    cursor: 'pointer'
+  },
+  backButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
+    backgroundColor: '#718096',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
     textDecoration: 'none',
     display: 'inline-block'
   },
   errorBanner: {
-    background: '#fef2f2',
-    border: '2px solid #ef4444',
-    borderRadius: '8px',
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
     padding: '16px',
+    borderRadius: '8px',
     marginBottom: '20px',
-    color: '#991b1b',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
   successBanner: {
-    background: '#f0fdf4',
-    border: '2px solid #10b981',
-    borderRadius: '8px',
-    padding: '16px',
-    marginBottom: '20px',
+    backgroundColor: '#d1fae5',
     color: '#065f46',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '500',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'
@@ -854,261 +788,319 @@ const styles = {
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
+    gap: '16px',
+    marginBottom: '20px'
   },
   statCard: {
-    background: 'white',
+    backgroundColor: 'white',
     padding: '20px',
     borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   statLabel: {
-    fontSize: '14px',
-    color: '#6b7280',
     margin: '0 0 8px 0',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#718096',
     fontWeight: '500'
   },
   statValue: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    color: '#111827',
-    margin: 0
-  },
-  alertsSection: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    marginBottom: '30px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-  },
-  alertsTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#111827',
-    margin: '0 0 16px 0'
-  },
-  alertsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '16px'
-  },
-  alertCard: {
-    background: '#f9fafb',
-    padding: '16px',
-    borderRadius: '8px'
-  },
-  alertHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '8px'
-  },
-  severityBadge: {
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    color: 'white'
-  },
-  alertType: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111827'
-  },
-  alertMessage: {
-    fontSize: '14px',
-    color: '#6b7280',
-    margin: 0
-  },
-  controlsSection: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    marginBottom: '30px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-  },
-  controlsRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
-    marginBottom: '16px'
-  },
-  filterGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151'
-  },
-  input: {
-    padding: '10px 12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px'
-  },
-  dateRange: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  },
-  dateInput: {
-    padding: '10px 12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    flex: 1
-  },
-  select: {
-    padding: '10px 12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    background: 'white'
-  },
-  actionsRow: {
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap',
-    alignItems: 'center'
-  },
-  refreshButton: {
-    padding: '10px 20px',
-    background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600'
-  },
-  exportButton: {
-    padding: '10px 20px',
-    background: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600'
-  },
-  clearButton: {
-    padding: '10px 20px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600'
-  },
-  autoRefreshLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    color: '#374151',
-    cursor: 'pointer'
-  },
-  tabsContainer: {
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    overflow: 'hidden'
+    margin: 0,
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   tabs: {
     display: 'flex',
-    borderBottom: '2px solid #e5e7eb',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '5px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    gap: '5px',
+    flexWrap: 'wrap',
     overflowX: 'auto'
   },
   tab: {
-    padding: '16px 24px',
-    background: 'none',
+    flex: '1 1 auto',
+    minWidth: '120px',
+    padding: '12px 16px',
     border: 'none',
-    borderBottom: '3px solid transparent',
+    backgroundColor: 'transparent',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#6b7280',
-    transition: 'all 0.2s',
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    fontWeight: '500',
+    color: '#666',
+    transition: 'all 0.3s',
     whiteSpace: 'nowrap'
   },
   activeTab: {
-    color: '#3b82f6',
-    borderBottomColor: '#3b82f6'
+    backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white'
   },
-  tabContent: {
-    padding: '24px'
+  filtersSection: {
+    backgroundColor: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: '250px',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  filterSelect: {
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    cursor: 'pointer',
+    outline: 'none'
+  },
+  dateRangeSection: {
+    backgroundColor: 'white',
+    padding: '20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  dateRangeLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    fontSize: 'clamp(0.9rem, 2.2vw, 16px)',
+    fontWeight: '600',
+    color: '#1A3E6F'
+  },
+  dateRangeInputs: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end'
+  },
+  dateInputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+  dateLabel: {
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    fontWeight: '500',
+    color: '#4a5568'
+  },
+  dateInput: {
+    padding: '10px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    minWidth: '150px'
+  },
+  clearDateButton: {
+    padding: '10px 16px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
   },
   tableContainer: {
-    width: '100%'
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
-  tableTitle: {
-    fontSize: '20px',
+  loadingState: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#718096'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '60px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2.5rem, 6vw, 64px)',
+    marginBottom: '16px'
+  },
+  emptyText: {
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#718096',
+    fontWeight: '600'
+  },
+  usersGrid: {
+    display: 'grid',
+    gap: 'clamp(1rem, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))'
+  },
+  userCard: {
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: 'clamp(6px, 1.5vw, 12px)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0'
+  },
+  userCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '16px',
+    gap: '12px'
+  },
+  userName: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 3vw, 18px)',
+    color: '#1A3E6F',
+    fontWeight: '600'
+  },
+  userEmail: {
+    margin: 0,
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    color: '#718096'
+  },
+  userCardBody: {
+    marginBottom: '16px'
+  },
+  userInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  infoLabel: {
+    color: '#4a5568',
+    fontWeight: '600'
+  },
+  infoValue: {
+    color: '#2d3748',
+    textAlign: 'right'
+  },
+  userCardFooter: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  actionButton: {
+    flex: 1,
+    padding: '10px',
+    backgroundColor: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    minWidth: '80px'
+  },
+  logsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+  logsTitle: {
+    fontSize: 'clamp(1.25rem, 3.5vw, 20px)',
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: '16px'
   },
-  emptyText: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#6b7280',
-    fontSize: '16px'
-  },
-  tableWrapper: {
-    overflowX: 'auto',
+  logCard: {
+    backgroundColor: 'white',
+    padding: '16px',
     borderRadius: '8px',
-    border: '1px solid #e5e7eb'
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: '800px'
+  logHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+    flexWrap: 'wrap',
+    gap: '8px'
   },
-  th: {
-    padding: '12px 16px',
-    background: '#f9fafb',
-    borderBottom: '2px solid #e5e7eb',
-    textAlign: 'left',
-    fontSize: '13px',
-    fontWeight: '700',
+  logTime: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    color: '#6b7280'
+  },
+  logBody: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     color: '#374151',
-    whiteSpace: 'nowrap'
+    lineHeight: '1.5'
   },
-  tr: {
-    borderBottom: '1px solid #e5e7eb'
-  },
-  td: {
-    padding: '12px 16px',
-    fontSize: '14px',
-    color: '#111827'
-  },
-  statusBadge: {
+  successBadge: {
     padding: '4px 12px',
     borderRadius: '12px',
-    fontSize: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
     fontWeight: '600',
-    color: 'white',
-    display: 'inline-block'
+    backgroundColor: '#d1fae5',
+    color: '#065f46'
   },
-  truncate: {
-    maxWidth: '200px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
+  failedBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#fee2e2',
+    color: '#991b1b'
   },
-  logoutButton: {
-    padding: '6px 12px',
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
+  activeBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#d1fae5',
+    color: '#065f46'
+  },
+  riskBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
     fontWeight: '600'
+  },
+  auditBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#e0f2fe',
+    color: '#075985'
+  },
+  levelBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600'
+  },
+  passwordBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#dbeafe',
+    color: '#1e40af'
   },
   modalOverlay: {
     position: 'fixed',
@@ -1116,72 +1108,103 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000
+    justifyContent: 'center',
+    zIndex: 10000,
+    padding: '20px'
   },
   modal: {
-    background: 'white',
+    backgroundColor: 'white',
     borderRadius: '12px',
-    padding: '32px',
     maxWidth: '500px',
-    width: '90%',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  },
+  modalHeader: {
+    padding: '20px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   modalTitle: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: '16px'
+    margin: 0,
+    fontSize: 'clamp(1.25rem, 3.5vw, 24px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '32px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1
+  },
+  modalBody: {
+    padding: '20px'
   },
   modalText: {
-    fontSize: '16px',
-    color: '#6b7280',
+    fontSize: 'clamp(0.9rem, 2.2vw, 16px)',
+    color: '#374151',
     marginBottom: '16px'
   },
-  sessionInfo: {
-    background: '#f9fafb',
+  userInfoBox: {
     padding: '16px',
+    backgroundColor: '#f8fafc',
     borderRadius: '8px',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    lineHeight: '1.6'
   },
   inputGroup: {
-    marginBottom: '24px'
+    marginBottom: '16px'
+  },
+  label: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748',
+    marginBottom: '8px',
+    display: 'block'
   },
   textarea: {
     width: '100%',
     padding: '12px',
-    border: '2px solid #e5e7eb',
+    border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontFamily: 'inherit',
-    resize: 'vertical'
+    resize: 'vertical',
+    outline: 'none'
   },
-  modalActions: {
+  modalFooter: {
+    padding: '20px',
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
+    gap: '12px'
   },
   cancelButton: {
     padding: '12px 24px',
-    background: '#f3f4f6',
-    color: '#374151',
-    border: 'none',
+    border: '2px solid #e2e8f0',
     borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600'
+    backgroundColor: 'white',
+    color: '#475569',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
   },
   confirmButton: {
     padding: '12px 24px',
-    background: '#ef4444',
-    color: 'white',
     border: 'none',
     borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600'
+    backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    color: 'white',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
   }
 };
