@@ -268,13 +268,19 @@ export default async function handler(req, res) {
           metadata: { admin_id: admin.id, admin_email: admin.email }
         });
 
-        // Send email notification
-        await sendEmail({
-          to: userEmail,
-          subject: '🚫 Your Account Has Been Banned - Oakline Bank',
-          type: EMAIL_TYPES.SECURITY,
-          html: generateAccountBannedEmail(userName, reason)
-        });
+        // Send email notification to banned user
+        try {
+          await sendEmail({
+            to: userEmail,
+            subject: '🚫 Your Account Has Been Banned - Oakline Bank',
+            type: EMAIL_TYPES.SECURITY,
+            html: generateAccountBannedEmail(userName, reason)
+          });
+          console.log('Ban notification email sent to:', userEmail);
+        } catch (emailError) {
+          console.error('Error sending ban notification email:', emailError);
+          // Don't fail the ban action if email fails
+        }
 
         result = { message: 'User banned successfully' };
         break;
@@ -446,8 +452,14 @@ function generateAccountBannedEmail(userName, reason) {
         <p>Dear ${userName},</p>
         <p>Your Oakline Bank account has been permanently banned.</p>
         ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-        <p>If you believe this is an error, please contact our customer support team.</p>
+        <p>If you believe this is an error, please contact our customer support team at <a href="mailto:support@theoaklinebank.com">support@theoaklinebank.com</a>.</p>
         <p>Best regards,<br>Oakline Bank Security Team</p>
+      </div>
+      <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="color: #718096; font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+          Member FDIC | Routing: 075915826
+        </p>
       </div>
     </body>
     </html>
