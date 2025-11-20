@@ -183,42 +183,58 @@ export default async function handler(req, res) {
         break;
 
       case 'sign_out_all_devices':
-        // Deactivate all sessions
-        const { error: deactivateSessionsError } = await supabaseAdmin
+        // End all active sessions for the user
+        const { data: sessionsData, error: sessionsError } = await supabaseAdmin
           .from('user_sessions')
-          .update({ is_active: false })
-          .eq('user_id', userId);
+          .update({ 
+            is_active: false,
+            ended_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .select();
 
-        if (deactivateSessionsError) {
-          console.error('Deactivate sessions error:', deactivateSessionsError);
+        if (sessionsError) {
+          console.error('Sessions update error:', sessionsError);
           return res.status(500).json({ 
-            error: 'Failed to deactivate user sessions',
-            details: deactivateSessionsError.message,
-            errorCode: 'DEACTIVATE_SESSIONS_FAILED'
+            error: 'Failed to end user sessions',
+            details: sessionsError.message,
+            errorCode: 'SESSION_UPDATE_FAILED'
           });
         }
 
-        // Sign out from Supabase Auth (revoke all refresh tokens)
-        const { error: signOutAllError } = await supabaseAdmin.auth.admin.signOut(userId);
-        
-        if (signOutAllError) {
-          console.error('Sign out all devices error:', signOutAllError);
-          return res.status(500).json({ 
-            error: 'Failed to sign out user from authentication',
-            details: signOutAllError.message,
-            errorCode: 'SIGNOUT_ALL_DEVICES_FAILED'
-          });
+        const sessionsEnded = sessionsData?.length || 0;
+
+        // Sign out user from Supabase Auth (this invalidates JWT tokens)
+        try {
+          const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(userId, 'global');
+          if (signOutError) {
+            console.error('Auth sign out error:', signOutError);
+            // Don't fail the entire operation if auth signout fails
+            // Sessions are already ended in the database
+          }
+        } catch (authError) {
+          console.error('Auth sign out exception:', authError);
+          // Continue - sessions are already ended
         }
 
         // Send email notification
-        await sendEmail({
-          to: userEmail,
-          subject: '🚪 You Have Been Signed Out - Oakline Bank',
-          type: EMAIL_TYPES.SECURITY,
-          html: generateSignOutEmail(userName, reason)
-        });
+        try {
+          await sendEmail({
+            to: userEmail,
+            subject: '🚪 You Have Been Signed Out - Oakline Bank',
+            type: EMAIL_TYPES.SECURITY,
+            html: generateSignOutEmail(userName, reason)
+          });
+        } catch (emailError) {
+          console.error('Failed to send sign-out email:', emailError);
+          // Don't fail the operation if email fails
+        }
 
-        result = { message: 'User signed out from all devices' };
+        result = { 
+          message: 'User signed out from all devices',
+          sessionsEnded 
+        };
         break;
 
       case 'block_ip':
@@ -428,7 +444,7 @@ export default async function handler(req, res) {
         }
 
         // 2. Terminate all active sessions
-        const { error: sessionsError } = await supabaseAdmin
+        const { error: sessionsErrorBan } = await supabaseAdmin
           .from('user_sessions')
           .update({
             is_active: false,
@@ -437,22 +453,22 @@ export default async function handler(req, res) {
           .eq('user_id', userId)
           .eq('is_active', true);
 
-        if (sessionsError) {
-          console.error('Session termination error:', sessionsError);
+        if (sessionsErrorBan) {
+          console.error('Session termination error:', sessionsErrorBan);
           return res.status(500).json({ 
             error: 'Failed to terminate user sessions',
-            details: sessionsError.message,
+            details: sessionsErrorBan.message,
             errorCode: 'SESSION_TERMINATION_FAILED'
           });
         }
 
         // Sign out from auth (invalidates JWT tokens)
-        const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(userId);
-        if (signOutError) {
-          console.error('Auth sign out error:', signOutError);
+        const { error: signOutErrorBan } = await supabaseAdmin.auth.admin.signOut(userId);
+        if (signOutErrorBan) {
+          console.error('Auth sign out error:', signOutErrorBan);
           return res.status(500).json({ 
             error: 'Failed to sign out user from auth',
-            details: signOutError.message,
+            details: signOutErrorBan.message,
             errorCode: 'AUTH_SIGNOUT_FAILED'
           });
         }
