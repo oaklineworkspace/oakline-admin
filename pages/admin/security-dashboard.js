@@ -82,8 +82,12 @@ export default function SecurityDashboard() {
     bannedUsers: []
   });
 
+  const [restrictionReasons, setRestrictionReasons] = useState({});
+  const [reasonsLoading, setReasonsLoading] = useState(false);
+
   useEffect(() => {
     fetchSecurityData();
+    fetchRestrictionReasons();
   }, []);
 
   useEffect(() => {
@@ -279,6 +283,36 @@ export default function SecurityDashboard() {
     setFilteredUsers(filtered);
   };
 
+  const fetchRestrictionReasons = async () => {
+    try {
+      setReasonsLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No session for fetching restriction reasons');
+        return;
+      }
+
+      const response = await fetch('/api/admin/get-restriction-reasons', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to fetch restriction reasons:', errorData.error);
+        return;
+      }
+
+      const result = await response.json();
+      setRestrictionReasons(result.reasons || {});
+    } catch (err) {
+      console.error('Error fetching restriction reasons:', err);
+    } finally {
+      setReasonsLoading(false);
+    }
+  };
+
   const handleSecurityAction = async (user, action) => {
     setSelectedUser(user);
     setActionType(action);
@@ -288,6 +322,13 @@ export default function SecurityDashboard() {
 
   // Comprehensive reason options for different actions
   const getReasonOptions = (action) => {
+    if (restrictionReasons[action]) {
+      return Object.keys(restrictionReasons[action]).map(category => ({
+        category: category,
+        reasons: restrictionReasons[action][category].map(r => r.text)
+      }));
+    }
+
     const reasonCategories = {
       ban_user: [
         {
