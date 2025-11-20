@@ -320,7 +320,7 @@ export default function SecurityDashboard() {
     setShowActionModal(true);
   };
 
-  // Get reason options from database
+  // Get reason options from database (returns full objects with metadata)
   const getReasonOptions = (action) => {
     if (!restrictionReasons[action] || Object.keys(restrictionReasons[action]).length === 0) {
       return [];
@@ -328,7 +328,7 @@ export default function SecurityDashboard() {
 
     return Object.keys(restrictionReasons[action]).map(category => ({
       category: category,
-      reasons: restrictionReasons[action][category].map(r => r.text)
+      reasons: restrictionReasons[action][category]
     }));
   };
 
@@ -1134,15 +1134,15 @@ export default function SecurityDashboard() {
                           {category.reasons.map((reason, reasonIdx) => (
                             <button
                               key={reasonIdx}
-                              onClick={() => setActionReason(reason)}
+                              onClick={() => setActionReason(reason.text)}
                               style={{
                                 ...styles.reasonButton,
-                                ...(actionReason === reason ? styles.reasonButtonSelected : {})
+                                ...(actionReason === reason.text ? styles.reasonButtonSelected : {})
                               }}
                               type="button"
                             >
-                              {actionReason === reason && <span style={styles.checkmark}>✓ </span>}
-                              {reason}
+                              {actionReason === reason.text && <span style={styles.checkmark}>✓ </span>}
+                              {reason.text}
                             </button>
                           ))}
                         </div>
