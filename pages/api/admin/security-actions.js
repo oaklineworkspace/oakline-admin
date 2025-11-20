@@ -410,50 +410,52 @@ export default async function handler(req, res) {
         break;
 
       case 'ban_user':
-        // Ban user account
-        const banDuration = data?.banDuration || '876000h'; // Default 100 years
-        const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-          ban_duration: banDuration
-        });
+        // Ban user permanently (PROFILE ONLY - NOT AUTH TABLE)
+        const banMessage = generateProfessionalBanMessage(reason);
 
-        if (banError) {
-          console.error('Auth ban error:', banError);
-          return res.status(500).json({ 
-            error: 'Failed to ban user in authentication system',
-            details: banError.message,
-            errorCode: 'AUTH_BAN_FAILED'
-          });
-        }
-
-        // Generate professional ban message based on reason
-        const professionalBanMessage = generateProfessionalBanMessage(reason);
-
-        // 1. Update profile with ban status
-        const { error: profileError } = await supabaseAdmin
+        // Update profile ONLY - do not touch auth table
+        // CRITICAL: Clear suspension status when banning (mutually exclusive)
+        const { error: banError } = await supabaseAdmin
           .from('profiles')
           .update({
             is_banned: true,
-            ban_reason: reason || 'Banned by administrator',
-            ban_display_message: professionalBanMessage,
+            ban_reason: reason || 'Account banned by administrator',
+            ban_display_message: banMessage,
             banned_at: new Date().toISOString(),
-            banned_by: admin.id,
-            status: 'suspended',
-            status_reason: reason,
             status_changed_at: new Date().toISOString(),
-            status_changed_by: admin.id
+            status_changed_by: admin.id,
+            status: 'active', // Reset status from suspended
+            status_reason: null, // Clear suspension reason
+            suspension_start_date: null, // Clear suspension dates
+            suspension_end_date: null
           })
           .eq('id', userId);
 
-        if (profileError) {
-          console.error('Profile update error:', profileError);
+        if (banError) {
+          console.error('Profile update error:', banError);
           return res.status(500).json({ 
             error: 'Failed to update profile ban status',
-            details: profileError.message,
+            details: banError.message,
             errorCode: 'PROFILE_UPDATE_FAILED'
           });
         }
 
-        // 2. Terminate all active sessions
+        // Ban user in Supabase Auth
+        const banDuration = data?.banDuration || '876000h'; // Default 100 years
+        const { error: authBanError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          ban_duration: banDuration
+        });
+
+        if (authBanError) {
+          console.error('Auth ban error:', authBanError);
+          return res.status(500).json({ 
+            error: 'Failed to ban user in authentication system',
+            details: authBanError.message,
+            errorCode: 'AUTH_BAN_FAILED'
+          });
+        }
+
+        // Terminate all active sessions
         const { error: sessionsErrorBan } = await supabaseAdmin
           .from('user_sessions')
           .update({
@@ -649,16 +651,16 @@ export default async function handler(req, res) {
         break;
 
       case 'unban_user':
-        // Unban user account
-        const { error: unbanError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        // Unban user account from Supabase Auth
+        const { error: unbanAuthError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
           ban_duration: 'none'
         });
 
-        if (unbanError) {
-          console.error('Auth unban error:', unbanError);
+        if (unbanAuthError) {
+          console.error('Auth unban error:', unbanAuthError);
           return res.status(500).json({ 
             error: 'Failed to unban user in authentication system',
-            details: unbanError.message,
+            details: unbanAuthError.message,
             errorCode: 'AUTH_UNBAN_FAILED'
           });
         }
@@ -669,8 +671,14 @@ export default async function handler(req, res) {
           .update({
             is_banned: false,
             ban_reason: null,
+            ban_display_message: null, // Clear display message as well
             banned_at: null,
-            banned_by: null
+            banned_by: null,
+            // Also clear any lingering suspension status if it was somehow set with is_banned=false
+            status: 'active', 
+            status_reason: null,
+            suspension_start_date: null,
+            suspension_end_date: null
           })
           .eq('id', userId);
 
@@ -748,7 +756,7 @@ export default async function handler(req, res) {
           console.log('No matching reason found in database, using custom reason');
         }
       }
-      
+
       // Fetch current security settings for account_locked status
       const { data: securitySettings, error: securitySettingsError } = await supabaseAdmin
         .from('user_security_settings')
@@ -761,15 +769,38 @@ export default async function handler(req, res) {
         // Continue even if fetching security settings fails
       }
 
+      // Determine new status for audit log
+      let newStatus = profile?.status || 'active';
+      let newIsBanned = profile?.is_banned || false;
+      let newAccountLocked = securitySettings?.account_locked || false;
+
+      if (action === 'ban_user') {
+        newStatus = 'banned';
+        newIsBanned = true;
+      } else if (action === 'suspend_account') {
+        newStatus = 'suspended';
+        newIsBanned = false; // Ensure is_banned is false for suspensions
+      } else if (action === 'close_account') {
+        newStatus = 'closed';
+      } else if (action === 'unlock_account') {
+        newStatus = 'active';
+        newIsBanned = false; // Ensure is_banned is false after unlocking
+      } else if (action === 'lock_account') {
+        newAccountLocked = true;
+      } else if (action === 'unban_user') {
+        newStatus = 'active';
+        newIsBanned = false;
+      }
+
       const { error: statusAuditError } = await supabaseAdmin.from('account_status_audit_log').insert({
         user_id: userId,
         changed_by: admin.adminId,
         old_status: profile?.status || 'active',
-        new_status: action === 'ban_user' ? 'banned' : action === 'suspend_account' ? 'suspended' : action === 'close_account' ? 'closed' : action === 'unlock_account' ? 'active' : profile?.status || 'active',
+        new_status: newStatus,
         old_is_banned: profile?.is_banned || false,
-        new_is_banned: action === 'ban_user',
+        new_is_banned: newIsBanned,
         old_account_locked: securitySettings?.account_locked || false,
-        new_account_locked: action === 'lock_account',
+        new_account_locked: newAccountLocked,
         reason,
         action_type: action.replace('_user', '').replace('_account', ''),
         metadata: {
@@ -781,6 +812,12 @@ export default async function handler(req, res) {
           ...(action === 'suspend_account' && {
             suspension_start_date: new Date().toISOString(),
             suspension_end_date: new Date(new Date().getTime() + (data?.suspensionDays || 30) * 24 * 60 * 60 * 1000).toISOString()
+          }),
+          // Include ban details if applicable
+          ...(action === 'ban_user' && {
+            ban_reason: reason,
+            banned_at: new Date().toISOString(),
+            ban_duration: data?.banDuration || '876000h'
           })
         }
       });
