@@ -423,14 +423,22 @@ export default async function handler(req, res) {
           });
         }
 
+        // Generate professional ban message based on reason
+        const professionalBanMessage = generateProfessionalBanMessage(reason);
+
         // 1. Update profile with ban status
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .update({
             is_banned: true,
             ban_reason: reason || 'Banned by administrator',
+            ban_display_message: professionalBanMessage,
             banned_at: new Date().toISOString(),
-            banned_by: admin.id
+            banned_by: admin.id,
+            status: 'suspended',
+            status_reason: reason,
+            status_changed_at: new Date().toISOString(),
+            status_changed_by: admin.id
           })
           .eq('id', userId);
 
@@ -525,6 +533,85 @@ export default async function handler(req, res) {
         }
 
         result = { message: 'User banned successfully' };
+        break;
+
+      case 'suspend_account':
+        // Suspend user account temporarily
+        const suspensionDays = data?.suspensionDays || 30;
+        const suspensionEndDate = new Date();
+        suspensionEndDate.setDate(suspensionEndDate.getDate() + suspensionDays);
+
+        const suspensionMessage = generateProfessionalSuspensionMessage(reason, suspensionEndDate);
+
+        const { error: suspendError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            status: 'suspended',
+            status_reason: reason || 'Account suspended by administrator',
+            ban_display_message: suspensionMessage,
+            status_changed_at: new Date().toISOString(),
+            status_changed_by: admin.id,
+            suspension_start_date: new Date().toISOString(),
+            suspension_end_date: suspensionEndDate.toISOString()
+          })
+          .eq('id', userId);
+
+        if (suspendError) {
+          console.error('Profile suspend error:', suspendError);
+          return res.status(500).json({ 
+            error: 'Failed to suspend account',
+            details: suspendError.message,
+            errorCode: 'PROFILE_SUSPEND_FAILED'
+          });
+        }
+
+        // Send suspension email
+        await sendEmail({
+          to: userEmail,
+          subject: `⚠️ Your Account Has Been Suspended - ${bankName}`,
+          type: EMAIL_TYPES.SECURITY,
+          html: generateAccountSuspendedEmail(userName, reason, suspensionEndDate, supportEmail, bankName)
+        });
+
+        result = { message: 'Account suspended successfully', suspensionEndDate };
+        break;
+
+      case 'close_account':
+        // Close user account permanently
+        const closureMessage = generateProfessionalClosureMessage(reason);
+
+        const { error: closeError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            status: 'closed',
+            status_reason: reason || 'Account closed by administrator',
+            ban_display_message: closureMessage,
+            status_changed_at: new Date().toISOString(),
+            status_changed_by: admin.id,
+            account_closed_at: new Date().toISOString(),
+            account_closed_by: admin.id,
+            closure_reason: reason
+          })
+          .eq('id', userId);
+
+        if (closeError) {
+          console.error('Profile close error:', closeError);
+          return res.status(500).json({ 
+            error: 'Failed to close account',
+            details: closeError.message,
+            errorCode: 'PROFILE_CLOSE_FAILED'
+          });
+        }
+
+        // Send closure email
+        await sendEmail({
+          to: userEmail,
+          subject: `Account Closure Notification - ${bankName}`,
+          type: EMAIL_TYPES.SECURITY,
+          html: generateAccountClosedEmail(userName, reason, supportEmail, bankName)
+        });
+
+        result = { message: 'Account closed successfully' };
         break;
 
       case 'unban_user':
@@ -651,6 +738,57 @@ export default async function handler(req, res) {
   }
 }
 
+// Helper functions to generate professional messages
+function generateProfessionalBanMessage(reason) {
+  const reasonLower = (reason || '').toLowerCase();
+  
+  if (reasonLower.includes('fraud') || reasonLower.includes('suspicious')) {
+    return 'Your account has been permanently restricted due to suspicious activity detected on your account. For your security and to protect our banking community, access has been suspended. Please contact our Fraud Prevention team immediately.';
+  } else if (reasonLower.includes('security') || reasonLower.includes('breach')) {
+    return 'Account access has been restricted due to security concerns. Our Security team has identified activity that requires immediate attention. Please contact us to resolve this matter.';
+  } else if (reasonLower.includes('compliance') || reasonLower.includes('regulatory')) {
+    return 'Your account access has been restricted to ensure compliance with banking regulations. Please contact our Compliance department to complete the necessary verification procedures.';
+  } else if (reasonLower.includes('unauthorized') || reasonLower.includes('credential')) {
+    return 'Account access has been restricted due to unauthorized access attempts or credential sharing violations. Please contact our Security team to restore your access.';
+  } else if (reasonLower.includes('terms') || reasonLower.includes('violation')) {
+    return 'Your account has been restricted due to violations of our Terms of Service. Please review our policies and contact our Customer Relations team.';
+  } else {
+    return 'Your account access has been restricted by our administrative team. For detailed information and resolution steps, please contact our Customer Support department.';
+  }
+}
+
+function generateProfessionalSuspensionMessage(reason, endDate) {
+  const formattedDate = new Date(endDate).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const reasonLower = (reason || '').toLowerCase();
+  
+  if (reasonLower.includes('verification') || reasonLower.includes('documentation')) {
+    return `Your account is temporarily suspended pending verification. This suspension will be lifted on ${formattedDate} once the required documentation is provided. Please contact our Verification team.`;
+  } else if (reasonLower.includes('review') || reasonLower.includes('investigation')) {
+    return `Your account is under temporary review. Access will be restored on or before ${formattedDate} pending completion of our investigation. We appreciate your patience.`;
+  } else {
+    return `Your account has been temporarily suspended until ${formattedDate}. Please contact our Customer Support team for more information on resolving this matter.`;
+  }
+}
+
+function generateProfessionalClosureMessage(reason) {
+  const reasonLower = (reason || '').toLowerCase();
+  
+  if (reasonLower.includes('request') || reasonLower.includes('customer')) {
+    return 'Your account has been closed as per your request. All associated services have been terminated. Thank you for banking with us.';
+  } else if (reasonLower.includes('dormant') || reasonLower.includes('inactive')) {
+    return 'Your account has been closed due to extended inactivity. If you believe this was done in error, please contact our Customer Relations team.';
+  } else if (reasonLower.includes('compliance') || reasonLower.includes('regulatory')) {
+    return 'Your account has been closed to comply with regulatory requirements. For questions regarding this closure, please contact our Compliance department.';
+  } else {
+    return 'Your account has been permanently closed by our administrative team. For information regarding this closure, please contact our Customer Support department.';
+  }
+}
+
 // Email templates
 function generateAccountLockedEmail(userName, reason) {
   return `
@@ -756,25 +894,229 @@ function generate2FAEnabledEmail(userName) {
 }
 
 function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
+  const professionalMessage = generateProfessionalBanMessage(reason);
+  
   return `
     <!DOCTYPE html>
     <html>
-    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); padding: 32px; text-align: center;">
-        <h1 style="color: #ffffff; margin: 0;">🚫 Account Banned</h1>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5aa0 100%); padding: 32px 24px; text-align: center;">
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; margin-bottom: 8px;">
+            🏦 ${bankName}
+          </div>
+          <div style="color: #ffffff; opacity: 0.9; font-size: 14px;">
+            Account Security Notification
+          </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div style="padding: 40px 32px;">
+          <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 24px; border-radius: 4px;">
+            <h2 style="color: #991b1b; font-size: 20px; font-weight: 700; margin: 0 0 12px 0;">
+              Important Account Notice
+            </h2>
+          </div>
+          
+          <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
+            Dear ${userName},
+          </p>
+          
+          <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            ${professionalMessage}
+          </p>
+          
+          ${reason ? `
+          <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+              Administrative Note:
+            </h3>
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
+              ${reason}
+            </p>
+          </div>
+          ` : ''}
+          
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 4px;">
+            <h3 style="color: #1e40af; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+              📞 Need Assistance?
+            </h3>
+            <p style="color: #1e40af; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">
+              If you believe this action was taken in error or require additional information, please contact our Customer Relations team:
+            </p>
+            <p style="color: #1e40af; font-size: 15px; font-weight: 600; margin: 0;">
+              Email: <a href="mailto:${supportEmail}" style="color: #2563eb; text-decoration: none;">${supportEmail}</a>
+            </p>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
+            We appreciate your understanding and cooperation in this matter.
+          </p>
+          
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 16px 0 0 0;">
+            Respectfully,<br/>
+            <strong style="color: #1f2937;">${bankName} Security & Compliance Team</strong>
+          </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; font-size: 12px; margin: 0;">
+            © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
+            Member FDIC | Routing: 075915826
+          </p>
+        </div>
       </div>
-      <div style="padding: 32px;">
-        <p>Dear ${userName},</p>
-        <p>Your ${bankName} account has been permanently banned.</p>
-        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-        <p>If you believe this is an error, please contact our customer support team at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
-        <p>Best regards,<br>${bankName} Security Team</p>
+    </body>
+    </html>
+  `;
+}
+
+function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, bankName) {
+  const formattedDate = new Date(endDate).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5aa0 100%); padding: 32px 24px; text-align: center;">
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; margin-bottom: 8px;">
+            🏦 ${bankName}
+          </div>
+          <div style="color: #ffffff; opacity: 0.9; font-size: 14px;">
+            Temporary Account Suspension Notice
+          </div>
+        </div>
+        
+        <div style="padding: 40px 32px;">
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 24px; border-radius: 4px;">
+            <h2 style="color: #92400e; font-size: 20px; font-weight: 700; margin: 0 0 12px 0;">
+              Account Temporarily Suspended
+            </h2>
+          </div>
+          
+          <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
+            Dear ${userName},
+          </p>
+          
+          <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            Your ${bankName} account has been temporarily suspended and will remain inactive until <strong>${formattedDate}</strong>.
+          </p>
+          
+          ${reason ? `
+          <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+              Reason for Suspension:
+            </h3>
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
+              ${reason}
+            </p>
+          </div>
+          ` : ''}
+          
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 4px;">
+            <h3 style="color: #1e40af; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+              What This Means:
+            </h3>
+            <ul style="color: #1e40af; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+              <li>Your account access is temporarily restricted</li>
+              <li>No transactions can be processed during this period</li>
+              <li>Your account will be automatically reactivated on ${formattedDate}</li>
+              <li>Your funds remain secure and protected</li>
+            </ul>
+          </div>
+          
+          <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 24px 0;">
+            For questions or to resolve this matter sooner, please contact: <a href="mailto:${supportEmail}" style="color: #2563eb;">${supportEmail}</a>
+          </p>
+          
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 16px 0 0 0;">
+            Sincerely,<br/>
+            <strong style="color: #1f2937;">${bankName} Customer Relations Team</strong>
+          </p>
+        </div>
+        
+        <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; font-size: 12px; margin: 0;">
+            © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
+            Member FDIC | Routing: 075915826
+          </p>
+        </div>
       </div>
-      <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-        <p style="color: #718096; font-size: 12px; margin: 0;">
-          © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
-          Member FDIC | Routing: 075915826
-        </p>
+    </body>
+    </html>
+  `;
+}
+
+function generateAccountClosedEmail(userName, reason, supportEmail, bankName) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5aa0 100%); padding: 32px 24px; text-align: center;">
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; margin-bottom: 8px;">
+            🏦 ${bankName}
+          </div>
+          <div style="color: #ffffff; opacity: 0.9; font-size: 14px;">
+            Account Closure Confirmation
+          </div>
+        </div>
+        
+        <div style="padding: 40px 32px;">
+          <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
+            Dear ${userName},
+          </p>
+          
+          <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            This letter confirms that your account with ${bankName} has been permanently closed.
+          </p>
+          
+          ${reason ? `
+          <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+              Closure Details:
+            </h3>
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
+              ${reason}
+            </p>
+          </div>
+          ` : ''}
+          
+          <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 24px 0;">
+            Thank you for choosing ${bankName} for your banking needs. If you have any questions, please contact us at <a href="mailto:${supportEmail}" style="color: #2563eb;">${supportEmail}</a>
+          </p>
+          
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 16px 0 0 0;">
+            Best regards,<br/>
+            <strong style="color: #1f2937;">${bankName} Account Services</strong>
+          </p>
+        </div>
+        
+        <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; font-size: 12px; margin: 0;">
+            © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
+            Member FDIC | Routing: 075915826
+          </p>
+        </div>
       </div>
     </body>
     </html>

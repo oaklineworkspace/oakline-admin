@@ -10,6 +10,10 @@ CHECK (status IN ('active', 'suspended', 'closed', 'pending', 'under_review', 'r
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS status_reason TEXT;
 
+-- Add professional ban message for frontend display
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS ban_display_message TEXT DEFAULT 'Your account access has been restricted. Please contact our support team for assistance.';
+
 -- Step 2: Add account_locked field to user_security_settings
 ALTER TABLE public.user_security_settings
 ADD COLUMN IF NOT EXISTS account_locked boolean DEFAULT false,

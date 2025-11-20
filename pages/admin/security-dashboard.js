@@ -293,12 +293,18 @@ export default function SecurityDashboard() {
         {
           category: 'Fraud & Suspicious Activity',
           reasons: [
-            'Multiple instances of fraudulent transactions detected',
+            'Multiple instances of fraudulent transactions detected across accounts',
             'Identity theft or impersonation of another individual',
             'Providing false or fabricated documentation during account opening',
             'Participating in money laundering or illegal financial activities',
             'Systematic abuse of banking services for fraudulent purposes',
-            'Connection to known fraud rings or criminal networks'
+            'Connection to known fraud rings or criminal networks',
+            'Orchestrating check kiting or float manipulation schemes',
+            'Involvement in credit card fraud or unauthorized charge schemes',
+            'Operating accounts for illicit cryptocurrency transactions',
+            'Engaging in wire transfer fraud or romance scams',
+            'Creating multiple accounts with stolen identities',
+            'Systematically exploiting banking system vulnerabilities'
           ]
         },
         {
@@ -306,9 +312,15 @@ export default function SecurityDashboard() {
           reasons: [
             'Severe security breach compromising multiple accounts',
             'Unauthorized access attempts to other customer accounts',
-            'Intentional circumvention of security protocols',
+            'Intentional circumvention of security protocols and safeguards',
             'Sharing account credentials with unauthorized third parties',
-            'Engaging in phishing or social engineering attacks'
+            'Engaging in phishing or social engineering attacks against customers',
+            'Repeated attempts to bypass two-factor authentication',
+            'Using compromised or stolen credentials to access banking services',
+            'Installing malware or keyloggers on banking terminals',
+            'Conducting brute force attacks on account authentication',
+            'Exploiting zero-day vulnerabilities for unauthorized access',
+            'Selling or distributing customer credentials on dark web platforms'
           ]
         },
         {
@@ -417,7 +429,13 @@ export default function SecurityDashboard() {
             'Disputed transaction under review',
             'Temporary compliance hold pending documentation',
             'Account review for unusual activity patterns',
-            'Cooling-off period following multiple fraud alerts'
+            'Cooling-off period following multiple fraud alerts',
+            'Investigation of potential account takeover incident',
+            'Review of large or irregular transaction patterns',
+            'Pending resolution of customer dispute or complaint',
+            'Temporary freeze due to reported lost or stolen card',
+            'Awaiting completion of enhanced due diligence review',
+            'Precautionary hold following security incident notification'
           ]
         },
         {
@@ -436,20 +454,31 @@ export default function SecurityDashboard() {
           category: 'Administrative Closure',
           reasons: [
             'Account closure requested by customer',
-            'Dormant account with no activity for extended period',
+            'Dormant account with no activity for extended period (over 12 months)',
             'Duplicate account consolidation',
             'Account no longer meets bank service criteria',
-            'Migration to different account type completed'
+            'Migration to different account type completed',
+            'Estate closure following account holder deceased',
+            'Business entity dissolved or partnership terminated',
+            'Customer relocated to unsupported geographic area',
+            'Account maintenance fees remain unpaid for extended period',
+            'Mutual agreement between bank and customer for account termination'
           ]
         },
         {
           category: 'Compliance & Risk',
           reasons: [
             'Unable to verify customer identity after multiple attempts',
-            'Customer residing in unsupported jurisdiction',
+            'Customer residing in unsupported or sanctioned jurisdiction',
             'Account activity incompatible with bank risk appetite',
             'Regulatory restrictions preventing continued service',
-            'Persistent non-compliance with account requirements'
+            'Persistent non-compliance with account requirements',
+            'Failure to provide required tax documentation (W-9, W-8BEN)',
+            'Account flagged for persistent suspicious activity beyond tolerance',
+            'Customer appears on OFAC or other sanctions lists',
+            'Inability to meet enhanced due diligence requirements',
+            'Court order or legal mandate requiring account closure',
+            'Revocation of banking license or charter in customer jurisdiction'
           ]
         }
       ]
@@ -946,10 +975,22 @@ export default function SecurityDashboard() {
                         </button>
                       )}
                       <button
+                        onClick={() => handleSecurityAction(user, 'suspend_account')}
+                        style={{...styles.actionButton, background: '#f59e0b'}}
+                      >
+                        ⏸️ Suspend
+                      </button>
+                      <button
                         onClick={() => handleSecurityAction(user, 'lock_account')}
                         style={styles.actionButton}
                       >
                         🔒 Lock
+                      </button>
+                      <button
+                        onClick={() => handleSecurityAction(user, 'close_account')}
+                        style={{...styles.actionButton, background: '#7c3aed'}}
+                      >
+                        🔐 Close
                       </button>
                       <button
                         onClick={() => handleSecurityAction(user, 'force_password_reset')}
