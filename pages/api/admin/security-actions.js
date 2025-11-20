@@ -538,13 +538,14 @@ export default async function handler(req, res) {
         break;
 
       case 'suspend_account':
-        // Suspend user account temporarily
+        // Suspend user account temporarily (PROFILE ONLY - NOT AUTH TABLE)
         const suspensionDays = data?.suspensionDays || 30;
         const suspensionEndDate = new Date();
         suspensionEndDate.setDate(suspensionEndDate.getDate() + suspensionDays);
 
         const suspensionMessage = generateProfessionalSuspensionMessage(reason, suspensionEndDate);
 
+        // Update profile ONLY - do not touch auth table
         const { error: suspendError } = await supabaseAdmin
           .from('profiles')
           .update({
@@ -554,7 +555,8 @@ export default async function handler(req, res) {
             status_changed_at: new Date().toISOString(),
             status_changed_by: admin.id,
             suspension_start_date: new Date().toISOString(),
-            suspension_end_date: suspensionEndDate.toISOString()
+            suspension_end_date: suspensionEndDate.toISOString(),
+            is_banned: false // Ensure is_banned is false for suspensions
           })
           .eq('id', userId);
 
@@ -566,6 +568,36 @@ export default async function handler(req, res) {
             errorCode: 'PROFILE_SUSPEND_FAILED'
           });
         }
+
+        // Terminate active sessions (but don't ban in auth)
+        const { error: sessionsErrorSuspend } = await supabaseAdmin
+          .from('user_sessions')
+          .update({
+            is_active: false,
+            ended_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('is_active', true);
+
+        if (sessionsErrorSuspend) {
+          console.error('Session termination error for suspension:', sessionsErrorSuspend);
+        }
+
+        // Log the suspension
+        await supabaseAdmin.from('system_logs').insert({
+          level: 'warning',
+          type: 'user',
+          message: 'User account suspended',
+          details: {
+            user_id: userId,
+            suspension_reason: reason || 'No reason provided',
+            suspension_end_date: suspensionEndDate.toISOString(),
+            suspended_by: admin.id,
+            admin_email: admin.email
+          },
+          user_id: userId,
+          admin_id: admin.id
+        });
 
         // Send suspension email
         await sendEmail({

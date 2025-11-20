@@ -79,7 +79,8 @@ export default function SecurityDashboard() {
     systemLogs: [],
     passwordHistory: [],
     pinHistory: [],
-    bannedUsers: []
+    bannedUsers: [],
+    suspendedUsers: []
   });
 
   const [restrictionReasons, setRestrictionReasons] = useState({});
@@ -172,13 +173,14 @@ export default function SecurityDashboard() {
         (log.message?.includes('Transaction PIN') || log.message?.includes('PIN'))
       );
 
-      // Fetch banned/suspended users directly from profiles
+      // Fetch banned users (is_banned = true)
       let bannedUsers = [];
+      let suspendedUsers = [];
       try {
         const { data: bannedProfiles, error: bannedError } = await supabase
           .from('profiles')
           .select('id, email, first_name, last_name, is_banned, ban_reason, ban_display_message, status, status_reason, banned_at, status_changed_at, suspension_start_date, suspension_end_date')
-          .or('is_banned.eq.true,status.eq.suspended,status.eq.closed');
+          .eq('is_banned', true);
 
         if (bannedError) {
           console.error('Error fetching banned users from profiles:', bannedError);
@@ -195,14 +197,38 @@ export default function SecurityDashboard() {
             status_reason: profile.status_reason,
             banned_at: profile.banned_at,
             status_changed_at: profile.status_changed_at,
+            reason: profile.ban_reason
+          }));
+        }
+
+        // Fetch suspended users (status = 'suspended' AND is_banned = false)
+        const { data: suspendedProfiles, error: suspendedError } = await supabase
+          .from('profiles')
+          .select('id, email, first_name, last_name, is_banned, ban_reason, ban_display_message, status, status_reason, banned_at, status_changed_at, suspension_start_date, suspension_end_date')
+          .eq('status', 'suspended')
+          .eq('is_banned', false);
+
+        if (suspendedError) {
+          console.error('Error fetching suspended users from profiles:', suspendedError);
+        } else {
+          suspendedUsers = (suspendedProfiles || []).map(profile => ({
+            id: profile.id,
+            email: profile.email,
+            first_name: profile.first_name,
+            last_name: profile.last_name,
+            is_banned: profile.is_banned,
+            ban_display_message: profile.ban_display_message,
+            status: profile.status,
+            status_reason: profile.status_reason,
+            status_changed_at: profile.status_changed_at,
             suspension_start_date: profile.suspension_start_date,
             suspension_end_date: profile.suspension_end_date,
-            reason: profile.is_banned ? profile.ban_reason : profile.status_reason
+            reason: profile.status_reason
           }));
         }
       } catch (err) {
-        console.error('Error fetching banned users:', err);
-        setError(`Failed to load banned users: ${err.message}`);
+        console.error('Error fetching banned/suspended users:', err);
+        setError(`Failed to load restricted users: ${err.message}`);
       }
 
       setSecurityData({
@@ -213,7 +239,8 @@ export default function SecurityDashboard() {
         systemLogs: systemLogs || [],
         passwordHistory: passwordHistory || [],
         pinHistory: pinHistory || [],
-        bannedUsers: bannedUsers || []
+        bannedUsers: bannedUsers || [],
+        suspendedUsers: suspendedUsers || []
       });
 
       // Enrich users with security data
@@ -520,13 +547,14 @@ export default function SecurityDashboard() {
 
   const stats = {
     totalUsers: users.length,
-    activeUsers: users.filter(u => u.sessions?.some(s => s.is_active && !s.ended_at)).length, // Count users with active sessions
+    activeUsers: users.filter(u => u.sessions?.some(s => s.is_active && !s.ended_at)).length,
     highRiskUsers: users.filter(u => u.riskLevel === 'high').length,
     suspiciousActivities: users.reduce((sum, u) => sum + u.suspiciousActivityCount, 0),
     totalLogins: securityData.loginHistory.length,
     failedLogins: securityData.loginHistory.filter(l => !l.success).length,
-    activeSessions: securityData.activeSessions.filter(s => s.is_active && !s.ended_at).length, // Count currently active sessions
-    bannedUsers: securityData.bannedUsers.length
+    activeSessions: securityData.activeSessions.filter(s => s.is_active && !s.ended_at).length,
+    bannedUsers: securityData.bannedUsers.length,
+    suspendedUsers: securityData.suspendedUsers.length
   };
 
   return (
@@ -635,11 +663,15 @@ export default function SecurityDashboard() {
             <h3 style={styles.statLabel}>Banned Users</h3>
             <p style={styles.statValue}>{stats.bannedUsers}</p>
           </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
+            <h3 style={styles.statLabel}>Suspended Users</h3>
+            <p style={styles.statValue}>{stats.suspendedUsers}</p>
+          </div>
         </div>
 
         {/* Tabs */}
         <div style={styles.tabs}>
-          {['overview', 'login_history', 'active_sessions', 'pin_history', 'suspicious', 'banned_users', 'audit_logs', 'system_logs', 'password_history'].map(tab => (
+          {['overview', 'login_history', 'active_sessions', 'pin_history', 'suspicious', 'banned_users', 'suspended_users', 'audit_logs', 'system_logs', 'password_history'].map(tab => (
             <button
               key={tab}
               style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
@@ -651,6 +683,7 @@ export default function SecurityDashboard() {
               {tab === 'pin_history' && '🔑 PIN History'}
               {tab === 'suspicious' && '⚠️ Suspicious Activity'}
               {tab === 'banned_users' && '🚫 Banned Users'}
+              {tab === 'suspended_users' && '⏸️ Suspended Users'}
               {tab === 'audit_logs' && '📋 Audit Logs'}
               {tab === 'system_logs' && '🖥️ System Logs'}
               {tab === 'password_history' && '🔐 Password History'}
@@ -999,45 +1032,138 @@ export default function SecurityDashboard() {
                 );
               })}
             </div>
-          ) : activeTab === 'banned_users' ? (
+          ) : activeTab === 'suspended_users' ? (
             <div style={styles.logsList}>
-              <h3 style={styles.logsTitle}>Banned/Restricted Users ({securityData.bannedUsers.length})</h3>
-              {securityData.bannedUsers.map(bannedUser => {
-                const user = users.find(u => u.id === bannedUser.id);
-                const isBanned = bannedUser.is_banned;
-                const isSuspended = bannedUser.status === 'suspended';
-                const isClosed = bannedUser.status === 'closed';
-                
-                const statusLabel = isBanned ? 'BANNED' : isSuspended ? 'SUSPENDED' : isClosed ? 'CLOSED' : 'RESTRICTED';
-                const statusColor = isBanned ? '#dc2626' : isSuspended ? '#f59e0b' : '#7c3aed';
+              <h3 style={styles.logsTitle}>Suspended Users ({securityData.suspendedUsers.length})</h3>
+              {securityData.suspendedUsers.map(suspendedUser => {
+                const user = users.find(u => u.id === suspendedUser.id);
                 
                 return (
-                  <div key={bannedUser.id} style={{...styles.logCard, borderLeft: `4px solid ${statusColor}`}}>
+                  <div key={suspendedUser.id} style={{...styles.logCard, borderLeft: '4px solid #f59e0b'}}>
                     <div style={styles.logHeader}>
                       <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                        <span style={{...styles.bannedBadge, background: statusColor === '#dc2626' ? '#fee2e2' : statusColor === '#f59e0b' ? '#fef3c7' : '#ede9fe', color: statusColor === '#dc2626' ? '#991b1b' : statusColor === '#f59e0b' ? '#92400e' : '#5b21b6'}}>
-                          {isBanned ? '🚫' : isSuspended ? '⏸️' : '🔐'} {statusLabel}
+                        <span style={{...styles.bannedBadge, background: '#fef3c7', color: '#92400e'}}>
+                          ⏸️ SUSPENDED
+                        </span>
+                      </div>
+                      <div style={{display: 'flex', gap: '8px'}}>
+                        <button
+                          onClick={() => {
+                            const reason = suspendedUser.reason || '';
+                            handleSecurityAction(user || suspendedUser, 'suspend_account', reason);
+                          }}
+                          style={{...styles.endSessionButton, background: '#7c3aed'}}
+                        >
+                          ✏️ Edit Reason
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Are you sure you want to unsuspend ${suspendedUser.email}?`)) return;
+                            
+                            setLoadingBanner({
+                              visible: true,
+                              current: 1,
+                              total: 1,
+                              action: 'Unsuspending Account',
+                              message: 'Reactivating user account...'
+                            });
+
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              
+                              // Update profile to active status
+                              const { error: unsuspendError } = await supabase
+                                .from('profiles')
+                                .update({
+                                  status: 'active',
+                                  status_reason: null,
+                                  ban_display_message: null,
+                                  status_changed_at: new Date().toISOString(),
+                                  suspension_start_date: null,
+                                  suspension_end_date: null
+                                })
+                                .eq('id', suspendedUser.id);
+
+                              if (unsuspendError) throw unsuspendError;
+
+                              setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+                              setSuccessBanner({
+                                visible: true,
+                                message: `Account unsuspended successfully for ${suspendedUser.email}`,
+                                action: 'Unsuspend Account'
+                              });
+                              
+                              await fetchSecurityData();
+                              
+                              setTimeout(() => {
+                                setSuccessBanner({ visible: false, message: '', action: '' });
+                              }, 5000);
+                            } catch (err) {
+                              setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+                              setError('Failed to unsuspend account: ' + err.message);
+                            }
+                          }}
+                          style={{...styles.endSessionButton, background: '#10b981'}}
+                        >
+                          ✓ Unsuspend
+                        </button>
+                      </div>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {suspendedUser.email}</p>
+                      <p><strong>Name:</strong> {suspendedUser.first_name} {suspendedUser.last_name}</p>
+                      {suspendedUser.status_changed_at && <p><strong>Suspended At:</strong> {formatDateTime(suspendedUser.status_changed_at)}</p>}
+                      {suspendedUser.suspension_start_date && <p><strong>Suspension Started:</strong> {formatDateTime(suspendedUser.suspension_start_date)}</p>}
+                      {suspendedUser.suspension_end_date && (
+                        <p><strong>Suspension Ends:</strong> {formatDateTime(suspendedUser.suspension_end_date)}</p>
+                      )}
+                      {suspendedUser.reason && (
+                        <div style={{marginTop: '12px', padding: '12px', background: '#fef3c7', borderRadius: '6px'}}>
+                          <p style={{margin: '0 0 4px 0', fontWeight: '600', color: '#92400e'}}>Suspension Reason:</p>
+                          <p style={{margin: 0, color: '#78350f', fontSize: '14px'}}>{suspendedUser.reason}</p>
+                        </div>
+                      )}
+                      {suspendedUser.ban_display_message && (
+                        <div style={{marginTop: '12px', padding: '12px', background: '#fef3c7', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                          <p style={{margin: '0 0 4px 0', fontWeight: '600', color: '#92400e'}}>User-Facing Message:</p>
+                          <p style={{margin: 0, color: '#78350f', fontSize: '13px', lineHeight: '1.5'}}>{suspendedUser.ban_display_message}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : activeTab === 'banned_users' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Banned Users ({securityData.bannedUsers.length})</h3>
+              {securityData.bannedUsers.map(bannedUser => {
+                const user = users.find(u => u.id === bannedUser.id);
+                
+                return (
+                  <div key={bannedUser.id} style={{...styles.logCard, borderLeft: '4px solid #dc2626'}}>
+                    <div style={styles.logHeader}>
+                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                        <span style={{...styles.bannedBadge, background: '#fee2e2', color: '#991b1b'}}>
+                          🚫 BANNED
                         </span>
                       </div>
                       <div style={{display: 'flex', gap: '8px'}}>
                         <button
                           onClick={() => {
                             const reason = bannedUser.reason || '';
-                            const action = isBanned ? 'ban_user' : isSuspended ? 'suspend_account' : 'close_account';
-                            handleSecurityAction(user || bannedUser, action, reason);
+                            handleSecurityAction(user || bannedUser, 'ban_user', reason);
                           }}
                           style={{...styles.endSessionButton, background: '#7c3aed'}}
                         >
                           ✏️ Edit Reason
                         </button>
-                        {isBanned && (
-                          <button
-                            onClick={() => handleSecurityAction(user || bannedUser, 'unban_user')}
-                            style={{...styles.endSessionButton, background: '#10b981'}}
-                          >
-                            ✓ Unban User
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleSecurityAction(user || bannedUser, 'unban_user')}
+                          style={{...styles.endSessionButton, background: '#10b981'}}
+                        >
+                          ✓ Unban User
+                        </button>
                       </div>
                     </div>
                     <div style={styles.logBody}>
@@ -1045,13 +1171,10 @@ export default function SecurityDashboard() {
                       <p><strong>Name:</strong> {bannedUser.first_name} {bannedUser.last_name}</p>
                       {bannedUser.banned_at && <p><strong>Banned At:</strong> {formatDateTime(bannedUser.banned_at)}</p>}
                       {bannedUser.status_changed_at && <p><strong>Status Changed:</strong> {formatDateTime(bannedUser.status_changed_at)}</p>}
-                      {isSuspended && bannedUser.suspension_end_date && (
-                        <p><strong>Suspension Ends:</strong> {formatDateTime(bannedUser.suspension_end_date)}</p>
-                      )}
                       {bannedUser.reason && (
-                        <div style={{marginTop: '12px', padding: '12px', background: '#f9fafb', borderRadius: '6px'}}>
-                          <p style={{margin: '0 0 4px 0', fontWeight: '600', color: '#374151'}}>Restriction Reason:</p>
-                          <p style={{margin: 0, color: '#6b7280', fontSize: '14px'}}>{bannedUser.reason}</p>
+                        <div style={{marginTop: '12px', padding: '12px', background: '#fee2e2', borderRadius: '6px'}}>
+                          <p style={{margin: '0 0 4px 0', fontWeight: '600', color: '#991b1b'}}>Ban Reason:</p>
+                          <p style={{margin: 0, color: '#7f1d1d', fontSize: '14px'}}>{bannedUser.reason}</p>
                         </div>
                       )}
                       {bannedUser.ban_display_message && (
