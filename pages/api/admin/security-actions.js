@@ -250,6 +250,54 @@ export default async function handler(req, res) {
         result = { message: 'Failed login attempts reset successfully' };
         break;
 
+      case 'ban_user':
+        // Ban user account
+        const banDuration = data?.banDuration || '876000h'; // Default 100 years
+        const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          ban_duration: banDuration
+        });
+
+        if (banError) throw banError;
+
+        // Log suspicious activity
+        await supabaseAdmin.from('suspicious_activity').insert({
+          user_id: userId,
+          activity_type: 'account_banned',
+          description: `Account banned by admin: ${reason || 'No reason provided'}`,
+          risk_level: 'high',
+          metadata: { admin_id: admin.id, admin_email: admin.email }
+        });
+
+        // Send email notification
+        await sendEmail({
+          to: userEmail,
+          subject: '🚫 Your Account Has Been Banned - Oakline Bank',
+          type: EMAIL_TYPES.SECURITY,
+          html: generateAccountBannedEmail(userName, reason)
+        });
+
+        result = { message: 'User banned successfully' };
+        break;
+
+      case 'unban_user':
+        // Unban user account
+        const { error: unbanError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          ban_duration: 'none'
+        });
+
+        if (unbanError) throw unbanError;
+
+        // Send email notification
+        await sendEmail({
+          to: userEmail,
+          subject: '✅ Your Account Has Been Unbanned - Oakline Bank',
+          type: EMAIL_TYPES.SECURITY,
+          html: generateAccountUnbannedEmail(userName)
+        });
+
+        result = { message: 'User unbanned successfully' };
+        break;
+
       default:
         return res.status(400).json({ error: 'Invalid action' });
     }
@@ -379,6 +427,45 @@ function generate2FAEnabledEmail(userName) {
         <p>Dear ${userName},</p>
         <p>Two-factor authentication has been enabled for your Oakline Bank account for enhanced security.</p>
         <p>You will now need to provide an additional verification code when signing in.</p>
+        <p>Best regards,<br>Oakline Bank Security Team</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function generateAccountBannedEmail(userName, reason) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); padding: 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0;">🚫 Account Banned</h1>
+      </div>
+      <div style="padding: 32px;">
+        <p>Dear ${userName},</p>
+        <p>Your Oakline Bank account has been permanently banned.</p>
+        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+        <p>If you believe this is an error, please contact our support team at <a href="mailto:support@theoaklinebank.com">support@theoaklinebank.com</a>.</p>
+        <p>Best regards,<br>Oakline Bank Security Team</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function generateAccountUnbannedEmail(userName) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0;">✅ Account Unbanned</h1>
+      </div>
+      <div style="padding: 32px;">
+        <p>Dear ${userName},</p>
+        <p>Good news! Your Oakline Bank account ban has been lifted and you can now access your account normally.</p>
+        <p>If you did not request this change, please contact us immediately.</p>
         <p>Best regards,<br>Oakline Bank Security Team</p>
       </div>
     </body>

@@ -1,9 +1,10 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function SecurityDashboard() {
@@ -25,6 +26,16 @@ export default function SecurityDashboard() {
   const [riskFilter, setRiskFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [userFilter, setUserFilter] = useState('all');
+  const [bannedFilter, setBannedFilter] = useState('all');
+  
+  const [loadingBanner, setLoadingBanner] = useState({
+    visible: false,
+    current: 0,
+    total: 0,
+    action: '',
+    message: ''
+  });
   
   const [securityData, setSecurityData] = useState({
     loginHistory: [],
@@ -32,7 +43,9 @@ export default function SecurityDashboard() {
     suspiciousActivity: [],
     auditLogs: [],
     systemLogs: [],
-    passwordHistory: []
+    passwordHistory: [],
+    pinHistory: [],
+    bannedUsers: []
   });
 
   useEffect(() => {
@@ -41,7 +54,7 @@ export default function SecurityDashboard() {
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchTerm, statusFilter, riskFilter, dateFilter, dateRange, activeTab]);
+  }, [users, searchTerm, statusFilter, riskFilter, dateFilter, dateRange, activeTab, userFilter, bannedFilter]);
 
   const fetchSecurityData = async () => {
     try {
@@ -76,7 +89,7 @@ export default function SecurityDashboard() {
         .from('user_sessions')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('last_activity', { ascending: false });
 
       if (sessionsError) console.error('Sessions error:', sessionsError);
 
@@ -116,13 +129,39 @@ export default function SecurityDashboard() {
 
       if (passwordError) console.error('Password history error:', passwordError);
 
+      // Fetch PIN history from system logs
+      const pinHistory = (systemLogs || []).filter(log => 
+        log.type === 'auth' && 
+        (log.message?.includes('Transaction PIN') || log.message?.includes('PIN'))
+      );
+
+      // Fetch banned users from auth.users
+      let bannedUsers = [];
+      try {
+        const { data: authData } = await supabase.auth.admin.listUsers();
+        if (authData?.users) {
+          bannedUsers = authData.users.filter(user => 
+            user.banned_until || user.ban_duration
+          ).map(user => ({
+            id: user.id,
+            email: user.email,
+            banned_until: user.banned_until,
+            ban_duration: user.ban_duration
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching banned users:', err);
+      }
+
       setSecurityData({
         loginHistory: loginHistory || [],
         activeSessions: activeSessions || [],
         suspiciousActivity: suspiciousActivity || [],
         auditLogs: auditLogs || [],
         systemLogs: systemLogs || [],
-        passwordHistory: passwordHistory || []
+        passwordHistory: passwordHistory || [],
+        pinHistory: pinHistory || [],
+        bannedUsers: bannedUsers || []
       });
 
       // Enrich users with security data
@@ -132,17 +171,27 @@ export default function SecurityDashboard() {
         const userSuspicious = (suspiciousActivity || []).filter(s => s.user_id === profile.id);
         const failedLogins = userLogins.filter(l => !l.success);
         const lastLogin = userLogins[0];
+        const userPinHistory = pinHistory.filter(p => p.user_id === profile.id);
+        const isBanned = bannedUsers.some(b => b.id === profile.id);
+        
+        // Get unique devices based on user_agent
+        const uniqueDevices = [...new Set(userSessions.map(s => s.user_agent))];
         
         return {
           ...profile,
           loginCount: userLogins.length,
           failedLoginCount: failedLogins.length,
           activeSessionsCount: userSessions.length,
+          uniqueDevicesCount: uniqueDevices.length,
           suspiciousActivityCount: userSuspicious.filter(s => !s.resolved).length,
           lastLoginTime: lastLogin?.login_time,
           lastLoginSuccess: lastLogin?.success,
           lastIpAddress: lastLogin?.ip_address,
-          riskLevel: calculateRiskLevel(failedLogins.length, userSuspicious.length, userSessions.length)
+          riskLevel: calculateRiskLevel(failedLogins.length, userSuspicious.length, userSessions.length),
+          pinChangesCount: userPinHistory.length,
+          isBanned: isBanned,
+          sessions: userSessions,
+          pinHistory: userPinHistory
         };
       });
 
@@ -174,8 +223,18 @@ export default function SecurityDashboard() {
       });
     }
 
+    if (userFilter !== 'all') {
+      filtered = filtered.filter(user => user.id === userFilter);
+    }
+
     if (riskFilter !== 'all') {
       filtered = filtered.filter(user => user.riskLevel === riskFilter);
+    }
+
+    if (bannedFilter === 'banned') {
+      filtered = filtered.filter(user => user.isBanned);
+    } else if (bannedFilter === 'active') {
+      filtered = filtered.filter(user => !user.isBanned);
     }
 
     if (dateFilter === 'custom' && (dateRange.start || dateRange.end)) {
@@ -206,6 +265,13 @@ export default function SecurityDashboard() {
     if (!selectedUser || !actionType) return;
 
     setActionLoading(true);
+    setLoadingBanner({
+      visible: true,
+      current: 1,
+      total: 1,
+      action: getActionLabel(actionType),
+      message: 'Processing security action...'
+    });
     setError('');
     setSuccess('');
 
@@ -242,6 +308,40 @@ export default function SecurityDashboard() {
       setError('❌ ' + err.message);
     } finally {
       setActionLoading(false);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+    }
+  };
+
+  const handleEndSession = async (session) => {
+    if (!confirm(`End session for device: ${session.device_type}?\nIP: ${session.ip_address}`)) {
+      return;
+    }
+
+    setLoadingBanner({
+      visible: true,
+      current: 1,
+      total: 1,
+      action: 'Ending Session',
+      message: 'Terminating user session...'
+    });
+
+    try {
+      const { error } = await supabase
+        .from('user_sessions')
+        .update({ 
+          is_active: false,
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', session.id);
+
+      if (error) throw error;
+
+      setSuccess('✅ Session ended successfully!');
+      await fetchSecurityData();
+    } catch (err) {
+      setError('❌ Failed to end session: ' + err.message);
+    } finally {
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     }
   };
 
@@ -253,7 +353,9 @@ export default function SecurityDashboard() {
       sign_out_all_devices: 'Sign Out All Devices',
       enable_2fa: 'Enable 2FA',
       disable_2fa: 'Disable 2FA',
-      reset_failed_attempts: 'Reset Failed Attempts'
+      reset_failed_attempts: 'Reset Failed Attempts',
+      ban_user: 'Ban User',
+      unban_user: 'Unban User'
     };
     return labels[action] || action;
   };
@@ -292,11 +394,19 @@ export default function SecurityDashboard() {
     suspiciousActivities: users.reduce((sum, u) => sum + u.suspiciousActivityCount, 0),
     totalLogins: securityData.loginHistory.length,
     failedLogins: securityData.loginHistory.filter(l => !l.success).length,
-    activeSessions: securityData.activeSessions.length
+    activeSessions: securityData.activeSessions.length,
+    bannedUsers: securityData.bannedUsers.length
   };
 
   return (
     <AdminAuth>
+      <AdminLoadingBanner
+        isVisible={loadingBanner.visible}
+        current={loadingBanner.current}
+        total={loadingBanner.total}
+        action={loadingBanner.action}
+        message={loadingBanner.message}
+      />
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
@@ -353,11 +463,15 @@ export default function SecurityDashboard() {
             <h3 style={styles.statLabel}>Failed Logins</h3>
             <p style={styles.statValue}>{stats.failedLogins}</p>
           </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #991b1b'}}>
+            <h3 style={styles.statLabel}>Banned Users</h3>
+            <p style={styles.statValue}>{stats.bannedUsers}</p>
+          </div>
         </div>
 
         {/* Tabs */}
         <div style={styles.tabs}>
-          {['overview', 'login_history', 'active_sessions', 'suspicious', 'audit_logs', 'system_logs', 'password_history'].map(tab => (
+          {['overview', 'login_history', 'active_sessions', 'pin_history', 'suspicious', 'banned_users', 'audit_logs', 'system_logs', 'password_history'].map(tab => (
             <button
               key={tab}
               style={activeTab === tab ? {...styles.tab, ...styles.activeTab} : styles.tab}
@@ -366,10 +480,12 @@ export default function SecurityDashboard() {
               {tab === 'overview' && '📊 Overview'}
               {tab === 'login_history' && '📜 Login History'}
               {tab === 'active_sessions' && '💻 Active Sessions'}
+              {tab === 'pin_history' && '🔑 PIN History'}
               {tab === 'suspicious' && '⚠️ Suspicious Activity'}
+              {tab === 'banned_users' && '🚫 Banned Users'}
               {tab === 'audit_logs' && '📋 Audit Logs'}
               {tab === 'system_logs' && '🖥️ System Logs'}
-              {tab === 'password_history' && '🔑 Password History'}
+              {tab === 'password_history' && '🔐 Password History'}
             </button>
           ))}
         </div>
@@ -383,11 +499,24 @@ export default function SecurityDashboard() {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
           />
+          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Users</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.first_name} {user.last_name} ({user.email})
+              </option>
+            ))}
+          </select>
           <select value={riskFilter} onChange={(e) => setRiskFilter(e.target.value)} style={styles.filterSelect}>
             <option value="all">All Risk Levels</option>
             <option value="high">High Risk</option>
             <option value="medium">Medium Risk</option>
             <option value="low">Low Risk</option>
+          </select>
+          <select value={bannedFilter} onChange={(e) => setBannedFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Status</option>
+            <option value="active">Active Users</option>
+            <option value="banned">Banned Users</option>
           </select>
           <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={styles.filterSelect}>
             <option value="all">All Time</option>
@@ -457,6 +586,7 @@ export default function SecurityDashboard() {
                       <div>
                         <h3 style={styles.userName}>
                           {user.first_name} {user.last_name}
+                          {user.isBanned && <span style={styles.bannedBadge}>🚫 BANNED</span>}
                         </h3>
                         <p style={styles.userEmail}>{user.email}</p>
                       </div>
@@ -477,10 +607,18 @@ export default function SecurityDashboard() {
                         <span style={styles.infoValue}>{user.activeSessionsCount}</span>
                       </div>
                       <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Unique Devices:</span>
+                        <span style={styles.infoValue}>{user.uniqueDevicesCount}</span>
+                      </div>
+                      <div style={styles.userInfo}>
                         <span style={styles.infoLabel}>Failed Logins:</span>
                         <span style={{...styles.infoValue, color: user.failedLoginCount > 0 ? '#dc2626' : '#059669'}}>
                           {user.failedLoginCount}
                         </span>
+                      </div>
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>PIN Changes:</span>
+                        <span style={styles.infoValue}>{user.pinChangesCount}</span>
                       </div>
                       <div style={styles.userInfo}>
                         <span style={styles.infoLabel}>Suspicious Activities:</span>
@@ -491,6 +629,21 @@ export default function SecurityDashboard() {
                     </div>
 
                     <div style={styles.userCardFooter}>
+                      {user.isBanned ? (
+                        <button
+                          onClick={() => handleSecurityAction(user, 'unban_user')}
+                          style={{...styles.actionButton, background: '#10b981'}}
+                        >
+                          ✓ Unban User
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSecurityAction(user, 'ban_user')}
+                          style={{...styles.actionButton, background: '#dc2626'}}
+                        >
+                          🚫 Ban User
+                        </button>
+                      )}
                       <button
                         onClick={() => handleSecurityAction(user, 'lock_account')}
                         style={styles.actionButton}
@@ -523,121 +676,218 @@ export default function SecurityDashboard() {
           ) : activeTab === 'login_history' ? (
             <div style={styles.logsList}>
               <h3 style={styles.logsTitle}>Recent Login Attempts ({securityData.loginHistory.length})</h3>
-              {securityData.loginHistory.slice(0, 100).map(log => (
-                <div key={log.id} style={{...styles.logCard, backgroundColor: log.success ? 'white' : '#fef2f2'}}>
-                  <div style={styles.logHeader}>
-                    <span style={log.success ? styles.successBadge : styles.failedBadge}>
-                      {log.success ? '✓ Success' : '✕ Failed'}
-                    </span>
-                    <span style={styles.logTime}>{formatDateTime(log.login_time)}</span>
+              {securityData.loginHistory.slice(0, 100).map(log => {
+                const user = users.find(u => u.id === log.user_id);
+                return (
+                  <div key={log.id} style={{...styles.logCard, backgroundColor: log.success ? 'white' : '#fef2f2'}}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={log.success ? styles.successBadge : styles.failedBadge}>
+                          {log.success ? '✓ Success' : '✕ Failed'}
+                        </span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <span style={styles.logTime}>{formatDateTime(log.login_time)}</span>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
+                      <p><strong>IP:</strong> {log.ip_address || 'N/A'}</p>
+                      <p><strong>Device:</strong> {log.device_type || 'Unknown'} • {log.browser || 'N/A'} • {log.os || 'N/A'}</p>
+                      {log.city && log.country && <p><strong>Location:</strong> {log.city}, {log.country}</p>}
+                      {!log.success && log.failure_reason && <p><strong>Reason:</strong> {log.failure_reason}</p>}
+                    </div>
                   </div>
-                  <div style={styles.logBody}>
-                    <p><strong>IP:</strong> {log.ip_address || 'N/A'}</p>
-                    <p><strong>Device:</strong> {log.device_type || 'Unknown'} • {log.browser || 'N/A'} • {log.os || 'N/A'}</p>
-                    {log.city && log.country && <p><strong>Location:</strong> {log.city}, {log.country}</p>}
-                    {!log.success && log.failure_reason && <p><strong>Reason:</strong> {log.failure_reason}</p>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : activeTab === 'active_sessions' ? (
             <div style={styles.logsList}>
               <h3 style={styles.logsTitle}>Active User Sessions ({securityData.activeSessions.length})</h3>
-              {securityData.activeSessions.map(session => (
-                <div key={session.id} style={styles.logCard}>
-                  <div style={styles.logHeader}>
-                    <span style={styles.activeBadge}>🟢 Active</span>
-                    <span style={styles.logTime}>Started: {formatDateTime(session.created_at)}</span>
+              {securityData.activeSessions.map(session => {
+                const user = users.find(u => u.id === session.user_id);
+                return (
+                  <div key={session.id} style={styles.logCard}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={styles.activeBadge}>🟢 Active</span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <button 
+                        onClick={() => handleEndSession(session)}
+                        style={styles.endSessionButton}
+                      >
+                        🚪 End Session
+                      </button>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
+                      <p><strong>IP:</strong> {session.ip_address || 'N/A'}</p>
+                      <p><strong>Device:</strong> {session.device_type || 'Unknown'}</p>
+                      <p><strong>Started:</strong> {formatDateTime(session.created_at)}</p>
+                      <p><strong>Last Activity:</strong> {formatDateTime(session.last_activity)}</p>
+                      <p><strong>User Agent:</strong> {session.user_agent || 'N/A'}</p>
+                    </div>
                   </div>
-                  <div style={styles.logBody}>
-                    <p><strong>IP:</strong> {session.ip_address || 'N/A'}</p>
-                    <p><strong>Device:</strong> {session.device_type || 'Unknown'}</p>
-                    <p><strong>Last Activity:</strong> {formatDateTime(session.last_activity)}</p>
-                    <p><strong>User Agent:</strong> {session.user_agent || 'N/A'}</p>
+                );
+              })}
+            </div>
+          ) : activeTab === 'pin_history' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Transaction PIN History ({securityData.pinHistory.length})</h3>
+              {securityData.pinHistory.map(log => {
+                const user = users.find(u => u.id === log.user_id);
+                return (
+                  <div key={log.id} style={styles.logCard}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={styles.pinBadge}>🔑 PIN Activity</span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
+                      <p><strong>Action:</strong> {log.message}</p>
+                      {log.details && <p><strong>Details:</strong> {JSON.stringify(log.details).substring(0, 100)}...</p>}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          ) : activeTab === 'banned_users' ? (
+            <div style={styles.logsList}>
+              <h3 style={styles.logsTitle}>Banned Users ({securityData.bannedUsers.length})</h3>
+              {securityData.bannedUsers.map(bannedUser => {
+                const user = users.find(u => u.id === bannedUser.id);
+                return (
+                  <div key={bannedUser.id} style={{...styles.logCard, borderLeft: '4px solid #dc2626'}}>
+                    <div style={styles.logHeader}>
+                      <span style={styles.bannedBadge}>🚫 BANNED</span>
+                      <button
+                        onClick={() => handleSecurityAction(user, 'unban_user')}
+                        style={{...styles.endSessionButton, background: '#10b981'}}
+                      >
+                        ✓ Unban User
+                      </button>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {bannedUser.email}</p>
+                      <p><strong>Name:</strong> {user?.first_name} {user?.last_name}</p>
+                      {bannedUser.banned_until && <p><strong>Banned Until:</strong> {formatDateTime(bannedUser.banned_until)}</p>}
+                      {bannedUser.ban_duration && <p><strong>Ban Duration:</strong> {bannedUser.ban_duration}</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : activeTab === 'suspicious' ? (
             <div style={styles.logsList}>
               <h3 style={styles.logsTitle}>Suspicious Activity Reports ({securityData.suspiciousActivity.length})</h3>
-              {securityData.suspiciousActivity.map(activity => (
-                <div key={activity.id} style={{...styles.logCard, borderLeft: `4px solid ${activity.risk_level === 'high' ? '#dc2626' : activity.risk_level === 'medium' ? '#f59e0b' : '#10b981'}`}}>
-                  <div style={styles.logHeader}>
-                    <span style={{
-                      ...styles.riskBadge,
-                      backgroundColor: activity.risk_level === 'high' ? '#fee2e2' : activity.risk_level === 'medium' ? '#fef3c7' : '#d1fae5',
-                      color: activity.risk_level === 'high' ? '#991b1b' : activity.risk_level === 'medium' ? '#92400e' : '#065f46'
-                    }}>
-                      {activity.risk_level?.toUpperCase() || 'UNKNOWN'}
-                    </span>
-                    <span style={styles.logTime}>{formatDateTime(activity.created_at)}</span>
+              {securityData.suspiciousActivity.map(activity => {
+                const user = users.find(u => u.id === activity.user_id);
+                return (
+                  <div key={activity.id} style={{...styles.logCard, borderLeft: `4px solid ${activity.risk_level === 'high' ? '#dc2626' : activity.risk_level === 'medium' ? '#f59e0b' : '#10b981'}`}}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={{
+                          ...styles.riskBadge,
+                          backgroundColor: activity.risk_level === 'high' ? '#fee2e2' : activity.risk_level === 'medium' ? '#fef3c7' : '#d1fae5',
+                          color: activity.risk_level === 'high' ? '#991b1b' : activity.risk_level === 'medium' ? '#92400e' : '#065f46'
+                        }}>
+                          {activity.risk_level?.toUpperCase() || 'UNKNOWN'}
+                        </span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <span style={styles.logTime}>{formatDateTime(activity.created_at)}</span>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
+                      <p><strong>Type:</strong> {activity.activity_type}</p>
+                      <p><strong>Description:</strong> {activity.description}</p>
+                      {activity.ip_address && <p><strong>IP:</strong> {activity.ip_address}</p>}
+                      <p><strong>Status:</strong> {activity.resolved ? '✅ Resolved' : '⏳ Pending'}</p>
+                    </div>
                   </div>
-                  <div style={styles.logBody}>
-                    <p><strong>Type:</strong> {activity.activity_type}</p>
-                    <p><strong>Description:</strong> {activity.description}</p>
-                    {activity.ip_address && <p><strong>IP:</strong> {activity.ip_address}</p>}
-                    <p><strong>Status:</strong> {activity.resolved ? '✅ Resolved' : '⏳ Pending'}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : activeTab === 'audit_logs' ? (
             <div style={styles.logsList}>
               <h3 style={styles.logsTitle}>Audit Trail ({securityData.auditLogs.length})</h3>
-              {securityData.auditLogs.slice(0, 100).map(log => (
-                <div key={log.id} style={styles.logCard}>
-                  <div style={styles.logHeader}>
-                    <span style={styles.auditBadge}>{log.action}</span>
-                    <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+              {securityData.auditLogs.slice(0, 100).map(log => {
+                const user = users.find(u => u.id === log.user_id);
+                return (
+                  <div key={log.id} style={styles.logCard}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={styles.auditBadge}>{log.action}</span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
+                      {log.table_name && <p><strong>Table:</strong> {log.table_name}</p>}
+                      {log.old_data && <p><strong>Old Data:</strong> {JSON.stringify(log.old_data).substring(0, 100)}...</p>}
+                      {log.new_data && <p><strong>New Data:</strong> {JSON.stringify(log.new_data).substring(0, 100)}...</p>}
+                    </div>
                   </div>
-                  <div style={styles.logBody}>
-                    {log.table_name && <p><strong>Table:</strong> {log.table_name}</p>}
-                    {log.old_data && <p><strong>Old Data:</strong> {JSON.stringify(log.old_data).substring(0, 100)}...</p>}
-                    {log.new_data && <p><strong>New Data:</strong> {JSON.stringify(log.new_data).substring(0, 100)}...</p>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : activeTab === 'system_logs' ? (
             <div style={styles.logsList}>
               <h3 style={styles.logsTitle}>System Events ({securityData.systemLogs.length})</h3>
-              {securityData.systemLogs.slice(0, 100).map(log => (
-                <div key={log.id} style={styles.logCard}>
-                  <div style={styles.logHeader}>
-                    <span style={{
-                      ...styles.levelBadge,
-                      backgroundColor: log.level === 'error' ? '#fee2e2' : log.level === 'warning' ? '#fef3c7' : '#e0f2fe',
-                      color: log.level === 'error' ? '#991b1b' : log.level === 'warning' ? '#92400e' : '#075985'
-                    }}>
-                      {log.level?.toUpperCase() || 'INFO'}
-                    </span>
-                    <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+              {securityData.systemLogs.slice(0, 100).map(log => {
+                const user = users.find(u => u.id === log.user_id);
+                return (
+                  <div key={log.id} style={styles.logCard}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={{
+                          ...styles.levelBadge,
+                          backgroundColor: log.level === 'error' ? '#fee2e2' : log.level === 'warning' ? '#fef3c7' : '#e0f2fe',
+                          color: log.level === 'error' ? '#991b1b' : log.level === 'warning' ? '#92400e' : '#075985'
+                        }}>
+                          {log.level?.toUpperCase() || 'INFO'}
+                        </span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <span style={styles.logTime}>{formatDateTime(log.created_at)}</span>
+                    </div>
+                    <div style={styles.logBody}>
+                      {user && <p><strong>Email:</strong> {user.email}</p>}
+                      <p><strong>Type:</strong> {log.type}</p>
+                      <p><strong>Message:</strong> {log.message}</p>
+                      {log.details && <p><strong>Details:</strong> {JSON.stringify(log.details).substring(0, 100)}...</p>}
+                    </div>
                   </div>
-                  <div style={styles.logBody}>
-                    <p><strong>Type:</strong> {log.type}</p>
-                    <p><strong>Message:</strong> {log.message}</p>
-                    {log.details && <p><strong>Details:</strong> {JSON.stringify(log.details).substring(0, 100)}...</p>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : activeTab === 'password_history' ? (
             <div style={styles.logsList}>
               <h3 style={styles.logsTitle}>Password Changes ({securityData.passwordHistory.length})</h3>
-              {securityData.passwordHistory.slice(0, 100).map(log => (
-                <div key={log.id} style={styles.logCard}>
-                  <div style={styles.logHeader}>
-                    <span style={styles.passwordBadge}>{log.method || 'user_settings'}</span>
-                    <span style={styles.logTime}>{formatDateTime(log.changed_at)}</span>
+              {securityData.passwordHistory.slice(0, 100).map(log => {
+                const user = users.find(u => u.id === log.user_id);
+                return (
+                  <div key={log.id} style={styles.logCard}>
+                    <div style={styles.logHeader}>
+                      <div>
+                        <span style={styles.passwordBadge}>{log.method || 'user_settings'}</span>
+                        {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
+                      </div>
+                      <span style={styles.logTime}>{formatDateTime(log.changed_at)}</span>
+                    </div>
+                    <div style={styles.logBody}>
+                      <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
+                      <p><strong>Changed By:</strong> {log.changed_by || 'User'}</p>
+                      {log.ip_address && <p><strong>IP:</strong> {log.ip_address}</p>}
+                      {log.user_agent && <p><strong>User Agent:</strong> {log.user_agent.substring(0, 60)}...</p>}
+                    </div>
                   </div>
-                  <div style={styles.logBody}>
-                    <p><strong>Changed By:</strong> {log.changed_by || 'User'}</p>
-                    {log.ip_address && <p><strong>IP:</strong> {log.ip_address}</p>}
-                    {log.user_agent && <p><strong>User Agent:</strong> {log.user_agent.substring(0, 60)}...</p>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
         </div>
@@ -658,6 +908,7 @@ export default function SecurityDashboard() {
                   <p><strong>User:</strong> {selectedUser.first_name} {selectedUser.last_name}</p>
                   <p><strong>Email:</strong> {selectedUser.email}</p>
                   <p><strong>Risk Level:</strong> {selectedUser.riskLevel?.toUpperCase()}</p>
+                  {selectedUser.isBanned && <p style={{color: '#dc2626'}}><strong>Status:</strong> BANNED</p>}
                 </div>
                 <div style={styles.inputGroup}>
                   <label style={styles.label}>Reason (required):</label>
@@ -864,7 +1115,8 @@ const styles = {
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     cursor: 'pointer',
-    outline: 'none'
+    outline: 'none',
+    minWidth: '150px'
   },
   dateRangeSection: {
     backgroundColor: 'white',
@@ -973,12 +1225,33 @@ const styles = {
     margin: '0 0 4px 0',
     fontSize: 'clamp(1rem, 3vw, 18px)',
     color: '#1A3E6F',
-    fontWeight: '600'
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap'
   },
   userEmail: {
     margin: 0,
     fontSize: 'clamp(0.8rem, 2vw, 14px)',
     color: '#718096'
+  },
+  bannedBadge: {
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    fontWeight: '700',
+    backgroundColor: '#fee2e2',
+    color: '#991b1b'
+  },
+  userBadge: {
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    fontWeight: '600',
+    backgroundColor: '#e0f2fe',
+    color: '#075985',
+    marginLeft: '8px'
   },
   userCardBody: {
     marginBottom: '16px'
@@ -1074,6 +1347,14 @@ const styles = {
     backgroundColor: '#d1fae5',
     color: '#065f46'
   },
+  pinBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    color: '#92400e'
+  },
   riskBadge: {
     padding: '4px 12px',
     borderRadius: '12px',
@@ -1101,6 +1382,16 @@ const styles = {
     fontWeight: '600',
     backgroundColor: '#dbeafe',
     color: '#1e40af'
+  },
+  endSessionButton: {
+    padding: '6px 12px',
+    background: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    cursor: 'pointer'
   },
   modalOverlay: {
     position: 'fixed',
