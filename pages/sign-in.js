@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 
-export default function AdminLogin() {
+export default function SignIn() {
   const router = useRouter();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -33,29 +33,38 @@ export default function AdminLogin() {
           // Fetch the professional ban message from profiles
           const { data: profile } = await supabase
             .from('profiles')
-            .select('ban_display_message, is_banned')
+            .select('ban_display_message, is_banned, status')
             .eq('email', formData.email)
             .single();
 
           if (profile?.is_banned && profile?.ban_display_message) {
+            throw new Error(profile.ban_display_message);
+          } else if (profile?.status === 'suspended' && profile?.ban_display_message) {
             throw new Error(profile.ban_display_message);
           }
         }
         throw authError;
       }
 
-      const { data: adminProfile, error: profileError } = await supabase
-        .from('admin_profiles')
-        .select('*')
+      // Check if user's account is locked or in other restricted status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_banned, status, ban_display_message')
         .eq('id', authData.user.id)
         .single();
 
-      if (profileError || !adminProfile) {
+      if (profile?.is_banned) {
         await supabase.auth.signOut();
-        throw new Error('Access denied. You are not authorized as an admin.');
+        throw new Error(profile.ban_display_message || 'Your account has been restricted. Please contact support.');
       }
 
-      router.push('/admin/dashboard');
+      if (profile?.status && !['active', 'pending'].includes(profile.status)) {
+        await supabase.auth.signOut();
+        throw new Error(profile.ban_display_message || `Your account is ${profile.status}. Please contact support for assistance.`);
+      }
+
+      // Redirect to user dashboard
+      router.push('/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -69,10 +78,10 @@ export default function AdminLogin() {
         <div style={styles.loginCard}>
           <div style={styles.headerSection}>
             <div style={styles.iconWrapper}>
-              <span style={styles.icon}>🔐</span>
+              <span style={styles.icon}>🏦</span>
             </div>
-            <h1 style={styles.title}>Admin Login</h1>
-            <p style={styles.subtitle}>Secure access to Oakline Bank administration</p>
+            <h1 style={styles.title}>Sign In</h1>
+            <p style={styles.subtitle}>Welcome back to Oakline Bank</p>
           </div>
 
           <form onSubmit={handleSubmit} style={styles.form}>
@@ -85,7 +94,7 @@ export default function AdminLogin() {
                 onChange={handleChange}
                 required
                 style={styles.input}
-                placeholder="admin@oaklinebank.com"
+                placeholder="your.email@example.com"
               />
             </div>
 
@@ -99,7 +108,7 @@ export default function AdminLogin() {
                   onChange={handleChange}
                   required
                   style={styles.input}
-                  placeholder="Enter your secure password"
+                  placeholder="Enter your password"
                 />
                 <button
                   type="button"
@@ -134,16 +143,19 @@ export default function AdminLogin() {
               ) : (
                 <>
                   <span>🔓</span>
-                  Sign In to Dashboard
+                  Sign In
                 </>
               )}
             </button>
           </form>
 
           <div style={styles.footer}>
+            <Link href="/forgot-password" style={styles.link}>
+              Forgot Password?
+            </Link>
             <div style={styles.secureNotice}>
               <span>🔒</span>
-              <span>Secure admin access • SSL encrypted</span>
+              <span>Secure banking • SSL encrypted</span>
             </div>
           </div>
         </div>
@@ -302,6 +314,14 @@ const styles = {
     marginTop: '2rem',
     textAlign: 'center'
   },
+  link: {
+    color: '#1A3E6F',
+    textDecoration: 'none',
+    fontWeight: '600',
+    fontSize: '0.95rem',
+    marginBottom: '1rem',
+    display: 'inline-block'
+  },
   secureNotice: {
     display: 'flex',
     alignItems: 'center',
@@ -309,6 +329,7 @@ const styles = {
     gap: '0.5rem',
     fontSize: '0.9rem',
     color: '#64748b',
-    fontWeight: '500'
+    fontWeight: '500',
+    marginTop: '1rem'
   }
 };
