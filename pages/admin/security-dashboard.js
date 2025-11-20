@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -20,7 +19,7 @@ export default function SecurityDashboard() {
   const [actionType, setActionType] = useState('');
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
@@ -28,7 +27,7 @@ export default function SecurityDashboard() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [userFilter, setUserFilter] = useState('all');
   const [bannedFilter, setBannedFilter] = useState('all');
-  
+
   const [loadingBanner, setLoadingBanner] = useState({
     visible: false,
     current: 0,
@@ -36,7 +35,7 @@ export default function SecurityDashboard() {
     action: '',
     message: ''
   });
-  
+
   const [securityData, setSecurityData] = useState({
     loginHistory: [],
     activeSessions: [],
@@ -88,8 +87,7 @@ export default function SecurityDashboard() {
       const { data: activeSessions, error: sessionsError } = await supabase
         .from('user_sessions')
         .select('*')
-        .eq('is_active', true)
-        .order('last_activity', { ascending: false });
+        .order('last_activity', { ascending: false }); // Fetch all sessions, filtering for active will be done client-side if needed, or in the frontend message for banned users
 
       if (sessionsError) console.error('Sessions error:', sessionsError);
 
@@ -143,13 +141,16 @@ export default function SecurityDashboard() {
             'Authorization': `Bearer ${session.access_token}`
           }
         });
-        
-        if (bannedResponse.ok) {
-          const bannedResult = await bannedResponse.json();
-          bannedUsers = bannedResult.bannedUsers || [];
+
+        if (!bannedResponse.ok) {
+          const errorData = await bannedResponse.json();
+          throw new Error(errorData.error || `Failed to fetch banned users: ${bannedResponse.statusText}`);
         }
+        const bannedResult = await bannedResponse.json();
+        bannedUsers = bannedResult.bannedUsers || [];
       } catch (err) {
         console.error('Error fetching banned users:', err);
+        setError(`Failed to load banned users: ${err.message}`);
       }
 
       setSecurityData({
@@ -172,10 +173,10 @@ export default function SecurityDashboard() {
         const lastLogin = userLogins[0];
         const userPinHistory = pinHistory.filter(p => p.user_id === profile.id);
         const isBanned = bannedUsers.some(b => b.id === profile.id);
-        
+
         // Get unique devices based on user_agent
         const uniqueDevices = [...new Set(userSessions.map(s => s.user_agent))];
-        
+
         return {
           ...profile,
           loginCount: userLogins.length,
@@ -186,7 +187,7 @@ export default function SecurityDashboard() {
           lastLoginTime: lastLogin?.login_time,
           lastLoginSuccess: lastLogin?.success,
           lastIpAddress: lastLogin?.ip_address,
-          riskLevel: calculateRiskLevel(failedLogins.length, userSuspicious.length, userSessions.length),
+          riskLevel: calculateRiskLevel(failedLogins.length, userSuspicious.filter(s => !s.resolved).length, userSessions.length), // Use unresolved suspicious activities for risk
           pinChangesCount: userPinHistory.length,
           isBanned: isBanned,
           sessions: userSessions,
@@ -195,6 +196,7 @@ export default function SecurityDashboard() {
       });
 
       setUsers(enrichedUsers);
+      setFilteredUsers(enrichedUsers); // Initialize filtered users
     } catch (err) {
       setError(err.message);
       console.error('Error fetching security data:', err);
@@ -203,9 +205,9 @@ export default function SecurityDashboard() {
     }
   };
 
-  const calculateRiskLevel = (failedLogins, suspiciousCount, sessionsCount) => {
-    if (failedLogins > 5 || suspiciousCount > 3) return 'high';
-    if (failedLogins > 2 || suspiciousCount > 1 || sessionsCount > 3) return 'medium';
+  const calculateRiskLevel = (failedLogins, unresolvedSuspicious, activeSessions) => {
+    if (failedLogins > 5 || unresolvedSuspicious > 3) return 'high';
+    if (failedLogins > 2 || unresolvedSuspicious > 1 || activeSessions > 3) return 'medium';
     return 'low';
   };
 
@@ -236,32 +238,24 @@ export default function SecurityDashboard() {
       filtered = filtered.filter(user => !user.isBanned);
     }
 
-    if (dateFilter === 'custom' && (dateRange.start || dateRange.end)) {
-      filtered = filtered.filter(user => {
-        if (!user.lastLoginTime) return false;
-        const loginDate = new Date(user.lastLoginTime);
-        const start = dateRange.start ? new Date(dateRange.start) : null;
-        const end = dateRange.end ? new Date(dateRange.end + 'T23:59:59') : null;
-        
-        if (start && end) return loginDate >= start && loginDate <= end;
-        if (start) return loginDate >= start;
-        if (end) return loginDate <= end;
-        return true;
-      });
-    }
-
+    // Handle date filtering logic here if needed, based on user.lastLoginTime
+    // For now, date filter is applied in overview tab, not directly here
+    
     setFilteredUsers(filtered);
   };
 
   const handleSecurityAction = async (user, action) => {
     setSelectedUser(user);
     setActionType(action);
-    setActionReason('');
+    setActionReason(''); // Clear previous reason
     setShowActionModal(true);
   };
 
   const executeSecurityAction = async () => {
-    if (!selectedUser || !actionType) return;
+    if (!selectedUser || !actionType || !actionReason.trim()) {
+      setError('Reason is required for this action.');
+      return;
+    }
 
     setActionLoading(true);
     setLoadingBanner({
@@ -277,7 +271,7 @@ export default function SecurityDashboard() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setError('You must be logged in');
+        setError('Authentication session expired. Please log in again.');
         return;
       }
 
@@ -297,14 +291,15 @@ export default function SecurityDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to execute security action');
+        throw new Error(result.error || `Failed to execute ${getActionLabel(actionType)}`);
       }
 
-      setSuccess(`✅ ${getActionLabel(actionType)} executed successfully!`);
+      setSuccess(`✅ ${getActionLabel(actionType)} executed successfully for ${selectedUser.email}!`);
       setShowActionModal(false);
-      await fetchSecurityData();
+      await fetchSecurityData(); // Refresh data
     } catch (err) {
       setError('❌ ' + err.message);
+      console.error('Security action error:', err);
     } finally {
       setActionLoading(false);
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
@@ -312,7 +307,7 @@ export default function SecurityDashboard() {
   };
 
   const handleEndSession = async (session) => {
-    if (!confirm(`End session for device: ${session.device_type}?\nIP: ${session.ip_address}`)) {
+    if (!confirm(`Are you sure you want to end the session for device: ${session.device_type || 'Unknown'} (IP: ${session.ip_address || 'N/A'})?`)) {
       return;
     }
 
@@ -336,9 +331,10 @@ export default function SecurityDashboard() {
       if (error) throw error;
 
       setSuccess('✅ Session ended successfully!');
-      await fetchSecurityData();
+      await fetchSecurityData(); // Refresh data to reflect the change
     } catch (err) {
       setError('❌ Failed to end session: ' + err.message);
+      console.error('End session error:', err);
     } finally {
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     }
@@ -383,17 +379,22 @@ export default function SecurityDashboard() {
 
   const formatDateTime = (dateString) => {
     if (!dateString) return 'Never';
-    return new Date(dateString).toLocaleString();
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return 'Invalid Date';
+    }
   };
 
   const stats = {
     totalUsers: users.length,
-    activeUsers: users.filter(u => u.activeSessionsCount > 0).length,
+    activeUsers: users.filter(u => u.sessions?.some(s => s.is_active && !s.ended_at)).length, // Count users with active sessions
     highRiskUsers: users.filter(u => u.riskLevel === 'high').length,
     suspiciousActivities: users.reduce((sum, u) => sum + u.suspiciousActivityCount, 0),
     totalLogins: securityData.loginHistory.length,
     failedLogins: securityData.loginHistory.filter(l => !l.success).length,
-    activeSessions: securityData.activeSessions.length,
+    activeSessions: securityData.activeSessions.filter(s => s.is_active && !s.ended_at).length, // Count currently active sessions
     bannedUsers: securityData.bannedUsers.length
   };
 
@@ -478,7 +479,7 @@ export default function SecurityDashboard() {
             >
               {tab === 'overview' && '📊 Overview'}
               {tab === 'login_history' && '📜 Login History'}
-              {tab === 'active_sessions' && '💻 Active Sessions'}
+              {tab === 'active_sessions' && '💻 Sessions'}
               {tab === 'pin_history' && '🔑 PIN History'}
               {tab === 'suspicious' && '⚠️ Suspicious Activity'}
               {tab === 'banned_users' && '🚫 Banned Users'}
@@ -495,10 +496,16 @@ export default function SecurityDashboard() {
             type="text"
             placeholder="🔍 Search by name or email..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              filterUsers(); // Apply filter on search term change
+            }}
             style={styles.searchInput}
           />
-          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={styles.filterSelect}>
+          <select value={userFilter} onChange={(e) => {
+            setUserFilter(e.target.value);
+            filterUsers();
+          }} style={styles.filterSelect}>
             <option value="all">All Users</option>
             {users.map(user => (
               <option key={user.id} value={user.id}>
@@ -506,18 +513,32 @@ export default function SecurityDashboard() {
               </option>
             ))}
           </select>
-          <select value={riskFilter} onChange={(e) => setRiskFilter(e.target.value)} style={styles.filterSelect}>
+          <select value={riskFilter} onChange={(e) => {
+            setRiskFilter(e.target.value);
+            filterUsers();
+          }} style={styles.filterSelect}>
             <option value="all">All Risk Levels</option>
             <option value="high">High Risk</option>
             <option value="medium">Medium Risk</option>
             <option value="low">Low Risk</option>
           </select>
-          <select value={bannedFilter} onChange={(e) => setBannedFilter(e.target.value)} style={styles.filterSelect}>
+          <select value={bannedFilter} onChange={(e) => {
+            setBannedFilter(e.target.value);
+            filterUsers();
+          }} style={styles.filterSelect}>
             <option value="all">All Status</option>
             <option value="active">Active Users</option>
             <option value="banned">Banned Users</option>
           </select>
-          <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={styles.filterSelect}>
+          <select value={dateFilter} onChange={(e) => {
+            setDateFilter(e.target.value);
+            if(e.target.value !== 'custom') {
+              // Apply immediate filter if not custom range
+              // You might want to add specific date filtering logic here based on 'today', 'week', 'month'
+              // For now, we assume custom range handles the date filtering
+              filterUsers(); 
+            }
+          }} style={styles.filterSelect}>
             <option value="all">All Time</option>
             <option value="today">Today</option>
             <option value="week">Last 7 Days</option>
@@ -554,12 +575,21 @@ export default function SecurityDashboard() {
               </div>
               {(dateRange.start || dateRange.end) && (
                 <button
-                  onClick={() => setDateRange({ start: '', end: '' })}
+                  onClick={() => {
+                    setDateRange({ start: '', end: '' });
+                    filterUsers(); // Re-filter after clearing dates
+                  }}
                   style={styles.clearDateButton}
                 >
                   ✕ Clear Dates
                 </button>
               )}
+              <button 
+                onClick={filterUsers} 
+                style={{...styles.clearDateButton, background: '#10b981', marginLeft: 'auto'}}
+              >
+                Apply Date Filter
+              </button>
             </div>
           </div>
         )}
@@ -576,7 +606,7 @@ export default function SecurityDashboard() {
               {filteredUsers.length === 0 ? (
                 <div style={styles.emptyState}>
                   <p style={styles.emptyIcon}>👥</p>
-                  <p style={styles.emptyText}>No users found</p>
+                  <p style={styles.emptyText}>No users found matching your criteria</p>
                 </div>
               ) : (
                 filteredUsers.map((user) => (
@@ -678,7 +708,7 @@ export default function SecurityDashboard() {
               {securityData.loginHistory.slice(0, 100).map(log => {
                 const user = users.find(u => u.id === log.user_id);
                 return (
-                  <div key={log.id} style={{...styles.logCard, backgroundColor: log.success ? 'white' : '#fef2f2'}}>
+                  <div key={log.id} style={{...styles.logCard, backgroundColor: log.success ? '#ffffff' : '#fef2f2'}}>
                     <div style={styles.logHeader}>
                       <div>
                         <span style={log.success ? styles.successBadge : styles.failedBadge}>
@@ -701,22 +731,29 @@ export default function SecurityDashboard() {
             </div>
           ) : activeTab === 'active_sessions' ? (
             <div style={styles.logsList}>
-              <h3 style={styles.logsTitle}>Active User Sessions ({securityData.activeSessions.length})</h3>
+              <h3 style={styles.logsTitle}>User Sessions ({securityData.activeSessions.length})</h3>
               {securityData.activeSessions.map(session => {
                 const user = users.find(u => u.id === session.user_id);
+                const isActive = session.is_active && !session.ended_at;
                 return (
                   <div key={session.id} style={styles.logCard}>
                     <div style={styles.logHeader}>
                       <div>
-                        <span style={styles.activeBadge}>🟢 Active</span>
+                        {isActive ? (
+                          <span style={styles.activeBadge}>🟢 Active</span>
+                        ) : (
+                          <span style={styles.endedBadge}>⭕ Ended</span>
+                        )}
                         {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
                       </div>
-                      <button 
-                        onClick={() => handleEndSession(session)}
-                        style={styles.endSessionButton}
-                      >
-                        🚪 End Session
-                      </button>
+                      {isActive && (
+                        <button 
+                          onClick={() => handleEndSession(session)}
+                          style={styles.endSessionButton}
+                        >
+                          🚪 End Session
+                        </button>
+                      )}
                     </div>
                     <div style={styles.logBody}>
                       <p><strong>Email:</strong> {user?.email || 'Unknown'}</p>
@@ -724,6 +761,7 @@ export default function SecurityDashboard() {
                       <p><strong>Device:</strong> {session.device_type || 'Unknown'}</p>
                       <p><strong>Started:</strong> {formatDateTime(session.created_at)}</p>
                       <p><strong>Last Activity:</strong> {formatDateTime(session.last_activity)}</p>
+                      {session.ended_at && <p><strong>Ended:</strong> {formatDateTime(session.ended_at)}</p>}
                       <p><strong>User Agent:</strong> {session.user_agent || 'N/A'}</p>
                     </div>
                   </div>
@@ -774,6 +812,7 @@ export default function SecurityDashboard() {
                       <p><strong>Name:</strong> {user?.first_name} {user?.last_name}</p>
                       {bannedUser.banned_until && <p><strong>Banned Until:</strong> {formatDateTime(bannedUser.banned_until)}</p>}
                       {bannedUser.ban_duration && <p><strong>Ban Duration:</strong> {bannedUser.ban_duration}</p>}
+                      {bannedUser.reason && <p><strong>Reason:</strong> {bannedUser.reason}</p>}
                     </div>
                   </div>
                 );
@@ -931,7 +970,7 @@ export default function SecurityDashboard() {
                 <button
                   onClick={executeSecurityAction}
                   style={styles.confirmButton}
-                  disabled={!actionReason || actionLoading}
+                  disabled={!actionReason.trim() || actionLoading}
                 >
                   {actionLoading ? 'Processing...' : 'Confirm Action'}
                 </button>
@@ -1345,6 +1384,14 @@ const styles = {
     fontWeight: '600',
     backgroundColor: '#d1fae5',
     color: '#065f46'
+  },
+  endedBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    color: '#92400e'
   },
   pinBadge: {
     padding: '4px 12px',

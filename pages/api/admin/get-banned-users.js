@@ -8,15 +8,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization header' });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAuth(token);
-    if (!admin) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const authResult = await verifyAdminAuth(req);
+    if (authResult.error) {
+      return res.status(authResult.status || 401).json({ error: authResult.error });
     }
 
     // Fetch all users from auth
