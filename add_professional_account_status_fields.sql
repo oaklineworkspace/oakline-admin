@@ -60,6 +60,7 @@ ADD COLUMN IF NOT EXISTS closure_reason text;
 ALTER TABLE public.account_status_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Step 7: Create RLS policies for audit log (admin access only)
+DROP POLICY IF EXISTS "Admins can view account status audit log" ON public.account_status_audit_log;
 CREATE POLICY "Admins can view account status audit log"
   ON public.account_status_audit_log FOR SELECT
   USING (
@@ -69,6 +70,7 @@ CREATE POLICY "Admins can view account status audit log"
     )
   );
 
+DROP POLICY IF EXISTS "Admins can insert account status audit log" ON public.account_status_audit_log;
 CREATE POLICY "Admins can insert account status audit log"
   ON public.account_status_audit_log FOR INSERT
   WITH CHECK (
