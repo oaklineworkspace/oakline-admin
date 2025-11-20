@@ -1,0 +1,66 @@
+
+
+create table public.account_restriction_reasons (
+  id uuid not null default gen_random_uuid (),
+  action_type text not null,
+  category text not null,
+  reason_text text not null,
+  contact_email text not null,
+  severity_level text null,
+  requires_immediate_action boolean null default false,
+  display_order integer null default 0,
+  is_active boolean null default true,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint account_restriction_reasons_pkey primary key (id),
+  constraint account_restriction_reasons_action_type_check check (
+    (
+      action_type = any (
+        array[
+          'ban_user'::text,
+          'lock_account'::text,
+          'force_password_reset'::text,
+          'sign_out_all_devices'::text,
+          'suspend_account'::text,
+          'close_account'::text
+        ]
+      )
+    )
+  ),
+  constraint account_restriction_reasons_severity_level_check check (
+    (
+      severity_level = any (
+        array[
+          'low'::text,
+          'medium'::text,
+          'high'::text,
+          'critical'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_restriction_reasons_action_type on public.account_restriction_reasons using btree (action_type) TABLESPACE pg_default;
+
+create index IF not exists idx_restriction_reasons_active on public.account_restriction_reasons using btree (is_active) TABLESPACE pg_default
+where
+  (is_active = true);
+
+
+
+
+SMTP_FROM_WELCOME=welcome@theoaklinebank.com
+SMTP_FROM_UPDATES=updates@theoaklinebank.com
+SMTP_FROM_CONTACT=contact-us@theoaklinebank.com
+SMTP_FROM_NOTIFY=notify@theoaklinebank.com
+SMTP_FROM_LOANS=loans@theoaklinebank.com
+SMTP_FROM_CUSTOMERSUPPORT=customersupport@theoaklinebank.com
+SMTP_FROM_SECURITY=security@theoaklinebank.com
+SMTP_FROM_VERIFY=verify@theoaklinebank.com
+SMTP_FROM_CRYPTO=crypto@theoaklinebank.com
+
+
+My account restriction table is using just Two of my bank email. 
+
+I need to update it to use all my bank emails and the necessary ones
