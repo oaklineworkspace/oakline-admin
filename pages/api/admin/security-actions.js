@@ -343,7 +343,7 @@ function generateAccountLockedEmail(userName, reason) {
         <p>Dear ${userName},</p>
         <p>Your Oakline Bank account has been temporarily locked for security reasons.</p>
         ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-        <p>Please contact our support team at <a href="mailto:support@theoaklinebank.com">support@theoaklinebank.com</a> to resolve this issue.</p>
+        <p>Please contact our customer support team to resolve this issue.</p>
         <p>Best regards,<br>Oakline Bank Security Team</p>
       </div>
     </body>
@@ -446,7 +446,7 @@ function generateAccountBannedEmail(userName, reason) {
         <p>Dear ${userName},</p>
         <p>Your Oakline Bank account has been permanently banned.</p>
         ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-        <p>If you believe this is an error, please contact our support team at <a href="mailto:support@theoaklinebank.com">support@theoaklinebank.com</a>.</p>
+        <p>If you believe this is an error, please contact our customer support team.</p>
         <p>Best regards,<br>Oakline Bank Security Team</p>
       </div>
     </body>

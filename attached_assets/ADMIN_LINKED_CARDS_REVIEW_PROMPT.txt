@@ -1,0 +1,165 @@
+
+# Admin Repository: Linked Debit Card Review System Implementation Prompt
+
+Copy and paste this prompt to Replit AI in your admin repository:
+
+---
+
+I need you to implement a comprehensive admin interface for reviewing and managing user-submitted linked debit cards. This system should allow admins to view card submissions with photos, approve or reject them, and manage the card verification workflow.
+
+## Requirements:
+
+### 1. Admin Page: `/admin/linked-cards-review`
+Create a new admin page that displays all linked debit card submissions with the following features:
+
+**Display Information:**
+- Card holder name
+- Card brand (Visa, Mastercard, Amex, Discover)
+- Last 4 digits of card number
+- Expiry date (month/year)
+- Bank name
+- Billing address (full address, city, state, zip, country)
+- Submission date
+- Current status (pending, active, rejected, etc.)
+- User information (name, email)
+
+**Card Photo Display:**
+- Show both front and back card photos side-by-side
+- Use the `card_front_photo` and `card_back_photo` fields from the database
+- Photos should be clickable to view in full size (modal/lightbox)
+- Display a placeholder if photos are missing
+
+**Filtering & Search:**
+- Filter by status (all, pending, active, rejected, suspended)
+- Filter by card brand
+- Search by cardholder name or user email
+- Filter by submission date range
+
+**Actions for Each Card:**
+- **Approve**: Change status to 'active', set `is_verified` to true
+- **Reject**: Change status to 'rejected', require rejection reason, send email notification
+- **Suspend**: Change status to 'suspended', require suspension reason
+- **View Details**: Expand to show full card information including full card number and CVV (from `card_number_full` and `cvv` fields)
+- **Delete**: Remove the card entry (with confirmation)
+
+### 2. API Endpoints:
+
+**GET `/api/admin/linked-cards`**
+- Fetch all linked debit card submissions
+- Include user profile information (join with profiles table)
+- Support filtering by status, brand, date range
+- Return card photos, metadata, and all relevant fields
+
+**POST `/api/admin/linked-cards/approve`**
+- Approve a card submission
+- Update status to 'active'
+- Set `is_verified` to true
+- Send approval email to user
+- Log the action in audit_logs
+
+**POST `/api/admin/linked-cards/reject`**
+- Reject a card submission
+- Update status to 'rejected'
+- Require and store rejection reason in metadata
+- Send rejection email to user with reason
+- Log the action in audit_logs
+
+**POST `/api/admin/linked-cards/suspend`**
+- Suspend a card
+- Update status to 'suspended'
+- Require and store suspension reason in metadata
+- Send suspension notification to user
+- Log the action in audit_logs
+
+**DELETE `/api/admin/linked-cards/:id`**
+- Delete a card entry
+- Require admin confirmation
+- Log the deletion in audit_logs
+
+### 3. Email Notifications:
+
+Create email templates for:
+- **Approval**: Notify user their linked card has been approved and is ready to use
+- **Rejection**: Notify user with the specific rejection reason and next steps
+- **Suspension**: Notify user their card has been suspended with reason
+
+Use the bank details from the `bank_details` table:
+- Sender email: Use `email_support` field (NOT just "support")
+- Bank name, address, phone from bank_details table
+- Include routing number, SWIFT code in email footer
+
+### 4. Security & Validation:
+
+- All endpoints must use `verifyAdminAuth` middleware
+- Verify admin has proper permissions
+- Validate card data before approval
+- Ensure card photos exist and are accessible
+- Log all actions (approvals, rejections, suspensions) in audit_logs
+- Sanitize and validate rejection/suspension reasons
+
+### 5. UI/UX Requirements:
+
+- Use the existing admin dashboard styling (similar to other admin pages)
+- Responsive design for mobile/tablet viewing
+- Card photos should be clearly visible
+- Use status badges with appropriate colors:
+  - Pending: Yellow/Orange
+  - Active: Green
+  - Rejected: Red
+  - Suspended: Gray
+- Include statistics cards at the top:
+  - Total submissions
+  - Pending review
+  - Approved cards
+  - Rejected cards
+- Confirmation modals for destructive actions (reject, suspend, delete)
+- Success/error toast notifications
+
+### 6. Database Schema Reference:
+
+The `linked_debit_cards` table has these relevant fields:
+- id (uuid)
+- user_id (uuid)
+- cardholder_name (text)
+- card_number_last4 (text)
+- card_number_full (text) - encrypted full number
+- cvv (text) - encrypted CVV
+- card_brand (text)
+- expiry_month (text)
+- expiry_year (text)
+- billing_address, billing_city, billing_state, billing_zip, billing_country (text)
+- card_front_photo (text) - storage path
+- card_back_photo (text) - storage path
+- bank_name (text)
+- is_primary (boolean)
+- status (text) - 'pending', 'active', 'expired', 'suspended', 'deleted'
+- is_verified (boolean)
+- metadata (jsonb) - for storing rejection/suspension reasons
+- created_at, updated_at (timestamp)
+
+### 7. Additional Features:
+
+- Bulk actions: Approve/reject multiple cards at once
+- Export card list to CSV
+- View user's other linked cards and accounts
+- Quick link to user details page
+- Display card verification history in metadata
+- Show if card is set as primary payment method
+
+## Important Notes:
+
+1. **Email Configuration**: Make sure to fetch and use email addresses from the `bank_details` table, specifically the `email_support` field for customer service emails.
+
+2. **Photo Storage**: Card photos are stored in Supabase Storage. Ensure you generate signed URLs for displaying them securely.
+
+3. **Data Privacy**: Full card numbers and CVV should only be shown to authorized admins and should be properly masked in logs.
+
+4. **Audit Trail**: Every action (view, approve, reject, suspend, delete) should be logged in the `audit_logs` table with admin ID, timestamp, and action details.
+
+5. **Navigation**: Add a link to this page from the main admin dashboard under a "Cards & Payments" or "User Submissions" section.
+
+Please implement this system following the existing codebase patterns and admin interface design. Ensure all security measures are in place and test the email notifications thoroughly.
+
+---
+
+End of prompt. Copy everything above this line.
