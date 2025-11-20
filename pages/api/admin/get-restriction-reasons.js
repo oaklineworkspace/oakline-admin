@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { data: adminProfile, error: adminError } = await supabase
+    const { data: adminProfile, error: adminError } = await supabaseAdmin
       .from('admin_profiles')
       .select('role')
       .eq('id', user.id)
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
 
     const { action_type } = req.query;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('account_restriction_reasons')
       .select('*')
       .eq('is_active', true)
