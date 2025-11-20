@@ -4,19 +4,31 @@ import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ 
+      error: 'Method not allowed',
+      errorCode: 'METHOD_NOT_ALLOWED',
+      details: { receivedMethod: req.method, allowedMethod: 'POST' }
+    });
   }
 
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization header' });
+      return res.status(401).json({ 
+        error: 'No authorization header',
+        errorCode: 'MISSING_AUTH_HEADER',
+        details: { message: 'Authorization header is required for admin actions' }
+      });
     }
 
     const token = authHeader.replace('Bearer ', '');
     const admin = await verifyAdminAuth(token);
     if (!admin) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ 
+        error: 'Unauthorized',
+        errorCode: 'INVALID_AUTH_TOKEN',
+        details: { message: 'Invalid or expired admin token' }
+      });
     }
 
     // Fetch bank details for email configuration
@@ -33,13 +45,21 @@ export default async function handler(req, res) {
     const { action, userId, reason, data } = req.body;
 
     if (!action || !userId) {
-      return res.status(400).json({ error: 'action and userId are required' });
+      return res.status(400).json({ 
+        error: 'action and userId are required',
+        errorCode: 'MISSING_REQUIRED_FIELDS',
+        details: { missingFields: [!action && 'action', !userId && 'userId'].filter(Boolean) }
+      });
     }
 
     // Get user info
     const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (getUserError || !userData || !userData.user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ 
+        error: 'User not found',
+        errorCode: 'USER_NOT_FOUND',
+        details: { userId, message: getUserError?.message || 'User does not exist' }
+      });
     }
 
     const authUser = userData.user;
@@ -69,7 +89,14 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString()
           });
 
-        if (lockError) throw lockError;
+        if (lockError) {
+          console.error('Lock account error:', lockError);
+          return res.status(500).json({ 
+            error: 'Failed to lock user account',
+            details: lockError.message,
+            errorCode: 'LOCK_ACCOUNT_FAILED'
+          });
+        }
 
         // Log suspicious activity
         await supabaseAdmin.from('suspicious_activity').insert({
@@ -104,7 +131,14 @@ export default async function handler(req, res) {
           })
           .eq('user_id', userId);
 
-        if (unlockError) throw unlockError;
+        if (unlockError) {
+          console.error('Unlock account error:', unlockError);
+          return res.status(500).json({ 
+            error: 'Failed to unlock user account',
+            details: unlockError.message,
+            errorCode: 'UNLOCK_ACCOUNT_FAILED'
+          });
+        }
 
         // Send email notification
         await sendEmail({
@@ -128,7 +162,14 @@ export default async function handler(req, res) {
           }
         });
 
-        if (resetError) throw resetError;
+        if (resetError) {
+          console.error('Password reset generation error:', resetError);
+          return res.status(500).json({ 
+            error: 'Failed to generate password reset link',
+            details: resetError.message,
+            errorCode: 'PASSWORD_RESET_FAILED'
+          });
+        }
 
         // Send password reset email
         await sendEmail({
@@ -143,13 +184,31 @@ export default async function handler(req, res) {
 
       case 'sign_out_all_devices':
         // Deactivate all sessions
-        await supabaseAdmin
+        const { error: deactivateSessionsError } = await supabaseAdmin
           .from('user_sessions')
           .update({ is_active: false })
           .eq('user_id', userId);
 
+        if (deactivateSessionsError) {
+          console.error('Deactivate sessions error:', deactivateSessionsError);
+          return res.status(500).json({ 
+            error: 'Failed to deactivate user sessions',
+            details: deactivateSessionsError.message,
+            errorCode: 'DEACTIVATE_SESSIONS_FAILED'
+          });
+        }
+
         // Sign out from Supabase Auth (revoke all refresh tokens)
-        await supabaseAdmin.auth.admin.signOut(userId);
+        const { error: signOutAllError } = await supabaseAdmin.auth.admin.signOut(userId);
+        
+        if (signOutAllError) {
+          console.error('Sign out all devices error:', signOutAllError);
+          return res.status(500).json({ 
+            error: 'Failed to sign out user from authentication',
+            details: signOutAllError.message,
+            errorCode: 'SIGNOUT_ALL_DEVICES_FAILED'
+          });
+        }
 
         // Send email notification
         await sendEmail({
@@ -165,14 +224,18 @@ export default async function handler(req, res) {
       case 'block_ip':
         const { ipAddress, expiresInDays } = data || {};
         if (!ipAddress) {
-          return res.status(400).json({ error: 'ipAddress is required for block_ip action' });
+          return res.status(400).json({ 
+            error: 'ipAddress is required for block_ip action',
+            errorCode: 'BLOCK_IP_VALIDATION_FAILED',
+            details: { missingField: 'ipAddress', message: 'ipAddress must be provided in data parameter' }
+          });
         }
 
         const expiresAt = expiresInDays 
           ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
           : null;
 
-        await supabaseAdmin.from('blocked_ips').insert({
+        const { error: blockIpError } = await supabaseAdmin.from('blocked_ips').insert({
           ip_address: ipAddress,
           reason: reason || 'Blocked by administrator',
           blocked_by: admin.id,
@@ -180,30 +243,61 @@ export default async function handler(req, res) {
           is_active: true
         });
 
+        if (blockIpError) {
+          console.error('Block IP error:', blockIpError);
+          return res.status(500).json({ 
+            error: 'Failed to block IP address',
+            details: blockIpError.message,
+            errorCode: 'BLOCK_IP_FAILED'
+          });
+        }
+
         result = { message: `IP address ${ipAddress} blocked successfully` };
         break;
 
       case 'unblock_ip':
         const { ipToUnblock } = data || {};
         if (!ipToUnblock) {
-          return res.status(400).json({ error: 'ipToUnblock is required' });
+          return res.status(400).json({ 
+            error: 'ipToUnblock is required',
+            errorCode: 'UNBLOCK_IP_VALIDATION_FAILED',
+            details: { missingField: 'ipToUnblock', message: 'ipToUnblock must be provided in data parameter' }
+          });
         }
 
-        await supabaseAdmin
+        const { error: unblockIpError } = await supabaseAdmin
           .from('blocked_ips')
           .update({ is_active: false })
           .eq('ip_address', ipToUnblock);
+
+        if (unblockIpError) {
+          console.error('Unblock IP error:', unblockIpError);
+          return res.status(500).json({ 
+            error: 'Failed to unblock IP address',
+            details: unblockIpError.message,
+            errorCode: 'UNBLOCK_IP_FAILED'
+          });
+        }
 
         result = { message: `IP address ${ipToUnblock} unblocked successfully` };
         break;
 
       case 'enable_2fa':
         // Update security settings to enable 2FA
-        const { data: currentProfile } = await supabaseAdmin
+        const { data: currentProfile, error: fetch2FAProfileError } = await supabaseAdmin
           .from('profiles')
           .select('security_settings')
           .eq('id', userId)
           .single();
+
+        if (fetch2FAProfileError) {
+          console.error('Fetch profile for 2FA error:', fetch2FAProfileError);
+          return res.status(500).json({ 
+            error: 'Failed to fetch user profile for 2FA update',
+            details: fetch2FAProfileError.message,
+            errorCode: 'ENABLE_2FA_FETCH_FAILED'
+          });
+        }
 
         const updatedSettings = {
           ...(currentProfile?.security_settings || {}),
@@ -211,10 +305,19 @@ export default async function handler(req, res) {
           two_factor_enforced_by_admin: true
         };
 
-        await supabaseAdmin
+        const { error: enable2FAError } = await supabaseAdmin
           .from('profiles')
           .update({ security_settings: updatedSettings })
           .eq('id', userId);
+
+        if (enable2FAError) {
+          console.error('Enable 2FA error:', enable2FAError);
+          return res.status(500).json({ 
+            error: 'Failed to enable 2FA',
+            details: enable2FAError.message,
+            errorCode: 'ENABLE_2FA_FAILED'
+          });
+        }
 
         await sendEmail({
           to: userEmail,
@@ -228,11 +331,20 @@ export default async function handler(req, res) {
 
       case 'disable_2fa':
         // Update security settings to disable 2FA
-        const { data: currentProfile2 } = await supabaseAdmin
+        const { data: currentProfile2, error: fetchDisable2FAProfileError } = await supabaseAdmin
           .from('profiles')
           .select('security_settings')
           .eq('id', userId)
           .single();
+
+        if (fetchDisable2FAProfileError) {
+          console.error('Fetch profile for disable 2FA error:', fetchDisable2FAProfileError);
+          return res.status(500).json({ 
+            error: 'Failed to fetch user profile for 2FA update',
+            details: fetchDisable2FAProfileError.message,
+            errorCode: 'DISABLE_2FA_FETCH_FAILED'
+          });
+        }
 
         const updatedSettings2 = {
           ...(currentProfile2?.security_settings || {}),
@@ -240,23 +352,41 @@ export default async function handler(req, res) {
           two_factor_enforced_by_admin: false
         };
 
-        await supabaseAdmin
+        const { error: disable2FAError } = await supabaseAdmin
           .from('profiles')
           .update({ security_settings: updatedSettings2 })
           .eq('id', userId);
+
+        if (disable2FAError) {
+          console.error('Disable 2FA error:', disable2FAError);
+          return res.status(500).json({ 
+            error: 'Failed to disable 2FA',
+            details: disable2FAError.message,
+            errorCode: 'DISABLE_2FA_FAILED'
+          });
+        }
 
         result = { message: '2FA disabled for user' };
         break;
 
       case 'reset_failed_attempts':
         // Reset failed login attempts counter
-        await supabaseAdmin
+        const { error: resetAttemptsError } = await supabaseAdmin
           .from('user_security_settings')
           .update({ 
             failed_login_attempts: 0,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId);
+
+        if (resetAttemptsError) {
+          console.error('Reset failed attempts error:', resetAttemptsError);
+          return res.status(500).json({ 
+            error: 'Failed to reset failed login attempts',
+            details: resetAttemptsError.message,
+            errorCode: 'RESET_ATTEMPTS_FAILED'
+          });
+        }
 
         result = { message: 'Failed login attempts reset successfully' };
         break;
@@ -268,16 +398,100 @@ export default async function handler(req, res) {
           ban_duration: banDuration
         });
 
-        if (banError) throw banError;
+        if (banError) {
+          console.error('Auth ban error:', banError);
+          return res.status(500).json({ 
+            error: 'Failed to ban user in authentication system',
+            details: banError.message,
+            errorCode: 'AUTH_BAN_FAILED'
+          });
+        }
+
+        // 1. Update profile with ban status
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            is_banned: true,
+            ban_reason: reason || 'Banned by administrator',
+            banned_at: new Date().toISOString(),
+            banned_by: admin.id
+          })
+          .eq('id', userId);
+
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          return res.status(500).json({ 
+            error: 'Failed to update profile ban status',
+            details: profileError.message,
+            errorCode: 'PROFILE_UPDATE_FAILED'
+          });
+        }
+
+        // 2. Terminate all active sessions
+        const { error: sessionsError } = await supabaseAdmin
+          .from('user_sessions')
+          .update({
+            is_active: false,
+            ended_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('is_active', true);
+
+        if (sessionsError) {
+          console.error('Session termination error:', sessionsError);
+          return res.status(500).json({ 
+            error: 'Failed to terminate user sessions',
+            details: sessionsError.message,
+            errorCode: 'SESSION_TERMINATION_FAILED'
+          });
+        }
+
+        // Sign out from auth (invalidates JWT tokens)
+        const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(userId);
+        if (signOutError) {
+          console.error('Auth sign out error:', signOutError);
+          return res.status(500).json({ 
+            error: 'Failed to sign out user from auth',
+            details: signOutError.message,
+            errorCode: 'AUTH_SIGNOUT_FAILED'
+          });
+        }
+
+        // 3. Log the ban action in system_logs
+        const { error: systemLogError } = await supabaseAdmin
+          .from('system_logs')
+          .insert({
+            level: 'warning',
+            type: 'user',
+            message: 'User account banned',
+            details: {
+              user_id: userId,
+              ban_reason: reason || 'No reason provided',
+              banned_by: admin.id,
+              admin_email: admin.email
+            },
+            user_id: userId,
+            admin_id: admin.id
+          });
+
+        if (systemLogError) {
+          console.error('Failed to log ban in system_logs:', systemLogError);
+          // Don't fail the entire operation if logging fails
+        }
 
         // Log suspicious activity
-        await supabaseAdmin.from('suspicious_activity').insert({
+        const { error: suspiciousActivityError } = await supabaseAdmin.from('suspicious_activity').insert({
           user_id: userId,
           activity_type: 'account_banned',
           description: `Account banned by admin: ${reason || 'No reason provided'}`,
           risk_level: 'high',
           metadata: { admin_id: admin.id, admin_email: admin.email }
         });
+
+        if (suspiciousActivityError) {
+          console.error('Failed to log suspicious activity:', suspiciousActivityError);
+          // Don't fail the entire operation if logging fails
+        }
 
         // Send email notification to banned user
         try {
@@ -302,7 +516,34 @@ export default async function handler(req, res) {
           ban_duration: 'none'
         });
 
-        if (unbanError) throw unbanError;
+        if (unbanError) {
+          console.error('Auth unban error:', unbanError);
+          return res.status(500).json({ 
+            error: 'Failed to unban user in authentication system',
+            details: unbanError.message,
+            errorCode: 'AUTH_UNBAN_FAILED'
+          });
+        }
+
+        // Clear ban status from profile
+        const { error: unbanProfileError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            is_banned: false,
+            ban_reason: null,
+            banned_at: null,
+            banned_by: null
+          })
+          .eq('id', userId);
+
+        if (unbanProfileError) {
+          console.error('Profile unban error:', unbanProfileError);
+          return res.status(500).json({ 
+            error: 'Failed to clear profile ban status',
+            details: unbanProfileError.message,
+            errorCode: 'PROFILE_UNBAN_FAILED'
+          });
+        }
 
         // Send email notification
         await sendEmail({
@@ -316,11 +557,15 @@ export default async function handler(req, res) {
         break;
 
       default:
-        return res.status(400).json({ error: 'Invalid action' });
+        return res.status(400).json({ 
+          error: 'Invalid action',
+          errorCode: 'INVALID_SECURITY_ACTION',
+          details: { action, message: `Unknown action type: ${action}` }
+        });
     }
 
     // Log the admin action
-    await supabaseAdmin.from('audit_logs').insert({
+    const { error: auditLogError } = await supabaseAdmin.from('audit_logs').insert({
       user_id: admin.id,
       action: `security_action_${action}`,
       table_name: 'user_security',
@@ -333,6 +578,11 @@ export default async function handler(req, res) {
       }
     });
 
+    if (auditLogError) {
+      console.error('Failed to create audit log entry:', auditLogError);
+      // Continue even if audit logging fails - the action has already been performed
+    }
+
     return res.status(200).json({
       success: true,
       ...result
@@ -342,7 +592,8 @@ export default async function handler(req, res) {
     console.error('Error performing security action:', error);
     return res.status(500).json({ 
       error: 'Failed to perform security action',
-      details: error.message 
+      details: error.message,
+      errorCode: 'SECURITY_ACTION_ERROR'
     });
   }
 }
