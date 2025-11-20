@@ -36,6 +36,7 @@ Preferred communication style: Simple, everyday language.
 9.  **Loan Management System:** Comprehensive dashboard, detailed loan view, payment tracking with user-submitted payments requiring admin approval, deposit verification workflow, secure atomic approval process using PostgreSQL RPC functions, automatic balance updates, and email notifications. This includes integration with a treasury account system for loan requirement deposits and a separate loan approval from disbursement.
 10. **Wire Transfer Management:** Professional interface for oversight, including statistics dashboard, advanced filtering, and a complete action suite (approve, reject, cancel, reverse, hold, release, complete) with automated email notifications and database trigger functions for data integrity.
 11. **Timestamp Editor:** Professional bulk update functionality for user timestamps with multi-select filters and date/datetime toggle.
+12. **Account Restriction Reasons Management:** Complete CRUD interface for managing professional account restriction reasons used in security actions (ban, lock, suspend, close accounts). Includes categorization, severity levels, contact email management, search/filter capabilities, and integration with the security dashboard. All reasons stored in database with appropriate bank contact emails.
 
 ## External Dependencies
 *   **Supabase:** Database (PostgreSQL), Authentication, and Row Level Security.
