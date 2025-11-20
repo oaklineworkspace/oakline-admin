@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const token = authHeader.replace('Bearer ', '');
     const authResult = await verifyAdminAuth(token);
-    
+
     if (authResult.error) {
       return res.status(authResult.status || 401).json({ 
         error: authResult.error,
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
           activity_type: 'account_locked',
           description: `Account locked by admin: ${reason || 'No reason provided'}`,
           risk_level: 'high',
-          metadata: { admin_id: admin.adminId, admin_email: admin.email }
+          metadata: { admin_id: admin.email, admin_email: admin.email }
         });
 
         // Send email notification
@@ -691,21 +691,65 @@ export default async function handler(req, res) {
 
     // Log in account_status_audit_log if action affects account status
     if (['ban_user', 'unban_user', 'lock_account', 'unlock_account', 'suspend_account', 'close_account'].includes(action)) {
+      // Get the full reason object if it exists in the database
+      let reasonMetadata = {};
+
+      if (action !== 'reset_failed_attempts' && action !== 'unban_user') {
+        try {
+          const { data: matchingReason } = await supabaseAdmin
+            .from('account_restriction_reasons')
+            .select('category, severity_level, requires_immediate_action, contact_email')
+            .eq('action_type', action)
+            .eq('reason_text', reason)
+            .eq('is_active', true)
+            .single();
+
+          if (matchingReason) {
+            reasonMetadata = {
+              category: matchingReason.category,
+              severity_level: matchingReason.severity_level,
+              requires_immediate_action: matchingReason.requires_immediate_action,
+              contact_email: matchingReason.contact_email
+            };
+          }
+        } catch (err) {
+          console.log('No matching reason found in database, using custom reason');
+        }
+      }
+      
+      // Fetch current security settings for account_locked status
+      const { data: securitySettings, error: securitySettingsError } = await supabaseAdmin
+        .from('user_security_settings')
+        .select('account_locked')
+        .eq('user_id', userId)
+        .single();
+
+      if (securitySettingsError) {
+        console.error('Failed to fetch security settings:', securitySettingsError);
+        // Continue even if fetching security settings fails
+      }
+
       const { error: statusAuditError } = await supabaseAdmin.from('account_status_audit_log').insert({
         user_id: userId,
         changed_by: admin.adminId,
         old_status: profile?.status || 'active',
-        new_status: action === 'ban_user' ? 'suspended' : action === 'suspend_account' ? 'suspended' : action === 'close_account' ? 'closed' : action === 'lock_account' ? 'active' : 'active',
+        new_status: action === 'ban_user' ? 'banned' : action === 'suspend_account' ? 'suspended' : action === 'close_account' ? 'closed' : action === 'unlock_account' ? 'active' : profile?.status || 'active',
         old_is_banned: profile?.is_banned || false,
         new_is_banned: action === 'ban_user',
-        old_account_locked: false,
+        old_account_locked: securitySettings?.account_locked || false,
         new_account_locked: action === 'lock_account',
         reason,
         action_type: action.replace('_user', '').replace('_account', ''),
         metadata: {
+          ...reasonMetadata,
           admin_email: admin.email,
           user_email: userEmail,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          // Include suspension details if applicable
+          ...(action === 'suspend_account' && {
+            suspension_start_date: new Date().toISOString(),
+            suspension_end_date: new Date(new Date().getTime() + (data?.suspensionDays || 30) * 24 * 60 * 60 * 1000).toISOString()
+          })
         }
       });
 
@@ -732,7 +776,7 @@ export default async function handler(req, res) {
 // Helper functions to generate professional messages
 function generateProfessionalBanMessage(reason) {
   const reasonLower = (reason || '').toLowerCase();
-  
+
   if (reasonLower.includes('fraud') || reasonLower.includes('suspicious')) {
     return 'Your account has been permanently restricted due to suspicious activity detected on your account. For your security and to protect our banking community, access has been suspended. Please contact our Fraud Prevention team immediately.';
   } else if (reasonLower.includes('security') || reasonLower.includes('breach')) {
@@ -754,9 +798,9 @@ function generateProfessionalSuspensionMessage(reason, endDate) {
     month: 'long', 
     day: 'numeric' 
   });
-  
+
   const reasonLower = (reason || '').toLowerCase();
-  
+
   if (reasonLower.includes('verification') || reasonLower.includes('documentation')) {
     return `Your account is temporarily suspended pending verification. This suspension will be lifted on ${formattedDate} once the required documentation is provided. Please contact our Verification team.`;
   } else if (reasonLower.includes('review') || reasonLower.includes('investigation')) {
@@ -768,7 +812,7 @@ function generateProfessionalSuspensionMessage(reason, endDate) {
 
 function generateProfessionalClosureMessage(reason) {
   const reasonLower = (reason || '').toLowerCase();
-  
+
   if (reasonLower.includes('request') || reasonLower.includes('customer')) {
     return 'Your account has been closed as per your request. All associated services have been terminated. Thank you for banking with us.';
   } else if (reasonLower.includes('dormant') || reasonLower.includes('inactive')) {
@@ -886,7 +930,7 @@ function generate2FAEnabledEmail(userName) {
 
 function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
   const professionalMessage = generateProfessionalBanMessage(reason);
-  
+
   return `
     <!DOCTYPE html>
     <html>
@@ -905,7 +949,7 @@ function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
             Account Security Notification
           </div>
         </div>
-        
+
         <!-- Main Content -->
         <div style="padding: 40px 32px;">
           <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 24px; border-radius: 4px;">
@@ -913,15 +957,15 @@ function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
               Important Account Notice
             </h2>
           </div>
-          
+
           <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
             Dear ${userName},
           </p>
-          
+
           <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
             ${professionalMessage}
           </p>
-          
+
           ${reason ? `
           <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
             <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
@@ -932,7 +976,7 @@ function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
             </p>
           </div>
           ` : ''}
-          
+
           <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 4px;">
             <h3 style="color: #1e40af; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
               📞 Need Assistance?
@@ -944,17 +988,17 @@ function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
               Email: <a href="mailto:${supportEmail}" style="color: #2563eb; text-decoration: none;">${supportEmail}</a>
             </p>
           </div>
-          
+
           <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
             We appreciate your understanding and cooperation in this matter.
           </p>
-          
+
           <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 16px 0 0 0;">
             Respectfully,<br/>
             <strong style="color: #1f2937;">${bankName} Security & Compliance Team</strong>
           </p>
         </div>
-        
+
         <!-- Footer -->
         <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
           <p style="color: #718096; font-size: 12px; margin: 0;">
@@ -974,7 +1018,7 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
     month: 'long', 
     day: 'numeric' 
   });
-  
+
   return `
     <!DOCTYPE html>
     <html>
@@ -992,22 +1036,22 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
             Temporary Account Suspension Notice
           </div>
         </div>
-        
+
         <div style="padding: 40px 32px;">
           <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 24px; border-radius: 4px;">
             <h2 style="color: #92400e; font-size: 20px; font-weight: 700; margin: 0 0 12px 0;">
               Account Temporarily Suspended
             </h2>
           </div>
-          
+
           <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
             Dear ${userName},
           </p>
-          
+
           <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
             Your ${bankName} account has been temporarily suspended and will remain inactive until <strong>${formattedDate}</strong>.
           </p>
-          
+
           ${reason ? `
           <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
             <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
@@ -1018,7 +1062,7 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
             </p>
           </div>
           ` : ''}
-          
+
           <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 4px;">
             <h3 style="color: #1e40af; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
               What This Means:
@@ -1030,17 +1074,17 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
               <li>Your funds remain secure and protected</li>
             </ul>
           </div>
-          
+
           <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 24px 0;">
             For questions or to resolve this matter sooner, please contact: <a href="mailto:${supportEmail}" style="color: #2563eb;">${supportEmail}</a>
           </p>
-          
+
           <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 16px 0 0 0;">
             Sincerely,<br/>
             <strong style="color: #1f2937;">${bankName} Customer Relations Team</strong>
           </p>
         </div>
-        
+
         <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
           <p style="color: #718096; font-size: 12px; margin: 0;">
             © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
@@ -1071,16 +1115,16 @@ function generateAccountClosedEmail(userName, reason, supportEmail, bankName) {
             Account Closure Confirmation
           </div>
         </div>
-        
+
         <div style="padding: 40px 32px;">
           <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
             Dear ${userName},
           </p>
-          
+
           <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
             This letter confirms that your account with ${bankName} has been permanently closed.
           </p>
-          
+
           ${reason ? `
           <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
             <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
@@ -1091,17 +1135,17 @@ function generateAccountClosedEmail(userName, reason, supportEmail, bankName) {
             </p>
           </div>
           ` : ''}
-          
+
           <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 24px 0;">
             Thank you for choosing ${bankName} for your banking needs. If you have any questions, please contact us at <a href="mailto:${supportEmail}" style="color: #2563eb;">${supportEmail}</a>
           </p>
-          
+
           <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 16px 0 0 0;">
             Best regards,<br/>
             <strong style="color: #1f2937;">${bankName} Account Services</strong>
           </p>
         </div>
-        
+
         <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
           <p style="color: #718096; font-size: 12px; margin: 0;">
             © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>

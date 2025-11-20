@@ -313,10 +313,10 @@ export default function SecurityDashboard() {
     }
   };
 
-  const handleSecurityAction = async (user, action) => {
+  const handleSecurityAction = async (user, action, existingReason = '') => {
     setSelectedUser(user);
     setActionType(action);
-    setActionReason(''); // Clear previous reason
+    setActionReason(existingReason); // Use existing reason if editing
     setShowActionModal(true);
   };
 
@@ -864,6 +864,18 @@ export default function SecurityDashboard() {
                       >
                         👁️ View Details
                       </button>
+                      {(user.isBanned || user.status === 'suspended' || user.status === 'closed') && (
+                        <button
+                          onClick={() => {
+                            const reason = user.ban_reason || user.status_reason || user.closure_reason || '';
+                            const action = user.isBanned ? 'ban_user' : user.status === 'suspended' ? 'suspend_account' : 'close_account';
+                            handleSecurityAction(user, action, reason);
+                          }}
+                          style={{...styles.actionButton, flex: '1 1 100%', marginTop: '8px', background: '#7c3aed'}}
+                        >
+                          ✏️ Edit Restriction
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1111,7 +1123,10 @@ export default function SecurityDashboard() {
           <div style={styles.modalOverlay} onClick={() => setShowActionModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>{getActionLabel(actionType)}</h2>
+                <h2 style={styles.modalTitle}>
+                  {actionReason ? '✏️ Edit ' : ''}
+                  {getActionLabel(actionType)}
+                </h2>
                 <button onClick={() => setShowActionModal(false)} style={styles.closeBtn}>×</button>
               </div>
               <div style={styles.modalBody}>

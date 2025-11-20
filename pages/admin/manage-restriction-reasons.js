@@ -10,6 +10,7 @@ export default function ManageRestrictionReasons() {
   const [reasons, setReasons] = useState([]);
   const [filteredReasons, setFilteredReasons] = useState([]);
   const [stats, setStats] = useState(null);
+  const [usageStats, setUsageStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -56,6 +57,7 @@ export default function ManageRestrictionReasons() {
   useEffect(() => {
     fetchReasons();
     fetchBankEmails();
+    fetchUsageStats();
   }, []);
 
   useEffect(() => {
@@ -83,6 +85,34 @@ export default function ManageRestrictionReasons() {
       setBankEmails([...new Set(emails)]);
     } catch (err) {
       console.error('Error fetching bank emails:', err);
+    }
+  };
+
+
+
+  const fetchUsageStats = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Fetch usage statistics from audit logs
+      const { data: auditLogs, error } = await supabase
+        .from('account_status_audit_log')
+        .select('reason, metadata')
+        .not('reason', 'is', null);
+
+      if (!error && auditLogs) {
+        const stats = {};
+        auditLogs.forEach(log => {
+          const reason = log.reason;
+          if (reason) {
+            stats[reason] = (stats[reason] || 0) + 1;
+          }
+        });
+        setUsageStats(stats);
+      }
+    } catch (err) {
+      console.error('Error fetching usage stats:', err);
     }
   };
 
@@ -533,6 +563,7 @@ export default function ManageRestrictionReasons() {
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Reason Text</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Contact Email</th>
                       <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Severity</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Usage</th>
                       <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Status</th>
                       <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Actions</th>
                     </tr>
@@ -592,6 +623,18 @@ export default function ManageRestrictionReasons() {
                               fontWeight: '500'
                             }}>
                               {severityInfo?.label || reason.severity_level}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <span style={{
+                              background: usageStats[reason.reason_text] > 0 ? '#dbeafe' : '#f3f4f6',
+                              color: usageStats[reason.reason_text] > 0 ? '#1e40af' : '#6b7280',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              {usageStats[reason.reason_text] || 0} uses
                             </span>
                           </td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
