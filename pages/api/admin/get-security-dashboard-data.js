@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       .from('login_history')
       .select(`
         *,
-        profiles!login_history_user_id_fkey(email, first_name, last_name, user_id)
+        profiles:user_id(email, first_name, last_name, id)
       `)
       .order('login_time', { ascending: false })
       .limit(parseInt(limit));
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       .from('user_sessions')
       .select(`
         *,
-        profiles!user_sessions_user_id_fkey(email, first_name, last_name, user_id)
+        profiles:user_id(email, first_name, last_name, id)
       `)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
       .from('system_logs')
       .select(`
         *,
-        profiles!system_logs_user_id_fkey(email, first_name, last_name, user_id)
+        profiles:user_id(email, first_name, last_name, id)
       `)
       .eq('type', 'auth')
       .or('message.ilike.%Transaction PIN created%,message.ilike.%Transaction PIN reset%')
