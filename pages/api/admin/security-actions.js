@@ -581,7 +581,15 @@ export default async function handler(req, res) {
         });
     }
 
-    // Log the admin action
+    // Extract reason category from reason text (if it matches a pattern)
+    const reasonCategory = reason.includes('fraud') || reason.includes('Fraud') ? 'Fraud & Suspicious Activity' :
+                          reason.includes('security') || reason.includes('Security') ? 'Security Violations' :
+                          reason.includes('compliance') || reason.includes('Compliance') || reason.includes('regulatory') ? 'Regulatory Compliance' :
+                          reason.includes('Terms') || reason.includes('violation') ? 'Terms of Service Violations' :
+                          reason.includes('verification') || reason.includes('Verification') ? 'Verification Required' :
+                          'Other';
+
+    // Log the admin action in audit_logs
     const { error: auditLogError } = await supabaseAdmin.from('audit_logs').insert({
       user_id: admin.id,
       action: `security_action_${action}`,
@@ -591,6 +599,7 @@ export default async function handler(req, res) {
         target_user_email: userEmail,
         action,
         reason,
+        reason_category: reasonCategory,
         data
       }
     });
@@ -598,6 +607,33 @@ export default async function handler(req, res) {
     if (auditLogError) {
       console.error('Failed to create audit log entry:', auditLogError);
       // Continue even if audit logging fails - the action has already been performed
+    }
+
+    // Log in account_status_audit_log if action affects account status
+    if (['ban_user', 'unban_user', 'lock_account', 'unlock_account'].includes(action)) {
+      const { error: statusAuditError } = await supabaseAdmin.from('account_status_audit_log').insert({
+        user_id: userId,
+        changed_by: admin.id,
+        old_status: profile?.status || 'active',
+        new_status: action === 'ban_user' ? 'banned' : action === 'lock_account' ? 'locked' : 'active',
+        old_is_banned: profile?.is_banned || false,
+        new_is_banned: action === 'ban_user',
+        old_account_locked: false,
+        new_account_locked: action === 'lock_account',
+        reason,
+        reason_category: reasonCategory,
+        action_type: action.replace('_user', '').replace('_account', ''),
+        action_description: `Admin ${admin.email} performed ${action} on user ${userEmail}`,
+        metadata: {
+          admin_email: admin.email,
+          user_email: userEmail,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      if (statusAuditError) {
+        console.error('Failed to create status audit log entry:', statusAuditError);
+      }
     }
 
     return res.status(200).json({

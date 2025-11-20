@@ -286,6 +286,178 @@ export default function SecurityDashboard() {
     setShowActionModal(true);
   };
 
+  // Comprehensive reason options for different actions
+  const getReasonOptions = (action) => {
+    const reasonCategories = {
+      ban_user: [
+        {
+          category: 'Fraud & Suspicious Activity',
+          reasons: [
+            'Multiple instances of fraudulent transactions detected',
+            'Identity theft or impersonation of another individual',
+            'Providing false or fabricated documentation during account opening',
+            'Participating in money laundering or illegal financial activities',
+            'Systematic abuse of banking services for fraudulent purposes',
+            'Connection to known fraud rings or criminal networks'
+          ]
+        },
+        {
+          category: 'Security Violations',
+          reasons: [
+            'Severe security breach compromising multiple accounts',
+            'Unauthorized access attempts to other customer accounts',
+            'Intentional circumvention of security protocols',
+            'Sharing account credentials with unauthorized third parties',
+            'Engaging in phishing or social engineering attacks'
+          ]
+        },
+        {
+          category: 'Regulatory Compliance',
+          reasons: [
+            'Violations of Anti-Money Laundering (AML) regulations',
+            'Non-compliance with Know Your Customer (KYC) requirements',
+            'Failure to provide required documentation after multiple requests',
+            'Involvement in transactions violating OFAC sanctions',
+            'Operating accounts for terrorist financing or prohibited entities'
+          ]
+        },
+        {
+          category: 'Terms of Service Violations',
+          reasons: [
+            'Repeated violations of banking terms and conditions',
+            'Using accounts for prohibited business activities',
+            'Deliberate overdraft abuse or check fraud',
+            'Operating multiple accounts under false identities',
+            'Persistent abusive behavior toward bank staff'
+          ]
+        }
+      ],
+      lock_account: [
+        {
+          category: 'Security Concerns',
+          reasons: [
+            'Suspicious login activity from unusual locations',
+            'Multiple failed login attempts indicating potential breach',
+            'Unauthorized transaction patterns detected',
+            'Customer-reported account compromise or unauthorized access',
+            'Suspected account takeover attempt',
+            'Device fingerprint mismatch with known user patterns'
+          ]
+        },
+        {
+          category: 'Verification Required',
+          reasons: [
+            'Additional identity verification needed for compliance',
+            'Documentation expired and requires renewal',
+            'Account activity inconsistent with customer profile',
+            'Large transaction requiring enhanced due diligence',
+            'Pending review of reported discrepancies'
+          ]
+        },
+        {
+          category: 'Fraud Prevention',
+          reasons: [
+            'Transaction flagged by fraud detection systems',
+            'Potential card skimming or cloning detected',
+            'Suspicious wire transfer or ACH activity',
+            'Account being used in a fraud investigation',
+            'Temporary hold pending fraud review'
+          ]
+        }
+      ],
+      force_password_reset: [
+        {
+          category: 'Security Measures',
+          reasons: [
+            'Suspected password compromise or data breach',
+            'Password detected in known breach databases',
+            'Weak password not meeting current security standards',
+            'Account showing signs of unauthorized access',
+            'Regular security maintenance and password rotation policy',
+            'User-requested password reset for security reasons'
+          ]
+        },
+        {
+          category: 'Policy Compliance',
+          reasons: [
+            'Password has not been changed in over 90 days (policy requirement)',
+            'Password reuse detected across multiple compromised sites',
+            'Compliance with enhanced security protocols',
+            'Administrative password audit findings'
+          ]
+        }
+      ],
+      sign_out_all_devices: [
+        {
+          category: 'Security Response',
+          reasons: [
+            'Suspicious concurrent sessions from multiple locations',
+            'User reported lost or stolen device with active session',
+            'Detected unauthorized device access',
+            'Security breach requiring immediate session termination',
+            'Account compromise investigation in progress'
+          ]
+        },
+        {
+          category: 'Administrative Actions',
+          reasons: [
+            'System-wide security update requiring re-authentication',
+            'Account migration or maintenance procedure',
+            'User requested to sign out all devices',
+            'Termination of suspicious session activity'
+          ]
+        }
+      ],
+      suspend_account: [
+        {
+          category: 'Temporary Holds',
+          reasons: [
+            'Pending investigation of suspicious transactions',
+            'Awaiting customer response to verification request',
+            'Disputed transaction under review',
+            'Temporary compliance hold pending documentation',
+            'Account review for unusual activity patterns',
+            'Cooling-off period following multiple fraud alerts'
+          ]
+        },
+        {
+          category: 'Administrative Review',
+          reasons: [
+            'Inconsistent information requiring clarification',
+            'Large transaction exceeding normal patterns under review',
+            'Third-party fraud report received, investigation pending',
+            'Regulatory audit or examination in progress',
+            'Customer-requested temporary account freeze'
+          ]
+        }
+      ],
+      close_account: [
+        {
+          category: 'Administrative Closure',
+          reasons: [
+            'Account closure requested by customer',
+            'Dormant account with no activity for extended period',
+            'Duplicate account consolidation',
+            'Account no longer meets bank service criteria',
+            'Migration to different account type completed'
+          ]
+        },
+        {
+          category: 'Compliance & Risk',
+          reasons: [
+            'Unable to verify customer identity after multiple attempts',
+            'Customer residing in unsupported jurisdiction',
+            'Account activity incompatible with bank risk appetite',
+            'Regulatory restrictions preventing continued service',
+            'Persistent non-compliance with account requirements'
+          ]
+        }
+      ]
+    };
+
+    return reasonCategories[action] || [];
+  };
+
   const executeSecurityAction = async () => {
     if (!selectedUser || !actionType || !actionReason.trim()) {
       setError('Reason is required for this action.');
@@ -1058,11 +1230,36 @@ export default function SecurityDashboard() {
                   {selectedUser.isBanned && <p style={{color: '#dc2626'}}><strong>Status:</strong> BANNED</p>}
                 </div>
                 <div style={styles.inputGroup}>
-                  <label style={styles.label}>Reason (required):</label>
+                  <label style={styles.label}>Reason Category & Explanation (required):</label>
+                  <div style={styles.reasonCategories}>
+                    {getReasonOptions(actionType).map((category, idx) => (
+                      <div key={idx} style={styles.categorySection}>
+                        <h4 style={styles.categoryTitle}>{category.category}</h4>
+                        <div style={styles.reasonOptions}>
+                          {category.reasons.map((reason, reasonIdx) => (
+                            <button
+                              key={reasonIdx}
+                              onClick={() => setActionReason(reason)}
+                              style={{
+                                ...styles.reasonButton,
+                                ...(actionReason === reason ? styles.reasonButtonSelected : {})
+                              }}
+                              type="button"
+                            >
+                              {actionReason === reason && <span style={styles.checkmark}>✓ </span>}
+                              {reason}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <label style={styles.label}>Selected Reason:</label>
                   <textarea
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
-                    placeholder="e.g., Suspicious activity detected, multiple failed login attempts, etc."
+                    placeholder="Select a reason from above or enter a custom explanation..."
                     style={styles.textarea}
                     rows={3}
                   />
@@ -1660,6 +1857,57 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
+  },
+  reasonCategories: {
+    maxHeight: '400px',
+    overflowY: 'auto',
+    marginBottom: '20px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: '#f8fafc'
+  },
+  categorySection: {
+    padding: '16px',
+    borderBottom: '1px solid #e2e8f0'
+  },
+  categoryTitle: {
+    margin: '0 0 12px 0',
+    fontSize: 'clamp(0.9rem, 2.2vw, 15px)',
+    fontWeight: '700',
+    color: '#1e40af',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  reasonOptions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  reasonButton: {
+    padding: '10px 14px',
+    textAlign: 'left',
+    border: '1px solid #cbd5e1',
+    borderRadius: '6px',
+    backgroundColor: 'white',
+    color: '#334155',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    lineHeight: '1.5',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontWeight: '500'
+  },
+  reasonButtonSelected: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#3b82f6',
+    color: '#1e40af',
+    fontWeight: '600',
+    boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.2)'
+  },
+  checkmark: {
+    color: '#10b981',
+    fontWeight: '700',
+    fontSize: '16px'
   },
   successBannerOverlay: {
     position: 'fixed',
