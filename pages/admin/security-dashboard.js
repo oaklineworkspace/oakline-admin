@@ -173,58 +173,41 @@ export default function SecurityDashboard() {
         (log.message?.includes('Transaction PIN') || log.message?.includes('PIN'))
       );
 
-      // Fetch banned users (is_banned = true)
+      // Fetch banned users (is_banned = true) using service role to bypass RLS
       let bannedUsers = [];
       let suspendedUsers = [];
       try {
-        const { data: bannedProfiles, error: bannedError } = await supabase
-          .from('profiles')
-          .select('id, email, first_name, last_name, is_banned, ban_reason, ban_display_message, status, status_reason, banned_at, status_changed_at, suspension_start_date, suspension_end_date')
-          .eq('is_banned', true);
+        // Get session for API call
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Fetch banned users via API endpoint to use service role
+          const bannedResponse = await fetch('/api/admin/get-banned-users', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          });
 
-        if (bannedError) {
-          console.error('Error fetching banned users from profiles:', bannedError);
-        } else {
-          bannedUsers = (bannedProfiles || []).map(profile => ({
-            id: profile.id,
-            email: profile.email,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
-            is_banned: profile.is_banned,
-            ban_reason: profile.ban_reason,
-            ban_display_message: profile.ban_display_message,
-            status: profile.status,
-            status_reason: profile.status_reason,
-            banned_at: profile.banned_at,
-            status_changed_at: profile.status_changed_at,
-            reason: profile.ban_reason
-          }));
-        }
+          if (bannedResponse.ok) {
+            const bannedResult = await bannedResponse.json();
+            bannedUsers = bannedResult.bannedUsers || [];
+          } else {
+            console.error('Error fetching banned users via API:', await bannedResponse.text());
+          }
 
-        // Fetch suspended users (status = 'suspended' AND is_banned = false)
-        const { data: suspendedProfiles, error: suspendedError } = await supabase
-          .from('profiles')
-          .select('id, email, first_name, last_name, is_banned, ban_reason, ban_display_message, status, status_reason, banned_at, status_changed_at, suspension_start_date, suspension_end_date')
-          .eq('status', 'suspended')
-          .eq('is_banned', false);
+          // Fetch suspended users via API endpoint to use service role
+          const suspendedResponse = await fetch('/api/admin/get-suspended-users', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          });
 
-        if (suspendedError) {
-          console.error('Error fetching suspended users from profiles:', suspendedError);
-        } else {
-          suspendedUsers = (suspendedProfiles || []).map(profile => ({
-            id: profile.id,
-            email: profile.email,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
-            is_banned: profile.is_banned,
-            ban_display_message: profile.ban_display_message,
-            status: profile.status,
-            status_reason: profile.status_reason,
-            status_changed_at: profile.status_changed_at,
-            suspension_start_date: profile.suspension_start_date,
-            suspension_end_date: profile.suspension_end_date,
-            reason: profile.status_reason
-          }));
+          if (suspendedResponse.ok) {
+            const suspendedResult = await suspendedResponse.json();
+            suspendedUsers = suspendedResult.suspendedUsers || [];
+          } else {
+            console.error('Error fetching suspended users via API:', await suspendedResponse.text());
+          }
         }
       } catch (err) {
         console.error('Error fetching banned/suspended users:', err);
