@@ -6,6 +6,35 @@ import AdminFooter from '../../components/AdminFooter';
 import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
+// Add CSS animations
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+  `;
+  if (!document.querySelector('#security-dashboard-animations')) {
+    styleSheet.id = 'security-dashboard-animations';
+    document.head.appendChild(styleSheet);
+  }
+}
+
 export default function SecurityDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
@@ -34,6 +63,12 @@ export default function SecurityDashboard() {
     total: 0,
     action: '',
     message: ''
+  });
+
+  const [successBanner, setSuccessBanner] = useState({
+    visible: false,
+    message: '',
+    action: ''
   });
 
   const [securityData, setSecurityData] = useState({
@@ -294,9 +329,23 @@ export default function SecurityDashboard() {
         throw new Error(result.error || `Failed to execute ${getActionLabel(actionType)}`);
       }
 
-      setSuccess(`✅ ${getActionLabel(actionType)} executed successfully for ${selectedUser.email}!`);
+      // Hide loading banner first
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      
+      // Show professional success banner
+      setSuccessBanner({
+        visible: true,
+        message: `${getActionLabel(actionType)} executed successfully for ${selectedUser.email}`,
+        action: getActionLabel(actionType)
+      });
+      
       setShowActionModal(false);
       await fetchSecurityData(); // Refresh data
+      
+      // Auto-hide success banner after 5 seconds
+      setTimeout(() => {
+        setSuccessBanner({ visible: false, message: '', action: '' });
+      }, 5000);
     } catch (err) {
       setError('❌ ' + err.message);
       console.error('Security action error:', err);
@@ -330,8 +379,22 @@ export default function SecurityDashboard() {
 
       if (error) throw error;
 
-      setSuccess('✅ Session ended successfully!');
+      // Hide loading banner first
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      
+      // Show professional success banner
+      setSuccessBanner({
+        visible: true,
+        message: 'Session ended successfully',
+        action: 'End Session'
+      });
+      
       await fetchSecurityData(); // Refresh data to reflect the change
+      
+      // Auto-hide success banner after 5 seconds
+      setTimeout(() => {
+        setSuccessBanner({ visible: false, message: '', action: '' });
+      }, 5000);
     } catch (err) {
       setError('❌ Failed to end session: ' + err.message);
       console.error('End session error:', err);
@@ -407,6 +470,28 @@ export default function SecurityDashboard() {
         action={loadingBanner.action}
         message={loadingBanner.message}
       />
+      
+      {/* Professional Success Banner */}
+      {successBanner.visible && (
+        <div style={styles.successBannerOverlay}>
+          <div style={styles.successBannerContainer}>
+            <div style={styles.successBannerHeader}>
+              <div style={styles.successBannerLogo}>🏦 OAKLINE ADMIN</div>
+              <div style={styles.successBannerIcon}>✅</div>
+            </div>
+            
+            <div style={styles.successBannerContent}>
+              <h3 style={styles.successBannerAction}>{successBanner.action}</h3>
+              <p style={styles.successBannerMessage}>{successBanner.message}</p>
+            </div>
+            
+            <div style={styles.successBannerFooter}>
+              <div style={styles.successBannerCheckmark}>✓ Operation Completed Successfully</div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
@@ -735,14 +820,23 @@ export default function SecurityDashboard() {
               {securityData.activeSessions.map(session => {
                 const user = users.find(u => u.id === session.user_id);
                 const isActive = session.is_active && !session.ended_at;
+                
+                // Check if session is truly active (last activity within 30 minutes)
+                const lastActivity = session.last_activity ? new Date(session.last_activity) : null;
+                const now = new Date();
+                const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+                const isOnline = isActive && lastActivity && lastActivity > thirtyMinutesAgo;
+                
                 return (
                   <div key={session.id} style={styles.logCard}>
                     <div style={styles.logHeader}>
                       <div>
-                        {isActive ? (
-                          <span style={styles.activeBadge}>🟢 Active</span>
-                        ) : (
+                        {!isActive ? (
                           <span style={styles.endedBadge}>⭕ Ended</span>
+                        ) : isOnline ? (
+                          <span style={styles.activeBadge}>🟢 Active (Online)</span>
+                        ) : (
+                          <span style={styles.offlineBadge}>🟡 Active (Offline)</span>
                         )}
                         {user && <span style={styles.userBadge}>{user.first_name} {user.last_name}</span>}
                       </div>
@@ -1393,6 +1487,14 @@ const styles = {
     backgroundColor: '#fef3c7',
     color: '#92400e'
   },
+  offlineBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    color: '#d97706'
+  },
   pinBadge: {
     padding: '4px 12px',
     borderRadius: '12px',
@@ -1543,5 +1645,77 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
+  },
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerIcon: {
+    fontSize: '32px',
+    animation: 'bounce 0.6s ease-in-out'
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   }
 };
