@@ -528,14 +528,27 @@ export default function SecurityDashboard() {
     }
   };
 
+  // Calculate truly active sessions (last activity within 30 minutes)
+  const now = new Date();
+  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+  const trueActiveSessions = securityData.activeSessions.filter(s => {
+    if (!s.is_active || s.ended_at) return false;
+    const lastActivity = s.last_activity ? new Date(s.last_activity) : null;
+    return lastActivity && lastActivity > thirtyMinutesAgo;
+  });
+
   const stats = {
     totalUsers: users.length,
-    activeUsers: users.filter(u => u.sessions?.some(s => s.is_active && !s.ended_at)).length,
+    activeUsers: users.filter(u => u.sessions?.some(s => {
+      if (!s.is_active || s.ended_at) return false;
+      const lastActivity = s.last_activity ? new Date(s.last_activity) : null;
+      return lastActivity && lastActivity > thirtyMinutesAgo;
+    })).length,
     highRiskUsers: users.filter(u => u.riskLevel === 'high').length,
     suspiciousActivities: users.reduce((sum, u) => sum + u.suspiciousActivityCount, 0),
     totalLogins: securityData.loginHistory.length,
     failedLogins: securityData.loginHistory.filter(l => !l.success).length,
-    activeSessions: securityData.activeSessions.filter(s => s.is_active && !s.ended_at).length,
+    activeSessions: trueActiveSessions.length,
     bannedUsers: securityData.bannedUsers.length,
     suspendedUsers: securityData.suspendedUsers.length
   };
