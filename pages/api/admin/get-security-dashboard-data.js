@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -14,12 +15,10 @@ export default async function handler(req, res) {
   try {
     const { dateRange, deviceType, location, userEmail, status, limit = 100 } = req.query;
 
-    const recentLoginsQuery = supabaseAdmin
+    // Fetch login history
+    let recentLoginsQuery = supabaseAdmin
       .from('login_history')
-      .select(`
-        *,
-        profiles:user_id(email, first_name, last_name, id)
-      `)
+      .select('*')
       .order('login_time', { ascending: false })
       .limit(parseInt(limit));
 
@@ -47,10 +46,6 @@ export default async function handler(req, res) {
       recentLoginsQuery.eq('success', true);
     }
 
-    if (userEmail) {
-      recentLoginsQuery.ilike('profiles.email', `%${userEmail}%`);
-    }
-
     const { data: recentLogins, error: loginsError } = await recentLoginsQuery;
 
     if (loginsError) {
@@ -58,32 +53,22 @@ export default async function handler(req, res) {
       throw loginsError;
     }
 
-    const activeSessionsQuery = supabaseAdmin
+    // Fetch active sessions
+    const { data: activeSessions, error: sessionsError } = await supabaseAdmin
       .from('user_sessions')
-      .select(`
-        *,
-        profiles:user_id(email, first_name, last_name, id)
-      `)
+      .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
-
-    if (userEmail) {
-      activeSessionsQuery.ilike('profiles.email', `%${userEmail}%`);
-    }
-
-    const { data: activeSessions, error: sessionsError } = await activeSessionsQuery;
 
     if (sessionsError) {
       console.error('Error fetching active sessions:', sessionsError);
       throw sessionsError;
     }
 
-    const pinActivityQuery = supabaseAdmin
+    // Fetch PIN activity
+    let pinActivityQuery = supabaseAdmin
       .from('system_logs')
-      .select(`
-        *,
-        profiles:user_id(email, first_name, last_name, id)
-      `)
+      .select('*')
       .eq('type', 'auth')
       .or('message.ilike.%Transaction PIN created%,message.ilike.%Transaction PIN reset%')
       .order('created_at', { ascending: false })
@@ -99,10 +84,6 @@ export default async function handler(req, res) {
       }
     }
 
-    if (userEmail) {
-      pinActivityQuery.ilike('profiles.email', `%${userEmail}%`);
-    }
-
     const { data: pinActivity, error: pinError } = await pinActivityQuery;
 
     if (pinError) {
@@ -110,6 +91,69 @@ export default async function handler(req, res) {
       throw pinError;
     }
 
+    // Get all unique user IDs
+    const userIds = new Set();
+    recentLogins?.forEach(login => userIds.add(login.user_id));
+    activeSessions?.forEach(session => userIds.add(session.user_id));
+    pinActivity?.forEach(activity => userIds.add(activity.user_id));
+
+    // Fetch profiles for all users
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, first_name, last_name')
+      .in('id', Array.from(userIds));
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
+    // Create a map of user_id to profile
+    const profileMap = {};
+    profiles?.forEach(profile => {
+      profileMap[profile.id] = profile;
+    });
+
+    // Attach profiles to login history
+    const loginsWithProfiles = recentLogins?.map(login => ({
+      ...login,
+      profiles: profileMap[login.user_id] || null
+    })) || [];
+
+    // Filter by email if requested
+    let filteredLogins = loginsWithProfiles;
+    if (userEmail) {
+      filteredLogins = loginsWithProfiles.filter(login => 
+        login.profiles?.email?.toLowerCase().includes(userEmail.toLowerCase())
+      );
+    }
+
+    // Attach profiles to sessions
+    let sessionsWithProfiles = activeSessions?.map(session => ({
+      ...session,
+      profiles: profileMap[session.user_id] || null
+    })) || [];
+
+    // Filter by email if requested
+    if (userEmail) {
+      sessionsWithProfiles = sessionsWithProfiles.filter(session => 
+        session.profiles?.email?.toLowerCase().includes(userEmail.toLowerCase())
+      );
+    }
+
+    // Attach profiles to PIN activity
+    let pinActivityWithProfiles = pinActivity?.map(activity => ({
+      ...activity,
+      profiles: profileMap[activity.user_id] || null
+    })) || [];
+
+    // Filter by email if requested
+    if (userEmail) {
+      pinActivityWithProfiles = pinActivityWithProfiles.filter(activity => 
+        activity.profiles?.email?.toLowerCase().includes(userEmail.toLowerCase())
+      );
+    }
+
+    // Fetch banned users
     const { data: bannedUsers, error: bannedError } = await supabaseAdmin.auth.admin.listUsers();
 
     if (bannedError) {
@@ -121,15 +165,15 @@ export default async function handler(req, res) {
 
     const { data: bannedProfiles, error: bannedProfilesError } = await supabaseAdmin
       .from('profiles')
-      .select('user_id, email, first_name, last_name')
-      .in('user_id', bannedUsersList.map(u => u.id));
+      .select('id, email, first_name, last_name')
+      .in('id', bannedUsersList.map(u => u.id));
 
     if (bannedProfilesError) {
       console.error('Error fetching banned profiles:', bannedProfilesError);
     }
 
     const bannedUsersWithProfiles = bannedUsersList.map(user => {
-      const profile = bannedProfiles?.find(p => p.user_id === user.id);
+      const profile = bannedProfiles?.find(p => p.id === user.id);
       return {
         id: user.id,
         email: user.email || profile?.email,
@@ -141,13 +185,14 @@ export default async function handler(req, res) {
       };
     });
 
+    // Calculate suspicious patterns
     const suspiciousPatterns = {
       multipleFailedLogins: {},
       unusualLocations: {},
       concurrentSessions: {}
     };
 
-    recentLogins?.forEach(login => {
+    filteredLogins.forEach(login => {
       if (!login.success && login.profiles?.email) {
         const email = login.profiles.email;
         suspiciousPatterns.multipleFailedLogins[email] = 
@@ -155,7 +200,7 @@ export default async function handler(req, res) {
       }
     });
 
-    activeSessions?.forEach(session => {
+    sessionsWithProfiles.forEach(session => {
       const email = session.profiles?.email;
       if (email) {
         suspiciousPatterns.concurrentSessions[email] = 
@@ -190,11 +235,11 @@ export default async function handler(req, res) {
     });
 
     const stats = {
-      totalLogins: recentLogins?.length || 0,
-      failedLogins: recentLogins?.filter(l => !l.success).length || 0,
-      activeSessions: activeSessions?.length || 0,
-      pinSetups: pinActivity?.filter(p => p.message?.includes('created')).length || 0,
-      pinResets: pinActivity?.filter(p => p.message?.includes('reset')).length || 0,
+      totalLogins: filteredLogins.length,
+      failedLogins: filteredLogins.filter(l => !l.success).length,
+      activeSessions: sessionsWithProfiles.length,
+      pinSetups: pinActivityWithProfiles.filter(p => p.message?.includes('created')).length,
+      pinResets: pinActivityWithProfiles.filter(p => p.message?.includes('reset')).length,
       bannedUsers: bannedUsersWithProfiles.length,
       suspiciousAlerts: alerts.length
     };
@@ -202,9 +247,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       data: {
-        recentLogins: recentLogins || [],
-        activeSessions: activeSessions || [],
-        pinActivity: pinActivity || [],
+        recentLogins: filteredLogins,
+        activeSessions: sessionsWithProfiles,
+        pinActivity: pinActivityWithProfiles,
         bannedUsers: bannedUsersWithProfiles,
         alerts,
         stats
