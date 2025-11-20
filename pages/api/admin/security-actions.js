@@ -19,6 +19,17 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    // Fetch bank details for email configuration
+    const { data: bankDetails } = await supabaseAdmin
+      .from('bank_details')
+      .select('email_support, name')
+      .eq('name', 'Oakline Bank')
+      .single();
+
+    const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
+    const supportEmail = bankDetails?.email_support || `support@${emailDomain}`;
+    const bankName = bankDetails?.name || 'Oakline Bank';
+
     const { action, userId, reason, data } = req.body;
 
     if (!action || !userId) {
@@ -272,9 +283,9 @@ export default async function handler(req, res) {
         try {
           await sendEmail({
             to: userEmail,
-            subject: '🚫 Your Account Has Been Banned - Oakline Bank',
+            subject: `🚫 Your Account Has Been Banned - ${bankName}`,
             type: EMAIL_TYPES.SECURITY,
-            html: generateAccountBannedEmail(userName, reason)
+            html: generateAccountBannedEmail(userName, reason, supportEmail, bankName)
           });
           console.log('Ban notification email sent to:', userEmail);
         } catch (emailError) {
@@ -440,7 +451,7 @@ function generate2FAEnabledEmail(userName) {
   `;
 }
 
-function generateAccountBannedEmail(userName, reason) {
+function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
   return `
     <!DOCTYPE html>
     <html>
@@ -450,14 +461,14 @@ function generateAccountBannedEmail(userName, reason) {
       </div>
       <div style="padding: 32px;">
         <p>Dear ${userName},</p>
-        <p>Your Oakline Bank account has been permanently banned.</p>
+        <p>Your ${bankName} account has been permanently banned.</p>
         ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-        <p>If you believe this is an error, please contact our customer support team at <a href="mailto:support@theoaklinebank.com">support@theoaklinebank.com</a>.</p>
-        <p>Best regards,<br>Oakline Bank Security Team</p>
+        <p>If you believe this is an error, please contact our customer support team at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+        <p>Best regards,<br>${bankName} Security Team</p>
       </div>
       <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
         <p style="color: #718096; font-size: 12px; margin: 0;">
-          © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
+          © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
           Member FDIC | Routing: 075915826
         </p>
       </div>
