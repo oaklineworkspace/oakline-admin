@@ -462,15 +462,16 @@ export default async function handler(req, res) {
           });
         }
 
-        // Sign out from auth (invalidates JWT tokens)
-        const { error: signOutErrorBan } = await supabaseAdmin.auth.admin.signOut(userId);
-        if (signOutErrorBan) {
-          console.error('Auth sign out error:', signOutErrorBan);
-          return res.status(500).json({ 
-            error: 'Failed to sign out user from auth',
-            details: signOutErrorBan.message,
-            errorCode: 'AUTH_SIGNOUT_FAILED'
-          });
+        // Sign out from auth (invalidates JWT tokens) - this is optional and shouldn't fail the ban
+        try {
+          const { error: signOutErrorBan } = await supabaseAdmin.auth.admin.signOut(userId, 'global');
+          if (signOutErrorBan) {
+            console.error('Auth sign out error (non-critical):', signOutErrorBan);
+            // Don't fail the ban action if sign out fails - sessions are already ended in database
+          }
+        } catch (authError) {
+          console.error('Auth sign out exception (non-critical):', authError);
+          // Continue - sessions are already ended and user is banned
         }
 
         // 3. Log the ban action in system_logs

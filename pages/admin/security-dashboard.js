@@ -473,11 +473,20 @@ export default function SecurityDashboard() {
       
       {/* Professional Success Banner */}
       {successBanner.visible && (
-        <div style={styles.successBannerOverlay}>
-          <div style={styles.successBannerContainer}>
+        <div style={styles.successBannerOverlay} onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}>
+          <div style={styles.successBannerContainer} onClick={(e) => e.stopPropagation()}>
             <div style={styles.successBannerHeader}>
               <div style={styles.successBannerLogo}>🏦 OAKLINE ADMIN</div>
-              <div style={styles.successBannerIcon}>✅</div>
+              <div style={styles.successBannerActions}>
+                <div style={styles.successBannerIcon}>✅</div>
+                <button 
+                  onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}
+                  style={styles.successBannerClose}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             
             <div style={styles.successBannerContent}>
@@ -487,6 +496,12 @@ export default function SecurityDashboard() {
             
             <div style={styles.successBannerFooter}>
               <div style={styles.successBannerCheckmark}>✓ Operation Completed Successfully</div>
+              <button
+                onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}
+                style={styles.successBannerOkButton}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
@@ -1683,9 +1698,30 @@ const styles = {
     letterSpacing: '2px',
     textTransform: 'uppercase'
   },
+  successBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
   successBannerIcon: {
     fontSize: '32px',
     animation: 'bounce 0.6s ease-in-out'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
   },
   successBannerContent: {
     padding: '30px 20px'
@@ -1708,7 +1744,8 @@ const styles = {
     backgroundColor: '#f0fdf4',
     padding: '15px',
     display: 'flex',
-    justifyContent: 'center'
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   successBannerCheckmark: {
     fontSize: '14px',
@@ -1717,5 +1754,16 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   }
 };
