@@ -135,19 +135,18 @@ export default function SecurityDashboard() {
         (log.message?.includes('Transaction PIN') || log.message?.includes('PIN'))
       );
 
-      // Fetch banned users from auth.users
+      // Fetch banned users from API
       let bannedUsers = [];
       try {
-        const { data: authData } = await supabase.auth.admin.listUsers();
-        if (authData?.users) {
-          bannedUsers = authData.users.filter(user => 
-            user.banned_until || user.ban_duration
-          ).map(user => ({
-            id: user.id,
-            email: user.email,
-            banned_until: user.banned_until,
-            ban_duration: user.ban_duration
-          }));
+        const bannedResponse = await fetch('/api/admin/get-banned-users', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+        
+        if (bannedResponse.ok) {
+          const bannedResult = await bannedResponse.json();
+          bannedUsers = bannedResult.bannedUsers || [];
         }
       } catch (err) {
         console.error('Error fetching banned users:', err);
