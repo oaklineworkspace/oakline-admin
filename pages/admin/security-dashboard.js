@@ -507,7 +507,9 @@ export default function SecurityDashboard() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setError('Authentication session expired. Please log in again.');
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        setError('❌ Authentication session expired. Please log in again.');
+        setActionLoading(false);
         return;
       }
 
@@ -527,7 +529,12 @@ export default function SecurityDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || `Failed to execute ${getActionLabel(actionType)}`);
+        // Hide loading banner before showing error
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        setActionLoading(false);
+        setError(`❌ Failed to ${getActionLabel(actionType)}: ${result.error || result.details?.message || 'Unknown error'}`);
+        console.error('Security action error:', result);
+        return;
       }
 
       // Hide loading banner first
@@ -548,6 +555,8 @@ export default function SecurityDashboard() {
         setSuccessBanner({ visible: false, message: '', action: '' });
       }, 5000);
     } catch (err) {
+      // Hide loading banner before showing error
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
       setError('❌ ' + err.message);
       console.error('Security action error:', err);
     } finally {

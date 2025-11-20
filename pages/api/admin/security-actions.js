@@ -22,14 +22,17 @@ export default async function handler(req, res) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAuth(token);
-    if (!admin) {
-      return res.status(401).json({ 
-        error: 'Unauthorized',
-        errorCode: 'INVALID_AUTH_TOKEN',
-        details: { message: 'Invalid or expired admin token' }
+    const authResult = await verifyAdminAuth(token);
+    
+    if (authResult.error) {
+      return res.status(authResult.status || 401).json({ 
+        error: authResult.error,
+        errorCode: 'AUTH_FAILED',
+        details: { message: authResult.error }
       });
     }
+
+    const admin = authResult;
 
     // Fetch bank details for email configuration
     const { data: bankDetails } = await supabaseAdmin
@@ -85,7 +88,7 @@ export default async function handler(req, res) {
             account_locked: true,
             locked_reason: reason || 'Account locked by administrator',
             locked_at: new Date().toISOString(),
-            locked_by: admin.id,
+            locked_by: admin.adminId,
             updated_at: new Date().toISOString()
           });
 
@@ -101,11 +104,10 @@ export default async function handler(req, res) {
         // Log suspicious activity
         await supabaseAdmin.from('suspicious_activity').insert({
           user_id: userId,
-          email: userEmail,
           activity_type: 'account_locked',
           description: `Account locked by admin: ${reason || 'No reason provided'}`,
           risk_level: 'high',
-          metadata: { admin_id: admin.id, admin_email: admin.email }
+          metadata: { admin_id: admin.adminId, admin_email: admin.email }
         });
 
         // Send email notification
@@ -668,17 +670,9 @@ export default async function handler(req, res) {
         });
     }
 
-    // Extract reason category from reason text (if it matches a pattern)
-    const reasonCategory = reason.includes('fraud') || reason.includes('Fraud') ? 'Fraud & Suspicious Activity' :
-                          reason.includes('security') || reason.includes('Security') ? 'Security Violations' :
-                          reason.includes('compliance') || reason.includes('Compliance') || reason.includes('regulatory') ? 'Regulatory Compliance' :
-                          reason.includes('Terms') || reason.includes('violation') ? 'Terms of Service Violations' :
-                          reason.includes('verification') || reason.includes('Verification') ? 'Verification Required' :
-                          'Other';
-
     // Log the admin action in audit_logs
     const { error: auditLogError } = await supabaseAdmin.from('audit_logs').insert({
-      user_id: admin.id,
+      user_id: admin.adminId,
       action: `security_action_${action}`,
       table_name: 'user_security',
       new_data: {
@@ -686,7 +680,6 @@ export default async function handler(req, res) {
         target_user_email: userEmail,
         action,
         reason,
-        reason_category: reasonCategory,
         data
       }
     });
@@ -697,20 +690,18 @@ export default async function handler(req, res) {
     }
 
     // Log in account_status_audit_log if action affects account status
-    if (['ban_user', 'unban_user', 'lock_account', 'unlock_account'].includes(action)) {
+    if (['ban_user', 'unban_user', 'lock_account', 'unlock_account', 'suspend_account', 'close_account'].includes(action)) {
       const { error: statusAuditError } = await supabaseAdmin.from('account_status_audit_log').insert({
         user_id: userId,
-        changed_by: admin.id,
+        changed_by: admin.adminId,
         old_status: profile?.status || 'active',
-        new_status: action === 'ban_user' ? 'banned' : action === 'lock_account' ? 'locked' : 'active',
+        new_status: action === 'ban_user' ? 'suspended' : action === 'suspend_account' ? 'suspended' : action === 'close_account' ? 'closed' : action === 'lock_account' ? 'active' : 'active',
         old_is_banned: profile?.is_banned || false,
         new_is_banned: action === 'ban_user',
         old_account_locked: false,
         new_account_locked: action === 'lock_account',
         reason,
-        reason_category: reasonCategory,
         action_type: action.replace('_user', '').replace('_account', ''),
-        action_description: `Admin ${admin.email} performed ${action} on user ${userEmail}`,
         metadata: {
           admin_email: admin.email,
           user_email: userEmail,
