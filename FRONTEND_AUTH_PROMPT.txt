@@ -1,0 +1,139 @@
+
+# Frontend Authentication Implementation Prompt
+
+## Overview
+This document describes the authentication implementation for both user sign-in and admin login pages in the Oakline Bank application.
+
+## User Sign-In Page (`pages/sign-in.js`)
+
+### Features Implemented
+1. **Email/Password Authentication**
+   - Uses Supabase auth.signInWithPassword()
+   - Real-time form validation
+   - Password visibility toggle (show/hide)
+   - Loading states during authentication
+
+2. **Ban/Suspension Detection**
+   - Checks if user is banned during login attempt
+   - Fetches professional ban message from profiles table
+   - Displays custom ban_display_message to user
+   - Handles both `is_banned` flag and `status` field (suspended, etc.)
+   - Automatically signs out banned/suspended users
+
+3. **Account Status Validation**
+   - After successful authentication, checks profile status
+   - Verifies account is 'active' or 'pending'
+   - Blocks login for accounts with restricted status
+   - Shows professional error messages from ban_display_message field
+
+4. **User Experience**
+   - Professional banking UI with gradient blue theme
+   - Secure banking notice with SSL encryption indicator
+   - Error messages displayed in red alert box
+   - Forgot password link for account recovery
+   - Responsive design with modern styling
+
+### Authentication Flow
+```
+1. User enters email/password
+2. Call supabase.auth.signInWithPassword()
+3. If auth error contains "banned":
+   - Fetch profile by email
+   - Display ban_display_message if exists
+4. If auth successful:
+   - Fetch profile by user ID
+   - Check is_banned and status fields
+   - If restricted, sign out and show message
+   - If valid, redirect to /dashboard
+```
+
+### Key Database Fields Used
+- `profiles.is_banned` - Boolean flag for banned accounts
+- `profiles.status` - Account status (active, pending, suspended, etc.)
+- `profiles.ban_display_message` - Professional message shown to banned users
+- `profiles.email` - Used for lookup when auth fails with ban message
+
+## Admin Login Page (`pages/admin/login.js`)
+
+### Features Implemented
+1. **Email/Password Authentication**
+   - Same Supabase auth as user sign-in
+   - Password visibility toggle
+   - Loading states
+
+2. **Admin Authorization**
+   - After auth, checks admin_profiles table
+   - Verifies user exists in admin_profiles
+   - Denies access if not an admin
+   - Automatically signs out non-admin users
+
+3. **Ban Detection**
+   - Checks for banned admin accounts
+   - Displays ban_display_message for banned admins
+   - Prevents banned admins from accessing dashboard
+
+4. **User Experience**
+   - Admin-specific styling with lock icon
+   - "Admin Login" branding
+   - Professional admin access messaging
+   - Redirects to /admin/dashboard on success
+
+### Authentication Flow
+```
+1. Admin enters email/password
+2. Call supabase.auth.signInWithPassword()
+3. If auth error contains "banned":
+   - Fetch profile by email
+   - Display ban_display_message
+4. If auth successful:
+   - Check admin_profiles table for user ID
+   - If not found, sign out and deny access
+   - If found, redirect to /admin/dashboard
+```
+
+### Key Database Tables Used
+- `admin_profiles` - Contains admin user IDs
+- `profiles` - Contains ban status and messages
+
+## Shared Styling
+Both pages use inline styles with:
+- Blue gradient backgrounds (#1A3E6F to #2A5490)
+- White card-based login forms
+- Rounded corners and shadows
+- Professional banking aesthetic
+- Responsive padding and spacing
+
+## Error Handling
+- Network errors shown in red alert box
+- Ban messages displayed prominently
+- Generic "Access denied" for authorization failures
+- User-friendly error messages
+
+## Security Features
+- Passwords hidden by default
+- SSL encryption indicator
+- Automatic logout for unauthorized access
+- Professional ban messages (no technical details exposed)
+- Session validation after authentication
+
+## Usage Instructions for Replit AI
+
+When modifying authentication:
+1. Maintain the ban_display_message lookup logic
+2. Keep the dual-check system (auth error + profile lookup)
+3. Preserve the professional error messaging
+4. Don't expose technical details to end users
+5. Always sign out users when denying access
+6. Test both user and admin login flows
+
+When adding new account restrictions:
+1. Update the status field checks in sign-in.js
+2. Add appropriate professional messages
+3. Consider both is_banned and status fields
+4. Update ban_display_message generation logic
+
+## Related Files
+- `pages/api/admin/security-actions.js` - Generates ban messages
+- `update_ban_display_messages.sql` - SQL for ban messages
+- `add_professional_account_status_fields.sql` - Status field schema
+- `lib/supabaseClient.js` - Supabase client configuration
