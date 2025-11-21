@@ -4,6 +4,7 @@ import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default function ManageRestrictionReasons() {
   const router = useRouter();
@@ -434,10 +435,8 @@ export default function ManageRestrictionReasons() {
                 </button>
               </div>
 
-              <Link href="/admin/dashboard">
-                <a style={{ color: '#667eea', textDecoration: 'none', fontSize: '14px' }}>
-                  ← Back to Dashboard
-                </a>
+              <Link href="/admin/dashboard" style={{ color: '#667eea', textDecoration: 'none', fontSize: '14px' }}>
+                ← Back to Dashboard
               </Link>
             </div>
 
