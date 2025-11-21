@@ -44,13 +44,16 @@ export default function ManageRestrictionReasons() {
   const [displayMessages, setDisplayMessages] = useState([]);
   const [filteredDisplayMessages, setFilteredDisplayMessages] = useState([]);
   const [restrictionReasons, setRestrictionReasons] = useState([]);
+  const [restorationReasons, setRestorationReasons] = useState([]);
   const [displayMessageFormData, setDisplayMessageFormData] = useState({
     restriction_reason_id: '',
+    reason_type: 'restriction',
     message_text: '',
     message_type: 'standard',
     severity_level: 'medium',
     is_default: false,
-    display_order: 0
+    display_order: 0,
+    is_active: true
   });
   const [currentDisplayMessage, setCurrentDisplayMessage] = useState(null);
   const [messageTypeFilter, setMessageTypeFilter] = useState('all');
