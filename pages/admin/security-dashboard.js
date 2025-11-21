@@ -47,6 +47,7 @@ export default function SecurityDashboard() {
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState('');
   const [actionReason, setActionReason] = useState('');
+  const [displayMessage, setDisplayMessage] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -345,7 +346,7 @@ export default function SecurityDashboard() {
     }
   };
 
-  const handleSecurityAction = async (user, action, existingReason = '') => {
+  const handleSecurityAction = async (user, action, existingReason = '', existingDisplayMessage = '') => {
     setSelectedUser(user);
     setActionType(action);
     setActionReason(existingReason); // Use existing reason if editing
@@ -365,6 +366,21 @@ export default function SecurityDashboard() {
       category: category,
       reasons: reasonsSource[action][category]
     }));
+  };
+
+  // Get display message for selected reason
+  const getDisplayMessageForReason = (action, reasonText) => {
+    const reasonsSource = ['unban_user', 'lift_suspension'].includes(action) ? restorationReasons : restrictionReasons;
+    
+    if (!reasonsSource[action]) return null;
+    
+    for (const category of Object.keys(reasonsSource[action])) {
+      const reason = reasonsSource[action][category].find(r => r.text === reasonText);
+      if (reason && reason.displayMessage) {
+        return reason.displayMessage;
+      }
+    }
+    return null;
   };
 
   const executeSecurityAction = async () => {
@@ -402,7 +418,8 @@ export default function SecurityDashboard() {
         body: JSON.stringify({
           action: actionType,
           userId: selectedUser.id,
-          reason: actionReason
+          reason: actionReason,
+          displayMessage: displayMessage || actionReason
         })
       });
 
@@ -932,16 +949,28 @@ export default function SecurityDashboard() {
                       {(user.isBanned || user.status === 'suspended' || user.status === 'closed') && (
                         <button
                           onClick={async () => {
-                            // Fetch the latest profile data to get the current reason
-                            const { data: profileData } = await supabaseAdmin
+                            // Fetch the latest profile data to get the current reason and display message
+                            const { data: profileData, error: profileError } = await supabase
                               .from('profiles')
-                              .select('ban_reason, status_reason, closure_reason, is_banned, status')
+                              .select('ban_reason, status_reason, closure_reason, restriction_display_message, is_banned, status')
                               .eq('id', user.id)
                               .single();
                             
+                            if (profileError) {
+                              console.error('Error fetching profile:', profileError);
+                              setError('Failed to fetch user profile data');
+                              return;
+                            }
+                            
                             const reason = profileData?.ban_reason || profileData?.status_reason || profileData?.closure_reason || '';
+                            const dispMessage = profileData?.restriction_display_message || '';
                             const action = profileData?.is_banned ? 'ban_user' : profileData?.status === 'suspended' ? 'suspend_account' : 'close_account';
-                            handleSecurityAction(user, action, reason);
+                            
+                            setSelectedUser(user);
+                            setActionType(action);
+                            setActionReason(reason);
+                            setDisplayMessage(dispMessage);
+                            setShowActionModal(true);
                           }}
                           style={{...styles.actionButton, flex: '1 1 100%', marginTop: '8px', background: '#7c3aed'}}
                         >
@@ -1067,9 +1096,21 @@ export default function SecurityDashboard() {
                       </div>
                       <div style={{display: 'flex', gap: '8px'}}>
                         <button
-                          onClick={() => {
-                            const reason = suspendedUser.reason || '';
-                            handleSecurityAction(user || suspendedUser, 'suspend_account', reason);
+                          onClick={async () => {
+                            const { data: profileData } = await supabase
+                              .from('profiles')
+                              .select('status_reason, restriction_display_message')
+                              .eq('id', suspendedUser.id)
+                              .single();
+                            
+                            const reason = profileData?.status_reason || suspendedUser.reason || '';
+                            const dispMessage = profileData?.restriction_display_message || '';
+                            
+                            setSelectedUser(user || suspendedUser);
+                            setActionType('suspend_account');
+                            setActionReason(reason);
+                            setDisplayMessage(dispMessage);
+                            setShowActionModal(true);
                           }}
                           style={{...styles.endSessionButton, background: '#7c3aed'}}
                         >
@@ -1142,10 +1183,10 @@ export default function SecurityDashboard() {
                           <p style={{margin: 0, color: '#78350f', fontSize: '14px'}}>{suspendedUser.reason}</p>
                         </div>
                       )}
-                      {suspendedUser.ban_display_message && (
+                      {suspendedUser.restriction_display_message && (
                         <div style={{marginTop: '12px', padding: '12px', background: '#fef3c7', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
                           <p style={{margin: '0 0 4px 0', fontWeight: '600', color: '#92400e'}}>User-Facing Message:</p>
-                          <p style={{margin: 0, color: '#78350f', fontSize: '13px', lineHeight: '1.5'}}>{suspendedUser.ban_display_message}</p>
+                          <p style={{margin: 0, color: '#78350f', fontSize: '13px', lineHeight: '1.5'}}>{suspendedUser.restriction_display_message}</p>
                         </div>
                       )}
                     </div>
@@ -1169,9 +1210,21 @@ export default function SecurityDashboard() {
                       </div>
                       <div style={{display: 'flex', gap: '8px'}}>
                         <button
-                          onClick={() => {
-                            const reason = bannedUser.reason || '';
-                            handleSecurityAction(user || bannedUser, 'ban_user', reason);
+                          onClick={async () => {
+                            const { data: profileData } = await supabase
+                              .from('profiles')
+                              .select('ban_reason, restriction_display_message')
+                              .eq('id', bannedUser.id)
+                              .single();
+                            
+                            const reason = profileData?.ban_reason || bannedUser.reason || '';
+                            const dispMessage = profileData?.restriction_display_message || '';
+                            
+                            setSelectedUser(user || bannedUser);
+                            setActionType('ban_user');
+                            setActionReason(reason);
+                            setDisplayMessage(dispMessage);
+                            setShowActionModal(true);
                           }}
                           style={{...styles.endSessionButton, background: '#7c3aed'}}
                         >
@@ -1196,10 +1249,10 @@ export default function SecurityDashboard() {
                           <p style={{margin: 0, color: '#7f1d1d', fontSize: '14px'}}>{bannedUser.reason}</p>
                         </div>
                       )}
-                      {bannedUser.ban_display_message && (
+                      {bannedUser.restriction_display_message && (
                         <div style={{marginTop: '12px', padding: '12px', background: '#fef2f2', borderRadius: '6px', borderLeft: '3px solid #dc2626'}}>
                           <p style={{margin: '0 0 4px 0', fontWeight: '600', color: '#991b1b'}}>User-Facing Message:</p>
-                          <p style={{margin: 0, color: '#7f1d1d', fontSize: '13px', lineHeight: '1.5'}}>{bannedUser.ban_display_message}</p>
+                          <p style={{margin: 0, color: '#7f1d1d', fontSize: '13px', lineHeight: '1.5'}}>{bannedUser.restriction_display_message}</p>
                         </div>
                       )}
                     </div>
@@ -1350,7 +1403,10 @@ export default function SecurityDashboard() {
                           {category.reasons.map((reason, reasonIdx) => (
                             <button
                               key={reasonIdx}
-                              onClick={() => setActionReason(reason.text)}
+                              onClick={() => {
+                                setActionReason(reason.text);
+                                setDisplayMessage(reason.displayMessage || '');
+                              }}
                               style={{
                                 ...styles.reasonButton,
                                 ...(actionReason === reason.text ? styles.reasonButtonSelected : {})
@@ -1374,6 +1430,18 @@ export default function SecurityDashboard() {
                     style={styles.textarea}
                     rows={3}
                   />
+
+                  <label style={styles.label}>User-Facing Display Message:</label>
+                  <textarea
+                    value={displayMessage}
+                    onChange={(e) => setDisplayMessage(e.target.value)}
+                    placeholder="This message will be shown to the user when they try to access their account..."
+                    style={{...styles.textarea, marginTop: '10px'}}
+                    rows={3}
+                  />
+                  <p style={{fontSize: '12px', color: '#718096', marginTop: '5px'}}>
+                    💡 This is the message the user will see. Customize it to provide clear instructions.
+                  </p>
                 </div>
               </div>
               <div style={styles.modalFooter}>

@@ -129,7 +129,8 @@ export default async function handler(req, res) {
         text: reason.reason_text,
         severity: reason.severity_level,
         requiresImmediateAction: reason.requires_immediate_action,
-        contactEmail: mappedContactEmail
+        contactEmail: mappedContactEmail,
+        displayMessage: reason.restriction_display_message || reason.reason_text
       });
     });
 
