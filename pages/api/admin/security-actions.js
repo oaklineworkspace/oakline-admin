@@ -571,6 +571,16 @@ export default async function handler(req, res) {
           });
         }
 
+        // Ensure user_security_settings exists
+        await supabaseAdmin
+          .from('user_security_settings')
+          .upsert({
+            user_id: userId,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+
         // Terminate active sessions (but don't ban in auth)
         const { error: sessionsErrorSuspend } = await supabaseAdmin
           .from('user_sessions')
@@ -762,10 +772,10 @@ export default async function handler(req, res) {
         .from('user_security_settings')
         .select('account_locked')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (securitySettingsError) {
-        console.error('Failed to fetch security settings:', securitySettingsError);
+        console.warn('Could not fetch security settings:', securitySettingsError.message);
         // Continue even if fetching security settings fails
       }
 
