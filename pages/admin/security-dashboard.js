@@ -1581,12 +1581,12 @@ export default function SecurityDashboard() {
                     rows={2}
                   />
 
-                  {/* Display Messages Dropdown - Only show when a restriction reason with ID is selected */}
-                  {selectedRestrictionReasonId && (
+                  {/* Display Messages Dropdown - Show when a restriction reason is selected */}
+                  {actionReason && selectedRestrictionReasonId && (
                     <>
                       <label style={{...styles.label, marginTop: '16px'}}>💬 Select Display Message (optional):</label>
                       {displayMessagesLoading ? (
-                        <p style={{fontSize: '14px', color: '#718096', padding: '10px'}}>Loading display messages...</p>
+                        <p style={{fontSize: '14px', color: '#718096', padding: '10px'}}>⏳ Loading display messages...</p>
                       ) : availableDisplayMessages.length > 0 ? (
                         <select
                           value={displayMessage}
@@ -1602,7 +1602,7 @@ export default function SecurityDashboard() {
                         </select>
                       ) : (
                         <p style={{fontSize: '14px', color: '#f59e0b', padding: '10px', backgroundColor: '#fef3c7', borderRadius: '6px'}}>
-                          ⚠️ No predefined display messages available for this reason. Please enter a custom message below.
+                          ⚠️ No predefined display messages available for this reason. You can enter a custom message below.
                         </p>
                       )}
                     </>
