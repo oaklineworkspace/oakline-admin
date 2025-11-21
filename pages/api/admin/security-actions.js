@@ -565,7 +565,7 @@ export default async function handler(req, res) {
             suspension_reason: reason || 'Account suspended by administrator', // Also update suspension_reason
             restriction_display_message: suspensionMessage,
             status_changed_at: new Date().toISOString(),
-            status_changed_by: admin.id,
+            status_changed_by: admin.adminId,
             suspension_start_date: new Date().toISOString(),
             suspension_end_date: suspensionEndDate ? suspensionEndDate.toISOString() : null,
             is_banned: false // Ensure is_banned is false for suspensions
@@ -615,11 +615,11 @@ export default async function handler(req, res) {
             suspension_reason: reason || 'No reason provided',
             suspension_end_date: suspensionEndDate ? suspensionEndDate.toISOString() : null,
             suspension_type: suspensionType,
-            suspended_by: admin.id,
+            suspended_by: admin.adminId,
             admin_email: admin.email
           },
           user_id: userId,
-          admin_id: admin.id
+          admin_id: admin.adminId
         });
 
         // Send suspension email
@@ -699,9 +699,9 @@ export default async function handler(req, res) {
             status_reason: reason || 'Account closed by administrator',
             restriction_display_message: closureMessage,
             status_changed_at: new Date().toISOString(),
-            status_changed_by: admin.id,
+            status_changed_by: admin.adminId,
             account_closed_at: new Date().toISOString(),
-            account_closed_by: admin.id,
+            account_closed_by: admin.adminId,
             closure_reason: reason
           })
           .eq('id', userId);
