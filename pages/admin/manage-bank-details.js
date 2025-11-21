@@ -16,6 +16,8 @@ export default function ManageBankDetails() {
   const [newEmail, setNewEmail] = useState({ label: '', value: '' });
   const [newColumn, setNewColumn] = useState({ name: '', type: 'text', label: '' });
   const [customEmails, setCustomEmails] = useState([]);
+  const [emailFields, setEmailFields] = useState([]);
+  const [newEmailField, setNewEmailField] = useState({ fieldName: '', fieldLabel: '', fieldDescription: '', fieldValue: '' });
   const [formData, setFormData] = useState({
     name: '',
     branch_name: '',
@@ -86,6 +88,16 @@ export default function ManageBankDetails() {
         if (result.bankDetails.custom_emails) {
           setCustomEmails(Array.isArray(result.bankDetails.custom_emails) ? result.bankDetails.custom_emails : []);
         }
+        if (result.bankDetails.email_fields) {
+          const fields = Array.isArray(result.bankDetails.email_fields) ? result.bankDetails.email_fields : [];
+          setEmailFields(fields);
+          // Populate formData with email field values
+          const emailFieldsData = {};
+          fields.forEach(field => {
+            emailFieldsData[field.fieldName] = result.bankDetails[field.fieldName] || '';
+          });
+          setFormData(prev => ({...prev, ...emailFieldsData}));
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -131,6 +143,49 @@ export default function ManageBankDetails() {
     setCustomEmails(customEmails.filter(email => email.id !== id));
   };
 
+  const handleCreateEmailField = () => {
+    if (!newEmailField.fieldName || !newEmailField.fieldLabel || !newEmailField.fieldValue) {
+      setError('Field Name, Label, and Email Address are required');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmailField.fieldValue)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Check if field already exists
+    if (emailFields.some(f => f.fieldName === newEmailField.fieldName)) {
+      setError('A field with this name already exists');
+      return;
+    }
+
+    const newField = {
+      id: Date.now().toString(),
+      fieldName: newEmailField.fieldName,
+      fieldLabel: newEmailField.fieldLabel,
+      fieldDescription: newEmailField.fieldDescription,
+      createdAt: new Date().toISOString()
+    };
+
+    setEmailFields([...emailFields, newField]);
+    setFormData(prev => ({
+      ...prev,
+      [newEmailField.fieldName]: newEmailField.fieldValue
+    }));
+    setNewEmailField({ fieldName: '', fieldLabel: '', fieldDescription: '', fieldValue: '' });
+    setShowAddEmailModal(false);
+    setError('');
+  };
+
+  const handleRemoveEmailField = (fieldName) => {
+    setEmailFields(emailFields.filter(field => field.fieldName !== fieldName));
+    const newFormData = {...formData};
+    delete newFormData[fieldName];
+    setFormData(newFormData);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -146,7 +201,8 @@ export default function ManageBankDetails() {
 
       const dataToSubmit = {
         ...formData,
-        custom_emails: customEmails
+        custom_emails: customEmails,
+        email_fields: emailFields
       };
 
       const response = await fetch('/api/admin/update-bank-details', {
@@ -691,6 +747,43 @@ export default function ManageBankDetails() {
                     </div>
                   </div>
                 )}
+
+                {/* Dynamic Email Fields */}
+                {emailFields.length > 0 && (
+                  <div style={styles.emailSection}>
+                    <h3 style={styles.emailSectionTitle}>Dynamic Email Fields</h3>
+                    <div style={styles.grid}>
+                      {emailFields.map((field) => (
+                        <div key={field.id} style={styles.dynamicFieldContainer}>
+                          <div style={styles.fieldHeader}>
+                            <div>
+                              <label style={styles.label}>{field.fieldLabel}</label>
+                              {field.fieldDescription && (
+                                <p style={styles.fieldDescription}>{field.fieldDescription}</p>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEmailField(field.fieldName)}
+                              style={styles.removeFieldButton}
+                              title="Remove this email field definition"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                          <input
+                            type="email"
+                            name={field.fieldName}
+                            value={formData[field.fieldName] || ''}
+                            onChange={handleChange}
+                            style={styles.input}
+                            placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -806,38 +899,74 @@ export default function ManageBankDetails() {
           </form>
         )}
 
-        {/* Add Custom Email Modal */}
+        {/* Create Email Field Modal */}
         {showAddEmailModal && (
           <div style={styles.modalOverlay} onClick={() => setShowAddEmailModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>➕ Add Custom Email</h2>
-                <button onClick={() => setShowAddEmailModal(false)} style={styles.closeButton}>×</button>
+                <h2 style={styles.modalTitle}>➕ Create Email Field</h2>
+                <button onClick={() => {setShowAddEmailModal(false); setNewEmailField({ fieldName: '', fieldLabel: '', fieldDescription: '', fieldValue: '' });}} style={styles.closeButton}>×</button>
               </div>
               <div style={styles.modalBody}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Email Label *</label>
+                  <label style={styles.label}>Field Name (Key) *</label>
                   <input
                     type="text"
-                    value={newEmail.label}
-                    onChange={(e) => setNewEmail({...newEmail, label: e.target.value})}
+                    value={newEmailField.fieldName}
+                    onChange={(e) => setNewEmailField({...newEmailField, fieldName: e.target.value.replace(/\s+/g, '_').toLowerCase()})}
                     style={styles.input}
-                    placeholder="e.g., Marketing, Sales, HR"
+                    placeholder="e.g., email_sales, email_marketing"
                   />
+                  <span style={styles.helpText}>Used internally as the field identifier (auto-formatted)</span>
                 </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Display Label *</label>
+                  <input
+                    type="text"
+                    value={newEmailField.fieldLabel}
+                    onChange={(e) => setNewEmailField({...newEmailField, fieldLabel: e.target.value})}
+                    style={styles.input}
+                    placeholder="e.g., Sales Team Email, Marketing Department"
+                  />
+                  <span style={styles.helpText}>How this field will appear in the form</span>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Description (Purpose)</label>
+                  <input
+                    type="text"
+                    value={newEmailField.fieldDescription}
+                    onChange={(e) => setNewEmailField({...newEmailField, fieldDescription: e.target.value})}
+                    style={styles.input}
+                    placeholder="e.g., For sales inquiries and customer support"
+                  />
+                  <span style={styles.helpText}>Optional description of when this email is used</span>
+                </div>
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Email Address *</label>
                   <input
                     type="email"
-                    value={newEmail.value}
-                    onChange={(e) => setNewEmail({...newEmail, value: e.target.value})}
+                    value={newEmailField.fieldValue}
+                    onChange={(e) => setNewEmailField({...newEmailField, fieldValue: e.target.value})}
                     style={styles.input}
-                    placeholder="email@example.com"
+                    placeholder="sales@theoaklinebank.com"
                   />
                 </div>
-                <button onClick={handleAddEmail} style={styles.submitButton}>
-                  Add Email
-                </button>
+
+                <div style={styles.modalActions}>
+                  <button 
+                    type="button"
+                    onClick={() => {setShowAddEmailModal(false); setNewEmailField({ fieldName: '', fieldLabel: '', fieldDescription: '', fieldValue: '' });}} 
+                    style={styles.cancelButton}
+                  >
+                    Cancel
+                  </button>
+                  <button onClick={handleCreateEmailField} style={styles.submitButton}>
+                    Create Field
+                  </button>
+                </div>
               </div>
             </div>
           </div>
