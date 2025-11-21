@@ -7,6 +7,7 @@ import AdminNavDropdown from '../../components/AdminNavDropdown';
 import AdminPageDropdown from '../../components/AdminPageDropdown';
 import AdminStickyDropdown from '../../components/AdminStickyDropdown';
 import AdminSearchBar from '../../components/AdminSearchBar';
+import AdminSearchModal from '../../components/AdminSearchModal';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -325,6 +326,14 @@ export default function AdminNavigationHub() {
         <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
           <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
             <AdminNavDropdown />
+          </div>
+        </div>
+      )}
+
+      {showPageSearch && (
+        <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
+          <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+            <AdminSearchModal onClose={() => setShowPageSearch(false)} />
           </div>
         </div>
       )}

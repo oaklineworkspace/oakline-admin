@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import AdminFooter from '../components/AdminFooter';
 import AdminNavDropdown from '../components/AdminNavDropdown';
 import AdminPageDropdown from '../components/AdminPageDropdown';
+import AdminSearchModal from '../components/AdminSearchModal';
 
 export default function AdminNavigationHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -315,7 +316,7 @@ export default function AdminNavigationHub() {
       {showPageSearch && (
         <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
           <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
-            <AdminNavDropdown />
+            <AdminSearchModal onClose={() => setShowPageSearch(false)} />
           </div>
         </div>
       )}
