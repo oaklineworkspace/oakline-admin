@@ -420,7 +420,7 @@ export default async function handler(req, res) {
           .update({
             is_banned: true,
             ban_reason: reason || 'Account banned by administrator',
-            ban_display_message: banMessage,
+            restriction_display_message: banMessage,
             banned_at: new Date().toISOString(),
             status_changed_at: new Date().toISOString(),
             status_changed_by: admin.id,
@@ -553,7 +553,7 @@ export default async function handler(req, res) {
           .update({
             status: 'suspended',
             status_reason: reason || 'Account suspended by administrator',
-            ban_display_message: suspensionMessage,
+            restriction_display_message: suspensionMessage,
             status_changed_at: new Date().toISOString(),
             status_changed_by: admin.id,
             suspension_start_date: new Date().toISOString(),
@@ -629,7 +629,7 @@ export default async function handler(req, res) {
           .update({
             status: 'active',
             status_reason: null,
-            ban_display_message: null,
+            restriction_display_message: null,
             suspension_start_date: null,
             suspension_end_date: null,
             status_changed_at: new Date().toISOString(),
@@ -681,7 +681,7 @@ export default async function handler(req, res) {
           .update({
             status: 'closed',
             status_reason: reason || 'Account closed by administrator',
-            ban_display_message: closureMessage,
+            restriction_display_message: closureMessage,
             status_changed_at: new Date().toISOString(),
             status_changed_by: admin.id,
             account_closed_at: new Date().toISOString(),
@@ -731,7 +731,7 @@ export default async function handler(req, res) {
           .update({
             is_banned: false,
             ban_reason: null,
-            ban_display_message: null, // Clear display message as well
+            restriction_display_message: null, // Clear display message as well
             banned_at: null,
             banned_by: null,
             // Also clear any lingering suspension status if it was somehow set with is_banned=false

@@ -72,6 +72,12 @@ export default function SecurityDashboard() {
     action: ''
   });
 
+  const [errorBanner, setErrorBanner] = useState({
+    visible: false,
+    message: '',
+    action: ''
+  });
+
   const [securityData, setSecurityData] = useState({
     loginHistory: [],
     activeSessions: [],
@@ -398,8 +404,21 @@ export default function SecurityDashboard() {
         // Hide loading banner before showing error
         setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
         setActionLoading(false);
-        setError(`❌ Failed to ${getActionLabel(actionType)}: ${result.error || result.details?.message || 'Unknown error'}`);
+        
+        // Show professional error banner
+        setErrorBanner({
+          visible: true,
+          message: result.error || result.details?.message || 'Unknown error occurred',
+          action: getActionLabel(actionType)
+        });
+        
         console.error('Security action error:', result);
+        
+        // Auto-hide error banner after 8 seconds
+        setTimeout(() => {
+          setErrorBanner({ visible: false, message: '', action: '' });
+        }, 8000);
+        
         return;
       }
 
@@ -423,8 +442,20 @@ export default function SecurityDashboard() {
     } catch (err) {
       // Hide loading banner before showing error
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
-      setError('❌ ' + err.message);
+      
+      // Show professional error banner
+      setErrorBanner({
+        visible: true,
+        message: err.message || 'An unexpected error occurred',
+        action: getActionLabel(actionType)
+      });
+      
       console.error('Security action error:', err);
+      
+      // Auto-hide error banner after 8 seconds
+      setTimeout(() => {
+        setErrorBanner({ visible: false, message: '', action: '' });
+      }, 8000);
     } finally {
       setActionLoading(false);
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
@@ -591,6 +622,42 @@ export default function SecurityDashboard() {
               <button
                 onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}
                 style={styles.successBannerOkButton}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Professional Error Banner */}
+      {errorBanner.visible && (
+        <div style={styles.errorBannerOverlay} onClick={() => setErrorBanner({ visible: false, message: '', action: '' })}>
+          <div style={styles.errorBannerContainer} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.errorBannerHeader}>
+              <div style={styles.errorBannerLogo}>🏦 OAKLINE ADMIN</div>
+              <div style={styles.errorBannerActions}>
+                <div style={styles.errorBannerIcon}>❌</div>
+                <button 
+                  onClick={() => setErrorBanner({ visible: false, message: '', action: '' })}
+                  style={styles.errorBannerClose}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div style={styles.errorBannerContent}>
+              <h3 style={styles.errorBannerAction}>{errorBanner.action}</h3>
+              <p style={styles.errorBannerMessage}>{errorBanner.message}</p>
+            </div>
+            
+            <div style={styles.errorBannerFooter}>
+              <div style={styles.errorBannerWarning}>⚠️ Operation Failed</div>
+              <button
+                onClick={() => setErrorBanner({ visible: false, message: '', action: '' })}
+                style={styles.errorBannerOkButton}
               >
                 OK
               </button>
@@ -2154,6 +2221,111 @@ const styles = {
   successBannerOkButton: {
     padding: '8px 24px',
     background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  },
+  errorBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  errorBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  errorBannerHeader: {
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  errorBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  errorBannerIcon: {
+    fontSize: '32px',
+    animation: 'bounce 0.6s ease-in-out'
+  },
+  errorBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  errorBannerContent: {
+    padding: '30px 20px'
+  },
+  errorBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#dc2626',
+    textAlign: 'center'
+  },
+  errorBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  errorBannerFooter: {
+    backgroundColor: '#fef2f2',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerWarning: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  errorBannerOkButton: {
+    padding: '8px 24px',
+    background: '#dc2626',
     color: '#ffffff',
     border: 'none',
     borderRadius: '6px',
