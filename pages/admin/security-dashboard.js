@@ -360,7 +360,14 @@ export default function SecurityDashboard() {
 
   const executeSecurityAction = async () => {
     if (!selectedUser || !actionType || !actionReason.trim()) {
-      setError('Reason is required for this action.');
+      setErrorBanner({
+        visible: true,
+        message: 'Reason is required for this action.',
+        action: getActionLabel(actionType)
+      });
+      setTimeout(() => {
+        setErrorBanner({ visible: false, message: '', action: '' });
+      }, 5000);
       return;
     }
 
@@ -372,15 +379,20 @@ export default function SecurityDashboard() {
       action: getActionLabel(actionType),
       message: 'Processing security action...'
     });
-    setError('');
-    setSuccess('');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
-        setError('❌ Authentication session expired. Please log in again.');
         setActionLoading(false);
+        setErrorBanner({
+          visible: true,
+          message: 'Authentication session expired. Please log in again.',
+          action: getActionLabel(actionType)
+        });
+        setTimeout(() => {
+          setErrorBanner({ visible: false, message: '', action: '' });
+        }, 8000);
         return;
       }
 
@@ -400,15 +412,15 @@ export default function SecurityDashboard() {
 
       const result = await response.json();
 
+      // Hide loading banner
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setActionLoading(false);
+
       if (!response.ok) {
-        // Hide loading banner before showing error
-        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
-        setActionLoading(false);
-        
         // Show professional error banner
         setErrorBanner({
           visible: true,
-          message: result.error || result.details?.message || 'Unknown error occurred',
+          message: result.error || result.details || 'Failed to execute action',
           action: getActionLabel(actionType)
         });
         
@@ -422,8 +434,10 @@ export default function SecurityDashboard() {
         return;
       }
 
-      // Hide loading banner first
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      // Close modal and show success
+      setShowActionModal(false);
+      setActionReason('');
+      setDisplayMessage('');
       
       // Show professional success banner
       setSuccessBanner({
@@ -432,16 +446,18 @@ export default function SecurityDashboard() {
         action: getActionLabel(actionType)
       });
       
-      setShowActionModal(false);
-      await fetchSecurityData(); // Refresh data
+      // Refresh data
+      await fetchSecurityData();
       
       // Auto-hide success banner after 5 seconds
       setTimeout(() => {
         setSuccessBanner({ visible: false, message: '', action: '' });
       }, 5000);
+      
     } catch (err) {
-      // Hide loading banner before showing error
+      // Hide loading banner
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setActionLoading(false);
       
       // Show professional error banner
       setErrorBanner({
@@ -456,9 +472,6 @@ export default function SecurityDashboard() {
       setTimeout(() => {
         setErrorBanner({ visible: false, message: '', action: '' });
       }, 8000);
-    } finally {
-      setActionLoading(false);
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     }
   };
 
