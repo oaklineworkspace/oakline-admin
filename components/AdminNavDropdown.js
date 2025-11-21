@@ -1,6 +1,169 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+const adminPages = [
+  {
+    category: '🏦 Admin Control',
+    links: [
+      { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '📊' },
+      { name: 'Create Admin', path: '/admin/register', icon: '➕' },
+      { name: 'Admin Login', path: '/admin/login', icon: '🔐' },
+      { name: 'Bank Details', path: '/admin/manage-bank-details', icon: '🏦' },
+    ]
+  },
+  {
+    category: '👥 User Management',
+    links: [
+      { name: 'Manage Enrollment', path: '/admin/manage-user-enrollment', icon: '📧' },
+      { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '🔄' },
+      { name: 'View User Documents', path: '/admin/view-user-documents', icon: '📄' },
+      { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
+      { name: 'Delete Users', path: '/admin/delete-users', icon: '⚠️' },
+    ]
+  },
+  {
+    category: '🛠️ Testing & Tools',
+    links: [
+      { name: 'Account Requests', path: '/admin/manage-account-requests', icon: '📋' },
+      { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
+    ]
+  },
+  {
+    category: '📊 Dashboard & Reports',
+    links: [
+      { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏠' },
+      { name: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
+      { name: 'Reports', path: '/admin/admin-reports', icon: '📈' },
+      { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
+      { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
+      { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }
+    ]
+  },
+  {
+    category: '👥 User Management',
+    links: [
+      { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥' },
+      { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '📝' },
+      { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼' },
+      { name: 'Create User', path: '/admin/create-user', icon: '➕' },
+      { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
+      { name: 'Credit Scores', path: '/admin/credit-scores', icon: '📊' },
+    ]
+  },
+  {
+    category: '🏦 Account Management',
+    links: [
+      { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦' },
+      { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
+      { name: 'Account Balance', path: '/admin/admin-balance', icon: '💰' },
+      { name: 'Manage Bank Details', path: '/admin/manage-bank-details', icon: '🏦' }
+    ]
+  },
+  {
+    category: '📋 Applications',
+    links: [
+      { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅' },
+      { name: 'Account Requests', path: '/admin/manage-account-requests', icon: '📋' },
+      { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
+    ]
+  },
+  {
+    category: '⚙️ Configuration',
+    links: [
+      { name: 'Manage Account Types', path: '/admin/manage-account-types', icon: '💳' },
+      { name: 'User Details Lookup', path: '/admin/user-details', icon: '🔍' },
+    ]
+  },
+  {
+    category: '💳 Card Management',
+    links: [
+      { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
+      { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
+      { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝' },
+      { name: 'Linked Cards Review', path: '/admin/linked-cards', icon: '🔗' },
+      { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫' },
+      { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗' },
+      { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' }
+    ]
+  },
+  {
+    category: '💸 Transactions',
+    links: [
+      { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸' },
+      { name: 'User Transfers', path: '/admin/admin-transfers', icon: '🔄' },
+      { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
+      { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
+      { name: 'Generate Transactions', path: '/admin/generate-transactions', icon: '🎲' },
+      { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' }
+    ]
+  },
+  {
+    category: '🏠 Banking Services',
+    links: [
+      { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️' },
+      { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
+      { name: 'Loan Types', path: '/admin/loan-types', icon: '💼' },
+      { name: 'Loan Detail', path: '/admin/loans/[loanId]', icon: '📄' },
+      { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
+      { name: 'Manage Loan Wallets', path: '/admin/manage-loan-wallets', icon: '💰' },
+      { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
+      { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
+      { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
+      { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
+      { name: 'Assign Crypto Wallets', path: '/admin/assign-crypto-wallets', icon: '🔗' },
+      { name: 'Manage Crypto Assets', path: '/admin/manage-crypto-assets', icon: '⚙️' }
+    ]
+  },
+  {
+    category: '₿ Crypto Management',
+    links: [
+      { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
+      { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
+      { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
+      { name: 'Manage Crypto Investments', path: '/admin/manage-crypto-investments', icon: '📊' },
+      { name: 'Account Opening Deposits', path: '/admin/manage-account-opening-deposits', icon: '💳' },
+      { name: 'Account Opening Wallets', path: '/admin/manage-account-opening-wallets', icon: '👛' },
+      { name: 'Approve Funding', path: '/admin/approve-funding', icon: '✅' },
+    ]
+  },
+  {
+    category: '⚙️ System & Audit',
+    links: [
+      { name: 'Security Dashboard', path: '/admin/security-dashboard', icon: '🔐' },
+      { name: 'Manage Restriction Reasons', path: '/admin/manage-restriction-reasons', icon: '📋' },
+      { name: 'User Activity Monitor', path: '/admin/user-activity-monitor', icon: '👁️' },
+      { name: 'Edit User Timestamps', path: '/admin/edit-user-timestamps', icon: '⏰' },
+      { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
+      { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
+      { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
+      { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }
+    ]
+  },
+  {
+    category: '🗑️ User Deletion',
+    links: [
+      { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️' },
+      { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🔍' },
+      { name: 'Delete User Loans', path: '/admin/delete-user-loans', icon: '🏠' },
+    ]
+  },
+  {
+    category: '💬 Communications',
+    links: [
+      { name: 'User Messages', path: '/admin/messages', icon: '💬' },
+      { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
+    ]
+  },
+  {
+    category: '📁 System Tools',
+    links: [
+      { name: 'File Browser', path: '/admin/file-browser', icon: '📁' },
+      { name: 'Storage Diagnostics', path: '/admin/storage-diagnostics', icon: '🔍' },
+      { name: 'Database Explorer', path: '/admin/database-explorer', icon: '🗄️' },
+    ]
+  }
+];
+
 export default function AdminNavDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,169 +193,6 @@ export default function AdminNavDropdown() {
       }))
       .filter(section => section.links.length > 0);
   };
-
-  const adminPages = [
-    {
-      category: '🏦 Admin Control',
-      links: [
-        { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '📊' },
-        { name: 'Create Admin', path: '/admin/register', icon: '➕' },
-        { name: 'Admin Login', path: '/admin/login', icon: '🔐' },
-        { name: 'Bank Details', path: '/admin/manage-bank-details', icon: '🏦' },
-      ]
-    },
-    {
-      category: '👥 User Management',
-      links: [
-        { name: 'Manage Enrollment', path: '/admin/manage-user-enrollment', icon: '📧' },
-        { name: 'Resend Enrollment', path: '/admin/resend-enrollment', icon: '🔄' },
-        { name: 'View User Documents', path: '/admin/view-user-documents', icon: '📄' },
-        { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
-        { name: 'Delete Users', path: '/admin/delete-users', icon: '⚠️' },
-      ]
-    },
-    {
-      category: '🛠️ Testing & Tools',
-      links: [
-        { name: 'Account Requests', path: '/admin/manage-account-requests', icon: '📋' },
-        { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' },
-      ]
-    },
-    {
-      category: '📊 Dashboard & Reports',
-      links: [
-        { name: 'Admin Dashboard', path: '/admin/admin-dashboard', icon: '🏠' },
-        { name: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-        { name: 'Reports', path: '/admin/admin-reports', icon: '📈' },
-        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
-        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
-        { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }
-      ]
-    },
-    {
-      category: '👥 User Management',
-      links: [
-        { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👥' },
-        { name: 'User Enrollment', path: '/admin/manage-user-enrollment', icon: '📝' },
-        { name: 'Customer Users', path: '/admin/admin-users', icon: '👨‍💼' },
-        { name: 'Create User', path: '/admin/create-user', icon: '➕' },
-        { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🗑️' },
-        { name: 'Credit Scores', path: '/admin/credit-scores', icon: '📊' },
-      ]
-    },
-    {
-      category: '🏦 Account Management',
-      links: [
-        { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦' },
-        { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
-        { name: 'Account Balance', path: '/admin/admin-balance', icon: '💰' },
-        { name: 'Manage Bank Details', path: '/admin/manage-bank-details', icon: '🏦' }
-      ]
-    },
-    {
-      category: '📋 Applications',
-      links: [
-        { name: 'Approve Applications', path: '/admin/approve-applications', icon: '✅' },
-        { name: 'Account Requests', path: '/admin/manage-account-requests', icon: '📋' },
-        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '💳' },
-      ]
-    },
-    {
-      category: '⚙️ Configuration',
-      links: [
-        { name: 'Manage Account Types', path: '/admin/manage-account-types', icon: '💳' },
-        { name: 'User Details Lookup', path: '/admin/user-details', icon: '🔍' },
-      ]
-    },
-    {
-      category: '💳 Card Management',
-      links: [
-        { name: 'Cards Dashboard', path: '/admin/admin-cards-dashboard', icon: '📊' },
-        { name: 'Manage Cards', path: '/admin/manage-cards', icon: '💳' },
-        { name: 'Card Applications', path: '/admin/admin-card-applications', icon: '📝' },
-        { name: 'Linked Cards Review', path: '/admin/linked-cards', icon: '🔗' },
-        { name: 'Issue Debit Card', path: '/admin/issue-debit-card', icon: '🎫' },
-        { name: 'Assign Card', path: '/admin/admin-assign-card', icon: '🔗' },
-        { name: 'Test Card Transactions', path: '/admin/test-card-transactions', icon: '🧪' }
-      ]
-    },
-    {
-      category: '💸 Transactions',
-      links: [
-        { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸' },
-        { name: 'User Transfers', path: '/admin/admin-transfers', icon: '🔄' },
-        { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
-        { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
-        { name: 'Generate Transactions', path: '/admin/generate-transactions', icon: '🎲' },
-        { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' }
-      ]
-    },
-    {
-      category: '🏠 Banking Services',
-      links: [
-        { name: 'Treasury Account', path: '/admin/treasury', icon: '🏛️' },
-        { name: 'Loans Management', path: '/admin/admin-loans', icon: '🏠' },
-        { name: 'Loan Types', path: '/admin/loan-types', icon: '💼' },
-        { name: 'Loan Detail', path: '/admin/loans/[loanId]', icon: '📄' },
-        { name: 'Loan Payments', path: '/admin/loan-payments', icon: '💵' },
-        { name: 'Manage Loan Wallets', path: '/admin/manage-loan-wallets', icon: '💰' },
-        { name: 'Investments', path: '/admin/admin-investments', icon: '📈' },
-        { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
-        { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
-        { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
-        { name: 'Assign Crypto Wallets', path: '/admin/assign-crypto-wallets', icon: '🔗' },
-        { name: 'Manage Crypto Assets', path: '/admin/manage-crypto-assets', icon: '⚙️' }
-      ]
-    },
-    {
-      category: '₿ Crypto Management',
-      links: [
-        { name: 'Crypto Dashboard', path: '/admin/admin-crypto', icon: '₿' },
-        { name: 'Manage Crypto Wallets', path: '/admin/manage-crypto-wallets', icon: '🔑' },
-        { name: 'Manage Crypto Deposits', path: '/admin/manage-crypto-deposits', icon: '💰' },
-        { name: 'Manage Crypto Investments', path: '/admin/manage-crypto-investments', icon: '📊' },
-        { name: 'Account Opening Deposits', path: '/admin/manage-account-opening-deposits', icon: '💳' },
-        { name: 'Account Opening Wallets', path: '/admin/manage-account-opening-wallets', icon: '👛' },
-        { name: 'Approve Funding', path: '/admin/approve-funding', icon: '✅' },
-      ]
-    },
-    {
-      category: '⚙️ System & Audit',
-      links: [
-        { name: 'Security Dashboard', path: '/admin/security-dashboard', icon: '🔐' },
-        { name: 'Manage Restriction Reasons', path: '/admin/manage-restriction-reasons', icon: '📋' },
-        { name: 'User Activity Monitor', path: '/admin/user-activity-monitor', icon: '👁️' },
-        { name: 'Edit User Timestamps', path: '/admin/edit-user-timestamps', icon: '⏰' },
-        { name: 'Admin Settings', path: '/admin/admin-settings', icon: '⚙️' },
-        { name: 'Audit Logs', path: '/admin/admin-audit', icon: '🔍' },
-        { name: 'System Logs', path: '/admin/admin-logs', icon: '📜' },
-        { name: 'Email Logs', path: '/admin/email-logs', icon: '📧' }
-      ]
-    },
-    {
-      category: '🗑️ User Deletion',
-      links: [
-        { name: 'Delete Users', path: '/admin/delete-users', icon: '🗑️' },
-        { name: 'Delete User by ID', path: '/admin/delete-user-by-id', icon: '🔍' },
-        { name: 'Delete User Loans', path: '/admin/delete-user-loans', icon: '🏠' },
-      ]
-    },
-    {
-      category: '💬 Communications',
-      links: [
-        { name: 'User Messages', path: '/admin/messages', icon: '💬' },
-        { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
-      ]
-    },
-    {
-      category: '📁 System Tools',
-      links: [
-        { name: 'File Browser', path: '/admin/file-browser', icon: '📁' },
-        { name: 'Storage Diagnostics', path: '/admin/storage-diagnostics', icon: '🔍' },
-        { name: 'Database Explorer', path: '/admin/database-explorer', icon: '🗄️' },
-      ]
-    }
-  ];
 
   return (
     <div style={styles.stickyContainer}>
