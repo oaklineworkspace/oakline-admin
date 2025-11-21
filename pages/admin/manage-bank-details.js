@@ -1363,5 +1363,49 @@ const styles = {
     fontWeight: '700',
     cursor: 'pointer',
     marginTop: '8px'
+  },
+  dynamicFieldContainer: {
+    padding: '16px',
+    background: '#f8f9fa',
+    borderRadius: '8px',
+    border: '1px solid #d0d7de',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    position: 'relative'
+  },
+  fieldHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '12px'
+  },
+  fieldDescription: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#6b7280',
+    fontStyle: 'italic',
+    margin: '4px 0 0 0',
+    padding: '0'
+  },
+  removeFieldButton: {
+    padding: '6px 12px',
+    background: '#fee2e2',
+    color: '#dc2626',
+    border: '1px solid #fca5a5',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    minWidth: 'fit-content'
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '24px',
+    paddingTop: '16px',
+    borderTop: '1px solid #e2e8f0'
   }
 };
