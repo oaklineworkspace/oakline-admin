@@ -159,41 +159,9 @@ export default function SecurityDashboard() {
         console.error('Error fetching security data via API:', await securityResponse.text());
       }
 
-      // Fetch banned users (is_banned = true) using service role to bypass RLS
-      let bannedUsers = [];
-      let suspendedUsers = [];
-      try {
-        // Fetch banned users via API endpoint to use service role
-        const bannedResponse = await fetch('/api/admin/get-banned-users', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        if (bannedResponse.ok) {
-          const bannedResult = await bannedResponse.json();
-          bannedUsers = bannedResult.bannedUsers || [];
-        } else {
-          console.error('Error fetching banned users via API:', await bannedResponse.text());
-        }
-
-        // Fetch suspended users via API endpoint to use service role
-        const suspendedResponse = await fetch('/api/admin/get-suspended-users', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        if (suspendedResponse.ok) {
-          const suspendedResult = await suspendedResponse.json();
-          suspendedUsers = suspendedResult.suspendedUsers || [];
-        } else {
-          console.error('Error fetching suspended users via API:', await suspendedResponse.text());
-        }
-      } catch (err) {
-        console.error('Error fetching banned/suspended users:', err);
-        setError(`Failed to load restricted users: ${err.message}`);
-      }
+      // Extract banned and suspended status directly from profiles table
+      const bannedUsers = (profilesData || []).filter(p => p.is_banned === true);
+      const suspendedUsers = (profilesData || []).filter(p => p.status === 'suspended');
 
       setSecurityData({
         loginHistory: loginHistory || [],
@@ -215,8 +183,9 @@ export default function SecurityDashboard() {
         const failedLogins = userLogins.filter(l => !l.success);
         const lastLogin = userLogins[0];
         const userPinHistory = pinHistory.filter(p => p.user_id === profile.id);
-        const isBanned = bannedUsers.some(b => b.id === profile.id);
-        const isSuspended = suspendedUsers.some(s => s.id === profile.id);
+        // Get ban/suspend status directly from profile data
+        const isBanned = profile.is_banned === true;
+        const isSuspended = profile.status === 'suspended';
 
         // Get unique devices based on user_agent
         const uniqueDevices = [...new Set(userSessions.map(s => s.user_agent))];
