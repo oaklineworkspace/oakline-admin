@@ -586,7 +586,7 @@ export default function ManageRestrictionReasons() {
     setSuccess('');
 
     if (!displayMessageFormData.restriction_reason_id) {
-      setError('Please select a restriction reason');
+      setError(`Please select a ${displayMessageFormData.reason_type === 'restriction' ? 'restriction' : 'restoration'} reason`);
       return;
     }
     if (!displayMessageFormData.message_text || !displayMessageFormData.message_text.trim()) {
@@ -1454,8 +1454,46 @@ export default function ManageRestrictionReasons() {
                   /* Display Message Form Fields */
                   <>
                     <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                        Applies To *
+                      </label>
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="reason_type"
+                            value="restriction"
+                            checked={displayMessageFormData.reason_type === 'restriction'}
+                            onChange={(e) => setDisplayMessageFormData({ 
+                              ...displayMessageFormData, 
+                              reason_type: e.target.value,
+                              restriction_reason_id: ''
+                            })}
+                            style={{ marginRight: '8px', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '14px', color: '#4a5568' }}>🔒 Restriction Reason</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="reason_type"
+                            value="restoration"
+                            checked={displayMessageFormData.reason_type === 'restoration'}
+                            onChange={(e) => setDisplayMessageFormData({ 
+                              ...displayMessageFormData, 
+                              reason_type: e.target.value,
+                              restriction_reason_id: ''
+                            })}
+                            style={{ marginRight: '8px', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '14px', color: '#4a5568' }}>✅ Restoration Reason</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: '20px' }}>
                       <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
-                        Restriction Reason *
+                        {displayMessageFormData.reason_type === 'restriction' ? '🔒 Restriction Reason' : '✅ Restoration Reason'} *
                       </label>
                       <select
                         value={displayMessageFormData.restriction_reason_id}
@@ -1469,8 +1507,10 @@ export default function ManageRestrictionReasons() {
                           fontSize: '14px'
                         }}
                       >
-                        <option value="">Select a restriction reason...</option>
-                        {restrictionReasons.map(reason => (
+                        <option value="">
+                          Select a {displayMessageFormData.reason_type === 'restriction' ? 'restriction' : 'restoration'} reason...
+                        </option>
+                        {(displayMessageFormData.reason_type === 'restriction' ? restrictionReasons : restorationReasons).map(reason => (
                           <option key={reason.id} value={reason.id}>
                             {reason.category} - {reason.reason_text.substring(0, 60)}...
                           </option>
