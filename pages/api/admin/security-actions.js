@@ -541,11 +541,20 @@ export default async function handler(req, res) {
 
       case 'suspend_account':
         // Suspend user account temporarily (PROFILE ONLY - NOT AUTH TABLE)
+        const suspensionType = data?.suspensionType || 'fixed';
         const suspensionDays = data?.suspensionDays || 30;
-        const suspensionEndDate = new Date();
-        suspensionEndDate.setDate(suspensionEndDate.getDate() + suspensionDays);
+        
+        let suspensionEndDate = null;
+        if (suspensionType === 'investigation' || suspensionDays === null) {
+          // Pending investigation - no end date
+          suspensionEndDate = null;
+        } else {
+          // Fixed duration
+          suspensionEndDate = new Date();
+          suspensionEndDate.setDate(suspensionEndDate.getDate() + suspensionDays);
+        }
 
-        const suspensionMessage = displayMessage || generateProfessionalSuspensionMessage(reason, suspensionEndDate);
+        const suspensionMessage = displayMessage || generateProfessionalSuspensionMessage(reason, suspensionEndDate, suspensionType);
 
         // Update profile ONLY - do not touch auth table
         const { error: suspendError } = await supabaseAdmin
@@ -557,7 +566,7 @@ export default async function handler(req, res) {
             status_changed_at: new Date().toISOString(),
             status_changed_by: admin.id,
             suspension_start_date: new Date().toISOString(),
-            suspension_end_date: suspensionEndDate.toISOString(),
+            suspension_end_date: suspensionEndDate ? suspensionEndDate.toISOString() : null,
             is_banned: false // Ensure is_banned is false for suspensions
           })
           .eq('id', userId);
@@ -616,10 +625,14 @@ export default async function handler(req, res) {
           to: userEmail,
           subject: `⚠️ Your Account Has Been Suspended - ${bankName}`,
           type: EMAIL_TYPES.SECURITY,
-          html: generateAccountSuspendedEmail(userName, reason, suspensionEndDate, supportEmail, bankName)
+          html: generateAccountSuspendedEmail(userName, reason, suspensionEndDate, supportEmail, bankName, suspensionType)
         });
 
-        result = { message: 'Account suspended successfully', suspensionEndDate };
+        result = { 
+          message: 'Account suspended successfully', 
+          suspensionEndDate: suspensionEndDate ? suspensionEndDate : 'Pending investigation',
+          suspensionType 
+        };
         break;
 
       case 'lift_suspension':
@@ -928,21 +941,33 @@ function generateProfessionalBanMessage(reason) {
   }
 }
 
-function generateProfessionalSuspensionMessage(reason, endDate) {
-  const formattedDate = new Date(endDate).toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-
+function generateProfessionalSuspensionMessage(reason, endDate, suspensionType = 'fixed') {
   const reasonLower = (reason || '').toLowerCase();
 
-  if (reasonLower.includes('verification') || reasonLower.includes('documentation')) {
-    return `Your account is temporarily suspended pending verification. This suspension will be lifted on ${formattedDate} once the required documentation is provided. Please contact our Verification team.`;
-  } else if (reasonLower.includes('review') || reasonLower.includes('investigation')) {
-    return `Your account is under temporary review. Access will be restored on or before ${formattedDate} pending completion of our investigation. We appreciate your patience.`;
+  if (suspensionType === 'investigation' || !endDate) {
+    // Pending investigation - no specific end date
+    if (reasonLower.includes('verification') || reasonLower.includes('documentation')) {
+      return `Your account is temporarily suspended pending verification. This suspension will be lifted once the required documentation is reviewed and approved. Please contact our Verification team.`;
+    } else if (reasonLower.includes('review') || reasonLower.includes('investigation')) {
+      return `Your account is under temporary review pending completion of our investigation. Access will be restored once the review is complete. We appreciate your patience and will contact you with updates.`;
+    } else {
+      return `Your account has been temporarily suspended pending investigation. The suspension will be lifted once our review is complete. Please contact our Customer Support team for more information.`;
+    }
   } else {
-    return `Your account has been temporarily suspended until ${formattedDate}. Please contact our Customer Support team for more information on resolving this matter.`;
+    // Fixed duration suspension
+    const formattedDate = new Date(endDate).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    if (reasonLower.includes('verification') || reasonLower.includes('documentation')) {
+      return `Your account is temporarily suspended pending verification. This suspension will be lifted on ${formattedDate} once the required documentation is provided. Please contact our Verification team.`;
+    } else if (reasonLower.includes('review') || reasonLower.includes('investigation')) {
+      return `Your account is under temporary review. Access will be restored on or before ${formattedDate} pending completion of our investigation. We appreciate your patience.`;
+    } else {
+      return `Your account has been temporarily suspended until ${formattedDate}. Please contact our Customer Support team for more information on resolving this matter.`;
+    }
   }
 }
 
@@ -1148,12 +1173,14 @@ function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
   `;
 }
 
-function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, bankName) {
-  const formattedDate = new Date(endDate).toLocaleDateString('en-US', { 
+function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, bankName, suspensionType = 'fixed') {
+  const formattedDate = endDate ? new Date(endDate).toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
-  });
+  }) : null;
+
+  const isPendingInvestigation = suspensionType === 'investigation' || !endDate;
 
   return `
     <!DOCTYPE html>
@@ -1185,7 +1212,7 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
           </p>
 
           <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
-            Your ${bankName} account has been temporarily suspended and will remain inactive until <strong>${formattedDate}</strong>.
+            Your ${bankName} account has been temporarily suspended${isPendingInvestigation ? ' pending investigation completion' : ` and will remain inactive until <strong>${formattedDate}</strong>`}.
           </p>
 
           ${reason ? `
@@ -1206,7 +1233,9 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
             <ul style="color: #1e40af; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
               <li>Your account access is temporarily restricted</li>
               <li>No transactions can be processed during this period</li>
-              <li>Your account will be automatically reactivated on ${formattedDate}</li>
+              ${isPendingInvestigation 
+                ? '<li>Your account will be reactivated once our investigation is complete</li><li>You will be contacted with updates on the investigation status</li>' 
+                : `<li>Your account will be automatically reactivated on ${formattedDate}</li>`}
               <li>Your funds remain secure and protected</li>
             </ul>
           </div>

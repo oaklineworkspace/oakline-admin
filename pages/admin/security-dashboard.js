@@ -49,6 +49,8 @@ export default function SecurityDashboard() {
   const [actionReason, setActionReason] = useState('');
   const [displayMessage, setDisplayMessage] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [suspensionDuration, setSuspensionDuration] = useState('30'); // Default 30 days
+  const [suspensionDurationType, setSuspensionDurationType] = useState('days'); // 'days' or 'investigation'
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -325,6 +327,8 @@ export default function SecurityDashboard() {
     setSelectedUser(user);
     setActionType(action);
     setActionReason(existingReason); // Use existing reason if editing
+    setSuspensionDuration('30'); // Reset to default
+    setSuspensionDurationType('days'); // Reset to default
     setShowActionModal(true);
   };
 
@@ -396,18 +400,35 @@ export default function SecurityDashboard() {
         return;
       }
 
+      const requestBody = {
+        action: actionType,
+        userId: selectedUser.id,
+        reason: actionReason,
+        displayMessage: displayMessage || actionReason
+      };
+
+      // Include suspension duration for suspend_account action
+      if (actionType === 'suspend_account') {
+        if (suspensionDurationType === 'investigation') {
+          requestBody.data = {
+            suspensionDays: null, // null indicates pending investigation
+            suspensionType: 'investigation'
+          };
+        } else {
+          requestBody.data = {
+            suspensionDays: parseInt(suspensionDuration),
+            suspensionType: 'fixed'
+          };
+        }
+      }
+
       const response = await fetch('/api/admin/security-actions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          action: actionType,
-          userId: selectedUser.id,
-          reason: actionReason,
-          displayMessage: displayMessage || actionReason
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const result = await response.json();
@@ -1491,6 +1512,77 @@ export default function SecurityDashboard() {
                   <p style={{fontSize: '12px', color: '#718096', marginTop: '5px'}}>
                     💡 This is the message the user will see. Customize it to provide clear instructions.
                   </p>
+
+                  {/* Suspension Duration Controls - Only show for suspend_account */}
+                  {actionType === 'suspend_account' && (
+                    <div style={{marginTop: '20px', padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bfdbfe'}}>
+                      <label style={{...styles.label, color: '#1e40af', marginBottom: '12px'}}>⏱️ Suspension Duration:</label>
+                      
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                        {/* Fixed Duration Option */}
+                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
+                          <input
+                            type="radio"
+                            name="suspensionType"
+                            value="days"
+                            checked={suspensionDurationType === 'days'}
+                            onChange={(e) => setSuspensionDurationType(e.target.value)}
+                            style={{cursor: 'pointer'}}
+                          />
+                          <span style={{fontSize: '14px', fontWeight: '500', color: '#1f2937'}}>Fixed Duration</span>
+                        </label>
+                        
+                        {suspensionDurationType === 'days' && (
+                          <div style={{marginLeft: '28px', display: 'flex', alignItems: 'center', gap: '12px'}}>
+                            <input
+                              type="number"
+                              value={suspensionDuration}
+                              onChange={(e) => setSuspensionDuration(e.target.value)}
+                              min="1"
+                              max="365"
+                              style={{...styles.dateInput, width: '100px'}}
+                            />
+                            <span style={{fontSize: '14px', color: '#4b5563'}}>days</span>
+                            <select
+                              value={suspensionDuration}
+                              onChange={(e) => setSuspensionDuration(e.target.value)}
+                              style={{...styles.filterSelect, marginLeft: '12px', flex: 1}}
+                            >
+                              <option value="7">1 Week</option>
+                              <option value="14">2 Weeks</option>
+                              <option value="30">30 Days</option>
+                              <option value="60">60 Days</option>
+                              <option value="90">90 Days</option>
+                              <option value="180">6 Months</option>
+                              <option value="365">1 Year</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Pending Investigation Option */}
+                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
+                          <input
+                            type="radio"
+                            name="suspensionType"
+                            value="investigation"
+                            checked={suspensionDurationType === 'investigation'}
+                            onChange={(e) => setSuspensionDurationType(e.target.value)}
+                            style={{cursor: 'pointer'}}
+                          />
+                          <span style={{fontSize: '14px', fontWeight: '500', color: '#1f2937'}}>Pending Investigation</span>
+                        </label>
+                        
+                        {suspensionDurationType === 'investigation' && (
+                          <div style={{marginLeft: '28px', padding: '12px', backgroundColor: '#fef3c7', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                            <p style={{margin: 0, fontSize: '13px', color: '#92400e', lineHeight: '1.5'}}>
+                              ⚠️ Account will remain suspended indefinitely until you manually lift the suspension. 
+                              The user will be notified that the suspension is pending investigation completion.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={styles.modalFooter}>
