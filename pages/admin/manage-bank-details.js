@@ -36,6 +36,21 @@ export default function ManageBankDetails() {
     email_security: '',
     email_verify: '',
     email_crypto: '',
+    email_accounts: '',
+    email_alerts: '',
+    email_billing: '',
+    email_cards: '',
+    email_compliance: '',
+    email_customersupport: '',
+    email_disputes: '',
+    email_fraud: '',
+    email_help: '',
+    email_noreply: '',
+    email_payments: '',
+    email_transfers: '',
+    email_checks: '',
+    email_deposits: '',
+    email_transactions: '',
     routing_number: '',
     swift_code: '',
     nmls_id: ''
@@ -468,6 +483,186 @@ export default function ManageBankDetails() {
                         value={formData.email_crypto || ''}
                         onChange={handleChange}
                         style={styles.input}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Accounts Email</label>
+                      <input
+                        type="email"
+                        name="email_accounts"
+                        value={formData.email_accounts || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="accounts@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Alerts Email</label>
+                      <input
+                        type="email"
+                        name="email_alerts"
+                        value={formData.email_alerts || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="alerts@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Billing Email</label>
+                      <input
+                        type="email"
+                        name="email_billing"
+                        value={formData.email_billing || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="billing@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Cards Email</label>
+                      <input
+                        type="email"
+                        name="email_cards"
+                        value={formData.email_cards || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="cards@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Compliance Email</label>
+                      <input
+                        type="email"
+                        name="email_compliance"
+                        value={formData.email_compliance || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="compliance@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Customer Support Email</label>
+                      <input
+                        type="email"
+                        name="email_customersupport"
+                        value={formData.email_customersupport || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="customersupport@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Disputes Email</label>
+                      <input
+                        type="email"
+                        name="email_disputes"
+                        value={formData.email_disputes || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="disputes@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Fraud Email</label>
+                      <input
+                        type="email"
+                        name="email_fraud"
+                        value={formData.email_fraud || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="fraud@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Help Email</label>
+                      <input
+                        type="email"
+                        name="email_help"
+                        value={formData.email_help || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="help@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>No-Reply Email</label>
+                      <input
+                        type="email"
+                        name="email_noreply"
+                        value={formData.email_noreply || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="noreply@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Payments Email</label>
+                      <input
+                        type="email"
+                        name="email_payments"
+                        value={formData.email_payments || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="payments@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Transfers Email</label>
+                      <input
+                        type="email"
+                        name="email_transfers"
+                        value={formData.email_transfers || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="transfers@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Checks Email</label>
+                      <input
+                        type="email"
+                        name="email_checks"
+                        value={formData.email_checks || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="checks@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Deposits Email</label>
+                      <input
+                        type="email"
+                        name="email_deposits"
+                        value={formData.email_deposits || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="deposits@theoaklinebank.com"
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Transactions Email</label>
+                      <input
+                        type="email"
+                        name="email_transactions"
+                        value={formData.email_transactions || ''}
+                        onChange={handleChange}
+                        style={styles.input}
+                        placeholder="transactions@theoaklinebank.com"
                       />
                     </div>
                   </div>
