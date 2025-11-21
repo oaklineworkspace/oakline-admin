@@ -50,7 +50,8 @@ export default async function handler(req, res) {
       email_transactions,
       routing_number,
       swift_code,
-      nmls_id
+      nmls_id,
+      email_fields
     } = req.body;
 
     if (!name) {
@@ -96,6 +97,7 @@ export default async function handler(req, res) {
       swift_code,
       nmls_id,
       custom_emails: req.body.custom_emails || null,
+      email_fields: req.body.email_fields || [],
       updated_at: new Date().toISOString()
     };
 
