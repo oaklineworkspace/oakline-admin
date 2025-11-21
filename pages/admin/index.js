@@ -15,6 +15,7 @@ export default function AdminNavigationHub() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [showPageSearch, setShowPageSearch] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -309,8 +310,23 @@ export default function AdminNavigationHub() {
         <Link href="/admin/messages" style={styles.quickLink}>
             💬 User Messages
           </Link>
+        <button
+          onClick={() => setShowPageSearch(!showPageSearch)}
+          style={{...styles.navButton, background: showPageSearch ? '#1e40af' : 'transparent', cursor: 'pointer', border: 'none'}}
+        >
+          <div style={{...styles.navIcon, color: showPageSearch ? 'white' : '#1A3E6F'}}>🔍</div>
+          <div style={{...styles.navText, color: showPageSearch ? 'white' : '#1A3E6F'}}>Search</div>
+        </button>
         <AdminStickyDropdown />
       </div>
+
+      {showPageSearch && (
+        <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
+          <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+            <AdminNavDropdown />
+          </div>
+        </div>
+      )}
 
       <AdminFooter />
     </div>
@@ -479,6 +495,29 @@ const styles = {
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: '1.1'
+  },
+  searchOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(3px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000
+  },
+  searchModal: {
+    background: 'white',
+    borderRadius: '16px',
+    padding: '2rem',
+    maxWidth: '900px',
+    width: '90vw',
+    maxHeight: '85vh',
+    overflow: 'auto',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
   },
   form: {
     display: 'flex',
