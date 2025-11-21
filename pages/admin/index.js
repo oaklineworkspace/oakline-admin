@@ -307,15 +307,29 @@ export default function AdminNavigationHub() {
           <div style={styles.navIcon}>💸</div>
           <div style={styles.navText}>Transactions</div>
         </Link>
-        <Link href="/admin/messages" style={styles.quickLink}>
-            💬 User Messages
-          </Link>
         <button
           onClick={() => setShowPageSearch(!showPageSearch)}
-          style={{...styles.navButton, background: showPageSearch ? '#1e40af' : 'transparent', cursor: 'pointer', border: 'none'}}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textDecoration: 'none',
+            color: showPageSearch ? 'white' : '#1A3E6F',
+            padding: '4px 2px',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            flex: 1,
+            maxWidth: '70px',
+            minWidth: '50px',
+            background: showPageSearch ? '#1e40af' : 'transparent',
+            border: 'none',
+            fontSize: '9px',
+            fontWeight: '600'
+          }}
         >
-          <div style={{...styles.navIcon, color: showPageSearch ? 'white' : '#1A3E6F'}}>🔍</div>
-          <div style={{...styles.navText, color: showPageSearch ? 'white' : '#1A3E6F'}}>Search</div>
+          <div style={{fontSize: '16px', marginBottom: '2px'}}>🔍</div>
+          <div style={{fontSize: '9px', fontWeight: '600', textAlign: 'center', lineHeight: '1.1'}}>Search</div>
         </button>
         <AdminStickyDropdown />
       </div>
