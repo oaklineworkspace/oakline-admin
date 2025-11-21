@@ -256,6 +256,24 @@ export default function ManageRestrictionReasons() {
     setError('');
     setSuccess('');
 
+    // Validate required fields
+    if (!formData.action_type) {
+      setError('Action Type is required');
+      return;
+    }
+    if (!formData.category) {
+      setError('Category is required');
+      return;
+    }
+    if (!formData.reason_text || !formData.reason_text.trim()) {
+      setError('Reason Text is required');
+      return;
+    }
+    if (!formData.contact_email) {
+      setError('Contact Email is required. Please configure bank details first.');
+      return;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -283,16 +301,17 @@ export default function ManageRestrictionReasons() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to save reason');
+        throw new Error(result.error || result.details?.message || 'Failed to save reason');
       }
 
-      setSuccess(result.message);
+      setSuccess(result.message || 'Reason saved successfully');
       setShowModal(false);
       await fetchReasons();
 
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message);
+      console.error('Form submission error:', err);
+      setError(err.message || 'An error occurred while saving the reason');
     }
   };
 

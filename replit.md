@@ -42,11 +42,17 @@ Preferred communication style: Simple, everyday language.
 ## Database Schema Notes
 
 ### Profiles Table Display Messages
-**Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity, this column should be renamed to `restriction_display_message` to accurately reflect its broader usage across all restriction types.
+**Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity and future maintainability:
+- **Recommended Action:** Rename `ban_display_message` to `restriction_display_message` to accurately reflect its broader usage across all restriction types (bans, suspensions, closures)
+- **Current Usage:** Stores display messages for banned, suspended, and closed accounts
+- **Future Enhancement:** Could add separate `suspension_end_date` field to calculate auto-lift messages when suspension expires
 
 ### Pre-defined Restriction Reasons
 The system includes professional pre-configured reasons in the `account_restriction_reasons` table:
 - **Suspension Security Reason (High Priority):** "For your protection, your account has been temporarily suspended due to unusual login activity, which may indicate a security risk or unauthorized sharing of credentials." (security@theoaklinebank.com)
+
+### Restoration Reasons Table
+The `account_restoration_reasons` table stores predefined reasons for restoring user access with categories: Appeals, Compliance, Legal, Security, and Technical. Action types include: unban_user, lift_suspension, unlock_account, reactivate_account.
 
 ## External Dependencies
 *   **Supabase:** Database (PostgreSQL), Authentication, and Row Level Security.
