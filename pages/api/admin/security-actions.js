@@ -256,7 +256,7 @@ export default async function handler(req, res) {
         const { error: blockIpError } = await supabaseAdmin.from('blocked_ips').insert({
           ip_address: ipAddress,
           reason: reason || 'Blocked by administrator',
-          blocked_by: admin.id,
+          blocked_by: admin.adminId,
           expires_at: expiresAt,
           is_active: true
         });
@@ -423,7 +423,7 @@ export default async function handler(req, res) {
             restriction_display_message: banMessage,
             banned_at: new Date().toISOString(),
             status_changed_at: new Date().toISOString(),
-            status_changed_by: admin.id,
+            status_changed_by: admin.adminId,
             status: 'active', // Reset status from suspended
             status_reason: null, // Clear suspension reason
             suspension_start_date: null, // Clear suspension dates
@@ -496,11 +496,11 @@ export default async function handler(req, res) {
             details: {
               user_id: userId,
               ban_reason: reason || 'No reason provided',
-              banned_by: admin.id,
+              banned_by: admin.adminId,
               admin_email: admin.email
             },
             user_id: userId,
-            admin_id: admin.id
+            admin_id: admin.adminId
           });
 
         if (systemLogError) {
@@ -514,7 +514,7 @@ export default async function handler(req, res) {
           activity_type: 'account_banned',
           description: `Account banned by admin: ${reason || 'No reason provided'}`,
           risk_level: 'high',
-          metadata: { admin_id: admin.id, admin_email: admin.email }
+          metadata: { admin_id: admin.adminId, admin_email: admin.email }
         });
 
         if (suspiciousActivityError) {
