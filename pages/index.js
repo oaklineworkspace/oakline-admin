@@ -177,6 +177,8 @@ export default function AdminNavigationHub() {
     {
       category: '🔧 System & Security',
       pages: [
+        { name: 'Security Dashboard', path: '/admin/security-dashboard', icon: '🔐', description: 'Monitor user security, sessions, and suspicious activities' },
+        { name: 'Manage Restriction Reasons', path: '/admin/manage-restriction-reasons', icon: '📋', description: 'Configure account restriction and restoration reasons' },
         { name: 'System Logs', path: '/admin/admin-logs', icon: '📜', description: 'View detailed system logs' },
         { name: 'Settings', path: '/admin/admin-settings', icon: '⚙️', description: 'Configure system settings' },
         { name: 'Roles & Permissions', path: '/admin/admin-roles', icon: '🎭', description: 'Manage access control and roles' },
