@@ -562,6 +562,7 @@ export default async function handler(req, res) {
           .update({
             status: 'suspended',
             status_reason: reason || 'Account suspended by administrator',
+            suspension_reason: reason || 'Account suspended by administrator', // Also update suspension_reason
             restriction_display_message: suspensionMessage,
             status_changed_at: new Date().toISOString(),
             status_changed_by: admin.id,
@@ -642,6 +643,7 @@ export default async function handler(req, res) {
           .update({
             status: 'active',
             status_reason: null,
+            suspension_reason: null, // Also clear suspension_reason
             restriction_display_message: null,
             suspension_start_date: null,
             suspension_end_date: null,
