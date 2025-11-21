@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     const supportEmail = bankDetails?.email_support || `support@${emailDomain}`;
     const bankName = bankDetails?.name || 'Oakline Bank';
 
-    const { action, userId, reason, data } = req.body;
+    const { action, userId, reason, displayMessage, data } = req.body;
 
     if (!action || !userId) {
       return res.status(400).json({ 
@@ -411,7 +411,7 @@ export default async function handler(req, res) {
 
       case 'ban_user':
         // Ban user permanently (PROFILE ONLY - NOT AUTH TABLE)
-        const banMessage = generateProfessionalBanMessage(reason);
+        const banMessage = displayMessage || generateProfessionalBanMessage(reason);
 
         // Update profile ONLY - do not touch auth table
         // CRITICAL: Clear suspension status when banning (mutually exclusive)
@@ -545,7 +545,7 @@ export default async function handler(req, res) {
         const suspensionEndDate = new Date();
         suspensionEndDate.setDate(suspensionEndDate.getDate() + suspensionDays);
 
-        const suspensionMessage = generateProfessionalSuspensionMessage(reason, suspensionEndDate);
+        const suspensionMessage = displayMessage || generateProfessionalSuspensionMessage(reason, suspensionEndDate);
 
         // Update profile ONLY - do not touch auth table
         const { error: suspendError } = await supabaseAdmin
@@ -674,7 +674,7 @@ export default async function handler(req, res) {
 
       case 'close_account':
         // Close user account permanently
-        const closureMessage = generateProfessionalClosureMessage(reason);
+        const closureMessage = displayMessage || generateProfessionalClosureMessage(reason);
 
         const { error: closeError } = await supabaseAdmin
           .from('profiles')
