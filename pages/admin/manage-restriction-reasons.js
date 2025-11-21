@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function ManageRestrictionReasons() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('restriction'); // 'restriction' or 'restoration'
+  const [activeTab, setActiveTab] = useState('restriction'); // 'restriction', 'restoration', or 'display_messages'
   const [reasons, setReasons] = useState([]);
   const [filteredReasons, setFilteredReasons] = useState([]);
   const [stats, setStats] = useState(null);
@@ -39,6 +39,21 @@ export default function ManageRestrictionReasons() {
 
   const [bankEmails, setBankEmails] = useState([]);
   const [categories, setCategories] = useState([]);
+  
+  // Display Messages State
+  const [displayMessages, setDisplayMessages] = useState([]);
+  const [filteredDisplayMessages, setFilteredDisplayMessages] = useState([]);
+  const [restrictionReasons, setRestrictionReasons] = useState([]);
+  const [displayMessageFormData, setDisplayMessageFormData] = useState({
+    restriction_reason_id: '',
+    message_text: '',
+    message_type: 'standard',
+    severity_level: 'medium',
+    is_default: false,
+    display_order: 0
+  });
+  const [currentDisplayMessage, setCurrentDisplayMessage] = useState(null);
+  const [messageTypeFilter, setMessageTypeFilter] = useState('all');
   
   const [loadingBanner, setLoadingBanner] = useState({
     visible: false,
@@ -94,14 +109,23 @@ export default function ManageRestrictionReasons() {
   ];
 
   useEffect(() => {
-    fetchReasons();
-    fetchBankEmails();
-    fetchUsageStats();
+    if (activeTab === 'display_messages') {
+      fetchDisplayMessages();
+      fetchRestrictionReasons();
+    } else {
+      fetchReasons();
+      fetchBankEmails();
+      fetchUsageStats();
+    }
   }, [activeTab]);
 
   useEffect(() => {
-    filterReasons();
-  }, [reasons, searchTerm, actionTypeFilter, categoryFilter, severityFilter, statusFilter]);
+    if (activeTab === 'display_messages') {
+      filterDisplayMessages();
+    } else {
+      filterReasons();
+    }
+  }, [reasons, displayMessages, searchTerm, actionTypeFilter, categoryFilter, severityFilter, statusFilter, messageTypeFilter]);
 
   const fetchBankEmails = async () => {
     try {
@@ -202,6 +226,60 @@ export default function ManageRestrictionReasons() {
     }
   };
 
+  const fetchDisplayMessages = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        router.push('/admin/login');
+        return;
+      }
+
+      const response = await fetch('/api/admin/get-all-display-messages', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch display messages');
+      }
+
+      const result = await response.json();
+      setDisplayMessages(result.messages || []);
+      setStats(result.stats || null);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching display messages:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRestrictionReasons = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-all-restriction-reasons', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setRestrictionReasons(result.reasons || []);
+      }
+    } catch (err) {
+      console.error('Error fetching restriction reasons for dropdown:', err);
+    }
+  };
+
   const filterReasons = () => {
     let filtered = [...reasons];
 
@@ -233,6 +311,34 @@ export default function ManageRestrictionReasons() {
     }
 
     setFilteredReasons(filtered);
+  };
+
+  const filterDisplayMessages = () => {
+    let filtered = [...displayMessages];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(m => 
+        m.message_text.toLowerCase().includes(search) ||
+        (m.restriction_reason && m.restriction_reason.reason_text.toLowerCase().includes(search))
+      );
+    }
+
+    if (messageTypeFilter !== 'all') {
+      filtered = filtered.filter(m => m.message_type === messageTypeFilter);
+    }
+
+    if (severityFilter !== 'all') {
+      filtered = filtered.filter(m => m.severity_level === severityFilter);
+    }
+
+    if (statusFilter === 'active') {
+      filtered = filtered.filter(m => m.is_active);
+    } else if (statusFilter === 'inactive') {
+      filtered = filtered.filter(m => !m.is_active);
+    }
+
+    setFilteredDisplayMessages(filtered);
   };
 
   const handleAddNew = () => {
@@ -431,6 +537,175 @@ export default function ManageRestrictionReasons() {
     }
   };
 
+  // Display Message CRUD Handlers
+  const handleAddNewDisplayMessage = () => {
+    setModalMode('add');
+    setCurrentDisplayMessage(null);
+    setDisplayMessageFormData({
+      restriction_reason_id: '',
+      message_text: '',
+      message_type: 'standard',
+      severity_level: 'medium',
+      is_default: false,
+      display_order: 0
+    });
+    setShowModal(true);
+  };
+
+  const handleEditDisplayMessage = (message) => {
+    setModalMode('edit');
+    setCurrentDisplayMessage(message);
+    setDisplayMessageFormData({
+      restriction_reason_id: message.restriction_reason_id,
+      message_text: message.message_text,
+      message_type: message.message_type,
+      severity_level: message.severity_level,
+      is_default: message.is_default,
+      display_order: message.display_order
+    });
+    setShowModal(true);
+  };
+
+  const handleSubmitDisplayMessage = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!displayMessageFormData.restriction_reason_id) {
+      setError('Please select a restriction reason');
+      return;
+    }
+    if (!displayMessageFormData.message_text || !displayMessageFormData.message_text.trim()) {
+      setError('Message text is required');
+      return;
+    }
+
+    setLoadingBanner({
+      visible: true,
+      current: 1,
+      total: 1,
+      action: modalMode === 'add' ? 'Adding Display Message' : 'Updating Display Message',
+      message: modalMode === 'add' ? 'Creating new display message...' : 'Updating display message...'
+    });
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        setError('Session expired. Please log in again.');
+        return;
+      }
+
+      const method = modalMode === 'add' ? 'POST' : 'PUT';
+      const body = modalMode === 'add' 
+        ? displayMessageFormData 
+        : { ...displayMessageFormData, id: currentDisplayMessage.id };
+
+      const response = await fetch('/api/admin/manage-display-message', {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details?.message || 'Failed to save display message');
+      }
+
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setSuccessBanner({
+        visible: true,
+        message: result.message || 'Display message saved successfully',
+        action: modalMode === 'add' ? 'Add Display Message' : 'Update Display Message'
+      });
+      
+      setShowModal(false);
+      await fetchDisplayMessages();
+
+      setTimeout(() => {
+        setSuccessBanner({ visible: false, message: '', action: '' });
+      }, 5000);
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setError(err.message || 'An error occurred while saving the display message');
+    }
+  };
+
+  const handleDeleteDisplayMessage = async (messageId, softDelete = true) => {
+    if (!confirm(softDelete 
+      ? 'Deactivate this display message? It will no longer appear in selection lists.' 
+      : 'Permanently delete this display message? This cannot be undone!')) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Session expired. Please log in again.');
+        return;
+      }
+
+      const response = await fetch('/api/admin/manage-display-message', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ id: messageId, soft_delete: softDelete })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete display message');
+      }
+
+      setSuccess(result.message);
+      await fetchDisplayMessages();
+
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleActivateDisplayMessage = async (messageId) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Session expired. Please log in again.');
+        return;
+      }
+
+      const response = await fetch('/api/admin/manage-display-message', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ id: messageId, is_active: true })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to activate display message');
+      }
+
+      setSuccess('Display message activated successfully');
+      await fetchDisplayMessages();
+
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <AdminAuth>
       <AdminLoadingBanner
@@ -525,21 +800,41 @@ export default function ManageRestrictionReasons() {
                 >
                   ✅ Restoration Reasons
                 </button>
+                <button
+                  onClick={() => setActiveTab('display_messages')}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '8px 8px 0 0',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: activeTab === 'display_messages' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f7fafc',
+                    color: activeTab === 'display_messages' ? 'white' : '#4a5568',
+                    borderBottom: activeTab === 'display_messages' ? 'none' : '2px solid #e2e8f0',
+                    fontSize: '15px'
+                  }}
+                >
+                  💬 Display Messages
+                </button>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '20px' }}>
                 <div>
                   <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1a202c', marginBottom: '10px' }}>
-                    {activeTab === 'restriction' ? '🔒 Manage Account Restriction Reasons' : '✅ Manage Account Restoration Reasons'}
+                    {activeTab === 'restriction' ? '🔒 Manage Account Restriction Reasons' : 
+                     activeTab === 'restoration' ? '✅ Manage Account Restoration Reasons' :
+                     '💬 Manage Restriction Display Messages'}
                   </h1>
                   <p style={{ color: '#718096' }}>
                     {activeTab === 'restriction' 
                       ? 'Manage professional reasons for account restrictions with appropriate contact information'
-                      : 'Manage professional reasons for restoring user access with appropriate contact information'}
+                      : activeTab === 'restoration'
+                      ? 'Manage professional reasons for restoring user access with appropriate contact information'
+                      : 'Manage custom display messages shown to users when their accounts are restricted'}
                   </p>
                 </div>
                 <button
-                  onClick={handleAddNew}
+                  onClick={activeTab === 'display_messages' ? handleAddNewDisplayMessage : handleAddNew}
                   style={{
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     color: 'white',
@@ -551,7 +846,7 @@ export default function ManageRestrictionReasons() {
                     fontSize: '14px'
                   }}
                 >
-                  ➕ Add New Reason
+                  {activeTab === 'display_messages' ? '➕ Add New Display Message' : '➕ Add New Reason'}
                 </button>
               </div>
 
@@ -594,16 +889,22 @@ export default function ManageRestrictionReasons() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '25px' }}>
                 <div style={{ background: '#f7fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#2d3748' }}>{stats.total}</div>
-                  <div style={{ color: '#718096', fontSize: '14px' }}>Total Reasons</div>
+                  <div style={{ color: '#718096', fontSize: '14px' }}>{activeTab === 'display_messages' ? 'Total Messages' : 'Total Reasons'}</div>
                 </div>
                 <div style={{ background: '#f0fff4', padding: '20px', borderRadius: '10px', border: '1px solid #9ae6b4' }}>
                   <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#22543d' }}>{stats.active}</div>
-                  <div style={{ color: '#2f855a', fontSize: '14px' }}>Active Reasons</div>
+                  <div style={{ color: '#2f855a', fontSize: '14px' }}>{activeTab === 'display_messages' ? 'Active Messages' : 'Active Reasons'}</div>
                 </div>
                 <div style={{ background: '#fffaf0', padding: '20px', borderRadius: '10px', border: '1px solid #fbd38d' }}>
                   <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#7c2d12' }}>{stats.inactive}</div>
-                  <div style={{ color: '#c05621', fontSize: '14px' }}>Inactive Reasons</div>
+                  <div style={{ color: '#c05621', fontSize: '14px' }}>{activeTab === 'display_messages' ? 'Inactive Messages' : 'Inactive Reasons'}</div>
                 </div>
+                {activeTab === 'display_messages' && stats.default !== undefined && (
+                  <div style={{ background: '#eff6ff', padding: '20px', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1e40af' }}>{stats.default}</div>
+                    <div style={{ color: '#3b82f6', fontSize: '14px' }}>Default Messages</div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -635,49 +936,79 @@ export default function ManageRestrictionReasons() {
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>
-                    Action Type
-                  </label>
-                  <select
-                    value={actionTypeFilter}
-                    onChange={(e) => setActionTypeFilter(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e0',
-                      fontSize: '14px'
-                    }}
-                  >
-                    <option value="all">All Action Types</option>
-                    {actionTypes.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
+                {activeTab !== 'display_messages' && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>
+                      Action Type
+                    </label>
+                    <select
+                      value={actionTypeFilter}
+                      onChange={(e) => setActionTypeFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e0',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="all">All Action Types</option>
+                      {actionTypes.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>
-                    Category
-                  </label>
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e0',
-                      fontSize: '14px'
-                    }}
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
+                {activeTab === 'display_messages' && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>
+                      Message Type
+                    </label>
+                    <select
+                      value={messageTypeFilter}
+                      onChange={(e) => setMessageTypeFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e0',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="all">All Message Types</option>
+                      <option value="standard">Standard</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="investigation">Investigation</option>
+                      <option value="temporary">Temporary</option>
+                      <option value="permanent">Permanent</option>
+                    </select>
+                  </div>
+                )}
+
+                {activeTab !== 'display_messages' && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>
+                      Category
+                    </label>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e0',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="all">All Categories</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>
@@ -724,20 +1055,184 @@ export default function ManageRestrictionReasons() {
               </div>
 
               <div style={{ fontSize: '13px', color: '#718096' }}>
-                Showing {filteredReasons.length} of {reasons.length} reasons
+                {activeTab === 'display_messages' 
+                  ? `Showing ${filteredDisplayMessages.length} of ${displayMessages.length} display messages`
+                  : `Showing ${filteredReasons.length} of ${reasons.length} reasons`
+                }
               </div>
             </div>
 
-            {/* Reasons Table */}
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
-                Loading restriction reasons...
-              </div>
-            ) : filteredReasons.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
-                No reasons found matching your filters.
-              </div>
+            {/* Display Messages Table */}
+            {activeTab === 'display_messages' ? (
+              loading ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
+                  Loading display messages...
+                </div>
+              ) : filteredDisplayMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
+                  No display messages found matching your filters.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Restriction Reason</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Message Text</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Type</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Severity</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Default</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Status</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#4a5568' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDisplayMessages.map((message, index) => {
+                        const severityInfo = severityLevels.find(s => s.value === message.severity_level);
+                        
+                        return (
+                          <tr 
+                            key={message.id}
+                            style={{ 
+                              borderBottom: '1px solid #e2e8f0',
+                              background: index % 2 === 0 ? 'white' : '#f7fafc',
+                              opacity: message.is_active ? 1 : 0.6
+                            }}
+                          >
+                            <td style={{ padding: '12px', fontSize: '13px', maxWidth: '200px' }}>
+                              {message.restriction_reason ? (
+                                <div>
+                                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                                    {message.restriction_reason.category}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#718096' }}>
+                                    {message.restriction_reason.reason_text.substring(0, 50)}...
+                                  </div>
+                                </div>
+                              ) : (
+                                <span style={{ color: '#9ca3af', fontSize: '12px' }}>No reason linked</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', maxWidth: '300px' }}>
+                              {message.message_text.substring(0, 150)}{message.message_text.length > 150 ? '...' : ''}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', textAlign: 'center' }}>
+                              <span style={{ 
+                                background: '#edf2f7', 
+                                padding: '4px 8px', 
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                textTransform: 'capitalize'
+                              }}>
+                                {message.message_type}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', textAlign: 'center' }}>
+                              <span style={{ 
+                                padding: '4px 8px', 
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                background: severityInfo?.color === 'bg-blue-100 text-blue-800' ? '#dbeafe' :
+                                           severityInfo?.color === 'bg-yellow-100 text-yellow-800' ? '#fef3c7' :
+                                           severityInfo?.color === 'bg-orange-100 text-orange-800' ? '#ffedd5' : '#fee2e2',
+                                color: severityInfo?.color === 'bg-blue-100 text-blue-800' ? '#1e40af' :
+                                       severityInfo?.color === 'bg-yellow-100 text-yellow-800' ? '#92400e' :
+                                       severityInfo?.color === 'bg-orange-100 text-orange-800' ? '#c2410c' : '#991b1b'
+                              }}>
+                                {severityInfo?.label || message.severity_level}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', textAlign: 'center' }}>
+                              {message.is_default ? (
+                                <span style={{ color: '#10b981', fontWeight: '600' }}>✓ Yes</span>
+                              ) : (
+                                <span style={{ color: '#9ca3af' }}>No</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', textAlign: 'center' }}>
+                              <span style={{ 
+                                padding: '4px 8px', 
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                background: message.is_active ? '#d1fae5' : '#fee2e2',
+                                color: message.is_active ? '#065f46' : '#991b1b'
+                              }}>
+                                {message.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                <button
+                                  onClick={() => handleEditDisplayMessage(message)}
+                                  style={{
+                                    background: '#3b82f6',
+                                    color: 'white',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                {message.is_active ? (
+                                  <button
+                                    onClick={() => handleDeleteDisplayMessage(message.id, true)}
+                                    style={{
+                                      background: '#f59e0b',
+                                      color: 'white',
+                                      padding: '6px 12px',
+                                      borderRadius: '4px',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    Deactivate
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleActivateDisplayMessage(message.id)}
+                                    style={{
+                                      background: '#10b981',
+                                      color: 'white',
+                                      padding: '6px 12px',
+                                      borderRadius: '4px',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    Activate
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
             ) : (
+              /* Reasons Table */
+              loading ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
+                  Loading restriction reasons...
+                </div>
+              ) : filteredReasons.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
+                  No reasons found matching your filters.
+                </div>
+              ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
@@ -904,6 +1399,7 @@ export default function ManageRestrictionReasons() {
                   </tbody>
                 </table>
               </div>
+              )
             )}
           </div>
         </div>
@@ -933,31 +1429,169 @@ export default function ManageRestrictionReasons() {
               overflowY: 'auto'
             }}>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', color: '#1a202c' }}>
-                {modalMode === 'add' ? '➕ Add New Restriction Reason' : '✏️ Edit Restriction Reason'}
+                {activeTab === 'display_messages' 
+                  ? (modalMode === 'add' ? '➕ Add New Display Message' : '✏️ Edit Display Message')
+                  : (modalMode === 'add' ? '➕ Add New Restriction Reason' : '✏️ Edit Restriction Reason')
+                }
               </h2>
 
-              <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
-                    Action Type *
-                  </label>
-                  <select
-                    value={formData.action_type}
-                    onChange={(e) => setFormData({ ...formData, action_type: e.target.value })}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e0',
-                      fontSize: '14px'
-                    }}
-                  >
-                    {actionTypes.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
+              <form onSubmit={activeTab === 'display_messages' ? handleSubmitDisplayMessage : handleSubmit}>
+                {activeTab === 'display_messages' ? (
+                  /* Display Message Form Fields */
+                  <>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                        Restriction Reason *
+                      </label>
+                      <select
+                        value={displayMessageFormData.restriction_reason_id}
+                        onChange={(e) => setDisplayMessageFormData({ ...displayMessageFormData, restriction_reason_id: e.target.value })}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e0',
+                          fontSize: '14px'
+                        }}
+                      >
+                        <option value="">Select a restriction reason...</option>
+                        {restrictionReasons.map(reason => (
+                          <option key={reason.id} value={reason.id}>
+                            {reason.category} - {reason.reason_text.substring(0, 60)}...
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                        Message Text *
+                      </label>
+                      <textarea
+                        value={displayMessageFormData.message_text}
+                        onChange={(e) => setDisplayMessageFormData({ ...displayMessageFormData, message_text: e.target.value })}
+                        required
+                        rows={5}
+                        placeholder="Enter the message that will be displayed to the user..."
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e0',
+                          fontSize: '14px',
+                          resize: 'vertical'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                          Message Type *
+                        </label>
+                        <select
+                          value={displayMessageFormData.message_type}
+                          onChange={(e) => setDisplayMessageFormData({ ...displayMessageFormData, message_type: e.target.value })}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e0',
+                            fontSize: '14px'
+                          }}
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="urgent">Urgent</option>
+                          <option value="investigation">Investigation</option>
+                          <option value="temporary">Temporary</option>
+                          <option value="permanent">Permanent</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                          Severity Level *
+                        </label>
+                        <select
+                          value={displayMessageFormData.severity_level}
+                          onChange={(e) => setDisplayMessageFormData({ ...displayMessageFormData, severity_level: e.target.value })}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e0',
+                            fontSize: '14px'
+                          }}
+                        >
+                          {severityLevels.map(level => (
+                            <option key={level.value} value={level.value}>{level.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                      <div>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={displayMessageFormData.is_default}
+                            onChange={(e) => setDisplayMessageFormData({ ...displayMessageFormData, is_default: e.target.checked })}
+                            style={{ marginRight: '8px' }}
+                          />
+                          <span style={{ fontSize: '14px', color: '#4a5568' }}>
+                            Set as Default Message
+                          </span>
+                        </label>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                          Display Order
+                        </label>
+                        <input
+                          type="number"
+                          value={displayMessageFormData.display_order}
+                          onChange={(e) => setDisplayMessageFormData({ ...displayMessageFormData, display_order: parseInt(e.target.value) || 0 })}
+                          min="0"
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e0',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Restriction Reason Form Fields */
+                  <>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
+                        Action Type *
+                      </label>
+                      <select
+                        value={formData.action_type}
+                        onChange={(e) => setFormData({ ...formData, action_type: e.target.value })}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e0',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {actionTypes.map(type => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                    </div>
 
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
@@ -1072,19 +1706,21 @@ export default function ManageRestrictionReasons() {
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.requires_immediate_action}
-                      onChange={(e) => setFormData({ ...formData, requires_immediate_action: e.target.checked })}
-                      style={{ marginRight: '8px' }}
-                    />
-                    <span style={{ fontSize: '14px', color: '#4a5568' }}>
-                      Requires Immediate Action
-                    </span>
-                  </label>
-                </div>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.requires_immediate_action}
+                          onChange={(e) => setFormData({ ...formData, requires_immediate_action: e.target.checked })}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span style={{ fontSize: '14px', color: '#4a5568' }}>
+                          Requires Immediate Action
+                        </span>
+                      </label>
+                    </div>
+                  </>
+                )}
 
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                   <button
@@ -1116,7 +1752,10 @@ export default function ManageRestrictionReasons() {
                       fontWeight: '600'
                     }}
                   >
-                    {modalMode === 'add' ? 'Add Reason' : 'Update Reason'}
+                    {activeTab === 'display_messages'
+                      ? (modalMode === 'add' ? 'Add Display Message' : 'Update Display Message')
+                      : (modalMode === 'add' ? 'Add Reason' : 'Update Reason')
+                    }
                   </button>
                 </div>
               </form>
