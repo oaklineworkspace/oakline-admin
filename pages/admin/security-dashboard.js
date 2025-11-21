@@ -471,7 +471,9 @@ export default function SecurityDashboard() {
       disable_2fa: 'Disable 2FA',
       reset_failed_attempts: 'Reset Failed Attempts',
       ban_user: 'Ban User',
-      unban_user: 'Unban User'
+      unban_user: 'Unban User',
+      suspend_account: 'Suspend Account',
+      lift_suspension: 'Lift Suspension'
     };
     return labels[action] || action;
   };
@@ -850,12 +852,21 @@ export default function SecurityDashboard() {
                           🚫 Ban User
                         </button>
                       )}
-                      <button
-                        onClick={() => handleSecurityAction(user, 'suspend_account')}
-                        style={{...styles.actionButton, background: '#f59e0b'}}
-                      >
-                        ⏸️ Suspend
-                      </button>
+                      {user.isSuspended ? (
+                        <button
+                          onClick={() => handleSecurityAction(user, 'lift_suspension')}
+                          style={{...styles.actionButton, background: '#10b981'}}
+                        >
+                          ▶️ Lift Suspension
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSecurityAction(user, 'suspend_account')}
+                          style={{...styles.actionButton, background: '#f59e0b'}}
+                        >
+                          ⏸️ Suspend
+                        </button>
+                      )}
                       <button
                         onClick={() => handleSecurityAction(user, 'lock_account')}
                         style={styles.actionButton}

@@ -622,6 +622,56 @@ export default async function handler(req, res) {
         result = { message: 'Account suspended successfully', suspensionEndDate };
         break;
 
+      case 'lift_suspension':
+        // Lift suspension and restore account to active status
+        const { error: liftSuspensionError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            status: 'active',
+            status_reason: null,
+            ban_display_message: null,
+            suspension_start_date: null,
+            suspension_end_date: null,
+            status_changed_at: new Date().toISOString(),
+            status_changed_by: admin.adminId
+          })
+          .eq('id', userId);
+
+        if (liftSuspensionError) {
+          console.error('Profile lift suspension error:', liftSuspensionError);
+          return res.status(500).json({ 
+            error: 'Failed to lift suspension',
+            details: liftSuspensionError.message,
+            errorCode: 'LIFT_SUSPENSION_FAILED'
+          });
+        }
+
+        // Log the action
+        await supabaseAdmin.from('system_logs').insert({
+          level: 'info',
+          type: 'user',
+          message: 'User suspension lifted',
+          details: {
+            user_id: userId,
+            lifted_by: admin.adminId,
+            admin_email: admin.email,
+            reason: reason || 'Suspension lifted by administrator'
+          },
+          user_id: userId,
+          admin_id: admin.adminId
+        });
+
+        // Send email notification
+        await sendEmail({
+          to: userEmail,
+          subject: `✅ Your Account Suspension Has Been Lifted - ${bankName}`,
+          type: EMAIL_TYPES.SECURITY,
+          html: generateSuspensionLiftedEmail(userName, supportEmail, bankName)
+        });
+
+        result = { message: 'Suspension lifted successfully' };
+        break;
+
       case 'close_account':
         // Close user account permanently
         const closureMessage = generateProfessionalClosureMessage(reason);
@@ -740,7 +790,7 @@ export default async function handler(req, res) {
     }
 
     // Log in account_status_audit_log if action affects account status
-    if (['ban_user', 'unban_user', 'lock_account', 'unlock_account', 'suspend_account', 'close_account'].includes(action)) {
+    if (['ban_user', 'unban_user', 'lock_account', 'unlock_account', 'suspend_account', 'lift_suspension', 'close_account'].includes(action)) {
       // Get the full reason object if it exists in the database
       let reasonMetadata = {};
 
@@ -1250,6 +1300,26 @@ function generateAccountUnbannedEmail(userName) {
         <p>Good news! Your Oakline Bank account ban has been lifted and you can now access your account normally.</p>
         <p>If you did not request this change, please contact us immediately.</p>
         <p>Best regards,<br>Oakline Bank Security Team</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function generateSuspensionLiftedEmail(userName, supportEmail, bankName) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0;">✅ Suspension Lifted</h1>
+      </div>
+      <div style="padding: 32px;">
+        <p>Dear ${userName},</p>
+        <p>Good news! Your ${bankName} account suspension has been lifted and your account has been restored to active status.</p>
+        <p>You can now access all account features and services normally.</p>
+        <p>If you have any questions or did not expect this change, please contact us at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+        <p>Best regards,<br>${bankName} Security Team</p>
       </div>
     </body>
     </html>
