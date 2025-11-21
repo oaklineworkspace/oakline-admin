@@ -268,18 +268,25 @@ export default function ManageRestrictionReasons() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const response = await fetch('/api/admin/get-all-restriction-reasons', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
+      const [restrictRes, restoreRes] = await Promise.all([
+        fetch('/api/admin/get-all-restriction-reasons', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        }),
+        fetch('/api/admin/get-all-restoration-reasons', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        })
+      ]);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (restrictRes.ok) {
+        const result = await restrictRes.json();
         setRestrictionReasons(result.reasons || []);
       }
+      if (restoreRes.ok) {
+        const result = await restoreRes.json();
+        setRestorationReasons(result.reasons || []);
+      }
     } catch (err) {
-      console.error('Error fetching restriction reasons for dropdown:', err);
+      console.error('Error fetching reasons for dropdown:', err);
     }
   };
 
@@ -546,11 +553,13 @@ export default function ManageRestrictionReasons() {
     setCurrentDisplayMessage(null);
     setDisplayMessageFormData({
       restriction_reason_id: '',
+      reason_type: 'restriction',
       message_text: '',
       message_type: 'standard',
       severity_level: 'medium',
       is_default: false,
-      display_order: 0
+      display_order: 0,
+      is_active: true
     });
     setShowModal(true);
   };
@@ -560,11 +569,13 @@ export default function ManageRestrictionReasons() {
     setCurrentDisplayMessage(message);
     setDisplayMessageFormData({
       restriction_reason_id: message.restriction_reason_id,
+      reason_type: message.reason_type || 'restriction',
       message_text: message.message_text,
       message_type: message.message_type,
       severity_level: message.severity_level,
       is_default: message.is_default,
-      display_order: message.display_order
+      display_order: message.display_order,
+      is_active: message.is_active !== undefined ? message.is_active : true
     });
     setShowModal(true);
   };
