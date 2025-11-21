@@ -84,11 +84,13 @@ export default function SecurityDashboard() {
   });
 
   const [restrictionReasons, setRestrictionReasons] = useState({});
+  const [restorationReasons, setRestorationReasons] = useState({});
   const [reasonsLoading, setReasonsLoading] = useState(false);
 
   useEffect(() => {
     fetchSecurityData();
     fetchRestrictionReasons();
+    fetchRestorationReasons();
     
     // Auto-refresh every 30 seconds to keep data fresh
     const refreshInterval = setInterval(() => {
@@ -316,6 +318,33 @@ export default function SecurityDashboard() {
     }
   };
 
+  const fetchRestorationReasons = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No session for fetching restoration reasons');
+        return;
+      }
+
+      const response = await fetch('/api/admin/get-restoration-reasons', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to fetch restoration reasons:', errorData.error);
+        return;
+      }
+
+      const result = await response.json();
+      setRestorationReasons(result.reasons || {});
+    } catch (err) {
+      console.error('Error fetching restoration reasons:', err);
+    }
+  };
+
   const handleSecurityAction = async (user, action, existingReason = '') => {
     setSelectedUser(user);
     setActionType(action);
@@ -325,13 +354,16 @@ export default function SecurityDashboard() {
 
   // Get reason options from database (returns full objects with metadata)
   const getReasonOptions = (action) => {
-    if (!restrictionReasons[action] || Object.keys(restrictionReasons[action]).length === 0) {
+    // Use restoration reasons for unban and lift_suspension actions
+    const reasonsSource = ['unban_user', 'lift_suspension'].includes(action) ? restorationReasons : restrictionReasons;
+    
+    if (!reasonsSource[action] || Object.keys(reasonsSource[action]).length === 0) {
       return [];
     }
 
-    return Object.keys(restrictionReasons[action]).map(category => ({
+    return Object.keys(reasonsSource[action]).map(category => ({
       category: category,
-      reasons: restrictionReasons[action][category]
+      reasons: reasonsSource[action][category]
     }));
   };
 
