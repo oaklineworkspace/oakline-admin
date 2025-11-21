@@ -592,19 +592,20 @@ const styles = {
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '1.5rem',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+    gap: '1rem',
     marginBottom: '2rem'
   },
   statCard: {
     backgroundColor: '#ffffff',
     borderRadius: '16px',
-    padding: '1.75rem',
+    padding: '1.25rem',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
     border: '1px solid #e2e8f0',
     display: 'flex',
-    alignItems: 'center',
-    gap: '1.25rem',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
     transition: 'all 0.3s ease'
   },
   statCard1: {
@@ -620,31 +621,31 @@ const styles = {
     borderLeft: '4px solid #8B5CF6'
   },
   statIcon: {
-    fontSize: '2.5rem',
-    width: '70px',
-    height: '70px',
+    fontSize: '2rem',
+    width: '50px',
+    height: '50px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: '12px'
+    borderRadius: '8px'
   },
   statContent: {
     flex: 1
   },
   statLabel: {
-    fontSize: '0.875rem',
+    fontSize: '0.75rem',
     fontWeight: '600',
     color: '#64748b',
-    margin: '0 0 0.5rem 0',
+    margin: 0,
     textTransform: 'uppercase',
     letterSpacing: '0.05em'
   },
   statValue: {
-    fontSize: '2rem',
+    fontSize: '1.5rem',
     fontWeight: '700',
     color: '#1A3E6F',
-    margin: '0 0 0.25rem 0'
+    margin: 0
   },
   statChange: {
     fontSize: '0.875rem',
@@ -654,10 +655,11 @@ const styles = {
   adminSection: {
     backgroundColor: '#ffffff',
     borderRadius: '16px',
-    padding: '2rem',
+    padding: '1rem',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
     border: '1px solid #e2e8f0',
-    marginBottom: '2rem'
+    marginBottom: '2rem',
+    overflowX: 'auto'
   },
   sectionHeader: {
     display: 'flex',
@@ -705,9 +707,9 @@ const styles = {
     backgroundColor: '#F8FAFC'
   },
   tableHeader: {
-    padding: '1rem 1.5rem',
+    padding: '0.75rem 1rem',
     textAlign: 'left',
-    fontSize: '0.875rem',
+    fontSize: '0.75rem',
     fontWeight: '700',
     color: '#1A3E6F',
     textTransform: 'uppercase',
@@ -715,9 +717,9 @@ const styles = {
     borderBottom: '2px solid #e2e8f0'
   },
   tableHeaderRight: {
-    padding: '1rem 1.5rem',
+    padding: '0.75rem 1rem',
     textAlign: 'right',
-    fontSize: '0.875rem',
+    fontSize: '0.75rem',
     fontWeight: '700',
     color: '#1A3E6F',
     textTransform: 'uppercase',
@@ -729,13 +731,13 @@ const styles = {
     transition: 'background-color 0.2s ease'
   },
   tableCell: {
-    padding: '1.25rem 1.5rem',
-    fontSize: '0.95rem',
+    padding: '0.75rem 1rem',
+    fontSize: '0.85rem',
     color: '#1e293b'
   },
   tableCellRight: {
-    padding: '1.25rem 1.5rem',
-    fontSize: '0.95rem',
+    padding: '0.75rem 1rem',
+    fontSize: '0.85rem',
     color: '#1e293b',
     textAlign: 'right'
   },
@@ -826,7 +828,7 @@ const styles = {
   },
   roleInfoGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
     gap: '1.5rem'
   },
   roleCard: {
