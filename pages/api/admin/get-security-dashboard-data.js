@@ -91,6 +91,50 @@ export default async function handler(req, res) {
       throw pinError;
     }
 
+    // Fetch full system logs
+    const { data: systemLogs, error: systemError } = await supabaseAdmin
+      .from('system_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (systemError) {
+      console.error('Error fetching system logs:', systemError);
+    }
+
+    // Fetch suspicious activity
+    const { data: suspiciousActivity, error: suspiciousError } = await supabaseAdmin
+      .from('suspicious_activity')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (suspiciousError) {
+      console.error('Error fetching suspicious activity:', suspiciousError);
+    }
+
+    // Fetch audit logs
+    const { data: auditLogs, error: auditError } = await supabaseAdmin
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (auditError) {
+      console.error('Error fetching audit logs:', auditError);
+    }
+
+    // Fetch password history
+    const { data: passwordHistory, error: passwordError } = await supabaseAdmin
+      .from('password_history')
+      .select('*')
+      .order('changed_at', { ascending: false })
+      .limit(500);
+
+    if (passwordError) {
+      console.error('Error fetching password history:', passwordError);
+    }
+
     // Get all unique user IDs
     const userIds = new Set();
     recentLogins?.forEach(login => userIds.add(login.user_id));
@@ -251,6 +295,10 @@ export default async function handler(req, res) {
         activeSessions: sessionsWithProfiles,
         pinActivity: pinActivityWithProfiles,
         bannedUsers: bannedUsersWithProfiles,
+        systemLogs: systemLogs || [],
+        suspiciousActivity: suspiciousActivity || [],
+        auditLogs: auditLogs || [],
+        passwordHistory: passwordHistory || [],
         alerts,
         stats
       }

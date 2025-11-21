@@ -5,7 +5,6 @@ import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 // Add CSS animations
 if (typeof document !== 'undefined') {
@@ -122,100 +121,71 @@ export default function SecurityDashboard() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch login history using admin client to bypass RLS
-      const { data: loginHistory, error: loginError } = await supabaseAdmin
-        .from('login_history')
-        .select('*')
-        .order('login_time', { ascending: false })
-        .limit(1000);
+      // Fetch all security data via API endpoint (server-side with admin access)
+      const securityResponse = await fetch('/api/admin/get-security-dashboard-data', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
 
-      if (loginError) console.error('Login history error:', loginError);
+      let loginHistory = [];
+      let activeSessions = [];
+      let suspiciousActivity = [];
+      let auditLogs = [];
+      let systemLogs = [];
+      let passwordHistory = [];
+      let pinHistory = [];
 
-      // Fetch active sessions using admin client
-      const { data: activeSessions, error: sessionsError } = await supabaseAdmin
-        .from('user_sessions')
-        .select('*')
-        .order('last_activity', { ascending: false });
-
-      if (sessionsError) console.error('Sessions error:', sessionsError);
-
-      // Fetch suspicious activity using admin client
-      const { data: suspiciousActivity, error: suspiciousError } = await supabaseAdmin
-        .from('suspicious_activity')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500);
-
-      if (suspiciousError) console.error('Suspicious activity error:', suspiciousError);
-
-      // Fetch audit logs using admin client
-      const { data: auditLogs, error: auditError } = await supabaseAdmin
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500);
-
-      if (auditError) console.error('Audit logs error:', auditError);
-
-      // Fetch system logs using admin client
-      const { data: systemLogs, error: systemError } = await supabaseAdmin
-        .from('system_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500);
-
-      if (systemError) console.error('System logs error:', systemError);
-
-      // Fetch password history using admin client
-      const { data: passwordHistory, error: passwordError } = await supabaseAdmin
-        .from('password_history')
-        .select('*')
-        .order('changed_at', { ascending: false })
-        .limit(500);
-
-      if (passwordError) console.error('Password history error:', passwordError);
-
-      // Fetch PIN history from system logs
-      const pinHistory = (systemLogs || []).filter(log => 
-        log.type === 'auth' && 
-        (log.message?.includes('Transaction PIN') || log.message?.includes('PIN'))
-      );
+      if (securityResponse.ok) {
+        const securityResult = await securityResponse.json();
+        const data = securityResult.data || {};
+        
+        loginHistory = data.recentLogins || [];
+        activeSessions = data.activeSessions || [];
+        suspiciousActivity = data.suspiciousActivity || [];
+        auditLogs = data.auditLogs || [];
+        systemLogs = data.systemLogs || [];
+        passwordHistory = data.passwordHistory || [];
+        
+        // Extract PIN history from system logs
+        pinHistory = (systemLogs || []).filter(log => 
+          log.type === 'auth' && 
+          (log.message?.includes('Transaction PIN') || log.message?.includes('PIN'))
+        );
+      } else {
+        console.error('Error fetching security data via API:', await securityResponse.text());
+      }
 
       // Fetch banned users (is_banned = true) using service role to bypass RLS
       let bannedUsers = [];
       let suspendedUsers = [];
       try {
-        // Get session for API call
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          // Fetch banned users via API endpoint to use service role
-          const bannedResponse = await fetch('/api/admin/get-banned-users', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
-
-          if (bannedResponse.ok) {
-            const bannedResult = await bannedResponse.json();
-            bannedUsers = bannedResult.bannedUsers || [];
-          } else {
-            console.error('Error fetching banned users via API:', await bannedResponse.text());
+        // Fetch banned users via API endpoint to use service role
+        const bannedResponse = await fetch('/api/admin/get-banned-users', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
           }
+        });
 
-          // Fetch suspended users via API endpoint to use service role
-          const suspendedResponse = await fetch('/api/admin/get-suspended-users', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
+        if (bannedResponse.ok) {
+          const bannedResult = await bannedResponse.json();
+          bannedUsers = bannedResult.bannedUsers || [];
+        } else {
+          console.error('Error fetching banned users via API:', await bannedResponse.text());
+        }
 
-          if (suspendedResponse.ok) {
-            const suspendedResult = await suspendedResponse.json();
-            suspendedUsers = suspendedResult.suspendedUsers || [];
-          } else {
-            console.error('Error fetching suspended users via API:', await suspendedResponse.text());
+        // Fetch suspended users via API endpoint to use service role
+        const suspendedResponse = await fetch('/api/admin/get-suspended-users', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
           }
+        });
+
+        if (suspendedResponse.ok) {
+          const suspendedResult = await suspendedResponse.json();
+          suspendedUsers = suspendedResult.suspendedUsers || [];
+        } else {
+          console.error('Error fetching suspended users via API:', await suspendedResponse.text());
         }
       } catch (err) {
         console.error('Error fetching banned/suspended users:', err);
@@ -243,6 +213,7 @@ export default function SecurityDashboard() {
         const lastLogin = userLogins[0];
         const userPinHistory = pinHistory.filter(p => p.user_id === profile.id);
         const isBanned = bannedUsers.some(b => b.id === profile.id);
+        const isSuspended = suspendedUsers.some(s => s.id === profile.id);
 
         // Get unique devices based on user_agent
         const uniqueDevices = [...new Set(userSessions.map(s => s.user_agent))];
@@ -260,6 +231,7 @@ export default function SecurityDashboard() {
           riskLevel: calculateRiskLevel(failedLogins.length, userSuspicious.filter(s => !s.resolved).length, userSessions.length), // Use unresolved suspicious activities for risk
           pinChangesCount: userPinHistory.length,
           isBanned: isBanned,
+          isSuspended: isSuspended,
           sessions: userSessions,
           pinHistory: userPinHistory
         };
