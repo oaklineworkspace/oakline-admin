@@ -241,6 +241,41 @@ export default function AdminNavigationHub() {
             Only authorized admin users can access this area
           </p>
         </div>
+
+        <div style={styles.bottomNav}>
+          <button
+            onClick={() => setShowPageSearch(!showPageSearch)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              color: showPageSearch ? 'white' : '#1A3E6F',
+              padding: '4px 2px',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer',
+              flex: 1,
+              maxWidth: '70px',
+              minWidth: '50px',
+              background: showPageSearch ? '#1e40af' : 'transparent',
+              border: 'none',
+              fontSize: '9px',
+              fontWeight: '600'
+            }}
+          >
+            <div style={{fontSize: '16px', marginBottom: '2px'}}>🔍</div>
+            <div style={{fontSize: '9px', fontWeight: '600', textAlign: 'center', lineHeight: '1.1'}}>Search</div>
+          </button>
+        </div>
+
+        {showPageSearch && (
+          <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
+            <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+              <AdminNavDropdown />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
