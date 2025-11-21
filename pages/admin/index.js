@@ -321,6 +321,14 @@ export default function AdminNavigationHub() {
         </div>
       </div>
 
+      {showPageSearch && (
+        <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
+          <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+            <AdminNavDropdown />
+          </div>
+        </div>
+      )}
+
       <div style={styles.content}>
         {adminPages.map((section, index) => (
           <div key={index} style={styles.section}>
