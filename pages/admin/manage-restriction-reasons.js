@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function ManageRestrictionReasons() {
@@ -38,6 +39,20 @@ export default function ManageRestrictionReasons() {
 
   const [bankEmails, setBankEmails] = useState([]);
   const [categories, setCategories] = useState([]);
+  
+  const [loadingBanner, setLoadingBanner] = useState({
+    visible: false,
+    current: 0,
+    total: 0,
+    action: '',
+    message: ''
+  });
+
+  const [successBanner, setSuccessBanner] = useState({
+    visible: false,
+    message: '',
+    action: ''
+  });
 
   const predefinedCategories = [
     'Security',
@@ -274,9 +289,19 @@ export default function ManageRestrictionReasons() {
       return;
     }
 
+    // Show loading banner
+    setLoadingBanner({
+      visible: true,
+      current: 1,
+      total: 1,
+      action: modalMode === 'add' ? 'Adding Reason' : 'Updating Reason',
+      message: modalMode === 'add' ? 'Creating new restriction reason...' : 'Updating restriction reason...'
+    });
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
         setError('Session expired. Please log in again.');
         return;
       }
@@ -304,13 +329,26 @@ export default function ManageRestrictionReasons() {
         throw new Error(result.error || result.details?.message || 'Failed to save reason');
       }
 
-      setSuccess(result.message || 'Reason saved successfully');
+      // Hide loading banner
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      
+      // Show success banner
+      setSuccessBanner({
+        visible: true,
+        message: result.message || 'Reason saved successfully',
+        action: modalMode === 'add' ? 'Add Reason' : 'Update Reason'
+      });
+      
       setShowModal(false);
       await fetchReasons();
 
-      setTimeout(() => setSuccess(''), 3000);
+      // Auto-hide success banner after 5 seconds
+      setTimeout(() => {
+        setSuccessBanner({ visible: false, message: '', action: '' });
+      }, 5000);
     } catch (err) {
       console.error('Form submission error:', err);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
       setError(err.message || 'An error occurred while saving the reason');
     }
   };
@@ -395,6 +433,50 @@ export default function ManageRestrictionReasons() {
 
   return (
     <AdminAuth>
+      <AdminLoadingBanner
+        isVisible={loadingBanner.visible}
+        current={loadingBanner.current}
+        total={loadingBanner.total}
+        action={loadingBanner.action}
+        message={loadingBanner.message}
+      />
+      
+      {/* Professional Success Banner */}
+      {successBanner.visible && (
+        <div style={styles.successBannerOverlay} onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}>
+          <div style={styles.successBannerContainer} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.successBannerHeader}>
+              <div style={styles.successBannerLogo}>🏦 OAKLINE ADMIN</div>
+              <div style={styles.successBannerActions}>
+                <div style={styles.successBannerIcon}>✅</div>
+                <button 
+                  onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}
+                  style={styles.successBannerClose}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div style={styles.successBannerContent}>
+              <h3 style={styles.successBannerAction}>{successBanner.action}</h3>
+              <p style={styles.successBannerMessage}>{successBanner.message}</p>
+            </div>
+            
+            <div style={styles.successBannerFooter}>
+              <div style={styles.successBannerCheckmark}>✓ Operation Completed Successfully</div>
+              <button
+                onClick={() => setSuccessBanner({ visible: false, message: '', action: '' })}
+                style={styles.successBannerOkButton}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div style={{ 
         minHeight: '100vh', 
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -1047,3 +1129,113 @@ export default function ManageRestrictionReasons() {
     </AdminAuth>
   );
 }
+
+
+
+const styles = {
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  successBannerIcon: {
+    fontSize: '32px',
+    animation: 'bounce 0.6s ease-in-out'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  }
+};
