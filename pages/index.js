@@ -13,6 +13,7 @@ export default function AdminNavigationHub() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [showPageSearch, setShowPageSearch] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -234,6 +235,41 @@ export default function AdminNavigationHub() {
             Only authorized admin users can access this area
           </p>
         </div>
+
+        <div style={styles.bottomNav}>
+          <button
+            onClick={() => setShowPageSearch(!showPageSearch)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              color: showPageSearch ? 'white' : '#1A3E6F',
+              padding: '4px 2px',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer',
+              flex: 1,
+              maxWidth: '70px',
+              minWidth: '50px',
+              background: showPageSearch ? '#1e40af' : 'transparent',
+              border: 'none',
+              fontSize: '9px',
+              fontWeight: '600'
+            }}
+          >
+            <div style={{fontSize: '16px', marginBottom: '2px'}}>🔍</div>
+            <div style={{fontSize: '9px', fontWeight: '600', textAlign: 'center', lineHeight: '1.1'}}>Search</div>
+          </button>
+        </div>
+
+        {showPageSearch && (
+          <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
+            <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+              <AdminNavDropdown />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -446,5 +482,43 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease'
+  },
+  bottomNav: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderTop: '2px solid #e2e8f0',
+    padding: '6px 3px',
+    boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
+    zIndex: 1000,
+    gap: '2px'
+  },
+  searchOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(3px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000
+  },
+  searchModal: {
+    background: 'white',
+    borderRadius: '16px',
+    padding: '2rem',
+    maxWidth: '900px',
+    width: '90vw',
+    maxHeight: '85vh',
+    overflow: 'auto',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
   }
 };
