@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function ManageRestrictionReasons() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('restriction'); // 'restriction' or 'restoration'
   const [reasons, setReasons] = useState([]);
   const [filteredReasons, setFilteredReasons] = useState([]);
   const [stats, setStats] = useState(null);
@@ -38,7 +39,7 @@ export default function ManageRestrictionReasons() {
   const [bankEmails, setBankEmails] = useState([]);
   const [categories, setCategories] = useState([]);
 
-  const actionTypes = [
+  const restrictionActionTypes = [
     { value: 'ban_user', label: 'Ban User' },
     { value: 'lock_account', label: 'Lock Account' },
     { value: 'force_password_reset', label: 'Force Password Reset' },
@@ -46,6 +47,15 @@ export default function ManageRestrictionReasons() {
     { value: 'suspend_account', label: 'Suspend Account' },
     { value: 'close_account', label: 'Close Account' }
   ];
+
+  const restorationActionTypes = [
+    { value: 'unban_user', label: 'Unban User' },
+    { value: 'lift_suspension', label: 'Lift Suspension' },
+    { value: 'unlock_account', label: 'Unlock Account' },
+    { value: 'reactivate_account', label: 'Reactivate Account' }
+  ];
+
+  const actionTypes = activeTab === 'restriction' ? restrictionActionTypes : restorationActionTypes;
 
   const severityLevels = [
     { value: 'low', label: 'Low', color: 'bg-blue-100 text-blue-800' },
@@ -58,7 +68,7 @@ export default function ManageRestrictionReasons() {
     fetchReasons();
     fetchBankEmails();
     fetchUsageStats();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     filterReasons();
@@ -128,7 +138,11 @@ export default function ManageRestrictionReasons() {
         return;
       }
 
-      const response = await fetch('/api/admin/get-all-restriction-reasons', {
+      const endpoint = activeTab === 'restriction' 
+        ? '/api/admin/get-all-restriction-reasons'
+        : '/api/admin/get-all-restoration-reasons';
+
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -189,8 +203,9 @@ export default function ManageRestrictionReasons() {
   const handleAddNew = () => {
     setModalMode('add');
     setCurrentReason(null);
+    const defaultActionType = activeTab === 'restriction' ? 'ban_user' : 'unban_user';
     setFormData({
-      action_type: 'ban_user',
+      action_type: defaultActionType,
       category: '',
       reason_text: '',
       contact_email: bankEmails[0] || 'contact-us@theoaklinebank.com',
@@ -228,7 +243,9 @@ export default function ManageRestrictionReasons() {
         return;
       }
 
-      const endpoint = '/api/admin/manage-restriction-reason';
+      const endpoint = activeTab === 'restriction'
+        ? '/api/admin/manage-restriction-reason'
+        : '/api/admin/manage-restoration-reason';
       const method = modalMode === 'add' ? 'POST' : 'PUT';
       const body = modalMode === 'add' 
         ? formData 
@@ -273,7 +290,11 @@ export default function ManageRestrictionReasons() {
         return;
       }
 
-      const response = await fetch('/api/admin/manage-restriction-reason', {
+      const endpoint = activeTab === 'restriction'
+        ? '/api/admin/manage-restriction-reason'
+        : '/api/admin/manage-restoration-reason';
+
+      const response = await fetch(endpoint, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +326,11 @@ export default function ManageRestrictionReasons() {
         return;
       }
 
-      const response = await fetch('/api/admin/manage-restriction-reason', {
+      const endpoint = activeTab === 'restriction'
+        ? '/api/admin/manage-restriction-reason'
+        : '/api/admin/manage-restoration-reason';
+
+      const response = await fetch(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -345,13 +370,51 @@ export default function ManageRestrictionReasons() {
           }}>
             {/* Header */}
             <div style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              {/* Tab Switcher */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '0' }}>
+                <button
+                  onClick={() => setActiveTab('restriction')}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '8px 8px 0 0',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: activeTab === 'restriction' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f7fafc',
+                    color: activeTab === 'restriction' ? 'white' : '#4a5568',
+                    borderBottom: activeTab === 'restriction' ? 'none' : '2px solid #e2e8f0',
+                    fontSize: '15px'
+                  }}
+                >
+                  🔒 Restriction Reasons
+                </button>
+                <button
+                  onClick={() => setActiveTab('restoration')}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '8px 8px 0 0',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: activeTab === 'restoration' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f7fafc',
+                    color: activeTab === 'restoration' ? 'white' : '#4a5568',
+                    borderBottom: activeTab === 'restoration' ? 'none' : '2px solid #e2e8f0',
+                    fontSize: '15px'
+                  }}
+                >
+                  ✅ Restoration Reasons
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '20px' }}>
                 <div>
                   <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1a202c', marginBottom: '10px' }}>
-                    🔒 Manage Account Restriction Reasons
+                    {activeTab === 'restriction' ? '🔒 Manage Account Restriction Reasons' : '✅ Manage Account Restoration Reasons'}
                   </h1>
                   <p style={{ color: '#718096' }}>
-                    Manage professional reasons for account restrictions with appropriate contact information
+                    {activeTab === 'restriction' 
+                      ? 'Manage professional reasons for account restrictions with appropriate contact information'
+                      : 'Manage professional reasons for restoring user access with appropriate contact information'}
                   </p>
                 </div>
                 <button
