@@ -551,7 +551,7 @@ export default async function handler(req, res) {
         } else {
           // Fixed duration
           suspensionEndDate = new Date();
-          suspensionEndDate.setDate(suspensionEndDate.getDate() + suspensionDays);
+          suspensionEndDate.setDate(suspensionEndDate.getDate() + parseInt(suspensionDays));
         }
 
         const suspensionMessage = displayMessage || generateProfessionalSuspensionMessage(reason, suspensionEndDate, suspensionType);
@@ -613,7 +613,8 @@ export default async function handler(req, res) {
           details: {
             user_id: userId,
             suspension_reason: reason || 'No reason provided',
-            suspension_end_date: suspensionEndDate.toISOString(),
+            suspension_end_date: suspensionEndDate ? suspensionEndDate.toISOString() : null,
+            suspension_type: suspensionType,
             suspended_by: admin.id,
             admin_email: admin.email
           },
@@ -631,7 +632,7 @@ export default async function handler(req, res) {
 
         result = { 
           message: 'Account suspended successfully', 
-          suspensionEndDate: suspensionEndDate ? suspensionEndDate : 'Pending investigation',
+          suspensionEndDate: suspensionEndDate ? suspensionEndDate.toISOString() : 'Pending investigation',
           suspensionType 
         };
         break;
