@@ -95,6 +95,9 @@ export default function SecurityDashboard() {
   const [restrictionReasons, setRestrictionReasons] = useState({});
   const [restorationReasons, setRestorationReasons] = useState({});
   const [reasonsLoading, setReasonsLoading] = useState(false);
+  const [selectedRestrictionReasonId, setSelectedRestrictionReasonId] = useState('');
+  const [availableDisplayMessages, setAvailableDisplayMessages] = useState([]);
+  const [displayMessagesLoading, setDisplayMessagesLoading] = useState(false);
 
   useEffect(() => {
     fetchSecurityData();
@@ -340,12 +343,58 @@ export default function SecurityDashboard() {
     }
   };
 
+  const fetchDisplayMessages = async (restrictionReasonId) => {
+    if (!restrictionReasonId) {
+      setAvailableDisplayMessages([]);
+      return;
+    }
+
+    try {
+      setDisplayMessagesLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No session for fetching display messages');
+        return;
+      }
+
+      const response = await fetch(`/api/admin/get-restriction-display-messages?restriction_reason_id=${restrictionReasonId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to fetch display messages:', errorData.error);
+        setAvailableDisplayMessages([]);
+        return;
+      }
+
+      const result = await response.json();
+      setAvailableDisplayMessages(result.messages || []);
+      
+      // Auto-select default message if available
+      const defaultMessage = (result.messages || []).find(msg => msg.isDefault);
+      if (defaultMessage) {
+        setDisplayMessage(defaultMessage.text);
+      }
+    } catch (err) {
+      console.error('Error fetching display messages:', err);
+      setAvailableDisplayMessages([]);
+    } finally {
+      setDisplayMessagesLoading(false);
+    }
+  };
+
   const handleSecurityAction = async (user, action, existingReason = '', existingDisplayMessage = '') => {
     setSelectedUser(user);
     setActionType(action);
     setActionReason(existingReason); // Use existing reason if editing
+    setDisplayMessage(existingDisplayMessage || ''); // Use existing display message if editing
     setSuspensionDuration('30'); // Reset to default
     setSuspensionDurationType('days'); // Reset to default
+    setSelectedRestrictionReasonId(''); // Reset restriction reason selection
+    setAvailableDisplayMessages([]); // Clear available display messages
     setShowActionModal(true);
   };
 
@@ -1486,44 +1535,80 @@ export default function SecurityDashboard() {
                   {selectedUser.isBanned && <p style={{color: '#dc2626'}}><strong>Status:</strong> BANNED</p>}
                 </div>
                 <div style={styles.inputGroup}>
-                  <label style={styles.label}>Reason Category & Explanation (required):</label>
-                  <div style={styles.reasonCategories}>
+                  <label style={styles.label}>📋 Select Restriction Reason (optional - or type custom below):</label>
+                  <select
+                    value={actionReason}
+                    onChange={(e) => {
+                      const reasonText = e.target.value;
+                      setActionReason(reasonText);
+                      
+                      // Find the selected reason object to get its ID
+                      const reasonsOptions = getReasonOptions(actionType);
+                      let reasonId = null;
+                      for (const category of reasonsOptions) {
+                        const foundReason = category.reasons.find(r => r.text === reasonText);
+                        if (foundReason) {
+                          reasonId = foundReason.id;
+                          setSelectedRestrictionReasonId(reasonId || '');
+                          // Fetch display messages for this reason if it has an ID
+                          if (reasonId) {
+                            fetchDisplayMessages(reasonId);
+                          }
+                          break;
+                        }
+                      }
+                    }}
+                    style={styles.filterSelect}
+                  >
+                    <option value="">-- Select a Restriction Reason --</option>
                     {getReasonOptions(actionType).map((category, idx) => (
-                      <div key={idx} style={styles.categorySection}>
-                        <h4 style={styles.categoryTitle}>{category.category}</h4>
-                        <div style={styles.reasonOptions}>
-                          {category.reasons.map((reason, reasonIdx) => (
-                            <button
-                              key={reasonIdx}
-                              onClick={() => {
-                                setActionReason(reason.text);
-                                setDisplayMessage(reason.displayMessage || '');
-                              }}
-                              style={{
-                                ...styles.reasonButton,
-                                ...(actionReason === reason.text ? styles.reasonButtonSelected : {})
-                              }}
-                              type="button"
-                            >
-                              {actionReason === reason.text && <span style={styles.checkmark}>✓ </span>}
-                              {reason.text}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <optgroup key={idx} label={category.category}>
+                        {category.reasons.map((reason, reasonIdx) => (
+                          <option key={reasonIdx} value={reason.text}>
+                            {reason.text}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </div>
+                  </select>
                   
-                  <label style={styles.label}>Selected Reason:</label>
+                  <label style={{...styles.label, marginTop: '16px'}}>✏️ Reason Details:</label>
                   <textarea
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
-                    placeholder="Select a reason from above or enter a custom explanation..."
+                    placeholder="Select a reason from the dropdown above or type a custom explanation..."
                     style={styles.textarea}
-                    rows={3}
+                    rows={2}
                   />
 
-                  <label style={styles.label}>User-Facing Display Message:</label>
+                  {/* Display Messages Dropdown - Only show when a restriction reason with ID is selected */}
+                  {selectedRestrictionReasonId && (
+                    <>
+                      <label style={{...styles.label, marginTop: '16px'}}>💬 Select Display Message (optional):</label>
+                      {displayMessagesLoading ? (
+                        <p style={{fontSize: '14px', color: '#718096', padding: '10px'}}>Loading display messages...</p>
+                      ) : availableDisplayMessages.length > 0 ? (
+                        <select
+                          value={displayMessage}
+                          onChange={(e) => setDisplayMessage(e.target.value)}
+                          style={styles.filterSelect}
+                        >
+                          <option value="">-- Select a Display Message --</option>
+                          {availableDisplayMessages.map((msg, idx) => (
+                            <option key={idx} value={msg.text}>
+                              {msg.type ? `[${msg.type.toUpperCase()}] ` : ''}{msg.text.substring(0, 100)}{msg.text.length > 100 ? '...' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p style={{fontSize: '14px', color: '#f59e0b', padding: '10px', backgroundColor: '#fef3c7', borderRadius: '6px'}}>
+                          ⚠️ No predefined display messages available for this reason. Please enter a custom message below.
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  <label style={{...styles.label, marginTop: '16px'}}>📝 User-Facing Display Message:</label>
                   <textarea
                     value={displayMessage}
                     onChange={(e) => setDisplayMessage(e.target.value)}
