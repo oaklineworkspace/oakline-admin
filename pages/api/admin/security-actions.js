@@ -850,6 +850,9 @@ export default async function handler(req, res) {
       } else if (action === 'unban_user') {
         newStatus = 'active';
         newIsBanned = false;
+      } else if (action === 'lift_suspension') {
+        newStatus = 'active';
+        // Don't change is_banned status - suspension lift is independent of ban status
       }
 
       const { error: statusAuditError } = await supabaseAdmin.from('account_status_audit_log').insert({
@@ -878,6 +881,10 @@ export default async function handler(req, res) {
             ban_reason: reason,
             banned_at: new Date().toISOString(),
             ban_duration: data?.banDuration || '876000h'
+          }),
+          // Include suspension lift details if applicable
+          ...(action === 'lift_suspension' && {
+            suspension_lifted_at: new Date().toISOString()
           })
         }
       });
