@@ -627,7 +627,7 @@ export default async function handler(req, res) {
           to: userEmail,
           subject: `⚠️ Your Account Has Been Suspended - ${bankName}`,
           type: EMAIL_TYPES.SECURITY,
-          html: generateAccountSuspendedEmail(userName, reason, suspensionEndDate, supportEmail, bankName, suspensionType)
+          html: generateAccountSuspendedEmail(userName, suspensionMessage, suspensionEndDate, supportEmail, bankName, suspensionType)
         });
 
         result = { 
@@ -1178,7 +1178,7 @@ function generateAccountBannedEmail(userName, reason, supportEmail, bankName) {
   `;
 }
 
-function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, bankName, suspensionType = 'fixed') {
+function generateAccountSuspendedEmail(userName, suspensionMessage, endDate, supportEmail, bankName, suspensionType = 'fixed') {
   const formattedDate = endDate ? new Date(endDate).toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
@@ -1216,20 +1216,15 @@ function generateAccountSuspendedEmail(userName, reason, endDate, supportEmail, 
             Dear ${userName},
           </p>
 
+          ${suspensionMessage ? `
+          <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            ${suspensionMessage}
+          </p>
+          ` : `
           <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
             Your ${bankName} account has been temporarily suspended${isPendingInvestigation ? ' pending investigation completion' : ` and will remain inactive until <strong>${formattedDate}</strong>`}.
           </p>
-
-          ${reason ? `
-          <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0;">
-            <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
-              Reason for Suspension:
-            </h3>
-            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
-              ${reason}
-            </p>
-          </div>
-          ` : ''}
+          `}
 
           <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 4px;">
             <h3 style="color: #1e40af; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
