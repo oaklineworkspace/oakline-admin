@@ -39,6 +39,15 @@ Preferred communication style: Simple, everyday language.
 12. **Account Restriction Reasons Management:** Complete CRUD interface for managing professional account restriction reasons used in security actions (ban, lock, suspend, close accounts). Includes categorization, severity levels, contact email management, search/filter capabilities, and integration with the security dashboard. All reasons stored in database with appropriate bank contact emails.
 13. **Account Restoration Reasons Management:** New table for managing reasons for restoring user access (unban, lift suspension, unlock, reactivate). Supports multiple action types with predefined categories including appeals, compliance, legal, security, and technical reasons. Enables consistent documentation of why accounts are being restored.
 
+## Database Schema Notes
+
+### Profiles Table Display Messages
+**Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity, this column should be renamed to `restriction_display_message` to accurately reflect its broader usage across all restriction types.
+
+### Pre-defined Restriction Reasons
+The system includes professional pre-configured reasons in the `account_restriction_reasons` table:
+- **Suspension Security Reason (High Priority):** "For your protection, your account has been temporarily suspended due to unusual login activity, which may indicate a security risk or unauthorized sharing of credentials." (security@theoaklinebank.com)
+
 ## External Dependencies
 *   **Supabase:** Database (PostgreSQL), Authentication, and Row Level Security.
 *   **Next.js:** Full-stack framework.
