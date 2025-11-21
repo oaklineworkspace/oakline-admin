@@ -13,11 +13,14 @@ export default function ManageBankDetails() {
   const [activeTab, setActiveTab] = useState('basic');
   const [showAddEmailModal, setShowAddEmailModal] = useState(false);
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [newEmail, setNewEmail] = useState({ label: '', value: '' });
   const [newColumn, setNewColumn] = useState({ name: '', type: 'text', label: '' });
   const [customEmails, setCustomEmails] = useState([]);
   const [emailFields, setEmailFields] = useState([]);
   const [newEmailField, setNewEmailField] = useState({ fieldName: '', fieldLabel: '', fieldDescription: '', fieldValue: '' });
+  const [bulkImportContent, setBulkImportContent] = useState('');
+  const [bulkImportPreview, setBulkImportPreview] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     branch_name: '',
@@ -184,6 +187,81 @@ export default function ManageBankDetails() {
     const newFormData = {...formData};
     delete newFormData[fieldName];
     setFormData(newFormData);
+  };
+
+  const parseBulkImport = (content) => {
+    const lines = content.split('\n').filter(line => line.trim());
+    const parsed = [];
+
+    lines.forEach(line => {
+      const match = line.match(/SMTP_FROM_([A-Z_]+)\s*=\s*(.+?)@(.+)/i);
+      if (match) {
+        const emailPart = match[0].split('=')[1].trim();
+        const key = match[1].toLowerCase();
+        
+        // Convert SMTP_FROM_KEY to email_key format
+        let fieldName = `email_${key}`;
+        
+        // Create a readable label
+        let fieldLabel = key
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        fieldLabel += ' Email';
+
+        parsed.push({
+          fieldName,
+          fieldLabel,
+          fieldValue: emailPart,
+          raw: line
+        });
+      }
+    });
+
+    return parsed;
+  };
+
+  const handleBulkImportPreview = (e) => {
+    const content = e.target.value;
+    setBulkImportContent(content);
+    const preview = parseBulkImport(content);
+    setBulkImportPreview(preview);
+  };
+
+  const handleApplyBulkImport = () => {
+    if (bulkImportPreview.length === 0) {
+      setError('No valid email configurations found');
+      return;
+    }
+
+    const updatedFormData = {...formData};
+    const updatedEmailFields = [...emailFields];
+
+    bulkImportPreview.forEach(item => {
+      // Update form data
+      updatedFormData[item.fieldName] = item.fieldValue;
+
+      // Check if field already exists
+      const existingField = updatedEmailFields.find(f => f.fieldName === item.fieldName);
+      if (!existingField) {
+        // Create new field definition
+        updatedEmailFields.push({
+          id: Date.now().toString() + Math.random(),
+          fieldName: item.fieldName,
+          fieldLabel: item.fieldLabel,
+          fieldDescription: `Auto-imported from SMTP_FROM_${item.fieldName.replace('email_', '').toUpperCase()}`,
+          createdAt: new Date().toISOString()
+        });
+      }
+    });
+
+    setFormData(updatedFormData);
+    setEmailFields(updatedEmailFields);
+    setShowBulkImportModal(false);
+    setBulkImportContent('');
+    setBulkImportPreview([]);
+    setSuccess(`Imported ${bulkImportPreview.length} email configurations successfully!`);
+    setTimeout(() => setSuccess(''), 5000);
   };
 
   const handleSubmit = async (e) => {
@@ -412,15 +490,26 @@ export default function ManageBankDetails() {
             {activeTab === 'emails' && (
               <div style={styles.section}>
                 <div style={styles.sectionHeader}>
-                  <h2 style={styles.sectionTitle}>📧 Email Configuration</h2>
-                  <p style={styles.sectionSubtitle}>Manage all bank email addresses</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddEmailModal(true)}
-                    style={styles.addButton}
-                  >
-                    ➕ Add Custom Email
-                  </button>
+                  <div>
+                    <h2 style={styles.sectionTitle}>📧 Email Configuration</h2>
+                    <p style={styles.sectionSubtitle}>Manage all bank email addresses</p>
+                  </div>
+                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkImportModal(true)}
+                      style={{...styles.addButton, background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)'}}
+                    >
+                      📥 Bulk Import
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddEmailModal(true)}
+                      style={styles.addButton}
+                    >
+                      ➕ Add Custom Email
+                    </button>
+                  </div>
                 </div>
 
                 {/* Standard Emails */}
@@ -897,6 +986,61 @@ export default function ManageBankDetails() {
               </button>
             </div>
           </form>
+        )}
+
+        {/* Bulk Import Modal */}
+        {showBulkImportModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowBulkImportModal(false)}>
+            <div style={{...styles.modal, maxWidth: '700px'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📥 Bulk Import Email Configurations</h2>
+                <button onClick={() => {setShowBulkImportModal(false); setBulkImportContent(''); setBulkImportPreview([]);}} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Paste Email Configuration</label>
+                  <textarea
+                    value={bulkImportContent}
+                    onChange={handleBulkImportPreview}
+                    style={{...styles.textarea, minHeight: '120px'}}
+                    placeholder="Paste your SMTP configuration here:&#10;SMTP_FROM_INFO=info@theoaklinebank.com&#10;SMTP_FROM_ACCOUNTS=accounts@theoaklinebank.com&#10;..."
+                  />
+                  <span style={styles.helpText}>Supports SMTP_FROM_KEY=email@domain.com format</span>
+                </div>
+
+                {bulkImportPreview.length > 0 && (
+                  <div style={{marginTop: '20px', padding: '16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px'}}>
+                    <h3 style={{margin: '0 0 12px 0', color: '#166534'}}>✓ Preview ({bulkImportPreview.length} emails found)</h3>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', maxHeight: '200px', overflowY: 'auto'}}>
+                      {bulkImportPreview.map((item, idx) => (
+                        <div key={idx} style={{padding: '8px', background: 'white', border: '1px solid #dcfce7', borderRadius: '4px', fontSize: '12px'}}>
+                          <div style={{fontWeight: '600', color: '#1e40af'}}>{item.fieldLabel}</div>
+                          <div style={{color: '#666', fontSize: '11px', wordBreak: 'break-all'}}>{item.fieldValue}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={styles.modalActions}>
+                  <button 
+                    type="button"
+                    onClick={() => {setShowBulkImportModal(false); setBulkImportContent(''); setBulkImportPreview([]);}} 
+                    style={styles.cancelButton}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleApplyBulkImport} 
+                    style={{...styles.submitButton, opacity: bulkImportPreview.length > 0 ? 1 : 0.5}}
+                    disabled={bulkImportPreview.length === 0}
+                  >
+                    Import {bulkImportPreview.length} Emails
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Create Email Field Modal */}
