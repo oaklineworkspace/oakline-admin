@@ -104,16 +104,17 @@ restriction_insert AS (
 display_messages_insert AS (
   INSERT INTO public.restriction_display_messages (
     restriction_reason_id,
+    reason_type,
     message_text,
     message_type,
     severity_level,
     is_default,
     display_order,
-    is_active,
-    reason_type
+    is_active
   )
   SELECT
     ri.id,
+    'restriction',
     REPLACE(
       CASE ri.reason_text
         WHEN 'Account compromised - unauthorized access detected from multiple locations and suspicious transactions initiated'
