@@ -1,0 +1,172 @@
+-- ============================================================================
+-- SEED DATA: Professional Restriction Reasons, Restoration Reasons & Display Messages
+-- For Oakline Bank Admin Panel
+-- ============================================================================
+
+-- ============================================================================
+-- 1. INSERT RESTRICTION REASONS
+-- ============================================================================
+
+INSERT INTO public.account_restriction_reasons (
+  action_type,
+  category,
+  reason_text,
+  contact_email,
+  severity_level,
+  requires_immediate_action,
+  display_order,
+  is_active
+) VALUES
+
+-- SECURITY - Restriction Reasons
+('ban_user', 'Security', 'Account compromised - unauthorized access detected from multiple locations and suspicious transactions initiated', 'security@theoaklinebank.com', 'critical', true, 1, true),
+('ban_user', 'Security', 'Account flagged for potential money laundering activity - unusual transaction patterns detected', 'security@theoaklinebank.com', 'critical', true, 2, true),
+('suspend_account', 'Security', 'Unusual login activity detected - possible credential compromise or account sharing', 'security@theoaklinebank.com', 'high', true, 3, true),
+('lock_account', 'Security', 'Multiple failed login attempts - account temporarily locked for your protection', 'security@theoaklinebank.com', 'medium', false, 4, true),
+('force_password_reset', 'Security', 'Security audit triggered - password reset required for account safety', 'security@theoaklinebank.com', 'medium', false, 5, true),
+
+-- COMPLIANCE - Restriction Reasons
+('ban_user', 'Compliance', 'Account fails to comply with KYC (Know Your Customer) requirements - verification documents rejected', 'compliance@theoaklinebank.com', 'critical', true, 6, true),
+('suspend_account', 'Compliance', 'Pending compliance review - transaction limits applied during verification period', 'compliance@theoaklinebank.com', 'high', false, 7, true),
+('lock_account', 'Compliance', 'AML (Anti-Money Laundering) screening required - account restricted pending review', 'compliance@theoaklinebank.com', 'high', true, 8, true),
+
+-- FRAUD & SUSPICIOUS ACTIVITY - Restriction Reasons
+('ban_user', 'Fraud & Suspicious Activity', 'Confirmed fraud activity - account permanently closed and flagged in fraud prevention system', 'fraud@theoaklinebank.com', 'critical', true, 9, true),
+('suspend_account', 'Fraud & Suspicious Activity', 'Suspicious transaction detected - account suspended pending fraud investigation', 'fraud@theoaklinebank.com', 'high', true, 10, true),
+('lock_account', 'Fraud & Suspicious Activity', 'Potential fraudulent activity - account locked pending further investigation', 'fraud@theoaklinebank.com', 'high', true, 11, true),
+
+-- VERIFICATION - Restriction Reasons
+('suspend_account', 'Verification', 'Identity verification failed - additional documentation required to restore access', 'verification@theoaklinebank.com', 'medium', false, 12, true),
+('lock_account', 'Verification', 'Account verification expired - please update your information to continue', 'verification@theoaklinebank.com', 'low', false, 13, true),
+
+-- POLICY VIOLATION - Restriction Reasons
+('close_account', 'Policy Violation', 'Terms of Service violation detected - account closed per violation of acceptable use policy', 'compliance@theoaklinebank.com', 'high', false, 14, true),
+('suspend_account', 'Policy Violation', 'Violation of banking terms - transaction restrictions applied pending review', 'compliance@theoaklinebank.com', 'medium', false, 15, true),
+
+-- TECHNICAL - Restriction Reasons
+('sign_out_all_devices', 'Technical', 'Security protocol update - all sessions invalidated, please log in again', 'support@theoaklinebank.com', 'low', false, 16, true),
+('lock_account', 'Technical', 'System maintenance - account temporarily restricted during scheduled updates', 'support@theoaklinebank.com', 'low', false, 17, true);
+
+-- ============================================================================
+-- 2. INSERT DISPLAY MESSAGES FOR RESTRICTION REASONS
+-- ============================================================================
+
+-- Get restriction reason IDs dynamically and insert display messages
+WITH restriction_reasons AS (
+  SELECT id, reason_text FROM public.account_restriction_reasons
+)
+INSERT INTO public.restriction_display_messages (
+  restriction_reason_id,
+  reason_type,
+  message_text,
+  message_type,
+  severity_level,
+  is_default,
+  display_order,
+  is_active
+)
+SELECT
+  rr.id,
+  'restriction',
+  CASE rr.reason_text
+    WHEN 'Account compromised - unauthorized access detected from multiple locations and suspicious transactions initiated'
+      THEN 'Your account has been temporarily suspended due to suspicious activity. We detected unauthorized access attempts from multiple locations and initiated unauthorized transactions. For your protection and security, your account is now locked. Please contact our security team at security@theoaklinebank.com to verify your identity and restore access. Do not share your login credentials with anyone.'
+    WHEN 'Account flagged for potential money laundering activity - unusual transaction patterns detected'
+      THEN 'Your account has been restricted pending a compliance review. We detected transaction patterns that require further investigation per regulatory requirements. This is a precautionary measure. Please contact compliance@theoaklinebank.com with any questions. Your account will be reviewed within 5-10 business days.'
+    WHEN 'Unusual login activity detected - possible credential compromise or account sharing'
+      THEN 'For your protection, your account has been temporarily suspended due to unusual login activity, which may indicate a security risk or unauthorized sharing of credentials. Please reset your password immediately and enable two-factor authentication. Contact security@theoaklinebank.com if you did not initiate this activity.'
+    WHEN 'Multiple failed login attempts - account temporarily locked for your protection'
+      THEN 'Your account has been temporarily locked after multiple failed login attempts. This is a standard security measure to protect your account. Please try again in 15 minutes, or reset your password if you''ve forgotten it. If you need assistance, contact support@theoaklinebank.com.'
+    WHEN 'Security audit triggered - password reset required for account safety'
+      THEN 'A security audit has been initiated on your account. For your protection, you are required to reset your password before continuing. This helps ensure your account remains secure. Your password must be at least 12 characters with uppercase, lowercase, numbers, and special characters.'
+    WHEN 'Account fails to comply with KYC (Know Your Customer) requirements - verification documents rejected'
+      THEN 'Your account has been restricted due to failed identity verification. Your submitted documents were rejected or could not be verified. Please resubmit updated government-issued ID (passport, driver''s license, or national ID) through your account settings. Contact verification@theoaklinebank.com for assistance.'
+    WHEN 'Pending compliance review - transaction limits applied during verification period'
+      THEN 'Your account is currently under compliance review. While this review is in progress, transaction limits have been applied. You can still access your account and view your balance. We expect to complete the review within 2-3 business days. No action is required from you at this time.'
+    WHEN 'AML (Anti-Money Laundering) screening required - account restricted pending review'
+      THEN 'Your account has been restricted pending an Anti-Money Laundering (AML) screening. This is a regulatory requirement and does not indicate wrongdoing. Please allow 5-10 business days for completion. If you have questions, contact compliance@theoaklinebank.com.'
+    WHEN 'Confirmed fraud activity - account permanently closed and flagged in fraud prevention system'
+      THEN 'Your account has been permanently closed due to confirmed fraudulent activity. Your account has been flagged in our fraud prevention system and cannot be reopened. If you believe this is an error, contact fraud@theoaklinebank.com with documentation within 30 days.'
+    WHEN 'Suspicious transaction detected - account suspended pending fraud investigation'
+      THEN 'Your account has been suspended due to suspicious transaction activity. We have initiated a fraud investigation to protect your account and funds. You will receive updates via email. Do not attempt to conduct additional transactions. Contact fraud@theoaklinebank.com if you can provide information about suspicious activity.'
+    WHEN 'Potential fraudulent activity - account locked pending further investigation'
+      THEN 'Your account has been locked due to potential fraudulent activity. We are conducting an investigation to ensure your account security. Please verify the recent transactions in your account. Contact fraud@theoaklinebank.com with any concerns. Investigation typically takes 3-5 business days.'
+    WHEN 'Identity verification failed - additional documentation required to restore access'
+      THEN 'Your account access has been limited due to failed identity verification. Please provide additional documentation including proof of address (utility bill or bank statement), proof of income, and a clear copy of your government-issued ID. Submit documents through your account portal or contact verification@theoaklinebank.com.'
+    WHEN 'Account verification expired - please update your information to continue'
+      THEN 'Your account verification has expired. Please log in and update your personal information, contact details, and re-verify your identity. This is a quick process that typically takes less than 5 minutes. Verification is required annually for account security and compliance.'
+    WHEN 'Terms of Service violation detected - account closed per violation of acceptable use policy'
+      THEN 'Your account has been closed due to violation of our Terms of Service and Acceptable Use Policy. We do not permit use of our banking services for prohibited activities. This closure is permanent. For details on the violation, contact compliance@theoaklinebank.com.'
+    WHEN 'Violation of banking terms - transaction restrictions applied pending review'
+      THEN 'Your account is under review due to suspected violation of our banking terms. Transaction restrictions have been applied while we complete our investigation. We will contact you within 3 business days with findings. Please do not attempt to circumvent restrictions or use multiple accounts.'
+    WHEN 'Security protocol update - all sessions invalidated, please log in again'
+      THEN 'We have completed a security protocol update. For your protection, all sessions have been ended. Please log in again with your credentials. If you experience any issues, contact support@theoaklinebank.com.'
+    WHEN 'System maintenance - account temporarily restricted during scheduled updates'
+      THEN 'Your account access is temporarily limited due to scheduled system maintenance. We apologize for any inconvenience. Maintenance typically completes within 2-4 hours. You will receive confirmation via email when full service is restored. Thank you for your patience.'
+    ELSE 'Your account has been restricted. Please contact support@theoaklinebank.com for more information.'
+  END,
+  CASE
+    WHEN rr.reason_text LIKE '%compromised%' OR rr.reason_text LIKE '%money laundering%' OR rr.reason_text LIKE '%fraud%' THEN 'urgent'
+    WHEN rr.reason_text LIKE '%compliance%' OR rr.reason_text LIKE '%AML%' THEN 'investigation'
+    WHEN rr.reason_text LIKE '%temporary%' OR rr.reason_text LIKE '%maintenance%' THEN 'temporary'
+    WHEN rr.reason_text LIKE '%closed%' OR rr.reason_text LIKE '%permanent%' THEN 'permanent'
+    ELSE 'standard'
+  END,
+  CASE
+    WHEN rr.reason_text LIKE '%compromised%' OR rr.reason_text LIKE '%money laundering%' OR rr.reason_text LIKE '%Confirmed fraud%' THEN 'critical'
+    WHEN rr.reason_text LIKE '%suspicious%' OR rr.reason_text LIKE '%compliance%' THEN 'high'
+    WHEN rr.reason_text LIKE '%verification%' THEN 'medium'
+    ELSE 'low'
+  END,
+  true,
+  0,
+  true
+FROM restriction_reasons rr;
+
+-- ============================================================================
+-- 3. INSERT RESTORATION REASONS
+-- ============================================================================
+
+INSERT INTO public.account_restoration_reasons (
+  action_type,
+  category,
+  reason_text,
+  contact_email,
+  severity_level,
+  requires_immediate_action,
+  display_order,
+  is_active
+) VALUES
+
+-- APPEALS - Restoration Reasons
+('unban_user', 'Appeals', 'User submitted successful appeal - identity verified and account restored per appeal decision', 'compliance@theoaklinebank.com', 'high', false, 1, true),
+('lift_suspension', 'Appeals', 'Suspension appeal approved - verification requirements met, account access restored', 'compliance@theoaklinebank.com', 'high', false, 2, true),
+
+-- COMPLIANCE - Restoration Reasons
+('lift_suspension', 'Compliance', 'Compliance review completed - account passed all verification requirements', 'compliance@theoaklinebank.com', 'high', false, 3, true),
+('unlock_account', 'Compliance', 'AML screening completed successfully - account restrictions lifted', 'compliance@theoaklinebank.com', 'high', false, 4, true),
+('reactivate_account', 'Compliance', 'KYC verification completed - all documentation accepted and verified', 'compliance@theoaklinebank.com', 'medium', false, 5, true),
+
+-- LEGAL - Restoration Reasons
+('unban_user', 'Legal', 'Legal review completed - account restored by legal department decision', 'legal@theoaklinebank.com', 'critical', false, 6, true),
+('lift_suspension', 'Legal', 'Court order or legal mandate - account must be restored', 'legal@theoaklinebank.com', 'critical', true, 7, true),
+
+-- SECURITY - Restoration Reasons
+('unlock_account', 'Security', 'Security verification completed - account re-secured and unlocked', 'security@theoaklinebank.com', 'high', false, 8, true),
+('reactivate_account', 'Security', 'Security audit cleared - account fully restored with enhanced security', 'security@theoaklinebank.com', 'high', false, 9, true),
+
+-- TECHNICAL - Restoration Reasons
+('unlock_account', 'Technical', 'System issue resolved - account lock removed by technical support', 'support@theoaklinebank.com', 'low', false, 10, true),
+('reactivate_account', 'Technical', 'Scheduled maintenance completed - account restored to full functionality', 'support@theoaklinebank.com', 'low', false, 11, true);
+
+-- ============================================================================
+-- VERIFICATION: Check inserted data
+-- ============================================================================
+
+-- Uncomment below to verify data was inserted correctly:
+-- SELECT COUNT(*) as restriction_reasons_count FROM public.account_restriction_reasons;
+-- SELECT COUNT(*) as display_messages_count FROM public.restriction_display_messages;
+-- SELECT COUNT(*) as restoration_reasons_count FROM public.account_restoration_reasons;
+
+
+Is this professional?
