@@ -284,7 +284,26 @@ export default function AdminNavigationHub() {
             Logged in as: {user.email} ({user.role})
           </p>}
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowPageSearch(!showPageSearch)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              background: showPageSearch ? '#1e40af' : '#f3f4f6',
+              color: showPageSearch ? 'white' : '#1A3E6F',
+              border: '2px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            🔍 Search Pages
+          </button>
           <AdminPageDropdown /> {/* New Admin Page Dropdown */}
           <AdminNavDropdown />
           <button onClick={handleLogout} style={styles.logoutButton}>
