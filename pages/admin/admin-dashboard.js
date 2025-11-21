@@ -14,6 +14,7 @@ export default function AdminDashboard() {
     totalTransactions: 0
   });
   const [loading, setLoading] = useState(true);
+  const [showPageSearch, setShowPageSearch] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -241,8 +242,23 @@ export default function AdminDashboard() {
                 <div style={styles.navIcon}>💸</div>
                 <div style={styles.navText}>Transactions</div>
               </Link>
+              <button
+                onClick={() => setShowPageSearch(!showPageSearch)}
+                style={{...styles.navButton, background: showPageSearch ? '#1e40af' : 'transparent', cursor: 'pointer', border: 'none'}}
+              >
+                <div style={{...styles.navIcon, color: showPageSearch ? 'white' : '#1A3E6F'}}>🔍</div>
+                <div style={{...styles.navText, color: showPageSearch ? 'white' : '#1A3E6F'}}>Search</div>
+              </button>
               <AdminStickyDropdown />
             </div>
+            {showPageSearch && (
+              <div style={styles.searchOverlay} onClick={() => setShowPageSearch(false)}>
+                <div style={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+                  <AdminNavDropdown />
+                </div>
+              </div>
+            )}
+          
           </>
         )}
       </div>
