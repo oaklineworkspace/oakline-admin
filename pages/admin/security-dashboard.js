@@ -121,6 +121,7 @@ export default function SecurityDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('You must be logged in');
+        setLoading(false);
         return;
       }
 
@@ -220,8 +221,24 @@ export default function SecurityDashboard() {
       setUsers(enrichedUsers);
       setFilteredUsers(enrichedUsers); // Initialize filtered users
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.message || 'Failed to load security data. Please refresh the page.';
+      setError(errorMessage);
       console.error('Error fetching security data:', err);
+      
+      // Set empty data to prevent UI from breaking
+      setUsers([]);
+      setFilteredUsers([]);
+      setSecurityData({
+        loginHistory: [],
+        activeSessions: [],
+        suspiciousActivity: [],
+        auditLogs: [],
+        systemLogs: [],
+        passwordHistory: [],
+        pinHistory: [],
+        bannedUsers: [],
+        suspendedUsers: []
+      });
     } finally {
       setLoading(false);
     }
@@ -467,8 +484,13 @@ export default function SecurityDashboard() {
         action: getActionLabel(actionType)
       });
       
-      // Refresh data
-      await fetchSecurityData();
+      // Refresh data with error handling
+      try {
+        await fetchSecurityData();
+      } catch (refreshError) {
+        console.error('Error refreshing security data after action:', refreshError);
+        // Don't show error to user since action was successful
+      }
       
       // Auto-hide success banner after 5 seconds
       setTimeout(() => {
