@@ -90,28 +90,28 @@ export default function ManageRestrictionReasons() {
 
   const fetchBankEmails = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bank_details')
-        .select('*')
-        .limit(1)
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No session for fetching bank emails');
+        setBankEmails([]);
+        return;
+      }
 
-      if (error) throw error;
+      const response = await fetch('/api/admin/get-bank-emails', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
 
-      const emails = [];
-      // Add all email fields from bank_details
-      if (data.email_info) emails.push(data.email_info);
-      if (data.email_contact) emails.push(data.email_contact);
-      if (data.email_security) emails.push(data.email_security);
-      if (data.email_support) emails.push(data.email_support);
-      if (data.email_crypto) emails.push(data.email_crypto);
-      if (data.email_loans) emails.push(data.email_loans);
-      if (data.email_verify) emails.push(data.email_verify);
-      if (data.email_notify) emails.push(data.email_notify);
-      if (data.email_updates) emails.push(data.email_updates);
-      if (data.email_welcome) emails.push(data.email_welcome);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to fetch bank emails:', errorData.error);
+        setBankEmails([]);
+        return;
+      }
 
-      setBankEmails([...new Set(emails)].filter(Boolean));
+      const result = await response.json();
+      setBankEmails(result.emails || []);
     } catch (err) {
       console.error('Error fetching bank emails:', err);
       setBankEmails([]);
