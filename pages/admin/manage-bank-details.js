@@ -61,6 +61,26 @@ export default function ManageBankDetails() {
     nmls_id: ''
   });
 
+  const sanitizeFormData = (data) => {
+    const sanitized = {...data};
+    // Ensure all email fields have at least empty string instead of undefined
+    [
+      'email_info', 'email_contact', 'email_support', 'email_loans',
+      'email_notify', 'email_updates', 'email_welcome', 'email_security',
+      'email_verify', 'email_crypto', 'email_accounts', 'email_alerts',
+      'email_billing', 'email_cards', 'email_compliance', 'email_customersupport',
+      'email_disputes', 'email_fraud', 'email_help', 'email_noreply',
+      'email_payments', 'email_transfers', 'email_checks', 'email_deposits',
+      'email_transactions', 'fax', 'website', 'logo_url', 'customer_service_hours',
+      'additional_info'
+    ].forEach(field => {
+      if (sanitized[field] === null || sanitized[field] === undefined) {
+        sanitized[field] = '';
+      }
+    });
+    return sanitized;
+  };
+
   useEffect(() => {
     fetchBankDetails();
   }, []);
@@ -87,7 +107,8 @@ export default function ManageBankDetails() {
       }
 
       if (result.bankDetails) {
-        setFormData(result.bankDetails);
+        const sanitized = sanitizeFormData(result.bankDetails);
+        setFormData(sanitized);
         if (result.bankDetails.custom_emails) {
           setCustomEmails(Array.isArray(result.bankDetails.custom_emails) ? result.bankDetails.custom_emails : []);
         }
@@ -99,7 +120,7 @@ export default function ManageBankDetails() {
           fields.forEach(field => {
             emailFieldsData[field.fieldName] = result.bankDetails[field.fieldName] || '';
           });
-          setFormData(prev => ({...prev, ...emailFieldsData}));
+          setFormData(prev => sanitizeFormData({...prev, ...emailFieldsData}));
         }
       }
     } catch (err) {
@@ -277,11 +298,22 @@ export default function ManageBankDetails() {
         throw new Error('Not authenticated');
       }
 
+      // Filter out empty email fields and undefined values
+      const cleanedFormData = {};
+      Object.keys(formData).forEach(key => {
+        const value = formData[key];
+        if (value !== undefined && value !== null) {
+          cleanedFormData[key] = value;
+        }
+      });
+
       const dataToSubmit = {
-        ...formData,
+        ...cleanedFormData,
         custom_emails: customEmails,
         email_fields: emailFields
       };
+
+      console.log('Submitting bank details:', dataToSubmit);
 
       const response = await fetch('/api/admin/update-bank-details', {
         method: 'POST',
@@ -293,15 +325,18 @@ export default function ManageBankDetails() {
       });
 
       const result = await response.json();
+      console.log('Save response:', response.status, result);
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update bank details');
+        throw new Error(result.error || `Failed to update bank details: ${response.status}`);
       }
 
-      setSuccess('Bank details updated successfully!');
+      setSuccess('✅ Bank details updated successfully!');
+      console.log('Save successful');
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      setError(err.message);
+      console.error('Save error:', err);
+      setError(`Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
