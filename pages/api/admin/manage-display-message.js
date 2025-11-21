@@ -38,26 +38,30 @@ async function handleCreate(req, res, user) {
   try {
     const {
       restriction_reason_id,
+      reason_type,
       message_text,
       message_type,
       severity_level,
       is_default,
-      display_order
+      display_order,
+      is_active
     } = req.body;
 
     if (!restriction_reason_id || !message_text) {
       return res.status(400).json({ 
-        error: 'Restriction reason ID and message text are required' 
+        error: 'Reason ID and message text are required' 
       });
     }
 
     const messageData = {
       restriction_reason_id,
+      reason_type: reason_type || 'restriction',
       message_text: message_text.trim(),
       message_type: message_type || 'standard',
       severity_level: severity_level || 'medium',
       is_default: is_default || false,
-      display_order: display_order || 0
+      display_order: display_order || 0,
+      is_active: is_active !== undefined ? is_active : true
     };
 
     const { data, error } = await supabaseAdmin
@@ -92,6 +96,7 @@ async function handleUpdate(req, res, user) {
     const {
       id,
       restriction_reason_id,
+      reason_type,
       message_text,
       message_type,
       severity_level,
@@ -106,6 +111,7 @@ async function handleUpdate(req, res, user) {
 
     const updateData = {};
     if (restriction_reason_id !== undefined) updateData.restriction_reason_id = restriction_reason_id;
+    if (reason_type !== undefined) updateData.reason_type = reason_type;
     if (message_text !== undefined) updateData.message_text = message_text.trim();
     if (message_type !== undefined) updateData.message_type = message_type;
     if (severity_level !== undefined) updateData.severity_level = severity_level;
