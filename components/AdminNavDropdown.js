@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 export default function AdminNavDropdown() {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -14,6 +15,21 @@ export default function AdminNavDropdown() {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const getFilteredPages = () => {
+    if (!searchTerm.trim()) return adminPages;
+    
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return adminPages
+      .map(section => ({
+        ...section,
+        links: section.links.filter(link => 
+          link.name.toLowerCase().includes(lowerSearchTerm) ||
+          link.path.toLowerCase().includes(lowerSearchTerm)
+        )
+      }))
+      .filter(section => section.links.length > 0);
+  };
 
   const adminPages = [
     {
@@ -205,28 +221,58 @@ export default function AdminNavDropdown() {
             <div style={styles.dropdown}>
               <div style={styles.dropdownHeader}>
                 <h3 style={styles.dropdownTitle}>🏦 Admin Pages</h3>
+                <div style={styles.searchInputContainer}>
+                  <span style={styles.searchIcon}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Search pages..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={styles.searchInput}
+                    autoFocus
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      style={styles.clearButton}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={styles.scrollContainer}>
-                {adminPages.map((section, index) => (
-                  <div key={index} style={styles.section}>
-                    <h5 style={styles.sectionTitle}>{section.category}</h5>
-                    <div style={styles.linkList}>
-                      {section.links.map((link, linkIndex) => (
-                        <Link
-                          key={linkIndex}
-                          href={link.path}
-                          style={styles.link}
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <span style={styles.linkIcon}>{link.icon}</span>
-                          <span style={styles.linkText}>{link.name}</span>
-                          <span style={styles.linkArrow}>→</span>
-                        </Link>
-                      ))}
+                {getFilteredPages().length > 0 ? (
+                  getFilteredPages().map((section, index) => (
+                    <div key={index} style={styles.section}>
+                      <h5 style={styles.sectionTitle}>{section.category}</h5>
+                      <div style={styles.linkList}>
+                        {section.links.map((link, linkIndex) => (
+                          <Link
+                            key={linkIndex}
+                            href={link.path}
+                            style={styles.link}
+                            onClick={() => {
+                              setIsOpen(false);
+                              setSearchTerm('');
+                            }}
+                          >
+                            <span style={styles.linkIcon}>{link.icon}</span>
+                            <span style={styles.linkText}>{link.name}</span>
+                            <span style={styles.linkArrow}>→</span>
+                          </Link>
+                        ))}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div style={styles.noResults}>
+                    <p style={styles.noResultsText}>No pages found for "{searchTerm}"</p>
+                    <p style={styles.noResultsSubtext}>Try a different search term</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </>
@@ -315,7 +361,10 @@ const styles = {
     borderRadius: '16px 16px 0 0',
     position: 'sticky',
     top: 0,
-    zIndex: 10
+    zIndex: 10,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
   },
   dropdownTitle: {
     fontSize: '1.5rem',
@@ -324,6 +373,45 @@ const styles = {
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0
+  },
+  searchInputContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    border: '2px solid #dbeafe',
+    padding: '0.5rem 0.75rem',
+    transition: 'all 0.2s ease'
+  },
+  searchIcon: {
+    fontSize: '1.1rem',
+    color: '#1e40af'
+  },
+  searchInput: {
+    flex: 1,
+    border: 'none',
+    outline: 'none',
+    fontSize: '0.95rem',
+    fontFamily: 'inherit',
+    backgroundColor: 'transparent',
+    color: '#1e293b',
+    padding: '0.35rem 0'
+  },
+  clearButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    border: 'none',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    padding: 0
   },
   scrollContainer: {
     overflowY: 'auto',
@@ -378,6 +466,25 @@ const styles = {
     fontSize: '0.85rem',
     color: '#9ca3af',
     transition: 'all 0.2s ease'
+  },
+  noResults: {
+    padding: '3rem 1.5rem',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  noResultsText: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#1e293b',
+    margin: '0 0 0.5rem 0'
+  },
+  noResultsSubtext: {
+    fontSize: '0.85rem',
+    color: '#64748b',
+    margin: 0
   }
 };
 
