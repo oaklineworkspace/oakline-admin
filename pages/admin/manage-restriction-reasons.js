@@ -39,6 +39,20 @@ export default function ManageRestrictionReasons() {
   const [bankEmails, setBankEmails] = useState([]);
   const [categories, setCategories] = useState([]);
 
+  const predefinedCategories = [
+    'Security',
+    'Compliance',
+    'Fraud & Suspicious Activity',
+    'Verification',
+    'Appeals',
+    'Legal',
+    'Technical',
+    'Policy Violation',
+    'Identity Verification',
+    'Inactivity',
+    'Other'
+  ];
+
   const restrictionActionTypes = [
     { value: 'ban_user', label: 'Ban User' },
     { value: 'lock_account', label: 'Lock Account' },
@@ -78,23 +92,29 @@ export default function ManageRestrictionReasons() {
     try {
       const { data, error } = await supabase
         .from('bank_details')
-        .select('email_info, email_contact, email_security, email_support, email_crypto, email_loans')
+        .select('*')
         .limit(1)
         .single();
 
       if (error) throw error;
 
       const emails = [];
+      // Add all email fields from bank_details
       if (data.email_info) emails.push(data.email_info);
       if (data.email_contact) emails.push(data.email_contact);
       if (data.email_security) emails.push(data.email_security);
       if (data.email_support) emails.push(data.email_support);
       if (data.email_crypto) emails.push(data.email_crypto);
       if (data.email_loans) emails.push(data.email_loans);
+      if (data.email_verify) emails.push(data.email_verify);
+      if (data.email_notify) emails.push(data.email_notify);
+      if (data.email_updates) emails.push(data.email_updates);
+      if (data.email_welcome) emails.push(data.email_welcome);
 
-      setBankEmails([...new Set(emails)]);
+      setBankEmails([...new Set(emails)].filter(Boolean));
     } catch (err) {
       console.error('Error fetching bank emails:', err);
+      setBankEmails([]);
     }
   };
 
@@ -842,12 +862,10 @@ export default function ManageRestrictionReasons() {
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>
                     Category *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     required
-                    placeholder="e.g., Fraud & Suspicious Activity"
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -855,7 +873,12 @@ export default function ManageRestrictionReasons() {
                       border: '1px solid #cbd5e0',
                       fontSize: '14px'
                     }}
-                  />
+                  >
+                    <option value="">Select a category...</option>
+                    {predefinedCategories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div style={{ marginBottom: '20px' }}>
@@ -895,9 +918,14 @@ export default function ManageRestrictionReasons() {
                       fontSize: '14px'
                     }}
                   >
-                    {bankEmails.map(email => (
-                      <option key={email} value={email}>{email}</option>
-                    ))}
+                    <option value="">Select an email...</option>
+                    {bankEmails.length > 0 ? (
+                      bankEmails.map(email => (
+                        <option key={email} value={email}>{email}</option>
+                      ))
+                    ) : (
+                      <option disabled>No bank emails configured</option>
+                    )}
                   </select>
                 </div>
 
