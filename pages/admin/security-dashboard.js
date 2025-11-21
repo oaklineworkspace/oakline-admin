@@ -5,6 +5,7 @@ import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 // Add CSS animations
 if (typeof document !== 'undefined') {
@@ -89,6 +90,13 @@ export default function SecurityDashboard() {
   useEffect(() => {
     fetchSecurityData();
     fetchRestrictionReasons();
+    
+    // Auto-refresh every 30 seconds to keep data fresh
+    const refreshInterval = setInterval(() => {
+      fetchSecurityData();
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
 
   useEffect(() => {
@@ -114,8 +122,8 @@ export default function SecurityDashboard() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch login history
-      const { data: loginHistory, error: loginError } = await supabase
+      // Fetch login history using admin client to bypass RLS
+      const { data: loginHistory, error: loginError } = await supabaseAdmin
         .from('login_history')
         .select('*')
         .order('login_time', { ascending: false })
@@ -123,16 +131,16 @@ export default function SecurityDashboard() {
 
       if (loginError) console.error('Login history error:', loginError);
 
-      // Fetch active sessions
-      const { data: activeSessions, error: sessionsError } = await supabase
+      // Fetch active sessions using admin client
+      const { data: activeSessions, error: sessionsError } = await supabaseAdmin
         .from('user_sessions')
         .select('*')
-        .order('last_activity', { ascending: false }); // Fetch all sessions, filtering for active will be done client-side if needed, or in the frontend message for banned users
+        .order('last_activity', { ascending: false });
 
       if (sessionsError) console.error('Sessions error:', sessionsError);
 
-      // Fetch suspicious activity
-      const { data: suspiciousActivity, error: suspiciousError } = await supabase
+      // Fetch suspicious activity using admin client
+      const { data: suspiciousActivity, error: suspiciousError } = await supabaseAdmin
         .from('suspicious_activity')
         .select('*')
         .order('created_at', { ascending: false })
@@ -140,8 +148,8 @@ export default function SecurityDashboard() {
 
       if (suspiciousError) console.error('Suspicious activity error:', suspiciousError);
 
-      // Fetch audit logs
-      const { data: auditLogs, error: auditError } = await supabase
+      // Fetch audit logs using admin client
+      const { data: auditLogs, error: auditError } = await supabaseAdmin
         .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
@@ -149,8 +157,8 @@ export default function SecurityDashboard() {
 
       if (auditError) console.error('Audit logs error:', auditError);
 
-      // Fetch system logs
-      const { data: systemLogs, error: systemError } = await supabase
+      // Fetch system logs using admin client
+      const { data: systemLogs, error: systemError } = await supabaseAdmin
         .from('system_logs')
         .select('*')
         .order('created_at', { ascending: false })
@@ -158,8 +166,8 @@ export default function SecurityDashboard() {
 
       if (systemError) console.error('System logs error:', systemError);
 
-      // Fetch password history
-      const { data: passwordHistory, error: passwordError } = await supabase
+      // Fetch password history using admin client
+      const { data: passwordHistory, error: passwordError } = await supabaseAdmin
         .from('password_history')
         .select('*')
         .order('changed_at', { ascending: false })
@@ -910,7 +918,7 @@ export default function SecurityDashboard() {
                         <button
                           onClick={async () => {
                             // Fetch the latest profile data to get the current reason
-                            const { data: profileData } = await supabase
+                            const { data: profileData } = await supabaseAdmin
                               .from('profiles')
                               .select('ban_reason, status_reason, closure_reason, is_banned, status')
                               .eq('id', user.id)

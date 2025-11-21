@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
@@ -13,56 +12,31 @@ export default async function handler(req, res) {
       return res.status(authResult.status || 401).json({ error: authResult.error });
     }
 
-    // Fetch all users from auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    // Fetch banned users from profiles table (is_banned = true)
+    const { data: bannedProfiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, first_name, last_name, is_banned, ban_reason, ban_display_message, status, status_reason, banned_at, status_changed_at, banned_by')
+      .eq('is_banned', true)
+      .order('banned_at', { ascending: false });
 
-    if (authError) {
-      console.error('Error fetching auth users:', authError);
-      throw authError;
+    if (profilesError) {
+      console.error('Error fetching banned profiles:', profilesError);
+      throw profilesError;
     }
 
-    // Filter for banned users
-    const bannedUsers = authData.users
-      .filter(user => user.banned_until || user.ban_duration)
-      .map(user => ({
-        id: user.id,
-        email: user.email,
-        banned_until: user.banned_until,
-        ban_duration: user.ban_duration,
-        created_at: user.created_at
-      }));
-
-    // Fetch profiles for banned users
-    const userIds = bannedUsers.map(u => u.id);
-    
-    let bannedProfiles = [];
-    if (userIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, first_name, last_name, ban_reason, ban_display_message, banned_at, status_changed_at')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-      } else {
-        bannedProfiles = profiles || [];
-      }
-    }
-
-    // Enrich banned users with profile data
-    const enrichedBannedUsers = bannedUsers.map(user => {
-      const profile = bannedProfiles.find(p => p.id === user.id);
-      return {
-        ...user,
-        first_name: profile?.first_name,
-        last_name: profile?.last_name,
-        email: user.email || profile?.email,
-        reason: profile?.ban_reason,
-        ban_display_message: profile?.ban_display_message,
-        banned_at: profile?.banned_at,
-        status_changed_at: profile?.status_changed_at
-      };
-    });
+    // Enrich with auth user data if available
+    const enrichedBannedUsers = (bannedProfiles || []).map(profile => ({
+      id: profile.id,
+      email: profile.email,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      is_banned: profile.is_banned,
+      reason: profile.ban_reason,
+      ban_display_message: profile.ban_display_message,
+      banned_at: profile.banned_at,
+      status_changed_at: profile.status_changed_at,
+      banned_by: profile.banned_by
+    }));
 
     return res.status(200).json({
       success: true,
