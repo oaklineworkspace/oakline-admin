@@ -112,8 +112,8 @@ export default async function handler(req, res) {
       } else if (type === 'transfer' || type === 'wire_transfer_out' || type === 'wire_transfer_in' || type === 'international_transfer') {
         // High amounts for transfers (50-120000)
         amount = Math.round((50 + Math.random() * 120000) * 100) / 100;
-      } else if (type === 'crypto_send' || type === 'crypto_receive') {
-        // High amounts for crypto (50-120000)
+      } else if (type === 'wire_transfer_out' || type === 'crypto_receive') {
+        // High amounts for transfers/crypto (50-120000)
         amount = Math.round((50 + Math.random() * 120000) * 100) / 100;
       } else if (type === 'withdrawal' || type === 'zelle_send' || type === 'ach_debit' || type === 'check_payment' || type === 'investment_purchase' || type === 'bill_payment' || type === 'loan_payment' || type === 'recurring_payment' || type === 'cash_advance') {
         // Moderate to large amounts for expenses/outgoing (increased)
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
       }
 
       // Fee logic for applicable types
-      if (['withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'wire_transfer_out', 'international_transfer', 'bill_payment', 'zelle_send', 'atm_withdrawal'].includes(type)) {
+      if (['withdrawal', 'transfer', 'card_purchase', 'wire_transfer_out', 'international_transfer', 'bill_payment', 'zelle_send', 'atm_withdrawal'].includes(type)) {
         fee = Math.round((0.50 + Math.random() * 5.50) * 100) / 100;
       } else if (type === 'bank_charge' || type === 'maintenance_fee' || type === 'atm_fee' || type === 'wire_fee' || type === 'foreign_transaction_fee') {
         fee = Math.round((1 + Math.random() * 10) * 100) / 100;
@@ -154,7 +154,6 @@ export default async function handler(req, res) {
         transfer: ['Internal Transfer', 'ACH Transfer Out', 'Wire Transfer Out', 'External Bank Transfer', 'Bill Payment Transfer', 'Scheduled Transfer'],
         zelle_send: ['Zelle Payment to Friend', 'Zelle Rent Payment', 'Zelle Bill Split', 'Zelle Payment Sent'],
         zelle_receive: ['Zelle Payment from Friend', 'Zelle Rent Received', 'Zelle Reimbursement', 'Zelle Payment Received', 'Zelle Gift Received'],
-        crypto_send: ['Bitcoin Transfer Out', 'Ethereum Transfer Out', 'USDC Transfer Out', 'Crypto Exchange Transfer', 'Cold Wallet Transfer'],
         crypto_receive: ['Bitcoin Transfer In', 'Ethereum Transfer In', 'USDC Transfer In', 'Crypto Exchange Deposit', 'Mining Reward Received'],
         card_purchase: ['Point of Sale Purchase', 'Online Shopping', 'Grocery Store', 'Gas Station', 'Restaurant', 'Subscription Service', 'E-commerce Purchase', 'Contactless Payment', 'Mobile Wallet Purchase'],
         bank_charge: ['Account Service Charge', 'Transaction Fee', 'Monthly Service Fee'],
@@ -193,7 +192,7 @@ export default async function handler(req, res) {
       // Calculate balance changes (debit vs credit)
       const balanceBefore = currentBalance;
       const debitTypes = [
-        'withdrawal', 'transfer', 'crypto_send', 'card_purchase', 'bank_charge', 'maintenance_fee', 'atm_fee', 'overdraft_fee', 'wire_fee', 'foreign_transaction_fee',
+        'withdrawal', 'transfer', 'card_purchase', 'bank_charge', 'maintenance_fee', 'atm_fee', 'overdraft_fee', 'wire_fee', 'foreign_transaction_fee',
         'wire_transfer_out', 'ach_debit', 'check_payment', 'loan_payment',
         'investment_purchase', 'international_transfer', 'bill_payment',
         'chargeback', 'cash_advance', 'recurring_payment', 'zelle_send', 'atm_withdrawal'
