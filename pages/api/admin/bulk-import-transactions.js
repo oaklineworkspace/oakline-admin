@@ -41,8 +41,12 @@ export default async function handler(req, res) {
     let totalDebits = 0;
 
     // Calculate date distribution
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Parse dates properly: "2024-01-01" -> [2024, 01, 01]
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+    
+    const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
     const timeDifference = end - start;
     const transactionCount = transactions.length;
 
@@ -52,9 +56,13 @@ export default async function handler(req, res) {
       const isCredit = tx.isCredit === true || tx.type === 'credit';
 
       // Distribute transactions evenly across the date range
-      const transactionDate = new Date(start.getTime() + (timeDifference * i / (transactionCount - 1 || 1)));
+      const distributionRatio = transactionCount > 1 ? i / (transactionCount - 1) : 0;
+      const transactionDate = new Date(start.getTime() + (timeDifference * distributionRatio));
+      
       // Add random time within the day (8 AM to 8 PM)
-      transactionDate.setHours(8 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 60), 0, 0);
+      const randomHour = 8 + Math.floor(Math.random() * 12);
+      const randomMinute = Math.floor(Math.random() * 60);
+      transactionDate.setHours(randomHour, randomMinute, 0, 0);
 
       // Calculate new balance
       const newBalance = isCredit ? currentBalance + amount : currentBalance - amount;
