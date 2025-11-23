@@ -456,10 +456,12 @@ export default function BulkImportTransactions() {
       return;
     }
 
+    const totalTransactions = parsedTransactions.length * selectedAccounts.length;
+
     setLoadingBanner({
       visible: true,
       current: 0,
-      total: parsedTransactions.length * selectedAccounts.length,
+      total: totalTransactions,
       action: 'Importing Transactions',
       message: 'Processing your transaction data...'
     });
@@ -470,7 +472,7 @@ export default function BulkImportTransactions() {
       if (sessionError || !session) {
         setMessage('Authentication session expired');
         setMessageType('error');
-        setLoadingBanner({ ...loadingBanner, visible: false });
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
         return;
       }
 
@@ -479,22 +481,51 @@ export default function BulkImportTransactions() {
         'Authorization': `Bearer ${session.access_token}`
       };
 
-      const response = await fetch('/api/admin/bulk-import-transactions', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          userId: selectedUser,
-          accountIds: selectedAccounts,
-          transactions: parsedTransactions
-        })
-      });
+      let totalImported = 0;
+      let allErrors = [];
 
-      const result = await response.json();
+      // Import transactions for each account sequentially
+      for (let accountIdx = 0; accountIdx < selectedAccounts.length; accountIdx++) {
+        const accountId = selectedAccounts[accountIdx];
 
-      setLoadingBanner({ ...loadingBanner, visible: false });
+        try {
+          const response = await fetch('/api/admin/bulk-import-transactions', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              userId: selectedUser,
+              accountId: accountId,
+              transactions: parsedTransactions
+            })
+          });
 
-      if (response.ok) {
-        setMessage(`✅ Successfully imported ${result.imported} transactions!`);
+          const result = await response.json();
+
+          if (response.ok) {
+            totalImported += result.imported;
+
+            // Update progress banner
+            const currentProgress = (accountIdx + 1) * parsedTransactions.length;
+            setLoadingBanner({
+              visible: true,
+              current: currentProgress,
+              total: totalTransactions,
+              action: 'Importing Transactions',
+              message: `Processing account ${accountIdx + 1} of ${selectedAccounts.length}...`
+            });
+          } else {
+            allErrors.push(`Account ${accountIdx + 1}: ${result.error || 'Import failed'}`);
+          }
+        } catch (error) {
+          console.error('Error importing for account:', error);
+          allErrors.push(`Account ${accountIdx + 1}: ${error.message}`);
+        }
+      }
+
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+
+      if (allErrors.length === 0) {
+        setMessage(`✅ Successfully imported ${totalImported} transactions across ${selectedAccounts.length} account(s)!`);
         setMessageType('success');
         setTransactionText('');
         setParsedTransactions([]);
@@ -502,15 +533,18 @@ export default function BulkImportTransactions() {
         setSelectedAccounts([]);
         setSelectAllAccounts(false);
         setTimeout(() => setMessage(''), 5000);
+      } else if (totalImported > 0) {
+        setMessage(`✅ Imported ${totalImported} transactions with some errors: ${allErrors.join('; ')}`);
+        setMessageType('success');
       } else {
-        setMessage(`❌ ${result.error || 'Import failed'}`);
+        setMessage(`❌ Failed to import: ${allErrors.join('; ')}`);
         setMessageType('error');
       }
     } catch (error) {
       console.error('Error importing transactions:', error);
-      setMessage('Failed to import transactions');
+      setMessage('Failed to import transactions: ' + error.message);
       setMessageType('error');
-      setLoadingBanner({ ...loadingBanner, visible: false });
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     }
   };
 

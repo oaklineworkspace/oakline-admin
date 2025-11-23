@@ -12,86 +12,78 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId, accountIds, transactions } = req.body;
+    const { userId, accountId, transactions } = req.body;
 
-    if (!userId || !accountIds || !Array.isArray(accountIds) || accountIds.length === 0 || !transactions || !Array.isArray(transactions) || transactions.length === 0) {
+    if (!userId || !accountId || !transactions || !Array.isArray(transactions) || transactions.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Verify accounts belong to user
-    const { data: accounts, error: accountError } = await supabaseAdmin
+    // Verify account belongs to user
+    const { data: account, error: accountError } = await supabaseAdmin
       .from('accounts')
       .select('id, balance, user_id')
-      .in('id', accountIds)
-      .eq('user_id', userId);
+      .eq('id', accountId)
+      .eq('user_id', userId)
+      .single();
 
-    if (accountError || !accounts || accounts.length === 0) {
-      return res.status(404).json({ error: 'Accounts not found or do not belong to user' });
+    if (accountError || !account) {
+      return res.status(404).json({ error: 'Account not found or does not belong to user' });
     }
 
-    if (accounts.length !== accountIds.length) {
-      return res.status(400).json({ error: 'Some account IDs are invalid' });
-    }
-
-    // Prepare transactions to insert
+    // Prepare transactions to insert for this account
     const transactionsToInsert = [];
+    let currentBalance = parseFloat(account.balance || 0);
     let totalCredits = 0;
     let totalDebits = 0;
 
-    // For each account, insert all transactions
-    for (const account of accounts) {
-      let currentBalance = parseFloat(account.balance || 0);
+    for (const tx of transactions) {
+      const amount = parseFloat(tx.amount);
+      const isCredit = tx.isCredit === true || tx.type === 'credit';
 
-      for (const tx of transactions) {
-        const amount = parseFloat(tx.amount);
-        const isCredit = tx.isCredit === true || tx.type === 'credit';
+      // Calculate new balance
+      const newBalance = isCredit ? currentBalance + amount : currentBalance - amount;
 
-        // Calculate new balance
-        const newBalance = isCredit ? currentBalance + amount : currentBalance - amount;
-
-        if (newBalance < 0) {
-          return res.status(400).json({
-            error: 'Insufficient funds for account ' + account.id,
-            details: `Account would go negative with transaction: $${amount}`
-          });
-        }
-
-        transactionsToInsert.push({
-          user_id: userId,
-          account_id: account.id,
-          type: isCredit ? 'credit' : 'debit',
-          amount: amount,
-          description: tx.description,
-          status: 'completed',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          balance_before: currentBalance,
-          balance_after: newBalance
+      if (newBalance < 0) {
+        return res.status(400).json({
+          error: 'Insufficient funds for account ' + accountId,
+          details: `Account would go negative with transaction: $${amount}`
         });
-
-        if (isCredit) {
-          totalCredits += amount;
-        } else {
-          totalDebits += amount;
-        }
-
-        currentBalance = newBalance;
       }
 
-      // Update account balance
-      const finalBalance = currentBalance;
-      const { error: updateError } = await supabaseAdmin
-        .from('accounts')
-        .update({
-          balance: finalBalance,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', account.id);
+      transactionsToInsert.push({
+        user_id: userId,
+        account_id: accountId,
+        type: isCredit ? 'credit' : 'debit',
+        amount: amount,
+        description: tx.description,
+        status: 'completed',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        balance_before: currentBalance,
+        balance_after: newBalance
+      });
 
-      if (updateError) {
-        console.error('Balance update error:', updateError);
-        throw updateError;
+      if (isCredit) {
+        totalCredits += amount;
+      } else {
+        totalDebits += amount;
       }
+
+      currentBalance = newBalance;
+    }
+
+    // Update account balance
+    const { error: updateError } = await supabaseAdmin
+      .from('accounts')
+      .update({
+        balance: currentBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', accountId);
+
+    if (updateError) {
+      console.error('Balance update error:', updateError);
+      throw updateError;
     }
 
     // Insert all transactions in batch
@@ -115,7 +107,7 @@ export default async function handler(req, res) {
       .from('audit_logs')
       .insert({
         user_id: authResult.adminId,
-        action: `Bulk imported ${transactionsToInsert.length} transactions for user ${userId} across ${accountIds.length} account(s). Credits: $${totalCredits.toFixed(2)}, Debits: $${totalDebits.toFixed(2)}`,
+        action: `Bulk imported ${transactionsToInsert.length} transactions for account ${accountId}. Credits: $${totalCredits.toFixed(2)}, Debits: $${totalDebits.toFixed(2)}`,
         table_name: 'transactions'
       });
 
