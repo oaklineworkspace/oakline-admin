@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { accountId, userId, transactionType, amount, description, status, creditDebitOverride } = req.body;
+    const { accountId, userId, transactionType, amount, description, status, creditDebitOverride, transactionDate, transactionTime, transactionCount } = req.body;
 
     if (!accountId || !userId || !transactionType || amount === undefined || !status) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -25,6 +25,11 @@ export default async function handler(req, res) {
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ error: 'Invalid amount (must be positive)' });
+    }
+
+    let txCount = parseInt(transactionCount) || 1;
+    if (txCount < 1 || txCount > 100) {
+      return res.status(400).json({ error: 'Transaction count must be between 1 and 100' });
     }
 
     const { data: account, error: accountError } = await supabaseAdmin
@@ -49,19 +54,18 @@ export default async function handler(req, res) {
     }
 
     const currentBalance = parseFloat(account.balance || 0);
-    let newBalance;
+    let newBalance = currentBalance;
 
     if (status === 'completed') {
-      newBalance = isCredit ? currentBalance + parsedAmount : currentBalance - parsedAmount;
+      const totalChange = (isCredit ? parsedAmount : -parsedAmount) * txCount;
+      newBalance = currentBalance + totalChange;
       
       if (newBalance < 0) {
         return res.status(400).json({ 
           error: 'Insufficient funds',
-          details: `Transaction would result in negative balance: $${newBalance.toFixed(2)}`
+          details: `${txCount} transaction(s) would result in negative balance: $${newBalance.toFixed(2)}`
         });
       }
-    } else {
-      newBalance = currentBalance;
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -78,19 +82,26 @@ export default async function handler(req, res) {
     }
 
     const transactionTypeName = transactionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const { data: transaction, error: transactionError } = await supabaseAdmin
-      .from('transactions')
-      .insert({
+    const baseDateTime = transactionDate && transactionTime ? `${transactionDate}T${transactionTime}:00Z` : new Date().toISOString();
+    
+    const transactionsToInsert = [];
+    for (let i = 0; i < txCount; i++) {
+      const txDateTime = new Date(new Date(baseDateTime).getTime() + i * 60000);
+      transactionsToInsert.push({
         user_id: userId,
         account_id: accountId,
         type: isCredit ? 'credit' : 'debit',
         amount: parsedAmount,
         description: description || `${transactionTypeName} - Manual transaction by admin`,
         status: status,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+        created_at: txDateTime.toISOString()
+      });
+    }
+
+    const { data: transactions, error: transactionError } = await supabaseAdmin
+      .from('transactions')
+      .insert(transactionsToInsert)
+      .select();
 
     if (transactionError) {
       console.error('Transaction insert error:', transactionError);
@@ -103,8 +114,8 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       success: true,
-      message: 'Transaction processed successfully',
-      transaction: transaction,
+      message: txCount > 1 ? `${txCount} transactions processed successfully` : 'Transaction processed successfully',
+      transactionCount: txCount,
       previousBalance: currentBalance,
       newBalance: newBalance,
       accountNumber: account.account_number

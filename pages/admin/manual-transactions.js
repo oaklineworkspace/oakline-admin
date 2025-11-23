@@ -104,7 +104,10 @@ export default function ManualTransactions() {
     amount: '',
     description: '',
     status: 'completed',
-    creditDebitOverride: ''
+    creditDebitOverride: '',
+    transactionDate: new Date().toISOString().split('T')[0],
+    transactionTime: '12:00',
+    transactionCount: '1'
   });
 
   useEffect(() => {
@@ -183,6 +186,13 @@ export default function ManualTransactions() {
         'Authorization': `Bearer ${session.access_token}`
       };
 
+      const transactionCount = parseInt(formData.transactionCount) || 1;
+      if (transactionCount < 1 || transactionCount > 100) {
+        setMessage('❌ Transaction count must be between 1 and 100');
+        setProcessing(false);
+        return;
+      }
+
       const response = await fetch('/api/admin/manual-transaction', {
         method: 'POST',
         headers: headers,
@@ -193,21 +203,31 @@ export default function ManualTransactions() {
           amount: parseFloat(formData.amount),
           description: formData.description,
           status: formData.status,
-          creditDebitOverride: formData.creditDebitOverride
+          creditDebitOverride: formData.creditDebitOverride,
+          transactionDate: formData.transactionDate,
+          transactionTime: formData.transactionTime,
+          transactionCount: transactionCount
         })
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        setMessage(`✅ ${result.message}! New balance: $${result.newBalance.toFixed(2)}`);
+        const txCount = parseInt(formData.transactionCount) || 1;
+        const messageText = txCount > 1 
+          ? `✅ ${result.message}! Created ${txCount} transactions. New balance: $${result.newBalance.toFixed(2)}`
+          : `✅ ${result.message}! New balance: $${result.newBalance.toFixed(2)}`;
+        setMessage(messageText);
         setFormData({
           accountId: '',
           transactionType: 'deposit_adjust',
           amount: '',
           description: '',
           status: 'completed',
-          creditDebitOverride: ''
+          creditDebitOverride: '',
+          transactionDate: new Date().toISOString().split('T')[0],
+          transactionTime: '12:00',
+          transactionCount: '1'
         });
         await fetchData();
       } else {
@@ -380,6 +400,48 @@ export default function ManualTransactions() {
                   style={styles.input}
                   placeholder="Optional transaction description..."
                 />
+              </div>
+
+              <div style={styles.field}>
+                <label style={styles.label}>Transaction Date *</label>
+                <input
+                  type="date"
+                  name="transactionDate"
+                  value={formData.transactionDate}
+                  onChange={handleInputChange}
+                  required
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.field}>
+                <label style={styles.label}>Transaction Time *</label>
+                <input
+                  type="time"
+                  name="transactionTime"
+                  value={formData.transactionTime}
+                  onChange={handleInputChange}
+                  required
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.field}>
+                <label style={styles.label}>Number of Transactions (1-100) *</label>
+                <input
+                  type="number"
+                  name="transactionCount"
+                  value={formData.transactionCount}
+                  onChange={handleInputChange}
+                  min="1"
+                  max="100"
+                  required
+                  style={styles.input}
+                  placeholder="How many times to insert this transaction"
+                />
+                <small style={{color: '#64748b', marginTop: '4px'}}>
+                  Leave as 1 for single transaction, or enter 2-100 to create multiple transactions
+                </small>
               </div>
 
               <div style={styles.field}>
