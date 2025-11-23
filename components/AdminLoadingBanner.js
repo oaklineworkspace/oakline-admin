@@ -4,7 +4,8 @@ export default function AdminLoadingBanner({
   current = 0, 
   total = 0, 
   action = 'Processing',
-  message = ''
+  message = '',
+  onCancel = null
 }) {
   if (!isVisible) return null;
 
@@ -51,6 +52,14 @@ export default function AdminLoadingBanner({
             <span style={styles.dot}>●</span>
             <span style={styles.dot}>●</span>
           </div>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              style={styles.cancelButton}
+            >
+              ✕ Cancel
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -152,7 +161,9 @@ const styles = {
     backgroundColor: '#f8fafc',
     padding: '15px',
     display: 'flex',
-    justifyContent: 'center'
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px'
   },
   loadingDots: {
     display: 'flex',
@@ -162,6 +173,18 @@ const styles = {
     fontSize: '12px',
     color: '#3b82f6',
     animation: 'pulse 1.5s ease-in-out infinite'
+  },
+  cancelButton: {
+    padding: '8px 16px',
+    backgroundColor: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    hover: { backgroundColor: '#b91c1c' }
   }
 };
 

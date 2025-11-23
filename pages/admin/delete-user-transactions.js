@@ -335,12 +335,21 @@ export default function DeleteUserTransactions() {
       return;
     }
 
+    let abortController = new AbortController();
+    
     setLoadingBanner({
       visible: true,
       current: 0,
       total: selectedTransactions.size,
       action: 'Deleting Transactions',
-      message: 'Removing selected transactions...'
+      message: 'Removing selected transactions...',
+      onCancel: () => {
+        abortController.abort();
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        setMessage('❌ Deletion cancelled');
+        setMessageType('error');
+        setTimeout(() => setMessage(''), 5000);
+      }
     });
 
     try {
@@ -357,27 +366,43 @@ export default function DeleteUserTransactions() {
         headers,
         body: JSON.stringify({
           transactionIds: Array.from(selectedTransactions)
-        })
+        }),
+        signal: abortController.signal
       });
 
-      const result = await response.json();
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Deletion failed');
+      }
 
-      if (response.ok) {
+      const result = await response.json();
+      
+      // Update progress to 100%
+      setLoadingBanner({
+        visible: true,
+        current: selectedTransactions.size,
+        total: selectedTransactions.size,
+        action: 'Deleting Transactions',
+        message: 'Complete!',
+        onCancel: null
+      });
+
+      setTimeout(() => {
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '', onCancel: null });
         setMessage(`✅ Successfully deleted ${result.deleted} transaction(s)!`);
         setMessageType('success');
         setTransactions(transactions.filter(t => !selectedTransactions.has(t.id)));
         setSelectedTransactions(new Set());
         setSelectAll(false);
         setTimeout(() => setMessage(''), 5000);
-      } else {
-        setMessage(`❌ ${result.error || 'Deletion failed'}`);
-        setMessageType('error');
-      }
+      }, 500);
     } catch (error) {
+      if (error.name === 'AbortError') {
+        return; // User cancelled, don't show error
+      }
       setMessage('Failed to delete transactions: ' + error.message);
       setMessageType('error');
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '', onCancel: null });
     }
   };
 
