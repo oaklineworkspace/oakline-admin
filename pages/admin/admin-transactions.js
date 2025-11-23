@@ -54,7 +54,10 @@ export default function AdminTransactions() {
     description: '',
     status: 'pending',
     created_at: '',
-    updated_at: ''
+    updated_at: '',
+    recurring: 'one-time',
+    startMonth: '01',
+    endMonth: '12'
   });
   const [createFormAccounts, setCreateFormAccounts] = useState([]);
 
@@ -466,7 +469,10 @@ export default function AdminTransactions() {
           description: createForm.description,
           status: createForm.status,
           created_at: createForm.created_at ? new Date(createForm.created_at).toISOString() : new Date().toISOString(),
-          updated_at: createForm.updated_at ? new Date(createForm.updated_at).toISOString() : new Date().toISOString()
+          updated_at: createForm.updated_at ? new Date(createForm.updated_at).toISOString() : new Date().toISOString(),
+          recurring: createForm.recurring,
+          startMonth: createForm.recurring === 'monthly' ? parseInt(createForm.startMonth) : null,
+          endMonth: createForm.recurring === 'monthly' ? parseInt(createForm.endMonth) : null
         })
       });
 
@@ -1261,6 +1267,73 @@ export default function AdminTransactions() {
                         placeholder="Optional description"
                       />
                     </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Recurring Type *</label>
+                      <select
+                        value={createForm.recurring}
+                        onChange={(e) => setCreateForm({ ...createForm, recurring: e.target.value })}
+                        style={styles.formInput}
+                        required
+                      >
+                        <option value="one-time">One-Time Transaction</option>
+                        <option value="monthly">Monthly (Once per month for selected months)</option>
+                      </select>
+                    </div>
+
+                    {createForm.recurring === 'monthly' && (
+                      <>
+                        <div style={styles.formGroup}>
+                          <label style={styles.formLabel}>Starting Month *</label>
+                          <select
+                            value={createForm.startMonth}
+                            onChange={(e) => setCreateForm({ ...createForm, startMonth: e.target.value })}
+                            style={styles.formInput}
+                            required
+                          >
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                          </select>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                          <label style={styles.formLabel}>Ending Month *</label>
+                          <select
+                            value={createForm.endMonth}
+                            onChange={(e) => setCreateForm({ ...createForm, endMonth: e.target.value })}
+                            style={styles.formInput}
+                            required
+                          >
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                          </select>
+                        </div>
+
+                        <div style={{...styles.infoBox, backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6'}}>
+                          📅 Will create transactions for each month from {createForm.startMonth === createForm.endMonth ? 'that month' : `month ${createForm.startMonth} through ${createForm.endMonth}`} across 2024-2025 (max 24 transactions)
+                        </div>
+                      </>
+                    )}
 
                     <div style={styles.formGroup}>
                       <label style={styles.formLabel}>Created At</label>

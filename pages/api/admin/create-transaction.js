@@ -37,7 +37,12 @@ export default async function handler(req, res) {
       type, 
       amount, 
       description, 
-      status 
+      status,
+      created_at,
+      updated_at,
+      recurring,
+      startMonth,
+      endMonth
     } = req.body;
 
     if (!account_id || !type || !amount) {
@@ -66,13 +71,82 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Account not found' });
     }
 
+    // Handle monthly recurring transactions
+    if (recurring === 'monthly' && startMonth && endMonth) {
+      const baseDate = created_at ? new Date(created_at) : new Date();
+      const transactions = [];
+      
+      const startMonthNum = parseInt(startMonth);
+      const endMonthNum = parseInt(endMonth);
+      
+      // Create transactions for each month in 2024 and 2025
+      for (let year = 2024; year <= 2025; year++) {
+        for (let month = 1; month <= 12; month++) {
+          // Skip if month is before start month (in year 2024) or after end month (in year 2025)
+          if (year === 2024 && month < startMonthNum) continue;
+          if (year === 2025 && month > endMonthNum) continue;
+          
+          const transactionDate = new Date(year, month - 1, 15, 12, 0, 0, 0);
+          
+          const transactionData = {
+            user_id: user_id || account.user_id,
+            account_id,
+            type,
+            amount: parseFloat(amount),
+            description: description || null,
+            status: status || 'pending',
+            created_at: transactionDate.toISOString(),
+            updated_at: (updated_at || transactionDate.toISOString())
+          };
+          
+          transactions.push(transactionData);
+        }
+      }
+      
+      // Insert all transactions
+      const { data: newTransactions, error: insertError } = await supabaseAdmin
+        .from('transactions')
+        .insert(transactions)
+        .select();
+
+      if (insertError) {
+        console.error('Error creating monthly transactions:', insertError);
+        return res.status(500).json({ error: insertError.message });
+      }
+
+      // Log audit entry
+      const { error: auditError } = await supabaseAdmin
+        .from('audit_logs')
+        .insert({
+          user_id: user.id,
+          action: 'create_monthly_recurring_transactions',
+          table_name: 'transactions',
+          old_data: null,
+          new_data: { count: newTransactions.length, startMonth, endMonth, recurring: 'monthly' }
+        });
+
+      if (auditError) {
+        console.error('Error creating audit log:', auditError);
+      }
+
+      return res.status(201).json({ 
+        success: true, 
+        transactions: newTransactions,
+        count: newTransactions.length,
+        recurring: 'monthly'
+      });
+    }
+
+    // Handle one-time transaction
     const transactionData = {
       user_id: user_id || account.user_id,
       account_id,
       type,
       amount: parseFloat(amount),
       description: description || null,
-      status: status || 'pending'
+      status: status || 'pending',
+      created_at: created_at ? new Date(created_at).toISOString() : new Date().toISOString(),
+      updated_at: updated_at ? new Date(updated_at).toISOString() : new Date().toISOString()
     };
 
     const { data: newTransaction, error: insertError } = await supabaseAdmin
@@ -103,9 +177,9 @@ export default async function handler(req, res) {
     return res.status(201).json({ 
       success: true, 
       transaction: newTransaction,
-      message: 'Transaction created successfully'
+      recurring: 'one-time',
+      imported: 1
     });
-
   } catch (error) {
     console.error('Unexpected error:', error);
     return res.status(500).json({ error: 'Internal server error' });
