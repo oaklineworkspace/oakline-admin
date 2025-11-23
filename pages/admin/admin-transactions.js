@@ -52,7 +52,9 @@ export default function AdminTransactions() {
     type: 'debit',
     amount: '',
     description: '',
-    status: 'pending'
+    status: 'pending',
+    created_at: '',
+    updated_at: ''
   });
   const [createFormAccounts, setCreateFormAccounts] = useState([]);
 
@@ -462,7 +464,9 @@ export default function AdminTransactions() {
           type: createForm.type,
           amount: parseFloat(createForm.amount),
           description: createForm.description,
-          status: createForm.status
+          status: createForm.status,
+          created_at: createForm.created_at ? new Date(createForm.created_at).toISOString() : new Date().toISOString(),
+          updated_at: createForm.updated_at ? new Date(createForm.updated_at).toISOString() : new Date().toISOString()
         })
       });
 
@@ -1256,6 +1260,32 @@ export default function AdminTransactions() {
                         rows={3}
                         placeholder="Optional description"
                       />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Created At</label>
+                      <input
+                        type="datetime-local"
+                        value={createForm.created_at}
+                        onChange={(e) => setCreateForm({ ...createForm, created_at: e.target.value })}
+                        style={styles.formInput}
+                      />
+                      <small style={styles.helpText}>
+                        Leave empty to use current date/time
+                      </small>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Updated At</label>
+                      <input
+                        type="datetime-local"
+                        value={createForm.updated_at}
+                        onChange={(e) => setCreateForm({ ...createForm, updated_at: e.target.value })}
+                        style={styles.formInput}
+                      />
+                      <small style={styles.helpText}>
+                        Leave empty to use current date/time
+                      </small>
                     </div>
                   </div>
                 </div>
