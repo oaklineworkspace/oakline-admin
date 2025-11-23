@@ -301,6 +301,13 @@ const styles = {
   }
 };
 
+// Transaction icons for variety
+const TRANSACTION_ICONS = [
+  '💳', '💰', '📱', '🛒', '✈️', '🍔', '🏨', '🎬', 
+  '🎮', '📚', '⚽', '👕', '💄', '🎵', '🚗', '🏥',
+  '🎓', '🍕', '📦', '💻', '🏪', '🎁', '⛽', '🎫'
+];
+
 export default function BulkImportTransactions() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
@@ -313,6 +320,8 @@ export default function BulkImportTransactions() {
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [selectAllAccounts, setSelectAllAccounts] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loadingBanner, setLoadingBanner] = useState({
     visible: false,
     current: 0,
@@ -393,7 +402,7 @@ export default function BulkImportTransactions() {
     const lines = text.split('\n').filter(line => line.trim());
     const transactions = [];
 
-    lines.forEach(line => {
+    lines.forEach((line, idx) => {
       // Match optional number prefix (e.g., "39."), description, separator, and amount
       const match = line.match(/^(?:\d+\.\s*)?(.+?)\s*[—–-]\s*\$?([\d,]+(?:\.\d{2})?)\s*$/);
       if (match) {
@@ -406,7 +415,8 @@ export default function BulkImportTransactions() {
           description,
           amount,
           isCredit,
-          type: isCredit ? 'credit' : 'debit'
+          type: isCredit ? 'credit' : 'debit',
+          icon: TRANSACTION_ICONS[idx % TRANSACTION_ICONS.length]
         });
       }
     });
@@ -438,6 +448,13 @@ export default function BulkImportTransactions() {
     }
   };
 
+  const setDefaultDates = () => {
+    const today = new Date();
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    setStartDate(startOfYear.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+  };
+
   const handleImport = async () => {
     if (!selectedUser) {
       setMessage('Please select a user');
@@ -453,6 +470,18 @@ export default function BulkImportTransactions() {
 
     if (parsedTransactions.length === 0) {
       setMessage('No transactions to import');
+      setMessageType('error');
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      setMessage('Please select start and end dates');
+      setMessageType('error');
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      setMessage('Start date must be before end date');
       setMessageType('error');
       return;
     }
@@ -496,7 +525,9 @@ export default function BulkImportTransactions() {
             body: JSON.stringify({
               userId: selectedUser,
               accountId: accountId,
-              transactions: parsedTransactions
+              transactions: parsedTransactions,
+              startDate: startDate,
+              endDate: endDate
             })
           });
 
