@@ -69,6 +69,8 @@ export default function AdminPageDropdown() {
         { name: 'Bulk Transactions', href: '/admin/bulk-transactions', icon: '📦' },
         { name: 'Generate Transactions', href: '/admin/generate-transactions', icon: '🎲' },
         { name: 'Mobile Check Deposits', href: '/admin/mobile-check-deposits', icon: '📱' },
+        { name: 'Bulk Import Transactions', href: '/admin/bulk-import-transactions', icon: '📥' },
+        { name: 'Delete User Transactions', href: '/admin/delete-user-transactions', icon: '🗑️' },
         { name: 'Cards Dashboard', href: '/admin/admin-cards-dashboard', icon: '📊' },
         { name: 'Issue Debit Card', href: '/admin/issue-debit-card', icon: '🎫' },
         { name: 'Manage Cards', href: '/admin/manage-cards', icon: '💳' },
