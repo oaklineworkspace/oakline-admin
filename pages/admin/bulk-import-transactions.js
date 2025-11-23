@@ -806,7 +806,7 @@ export default function BulkImportTransactions() {
                     }}
                   >
                     <span style={{ fontSize: '18px', minWidth: '24px' }}>{tx.icon}</span>
-                    <span style={{...styles.previewDescription, margin: 0}}>{idx + 1}. {tx.description}</span>
+                    <span style={{...styles.previewDescription, margin: 0}}>{tx.description}</span>
                     <span
                       style={{
                         ...styles.previewAmount,
