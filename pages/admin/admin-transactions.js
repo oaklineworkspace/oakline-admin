@@ -1176,7 +1176,7 @@ export default function AdminTransactions() {
                       >
                         <option value="">Select a user...</option>
                         {users.map(user => (
-                          <option key={user.id} value={user.id}>
+                          <option key={user.id} value={user.user_id}>
                             {user.first_name} {user.last_name} ({user.email})
                           </option>
                         ))}
