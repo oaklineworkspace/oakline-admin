@@ -708,9 +708,48 @@ export default function BulkImportTransactions() {
             )}
           </div>
 
-          {/* Step 2: Paste Transaction Data */}
+          {/* Step 2: Date Range Selection */}
+          {selectedUser && (
+            <div style={styles.section}>
+              <h2 style={styles.sectionTitle}>Step 2: Select Date Range</h2>
+              <p style={{ color: '#718096', fontSize: 'clamp(0.85rem, 2vw, 14px)', marginBottom: '16px' }}>
+                Transactions will be distributed evenly across this date range
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.label}>
+                    Start Date <span style={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{...styles.select, padding: '10px'}}
+                  />
+                </div>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.label}>
+                    End Date <span style={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{...styles.select, padding: '10px'}}
+                  />
+                </div>
+              </div>
+              {startDate && endDate && (
+                <p style={{ marginTop: '12px', fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#059669' }}>
+                  ✓ Date range selected: {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Paste Transaction Data */}
           <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>Step 2: Paste Transaction Data</h2>
+            <h2 style={styles.sectionTitle}>Step 3: Paste Transaction Data</h2>
             <p style={{ color: '#718096', fontSize: 'clamp(0.85rem, 2vw, 14px)', marginBottom: '12px' }}>
               Format: <strong>Description — $Amount</strong> (one per line). Credits and debits are auto-detected.
             </p>
@@ -722,10 +761,10 @@ export default function BulkImportTransactions() {
             />
           </div>
 
-          {/* Step 3: Preview & Summary */}
+          {/* Step 4: Preview & Summary */}
           {parsedTransactions.length > 0 && (
             <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Step 3: Review & Import</h2>
+              <h2 style={styles.sectionTitle}>Step 4: Review & Import</h2>
 
               {/* Summary Cards */}
               <div style={styles.summary}>
@@ -760,10 +799,14 @@ export default function BulkImportTransactions() {
                     key={idx}
                     style={{
                       ...styles.previewItem,
-                      ...(idx === parsedTransactions.length - 1 ? styles.previewItemLast : {})
+                      ...(idx === parsedTransactions.length - 1 ? styles.previewItemLast : {}),
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
                     }}
                   >
-                    <span style={styles.previewDescription}>{idx + 1}. {tx.description}</span>
+                    <span style={{ fontSize: '18px', minWidth: '24px' }}>{tx.icon}</span>
+                    <span style={{...styles.previewDescription, margin: 0}}>{idx + 1}. {tx.description}</span>
                     <span
                       style={{
                         ...styles.previewAmount,

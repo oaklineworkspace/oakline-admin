@@ -12,10 +12,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId, accountId, transactions } = req.body;
+    const { userId, accountId, transactions, startDate, endDate } = req.body;
 
     if (!userId || !accountId || !transactions || !Array.isArray(transactions) || transactions.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Start and end dates are required' });
     }
 
     // Verify account belongs to user
@@ -36,9 +40,21 @@ export default async function handler(req, res) {
     let totalCredits = 0;
     let totalDebits = 0;
 
-    for (const tx of transactions) {
+    // Calculate date distribution
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const timeDifference = end - start;
+    const transactionCount = transactions.length;
+
+    for (let i = 0; i < transactions.length; i++) {
+      const tx = transactions[i];
       const amount = parseFloat(tx.amount);
       const isCredit = tx.isCredit === true || tx.type === 'credit';
+
+      // Distribute transactions evenly across the date range
+      const transactionDate = new Date(start.getTime() + (timeDifference * i / (transactionCount - 1 || 1)));
+      // Add random time within the day (8 AM to 8 PM)
+      transactionDate.setHours(8 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 60), 0, 0);
 
       // Calculate new balance
       const newBalance = isCredit ? currentBalance + amount : currentBalance - amount;
@@ -57,8 +73,8 @@ export default async function handler(req, res) {
         amount: amount,
         description: tx.description,
         status: 'completed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: transactionDate.toISOString(),
+        updated_at: transactionDate.toISOString(),
         balance_before: currentBalance,
         balance_after: newBalance
       });
