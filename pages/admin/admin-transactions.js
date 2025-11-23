@@ -47,12 +47,14 @@ export default function AdminTransactions() {
   const [manuallyEditUpdatedAt, setManuallyEditUpdatedAt] = useState(false);
   const [originalUpdatedAt, setOriginalUpdatedAt] = useState('');
   const [createForm, setCreateForm] = useState({
+    user_id: '',
     account_id: '',
     type: 'debit',
     amount: '',
     description: '',
     status: 'pending'
   });
+  const [createFormAccounts, setCreateFormAccounts] = useState([]);
 
   useEffect(() => {
     fetchTransactions();
@@ -393,6 +395,32 @@ export default function AdminTransactions() {
       setError('❌ Failed to update transaction: ' + error.message);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleCreateUserChange = async (userId) => {
+    setCreateForm({ ...createForm, user_id: userId, account_id: '' });
+    
+    if (!userId) {
+      setCreateFormAccounts([]);
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id, account_number')
+        .eq('user_id', userId)
+        .order('account_number');
+
+      if (!error && data) {
+        setCreateFormAccounts(data);
+      }
+    } catch (err) {
+      console.error('Error fetching accounts:', err);
     }
   };
 
@@ -1123,15 +1151,40 @@ export default function AdminTransactions() {
                 <div style={styles.modalBody}>
                   <div style={styles.formGrid}>
                     <div style={styles.formGroup}>
-                      <label style={styles.formLabel}>Account ID *</label>
-                      <input
-                        type="text"
+                      <label style={styles.formLabel}>User *</label>
+                      <select
+                        value={createForm.user_id}
+                        onChange={(e) => handleCreateUserChange(e.target.value)}
+                        style={styles.formInput}
+                        required
+                      >
+                        <option value="">Select a user...</option>
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name} ({user.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Account *</label>
+                      <select
                         value={createForm.account_id}
                         onChange={(e) => setCreateForm({ ...createForm, account_id: e.target.value })}
                         style={styles.formInput}
-                        placeholder="Enter account UUID"
                         required
-                      />
+                        disabled={!createForm.user_id}
+                      >
+                        <option value="">
+                          {createForm.user_id ? 'Select an account...' : 'Select a user first'}
+                        </option>
+                        {createFormAccounts.map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.account_number}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div style={styles.formGroup}>
