@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
+import { supabase } from '../../lib/supabaseClient';
 
 // Placeholder for AdminFooter component - actual implementation would be in a separate file
 const AdminFooter = () => {
@@ -112,14 +113,16 @@ export default function ManualTransactions() {
 
   const fetchData = async () => {
     try {
-      const adminToken = localStorage.getItem('adminToken');
-      const headers = {
-        'Content-Type': 'application/json'
-      };
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (adminToken) {
-        headers['Authorization'] = `Bearer ${adminToken}`;
+      if (sessionError || !session) {
+        throw new Error('Missing authorization token');
       }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      };
 
       const [accountsRes, transactionsRes] = await Promise.all([
         fetch('/api/admin/get-accounts', { headers }),
@@ -167,14 +170,18 @@ export default function ManualTransactions() {
         return;
       }
 
-      const adminToken = localStorage.getItem('adminToken');
-      const headers = {
-        'Content-Type': 'application/json'
-      };
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (adminToken) {
-        headers['Authorization'] = `Bearer ${adminToken}`;
+      if (sessionError || !session) {
+        setMessage('❌ Authentication session expired. Please log in again.');
+        setProcessing(false);
+        return;
       }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      };
 
       const response = await fetch('/api/admin/manual-transaction', {
         method: 'POST',
