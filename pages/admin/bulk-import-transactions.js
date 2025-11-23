@@ -394,7 +394,8 @@ export default function BulkImportTransactions() {
     const transactions = [];
 
     lines.forEach(line => {
-      const match = line.match(/^(.+?)\s*[—–-]\s*\$?([\d,]+(?:\.\d{2})?)\s*$/);
+      // Match optional number prefix (e.g., "39."), description, separator, and amount
+      const match = line.match(/^(?:\d+\.\s*)?(.+?)\s*[—–-]\s*\$?([\d,]+(?:\.\d{2})?)\s*$/);
       if (match) {
         const description = match[1].trim();
         const amount = parseFloat(match[2].replace(/,/g, ''));
