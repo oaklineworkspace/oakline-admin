@@ -1,6 +1,21 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
 
+// Define credit and debit transaction types
+const CREDIT_TYPES = [
+  'deposit', 'check_deposit', 'atm_deposit', 'zelle_receive', 'crypto_receive', 
+  'ach_credit', 'interest_earned', 'dividend_payment', 'loan_disbursement', 
+  'merchant_settlement', 'refund', 'wire_transfer_in', 'investment_sale'
+];
+
+const DEBIT_TYPES = [
+  'withdrawal', 'transfer', 'card_purchase', 'bank_charge', 'maintenance_fee', 
+  'atm_fee', 'overdraft_fee', 'wire_fee', 'foreign_transaction_fee',
+  'wire_transfer_out', 'ach_debit', 'check_payment', 'loan_payment',
+  'investment_purchase', 'international_transfer', 'bill_payment',
+  'chargeback', 'cash_advance', 'recurring_payment', 'zelle_send', 'atm_withdrawal'
+];
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -191,14 +206,9 @@ export default async function handler(req, res) {
 
       // Calculate balance changes (debit vs credit)
       const balanceBefore = currentBalance;
-      const debitTypes = [
-        'withdrawal', 'transfer', 'card_purchase', 'bank_charge', 'maintenance_fee', 'atm_fee', 'overdraft_fee', 'wire_fee', 'foreign_transaction_fee',
-        'wire_transfer_out', 'ach_debit', 'check_payment', 'loan_payment',
-        'investment_purchase', 'international_transfer', 'bill_payment',
-        'chargeback', 'cash_advance', 'recurring_payment', 'zelle_send', 'atm_withdrawal'
-      ];
+      const isCredit = CREDIT_TYPES.includes(type);
 
-      if (debitTypes.includes(type)) {
+      if (DEBIT_TYPES.includes(type)) {
         currentBalance = currentBalance - (amount + fee);
       } else {
         currentBalance = currentBalance + amount;
@@ -208,7 +218,7 @@ export default async function handler(req, res) {
       transactions.push({
           user_id,
           account_id: account.id,
-          type,
+          type: isCredit ? 'credit' : 'debit',
           amount,
           description,
           status,
