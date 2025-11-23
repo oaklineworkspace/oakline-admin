@@ -408,16 +408,32 @@ export default function AdminTransactions() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        console.error('No session found');
+        return;
+      }
 
+      console.log('Fetching accounts for user:', userId);
+      
       const { data, error } = await supabase
         .from('accounts')
         .select('id, account_number')
         .eq('user_id', userId)
         .order('account_number');
 
-      if (!error && data) {
+      console.log('Accounts query result:', { data, error });
+      
+      if (error) {
+        console.error('Supabase error fetching accounts:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        console.log('Found', data.length, 'accounts');
         setCreateFormAccounts(data);
+      } else {
+        console.warn('No accounts found for user:', userId);
+        setCreateFormAccounts([]);
       }
     } catch (err) {
       console.error('Error fetching accounts:', err);
