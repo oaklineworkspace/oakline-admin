@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
@@ -327,8 +327,10 @@ export default function BulkImportTransactions() {
     current: 0,
     total: 0,
     action: '',
-    message: ''
+    message: '',
+    onCancel: null
   });
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     fetchUsers();
@@ -487,13 +489,21 @@ export default function BulkImportTransactions() {
     }
 
     const totalTransactions = parsedTransactions.length * selectedAccounts.length;
+    abortControllerRef.current = new AbortController();
 
     setLoadingBanner({
       visible: true,
       current: 0,
       total: totalTransactions,
       action: 'Importing Transactions',
-      message: 'Processing your transaction data...'
+      message: 'Processing your transaction data...',
+      onCancel: () => {
+        abortControllerRef.current?.abort();
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '', onCancel: null });
+        setMessage('❌ Import cancelled');
+        setMessageType('error');
+        setTimeout(() => setMessage(''), 5000);
+      }
     });
 
     try {
@@ -528,7 +538,8 @@ export default function BulkImportTransactions() {
               transactions: parsedTransactions,
               startDate: startDate,
               endDate: endDate
-            })
+            }),
+            signal: abortControllerRef.current?.signal
           });
 
           const result = await response.json();
@@ -549,12 +560,16 @@ export default function BulkImportTransactions() {
             allErrors.push(`Account ${accountIdx + 1}: ${result.error || 'Import failed'}`);
           }
         } catch (error) {
+          if (error.name === 'AbortError') {
+            console.log('Import cancelled by user');
+            return;
+          }
           console.error('Error importing for account:', error);
           allErrors.push(`Account ${accountIdx + 1}: ${error.message}`);
         }
       }
 
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '', onCancel: null });
 
       if (allErrors.length === 0) {
         setMessage(`✅ Successfully imported ${totalImported} transactions across ${selectedAccounts.length} account(s)!`);
@@ -573,10 +588,13 @@ export default function BulkImportTransactions() {
         setMessageType('error');
       }
     } catch (error) {
+      if (error.name === 'AbortError') {
+        return;
+      }
       console.error('Error importing transactions:', error);
       setMessage('Failed to import transactions: ' + error.message);
       setMessageType('error');
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '', onCancel: null });
     }
   };
 
@@ -614,6 +632,7 @@ export default function BulkImportTransactions() {
           total={loadingBanner.total}
           action={loadingBanner.action}
           message={loadingBanner.message}
+          onCancel={loadingBanner.onCancel}
         />
 
         <div style={styles.header}>
