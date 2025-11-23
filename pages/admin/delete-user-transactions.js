@@ -24,9 +24,7 @@ const styles = {
     flexWrap: 'wrap',
     gap: '16px'
   },
-  headerContent: {
-    flex: 1
-  },
+  headerContent: { flex: 1 },
   title: {
     margin: '0 0 8px 0',
     fontSize: 'clamp(1.5rem, 4vw, 28px)',
@@ -49,7 +47,7 @@ const styles = {
     cursor: 'pointer'
   },
   content: {
-    maxWidth: '600px',
+    maxWidth: '900px',
     margin: '0 auto'
   },
   alert: {
@@ -62,14 +60,8 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  successAlert: {
-    backgroundColor: '#d1fae5',
-    color: '#065f46'
-  },
-  errorAlert: {
-    backgroundColor: '#fee2e2',
-    color: '#dc2626'
-  },
+  successAlert: { backgroundColor: '#d1fae5', color: '#065f46' },
+  errorAlert: { backgroundColor: '#fee2e2', color: '#dc2626' },
   section: {
     backgroundColor: 'white',
     padding: 'clamp(1.5rem, 4vw, 24px)',
@@ -85,9 +77,7 @@ const styles = {
     borderBottom: '2px solid #1e40af',
     paddingBottom: '12px'
   },
-  fieldGroup: {
-    marginBottom: '20px'
-  },
+  fieldGroup: { marginBottom: '20px' },
   label: {
     display: 'block',
     marginBottom: '8px',
@@ -95,9 +85,7 @@ const styles = {
     fontWeight: '600',
     color: '#2d3748'
   },
-  required: {
-    color: '#e53e3e'
-  },
+  required: { color: '#e53e3e' },
   select: {
     width: '100%',
     padding: '12px',
@@ -108,50 +96,75 @@ const styles = {
     cursor: 'pointer',
     backgroundColor: 'white'
   },
-  statsBox: {
-    backgroundColor: '#f8fafc',
-    border: '2px solid #e2e8f0',
-    borderRadius: '8px',
-    padding: '20px',
-    marginBottom: '20px'
+  transactionList: {
+    display: 'grid',
+    gap: '12px'
   },
-  statItem: {
+  transactionCard: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    padding: '12px',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    transition: 'all 0.2s'
+  },
+  transactionCardSelected: {
+    backgroundColor: '#f0f9ff',
+    border: '2px solid #1e40af',
+    boxShadow: '0 2px 8px rgba(30, 64, 175, 0.15)'
+  },
+  checkbox: {
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    accentColor: '#1e40af',
+    marginTop: '2px',
+    flexShrink: 0
+  },
+  transactionContent: { flex: 1, minWidth: 0 },
+  transactionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 0',
-    borderBottom: '1px solid #e2e8f0'
-  },
-  statItemLast: {
-    borderBottom: 'none'
-  },
-  statLabel: {
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    color: '#718096',
-    fontWeight: '500'
-  },
-  statValue: {
-    fontSize: 'clamp(1rem, 2.5vw, 18px)',
-    color: '#1A3E6F',
-    fontWeight: '700'
-  },
-  warningBox: {
-    backgroundColor: '#fef2f2',
-    border: '2px solid #fecaca',
-    borderRadius: '8px',
-    padding: '16px',
-    marginBottom: '20px',
-    color: '#991b1b'
-  },
-  warningTitle: {
-    fontWeight: '700',
+    alignItems: 'flex-start',
     marginBottom: '8px',
-    fontSize: 'clamp(0.9rem, 2vw, 14px)'
+    gap: '8px'
   },
-  warningText: {
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    lineHeight: '1.5',
+  transactionDescription: {
+    fontSize: 'clamp(0.9rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#1A3E6F',
     margin: 0
+  },
+  transactionAmount: {
+    fontSize: 'clamp(0.9rem, 2vw, 14px)',
+    fontWeight: '700',
+    color: '#1A3E6F'
+  },
+  amountCredit: { color: '#059669' },
+  amountDebit: { color: '#dc2626' },
+  transactionMeta: {
+    display: 'flex',
+    gap: '16px',
+    fontSize: 'clamp(0.8rem, 1.8vw, 13px)',
+    color: '#718096'
+  },
+  selectAllContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    border: '1px solid #e2e8f0'
+  },
+  selectAllLabel: {
+    fontSize: 'clamp(0.9rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748',
+    cursor: 'pointer'
   },
   buttonGroup: {
     display: 'flex',
@@ -168,13 +181,9 @@ const styles = {
     borderRadius: '8px',
     fontSize: 'clamp(0.9rem, 2vw, 15px)',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    cursor: 'pointer'
   },
-  deleteButtonDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed'
-  },
+  deleteButtonDisabled: { opacity: 0.6, cursor: 'not-allowed' },
   cancelButton: {
     flex: 1,
     minWidth: '150px',
@@ -187,64 +196,33 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer'
   },
-  modal: {
-    display: 'none',
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px 20px',
+    color: '#718096'
   },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '30px',
-    maxWidth: '500px',
-    width: '90%',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+  statsBox: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '12px',
+    marginBottom: '20px'
   },
-  modalTitle: {
-    margin: '0 0 16px 0',
-    fontSize: 'clamp(1.2rem, 3vw, 22px)',
-    color: '#dc2626',
-    fontWeight: '700'
-  },
-  modalText: {
-    margin: '0 0 20px 0',
-    fontSize: 'clamp(0.85rem, 2vw, 14px)',
-    color: '#4a5568',
-    lineHeight: '1.6'
-  },
-  modalButtons: {
-    display: 'flex',
-    gap: '12px'
-  },
-  confirmButton: {
-    flex: 1,
-    padding: '12px',
-    backgroundColor: '#dc2626',
-    color: 'white',
-    border: 'none',
+  stat: {
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
     borderRadius: '8px',
-    fontSize: 'clamp(0.9rem, 2vw, 14px)',
-    fontWeight: '600',
-    cursor: 'pointer'
+    padding: '16px',
+    textAlign: 'center'
   },
-  rejectButton: {
-    flex: 1,
-    padding: '12px',
-    backgroundColor: '#e5e7eb',
-    color: '#1f2937',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: 'clamp(0.9rem, 2vw, 14px)',
-    fontWeight: '600',
-    cursor: 'pointer'
+  statLabel: {
+    fontSize: 'clamp(0.8rem, 1.8vw, 13px)',
+    color: '#718096',
+    marginBottom: '8px'
+  },
+  statValue: {
+    fontSize: 'clamp(1.1rem, 2.5vw, 18px)',
+    fontWeight: '700',
+    color: '#1A3E6F'
   }
 };
 
@@ -255,9 +233,10 @@ export default function DeleteUserTransactions() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
-  const [selectedUserName, setSelectedUserName] = useState('');
-  const [transactionCount, setTransactionCount] = useState(0);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [selectedTransactions, setSelectedTransactions] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [loadingBanner, setLoadingBanner] = useState({
     visible: false,
     current: 0,
@@ -272,11 +251,8 @@ export default function DeleteUserTransactions() {
 
   const fetchUsers = async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        throw new Error('Missing authorization token');
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
 
       const headers = {
         'Content-Type': 'application/json',
@@ -285,12 +261,10 @@ export default function DeleteUserTransactions() {
 
       const usersRes = await fetch('/api/admin/get-users', { headers });
       const usersData = await usersRes.json();
-
-      if (!usersRes.ok) throw new Error(usersData.error || 'Failed to fetch users');
+      if (!usersRes.ok) throw new Error(usersData.error);
 
       setUsers(usersData.users || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
       setMessage('Failed to load users: ' + error.message);
       setMessageType('error');
     } finally {
@@ -300,103 +274,107 @@ export default function DeleteUserTransactions() {
 
   const handleUserChange = async (e) => {
     const userId = e.target.value;
-    const userName = e.target.options[e.target.selectedIndex].text;
-
     setSelectedUser(userId);
-    setTransactionCount(0);
-    setShowConfirmModal(false);
+    setTransactions([]);
+    setSelectedTransactions(new Set());
+    setSelectAll(false);
     setMessage('');
 
-    if (!userId) {
-      setSelectedUserName('');
-      return;
-    }
+    if (!userId) return;
 
-    setSelectedUserName(userName);
+    setLoadingTransactions(true);
 
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        throw new Error('Missing authorization token');
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
 
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       };
 
-      const res = await fetch(`/api/admin/get-user-transaction-count?userId=${userId}`, { headers });
+      const res = await fetch(`/api/admin/get-user-transactions?userId=${userId}`, { headers });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch transaction count');
+      if (!res.ok) throw new Error(data.error);
 
-      setTransactionCount(data.count || 0);
+      setTransactions(data.transactions || []);
     } catch (error) {
-      console.error('Error fetching transaction count:', error);
-      setMessage('Failed to load transaction count: ' + error.message);
+      setMessage('Failed to load transactions: ' + error.message);
       setMessageType('error');
+    } finally {
+      setLoadingTransactions(false);
     }
   };
 
-  const handleDeleteClick = () => {
-    if (transactionCount === 0) {
-      setMessage('No transactions to delete for this user');
+  const toggleTransaction = (txId) => {
+    const newSelected = new Set(selectedTransactions);
+    if (newSelected.has(txId)) {
+      newSelected.delete(txId);
+    } else {
+      newSelected.add(txId);
+    }
+    setSelectedTransactions(newSelected);
+    setSelectAll(newSelected.size === transactions.length && transactions.length > 0);
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedTransactions(new Set(transactions.map(t => t.id)));
+      setSelectAll(true);
+    } else {
+      setSelectedTransactions(new Set());
+      setSelectAll(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (selectedTransactions.size === 0) {
+      setMessage('Please select at least one transaction');
       setMessageType('error');
       return;
     }
-    setShowConfirmModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    setShowConfirmModal(false);
 
     setLoadingBanner({
       visible: true,
       current: 0,
-      total: 1,
+      total: selectedTransactions.size,
       action: 'Deleting Transactions',
-      message: 'Removing all transactions for this user...'
+      message: 'Removing selected transactions...'
     });
 
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        setMessage('Authentication session expired');
-        setMessageType('error');
-        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Session expired');
 
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       };
 
-      const response = await fetch('/api/admin/delete-user-transactions', {
+      const response = await fetch('/api/admin/delete-selected-transactions', {
         method: 'DELETE',
         headers,
-        body: JSON.stringify({ userId: selectedUser })
+        body: JSON.stringify({
+          transactionIds: Array.from(selectedTransactions)
+        })
       });
 
       const result = await response.json();
-
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
 
       if (response.ok) {
-        setMessage(`✅ Successfully deleted ${result.deleted} transactions!`);
+        setMessage(`✅ Successfully deleted ${result.deleted} transaction(s)!`);
         setMessageType('success');
-        setTransactionCount(0);
-        setSelectedUser('');
-        setSelectedUserName('');
+        setTransactions(transactions.filter(t => !selectedTransactions.has(t.id)));
+        setSelectedTransactions(new Set());
+        setSelectAll(false);
         setTimeout(() => setMessage(''), 5000);
       } else {
         setMessage(`❌ ${result.error || 'Deletion failed'}`);
         setMessageType('error');
       }
     } catch (error) {
-      console.error('Error deleting transactions:', error);
       setMessage('Failed to delete transactions: ' + error.message);
       setMessageType('error');
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
@@ -407,9 +385,9 @@ export default function DeleteUserTransactions() {
     return (
       <AdminAuth>
         <div style={styles.container}>
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={styles.emptyState}>
             <div style={{ fontSize: '40px', marginBottom: '20px' }}>⏳</div>
-            <p style={{ color: '#718096' }}>Loading...</p>
+            <p>Loading...</p>
           </div>
         </div>
       </AdminAuth>
@@ -430,7 +408,7 @@ export default function DeleteUserTransactions() {
         <div style={styles.header}>
           <div style={styles.headerContent}>
             <h1 style={styles.title}>🗑️ Delete User Transactions</h1>
-            <p style={styles.subtitle}>Remove all transaction history for a user</p>
+            <p style={styles.subtitle}>Select and remove specific transactions</p>
           </div>
           <button onClick={() => router.push('/admin/admin-dashboard')} style={styles.backButton}>
             ← Dashboard
@@ -453,9 +431,9 @@ export default function DeleteUserTransactions() {
         )}
 
         <div style={styles.content}>
+          {/* User Selection */}
           <div style={styles.section}>
             <h2 style={styles.sectionTitle}>Select User</h2>
-
             <div style={styles.fieldGroup}>
               <label style={styles.label}>
                 Choose User <span style={styles.required}>*</span>
@@ -475,76 +453,105 @@ export default function DeleteUserTransactions() {
             </div>
           </div>
 
+          {/* Transaction List */}
           {selectedUser && (
             <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Transaction Summary</h2>
+              <h2 style={styles.sectionTitle}>
+                Transactions ({transactions.length})
+              </h2>
 
-              <div style={styles.statsBox}>
-                <div style={{ ...styles.statItem, ...styles.statItemLast }}>
-                  <span style={styles.statLabel}>Total Transactions to Delete</span>
-                  <span style={styles.statValue}>{transactionCount}</span>
+              {transactions.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <p>No transactions found for this user</p>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div style={styles.statsBox}>
+                    <div style={styles.stat}>
+                      <div style={styles.statLabel}>Total</div>
+                      <div style={styles.statValue}>{transactions.length}</div>
+                    </div>
+                    <div style={styles.stat}>
+                      <div style={styles.statLabel}>Selected</div>
+                      <div style={styles.statValue}>{selectedTransactions.size}</div>
+                    </div>
+                  </div>
 
-              {transactionCount > 0 && (
-                <div style={styles.warningBox}>
-                  <div style={styles.warningTitle}>⚠️ Warning: This Action Cannot Be Undone</div>
-                  <p style={styles.warningText}>
-                    You are about to permanently delete <strong>{transactionCount} transaction(s)</strong> for{' '}
-                    <strong>{selectedUserName}</strong>. This operation is irreversible and will be logged in audit trails.
-                  </p>
-                </div>
+                  <div style={styles.selectAllContainer}>
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      style={styles.checkbox}
+                    />
+                    <label style={styles.selectAllLabel}>
+                      Select All ({transactions.length})
+                    </label>
+                  </div>
+
+                  <div style={styles.transactionList}>
+                    {transactions.map(tx => (
+                      <div
+                        key={tx.id}
+                        style={{
+                          ...styles.transactionCard,
+                          ...(selectedTransactions.has(tx.id) ? styles.transactionCardSelected : {})
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTransactions.has(tx.id)}
+                          onChange={() => toggleTransaction(tx.id)}
+                          style={styles.checkbox}
+                        />
+                        <div style={styles.transactionContent}>
+                          <div style={styles.transactionHeader}>
+                            <p style={styles.transactionDescription}>{tx.description}</p>
+                            <span style={{
+                              ...styles.transactionAmount,
+                              ...(tx.type === 'credit' ? styles.amountCredit : styles.amountDebit)
+                            }}>
+                              {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div style={styles.transactionMeta}>
+                            <span>Type: <strong>{tx.type}</strong></span>
+                            <span>Status: <strong>{tx.status}</strong></span>
+                            <span>{new Date(tx.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ ...styles.buttonGroup, marginTop: '20px' }}>
+                    <button
+                      onClick={handleDelete}
+                      disabled={selectedTransactions.size === 0}
+                      style={{
+                        ...styles.deleteButton,
+                        ...(selectedTransactions.size === 0 ? styles.deleteButtonDisabled : {})
+                      }}
+                    >
+                      🗑️ Delete Selected ({selectedTransactions.size})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedUser('');
+                        setTransactions([]);
+                        setSelectedTransactions(new Set());
+                        setSelectAll(false);
+                      }}
+                      style={styles.cancelButton}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
               )}
-
-              <div style={styles.buttonGroup}>
-                <button
-                  onClick={handleDeleteClick}
-                  disabled={transactionCount === 0}
-                  style={{
-                    ...styles.deleteButton,
-                    ...(transactionCount === 0 ? styles.deleteButtonDisabled : {})
-                  }}
-                >
-                  🗑️ Delete All Transactions ({transactionCount})
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedUser('');
-                    setSelectedUserName('');
-                    setTransactionCount(0);
-                  }}
-                  style={styles.cancelButton}
-                >
-                  Cancel
-                </button>
-              </div>
             </div>
           )}
         </div>
-
-        {/* Confirmation Modal */}
-        {showConfirmModal && (
-          <div style={{ ...styles.modal, display: 'flex' }}>
-            <div style={styles.modalContent}>
-              <h2 style={styles.modalTitle}>Confirm Delete?</h2>
-              <p style={styles.modalText}>
-                Are you absolutely sure you want to delete <strong>{transactionCount} transaction(s)</strong> for{' '}
-                <strong>{selectedUserName}</strong>?
-              </p>
-              <p style={{ ...styles.modalText, color: '#991b1b', fontWeight: '600' }}>
-                ⚠️ This cannot be undone. This action will be logged and audited.
-              </p>
-              <div style={styles.modalButtons}>
-                <button onClick={handleConfirmDelete} style={styles.confirmButton}>
-                  Yes, Delete All
-                </button>
-                <button onClick={() => setShowConfirmModal(false)} style={styles.rejectButton}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <AdminFooter />
       </div>
