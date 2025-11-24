@@ -1,0 +1,440 @@
+Selfie/Video Verification System - Backend Admin Panel Implementation Guide
+
+## Overview
+This document provides the prompts you should give to Replit AI in your **backend repository** to create a complete admin panel for managing selfie/video verifications.
+
+---
+
+## Database Migration (Already Created in Frontend)
+
+The frontend migration `create_selfie_verification_system.sql` has already been created. Run this migration in your backend database to create the necessary tables and functions:
+
+- `selfie_verifications` table
+- Updated `profiles` table with verification fields
+- Helper functions for triggering and managing verifications
+
+---
+
+## Prompts for Backend Admin Panel
+
+### Prompt 1: Create Admin Verification Dashboard Page
+
+```
+Create an admin dashboard page for managing selfie/video verifications at /admin/verifications with the following features:
+
+1. Display all verification requests in a table with these columns:
+   - User ID and Email
+   - Verification Type (selfie/video)
+   - Status (pending, submitted, under_review, approved, rejected, expired)
+   - Reason for verification requirement
+   - Submitted date
+   - Actions (View, Approve, Reject)
+
+2. Add filtering options:
+   - Filter by status
+   - Filter by verification type
+   - Search by user email or ID
+   - Date range filter
+
+3. Add statistics cards at the top showing:
+   - Total pending verifications
+   - Total submitted (awaiting review)
+   - Total approved today
+   - Total rejected today
+
+4. Include pagination (20 items per page)
+
+5. Use the existing admin authentication middleware to protect this route
+
+The API endpoint should query the `selfie_verifications` table joined with the `profiles` table to get user information.
+```
+
+---
+
+### Prompt 2: Create Verification Review Modal/Page
+
+```
+Create a verification review page/modal at /admin/verifications/[id] with the following features:
+
+1. Display user information:
+   - Full name
+   - Email
+   - User ID
+   - Account status
+   - Verification reason
+
+2. Display verification details:
+   - Type (selfie or video)
+   - Submission timestamp
+   - Expiration date
+   - Current status
+
+3. Media viewer:
+   - For selfies: Display the uploaded image with zoom capability
+   - For videos: Display video player with playback controls
+   - Download button for the media file
+
+4. Admin actions:
+   - Approve button (with optional notes field)
+   - Reject button (requires rejection reason)
+   - Admin notes textarea
+   - View user's account history button
+
+5. When approved:
+   - Update verification status to 'approved'
+   - Set reviewed_by to current admin ID
+   - Update user profile to remove verification requirement
+   - Send email notification to user
+
+6. When rejected:
+   - Update verification status to 'rejected'
+   - Keep verification requirement active
+   - Send email notification with rejection reason
+   - Allow admin to create a new verification request
+
+Use the existing helper functions:
+- approve_verification(verification_id, admin_notes)
+- reject_verification(verification_id, rejection_reason, admin_notes)
+```
+
+---
+
+### Prompt 3: Create API to Trigger Verification for Suspicious Activity
+
+```
+Create an API endpoint at /api/admin/require-verification that allows admins to flag users for verification when suspicious activity is detected:
+
+Method: POST
+Auth: Admin only
+
+Request body:
+{
+  "user_id": "uuid",
+  "reason": "string (e.g., 'Suspicious transaction pattern detected')",
+  "verification_type": "selfie" | "video" (default: selfie)
+}
+
+Actions:
+1. Validate admin permissions
+2. Check if user exists
+3. Call the database function require_user_verification(user_id, reason, verification_type)
+4. Send email notification to user with verification instructions
+5. Log the action in audit_logs table
+
+Response:
+{
+  "success": true,
+  "verification_id": "uuid",
+  "message": "Verification requirement created successfully"
+}
+
+Error handling:
+- 400 if user_id is invalid
+- 404 if user not found
+- 403 if not admin
+- 500 for database errors
+```
+
+---
+
+### Prompt 4: Create Automated Verification Trigger System
+
+```
+Create a background service/API endpoint that automatically triggers verification requirements based on suspicious activity patterns:
+
+Triggers for automatic verification:
+1. Multiple failed login attempts from different locations (>5 in 24 hours)
+2. Large transactions above $10,000 in a single day
+3. Multiple rapid withdrawals within 1 hour
+4. Login from new country/IP address with immediate large transfer
+5. Change of email/phone followed by large transaction within 24 hours
+
+Implementation:
+- Create an API endpoint /api/admin/auto-verify-triggers
+- Add configuration table for trigger rules and thresholds
+- When triggered, automatically call require_user_verification() function
+- Send notification to both user and admin team
+- Log all auto-triggered verifications
+
+Include:
+- Admin page to view auto-triggered verifications
+- Ability to configure trigger thresholds
+- Option to enable/disable specific triggers
+- Dashboard showing trigger statistics
+```
+
+---
+
+### Prompt 5: Create Email Notification Templates
+
+```
+Create email notification templates for the verification system:
+
+1. Verification Required Email (sent to user when flagged):
+   - Subject: "Identity Verification Required - Oakline Bank"
+   - Content: Explain why verification is needed, steps to complete, deadline (7 days)
+   - Include direct link to verification page
+   - Support contact information
+
+2. Verification Submitted Email (sent when user submits):
+   - Subject: "Verification Submitted - Under Review"
+   - Content: Confirmation of submission, expected review timeline (24-48 hours)
+   - What happens next
+
+3. Verification Approved Email:
+   - Subject: "Identity Verified - Account Access Restored"
+   - Content: Confirmation of approval, account access restored
+   - Thank you message
+
+4. Verification Rejected Email:
+   - Subject: "Verification Review - Additional Information Needed"
+   - Content: Reason for rejection, instructions to resubmit
+   - Support contact for questions
+
+Use the bank_details table for email configuration and contact information.
+Use Nodemailer or your existing email service for sending.
+```
+
+---
+
+### Prompt 6: Create Admin Activity Log for Verifications
+
+```
+Create an admin activity log system specifically for verification actions:
+
+Table: verification_audit_log
+- id (uuid)
+- verification_id (uuid, references selfie_verifications)
+- admin_id (uuid, references auth.users)
+- action_type (text: 'triggered', 'approved', 'rejected', 'viewed', 'downloaded_media')
+- previous_status (text)
+- new_status (text)
+- reason (text)
+- notes (text)
+- ip_address (text)
+- user_agent (text)
+- created_at (timestamp)
+
+Admin page at /admin/verifications/audit-log showing:
+- All verification-related admin actions
+- Filter by admin, action type, date range
+- Export to CSV functionality
+- Search by user email or verification ID
+
+This provides accountability and tracking for all verification decisions.
+```
+
+---
+
+### Prompt 7: Create Bulk Verification Management
+
+```
+Create bulk action capabilities for managing multiple verifications:
+
+Features:
+1. Bulk approve (with confirmation dialog)
+2. Bulk reject (requires common rejection reason)
+3. Bulk assign to specific admin reviewer
+4. Export selected verifications to CSV
+
+Admin page at /admin/verifications/bulk-actions with:
+- Checkbox selection for verifications
+- Dropdown for bulk action type
+- Confirmation modals for destructive actions
+- Progress indicator for bulk operations
+- Results summary after completion
+
+Include validation to prevent:
+- Approving already rejected verifications
+- Rejecting already approved verifications
+- Bulk actions on expired verifications without review
+```
+
+---
+
+### Prompt 8: Create Verification Analytics Dashboard
+
+```
+Create an analytics dashboard at /admin/verifications/analytics showing:
+
+Metrics:
+1. Verification volume trends (chart)
+   - Submissions per day/week/month
+   - Approval/rejection rates
+   - Average review time
+
+2. Trigger source breakdown:
+   - Manual admin triggers
+   - Automated system triggers
+   - Breakdown by trigger reason
+
+3. Admin performance metrics:
+   - Verifications reviewed per admin
+   - Average review time per admin
+   - Approval/rejection rates per admin
+
+4. User compliance metrics:
+   - Percentage of users who submit within deadline
+   - Average time to submission after requirement
+   - Resubmission rates after rejection
+
+Charts and visualizations:
+- Line charts for trends
+- Pie charts for breakdowns
+- Bar charts for comparisons
+- Date range selector
+
+Export all data to CSV/PDF for reporting.
+```
+
+---
+
+## Integration with Existing Admin Panel
+
+### Adding Navigation Menu Item
+
+```
+Add a new menu item to your existing admin navigation:
+
+Label: "Verifications"
+Icon: Shield/Check icon
+Route: /admin/verifications
+Badge: Show count of pending verifications
+Submenu:
+  - Dashboard (/admin/verifications)
+  - Review Queue (/admin/verifications/queue)
+  - Analytics (/admin/verifications/analytics)
+  - Audit Log (/admin/verifications/audit-log)
+  - Settings (/admin/verifications/settings)
+```
+
+---
+
+## API Endpoints Summary
+
+Create these API endpoints in your backend:
+
+1. `GET /api/admin/verifications` - List all verifications with filters
+2. `GET /api/admin/verifications/:id` - Get single verification details
+3. `POST /api/admin/verifications/approve` - Approve verification
+4. `POST /api/admin/verifications/reject` - Reject verification
+5. `POST /api/admin/require-verification` - Manually trigger verification
+6. `GET /api/admin/verifications/stats` - Get dashboard statistics
+7. `POST /api/admin/verifications/bulk-action` - Perform bulk actions
+8. `GET /api/admin/verifications/analytics` - Get analytics data
+9. `GET /api/admin/verifications/media/:id` - Serve verification media file
+10. `GET /api/admin/verifications/audit-log` - Get audit log entries
+
+---
+
+## Security Considerations
+
+Ensure all admin endpoints:
+1. Use admin authentication middleware
+2. Validate admin role permissions
+3. Log all actions in audit trail
+4. Sanitize user inputs
+5. Use RLS policies for database queries
+6. Encrypt media files in storage
+7. Set appropriate CORS policies
+8. Rate limit API endpoints
+
+---
+
+## Storage Configuration
+
+For Supabase Storage (verification-media bucket):
+
+```sql
+-- Create storage bucket policy
+CREATE POLICY "Admins can view verification media"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'verification-media' AND
+  EXISTS (
+    SELECT 1 FROM public.admin_profiles
+    WHERE id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can upload verification media"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'verification-media' AND
+  auth.uid() = (storage.foldername(name))[1]::uuid
+);
+```
+
+---
+
+## Testing Checklist
+
+After implementing, test:
+- [ ] Admin can view all verification requests
+- [ ] Admin can approve verification (removes user's verification requirement)
+- [ ] Admin can reject verification (user stays flagged)
+- [ ] User receives email notifications
+- [ ] Media files display correctly
+- [ ] Filtering and search work properly
+- [ ] Bulk actions function correctly
+- [ ] Analytics show accurate data
+- [ ] Audit log captures all actions
+- [ ] Auto-triggers activate on suspicious activity
+- [ ] Expired verifications are handled correctly
+
+---
+
+## Quick Start Commands
+
+Once you've given these prompts to Replit AI in your backend:
+
+1. Run the migration in your backend database
+2. Restart your backend server
+3. Navigate to /admin/verifications as an admin user
+4. Test the full verification workflow
+
+---
+
+## Support and Troubleshooting
+
+Common issues:
+- **Media not loading**: Check storage bucket permissions
+- **Emails not sending**: Verify Nodemailer configuration
+- **Auto-triggers not working**: Check background job scheduler
+- **Permission denied**: Verify admin_profiles table has your user
+
+---
+
+## Example Usage Flow
+
+1. Admin notices suspicious activity on user account
+2. Admin goes to user's profile and clicks "Require Verification"
+3. System flags user, creates verification request, sends email
+4. User logs in and is redirected to /verify-identity
+5. User records selfie/video and submits
+6. Admin receives notification of new submission
+7. Admin reviews media in /admin/verifications/[id]
+8. Admin approves or rejects with notes
+9. User receives notification and regains access (if approved)
+10. All actions are logged in audit trail
+
+---
+
+## Additional Resources
+
+- Database schema: `supabase_migrations/create_selfie_verification_system.sql`
+- Frontend verification component: `components/SelfieVerification.js`
+- Frontend verification page: `pages/verify-identity.js`
+- API endpoint: `pages/api/verification/submit.js`
+
+---
+
+## Customization Options
+
+You can customize:
+- Verification expiration period (default: 7 days)
+- Auto-trigger thresholds
+- Email templates
+- Required verification type per trigger
+- Admin permission levels for different actions
+- Media file size limits and formats
