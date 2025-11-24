@@ -74,8 +74,91 @@ export default function VerificationsPage() {
     }
   };
 
-  const handleViewVerification = (verificationId) => {
-    router.push(`/admin/verifications/${verificationId}`);
+  const [selectedVerification, setSelectedVerification] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [actionModal, setActionModal] = useState({ show: false, type: '', verification: null });
+
+  const handleViewMedia = async (verification) => {
+    setSelectedVerification(verification);
+    setShowImageModal(true);
+  };
+
+  const handleApprove = (verification) => {
+    setActionModal({ show: true, type: 'approve', verification });
+  };
+
+  const handleReject = (verification) => {
+    setActionModal({ show: true, type: 'reject', verification });
+  };
+
+  const executeAction = async () => {
+    const { type, verification } = actionModal;
+    
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const endpoint = type === 'approve' 
+        ? '/api/admin/verifications/approve'
+        : '/api/admin/verifications/reject';
+      
+      const body = {
+        verificationId: verification.id,
+        ...(type === 'reject' && { 
+          rejectionReason: document.getElementById('rejection-reason')?.value || 'Not specified',
+          adminNotes: document.getElementById('admin-notes')?.value || ''
+        }),
+        ...(type === 'approve' && {
+          adminNotes: document.getElementById('admin-notes')?.value || ''
+        })
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process verification');
+      }
+
+      setActionModal({ show: false, type: '', verification: null });
+      await fetchVerifications();
+      setError('');
+    } catch (err) {
+      console.error('Error processing verification:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnforceVerification = async (verification) => {
+    if (!confirm(`Mark ${verification.email} as requiring verification?`)) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          requires_verification: true,
+          verification_reason: 'Admin enforced verification',
+          verification_required_at: new Date().toISOString()
+        })
+        .eq('id', verification.user_id);
+
+      if (updateError) throw updateError;
+
+      await fetchVerifications();
+    } catch (err) {
+      console.error('Error enforcing verification:', err);
+      setError(err.message);
+    }
   };
 
   const filteredVerifications = verifications;
@@ -205,12 +288,38 @@ export default function VerificationsPage() {
                     <td style={styles.td}>{formatDate(verification.submitted_at)}</td>
                     <td style={styles.td}>{formatDate(verification.expires_at)}</td>
                     <td style={styles.td}>
-                      <button
-                        onClick={() => handleViewVerification(verification.id)}
-                        style={styles.viewButton}
-                      >
-                        👁️ Review
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {(verification.image_path || verification.video_path) && (
+                          <button
+                            onClick={() => handleViewMedia(verification)}
+                            style={{...styles.viewButton, background: '#3b82f6'}}
+                          >
+                            👁️ View
+                          </button>
+                        )}
+                        {verification.status === 'submitted' && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(verification)}
+                              style={{...styles.viewButton, background: '#10b981'}}
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              onClick={() => handleReject(verification)}
+                              style={{...styles.viewButton, background: '#ef4444'}}
+                            >
+                              ✕ Reject
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleEnforceVerification(verification)}
+                          style={{...styles.viewButton, background: '#f59e0b'}}
+                        >
+                          🔒 Enforce
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -239,6 +348,104 @@ export default function VerificationsPage() {
             >
               Next →
             </button>
+          </div>
+        )}
+
+        {/* Image/Video Modal */}
+        {showImageModal && selectedVerification && (
+          <div style={styles.modalOverlay} onClick={() => setShowImageModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Verification Media - {selectedVerification.email}</h2>
+                <button onClick={() => setShowImageModal(false)} style={styles.closeBtn}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                {selectedVerification.video_path && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h3>Video Verification</h3>
+                    <video 
+                      controls 
+                      style={{ width: '100%', maxHeight: '500px', borderRadius: '8px' }}
+                      src={selectedVerification.video_path}
+                    >
+                      Your browser does not support video playback.
+                    </video>
+                  </div>
+                )}
+                {selectedVerification.image_path && (
+                  <div>
+                    <h3>Selfie Verification</h3>
+                    <img 
+                      src={selectedVerification.image_path} 
+                      alt="Verification selfie"
+                      style={{ width: '100%', borderRadius: '8px' }}
+                    />
+                  </div>
+                )}
+                {!selectedVerification.video_path && !selectedVerification.image_path && (
+                  <p style={{ textAlign: 'center', color: '#718096' }}>No media uploaded yet</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Modal */}
+        {actionModal.show && actionModal.verification && (
+          <div style={styles.modalOverlay} onClick={() => setActionModal({ show: false, type: '', verification: null })}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>
+                  {actionModal.type === 'approve' ? '✓ Approve' : '✕ Reject'} Verification
+                </h2>
+                <button onClick={() => setActionModal({ show: false, type: '', verification: null })} style={styles.closeBtn}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <p><strong>User:</strong> {actionModal.verification.email}</p>
+                <p><strong>Type:</strong> {actionModal.verification.verification_type}</p>
+                <p><strong>Submitted:</strong> {formatDate(actionModal.verification.submitted_at)}</p>
+                
+                {actionModal.type === 'reject' && (
+                  <div style={{ marginTop: '20px' }}>
+                    <label style={styles.label}>Rejection Reason *</label>
+                    <textarea
+                      id="rejection-reason"
+                      style={styles.textarea}
+                      rows={3}
+                      placeholder="Enter reason for rejection..."
+                      required
+                    />
+                  </div>
+                )}
+                
+                <div style={{ marginTop: '20px' }}>
+                  <label style={styles.label}>Admin Notes (Optional)</label>
+                  <textarea
+                    id="admin-notes"
+                    style={styles.textarea}
+                    rows={2}
+                    placeholder="Additional notes..."
+                  />
+                </div>
+              </div>
+              <div style={styles.modalFooter}>
+                <button
+                  onClick={() => setActionModal({ show: false, type: '', verification: null })}
+                  style={styles.cancelButton}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeAction}
+                  style={{
+                    ...styles.confirmButton,
+                    background: actionModal.type === 'approve' ? '#10b981' : '#ef4444'
+                  }}
+                >
+                  {actionModal.type === 'approve' ? 'Approve' : 'Reject'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -516,5 +723,93 @@ const styles = {
   paginationInfo: {
     fontSize: '14px',
     color: '#2d3748'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  },
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    maxWidth: '800px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  },
+  modalHeader: {
+    padding: '20px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '24px',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '32px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1
+  },
+  modalBody: {
+    padding: '20px'
+  },
+  modalFooter: {
+    padding: '20px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px'
+  },
+  cancelButton: {
+    padding: '12px 24px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    color: '#475569',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  confirmButton: {
+    padding: '12px 24px',
+    border: 'none',
+    borderRadius: '8px',
+    color: 'white',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  label: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#2d3748',
+    marginBottom: '8px',
+    display: 'block'
+  },
+  textarea: {
+    width: '100%',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    resize: 'vertical',
+    outline: 'none'
   }
 };
