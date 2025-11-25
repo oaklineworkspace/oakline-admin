@@ -13,11 +13,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId, verificationTypes, reason, displayMessage } = req.body;
+    const { userId, verificationTypes, reasonId, customReason, displayMessage } = req.body;
 
-    if (!userId || !verificationTypes || !Array.isArray(verificationTypes) || verificationTypes.length === 0 || !reason) {
+    if (!userId || !verificationTypes || !Array.isArray(verificationTypes) || verificationTypes.length === 0) {
       return res.status(400).json({ 
-        error: 'Missing required fields: userId, verificationTypes (array), and reason' 
+        error: 'Missing required fields: userId and verificationTypes (array)' 
       });
     }
 
@@ -30,15 +30,40 @@ export default async function handler(req, res) {
       });
     }
 
+    // Fetch reason details if reasonId provided
+    let reasonText = customReason || 'Verification required for security';
+    let finalDisplayMessage = displayMessage;
+    let contactEmail = 'verify@theoaklinebank.com';
+    let deadlineHours = 168; // Default 7 days
+
+    if (reasonId) {
+      const { data: reasonData, error: reasonError } = await supabaseAdmin
+        .from('verification_reasons')
+        .select('*')
+        .eq('id', reasonId)
+        .single();
+
+      if (!reasonError && reasonData) {
+        reasonText = reasonData.reason_text;
+        finalDisplayMessage = finalDisplayMessage || reasonData.default_display_message;
+        contactEmail = reasonData.contact_email;
+        deadlineHours = reasonData.verification_deadline_hours || 168;
+      }
+    }
+
+    // Calculate expiry date
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + deadlineHours);
+
     // Update the user's profile to require verification
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({
         requires_verification: true,
-        verification_reason: reason,
+        verification_reason: reasonText,
         verification_required_at: new Date().toISOString(),
         is_verified: false,
-        restriction_display_message: displayMessage || reason
+        restriction_display_message: finalDisplayMessage || reasonText
       })
       .eq('id', userId);
 
@@ -53,7 +78,13 @@ export default async function handler(req, res) {
       verification_type: type,
       status: 'pending',
       created_at: new Date().toISOString(),
-      reason: reason
+      reason: reasonText,
+      expires_at: expiresAt.toISOString(),
+      metadata: {
+        contact_email: contactEmail,
+        reason_id: reasonId,
+        deadline_hours: deadlineHours
+      }
     }));
 
     const { error: insertError } = await supabaseAdmin
@@ -69,7 +100,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       message: 'Verification requirement enforced successfully',
-      verificationTypes: verificationTypes
+      verificationTypes: verificationTypes,
+      expiresAt: expiresAt.toISOString()
     });
 
   } catch (error) {

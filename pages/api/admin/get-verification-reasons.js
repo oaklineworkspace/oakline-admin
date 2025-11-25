@@ -13,11 +13,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch verification-specific restriction reasons
+    // Fetch verification reasons from the dedicated table
     const { data: reasons, error: reasonsError } = await supabaseAdmin
-      .from('account_restriction_reasons')
+      .from('verification_reasons')
       .select('*')
-      .eq('action_type', 'enforce_verification')
+      .eq('is_active', true)
+      .order('verification_type', { ascending: true })
       .order('category', { ascending: true })
       .order('display_order', { ascending: true });
 
@@ -26,25 +27,36 @@ export default async function handler(req, res) {
       throw reasonsError;
     }
 
-    // Group reasons by category
-    const groupedReasons = {};
+    // Group reasons by verification type and category
+    const groupedReasons = {
+      selfie: {},
+      video: {},
+      liveness: {}
+    };
+
     (reasons || []).forEach(reason => {
-      if (!groupedReasons[reason.category]) {
-        groupedReasons[reason.category] = [];
+      const type = reason.verification_type;
+      if (!groupedReasons[type]) {
+        groupedReasons[type] = {};
       }
-      groupedReasons[reason.category].push({
+      if (!groupedReasons[type][reason.category]) {
+        groupedReasons[type][reason.category] = [];
+      }
+      groupedReasons[type][reason.category].push({
         id: reason.id,
         text: reason.reason_text,
         category: reason.category,
-        displayMessage: reason.default_display_message
+        displayMessage: reason.default_display_message,
+        contactEmail: reason.contact_email,
+        severityLevel: reason.severity_level,
+        requiresImmediate: reason.requires_immediate_action,
+        deadlineHours: reason.verification_deadline_hours
       });
     });
 
     return res.status(200).json({
       success: true,
-      reasons: {
-        enforce_verification: groupedReasons
-      }
+      reasons: groupedReasons
     });
 
   } catch (error) {
