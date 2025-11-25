@@ -42,9 +42,12 @@ export default function VerificationsPage() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [actionModal, setActionModal] = useState({ show: false, type: '', verification: null });
   const [enforceModal, setEnforceModal] = useState({ show: false, verification: null });
+  const [verificationReasons, setVerificationReasons] = useState({ selfie: {}, video: {}, liveness: {} });
+  const [selectedReasonId, setSelectedReasonId] = useState('');
 
   useEffect(() => {
     fetchUsers();
+    fetchVerificationReasons();
     if (viewMode === 'all_users') {
       fetchAllUsersVerificationStatus();
     }
@@ -75,6 +78,26 @@ export default function VerificationsPage() {
       }
     } catch (err) {
       console.error('Error fetching users:', err);
+    }
+  };
+
+  const fetchVerificationReasons = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-verification-reasons', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setVerificationReasons(result.reasons || { selfie: {}, video: {}, liveness: {} });
+      }
+    } catch (err) {
+      console.error('Error fetching verification reasons:', err);
     }
   };
 
@@ -239,10 +262,16 @@ export default function VerificationsPage() {
     if (document.getElementById('enforce-selfie')?.checked) verificationTypes.push('selfie');
     if (document.getElementById('enforce-video')?.checked) verificationTypes.push('video');
     if (document.getElementById('enforce-liveness')?.checked) verificationTypes.push('liveness');
-    const reason = document.getElementById('enforce-reason')?.value || 'Not specified';
 
     if (verificationTypes.length === 0) {
       setErrorMessage('Please select at least one verification type.');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+      return;
+    }
+
+    if (!selectedReasonId) {
+      setErrorMessage('Please select a reason for enforcement.');
       setShowErrorBanner(true);
       setTimeout(() => setShowErrorBanner(false), 3000);
       return;
@@ -252,20 +281,26 @@ export default function VerificationsPage() {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          requires_verification: true,
-          verification_reason: reason,
-          verification_types: verificationTypes,
-          verification_required_at: new Date().toISOString(),
-          is_verified: false
+      const response = await fetch('/api/admin/enforce-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          userId: verification.user_id,
+          verificationTypes: verificationTypes,
+          reasonId: selectedReasonId
         })
-        .eq('id', verification.user_id);
+      });
 
-      if (updateError) throw updateError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to enforce verification');
+      }
 
       setEnforceModal({ show: false, verification: null });
+      setSelectedReasonId('');
       setSuccessMessage(`Verification requirement enforced for ${verification.email}.`);
       setShowSuccessBanner(true);
       setTimeout(() => setShowSuccessBanner(false), 3000);
@@ -295,7 +330,6 @@ export default function VerificationsPage() {
         .update({
           requires_verification: false,
           verification_reason: null,
-          verification_types: null,
           verification_required_at: null
         })
         .eq('id', verification.user_id);
@@ -800,11 +834,11 @@ export default function VerificationsPage() {
 
         {/* Enforce Verification Modal */}
         {enforceModal.show && enforceModal.verification && (
-          <div style={styles.modalOverlay} onClick={() => setEnforceModal({ show: false, verification: null })}>
+          <div style={styles.modalOverlay} onClick={() => { setEnforceModal({ show: false, verification: null }); setSelectedReasonId(''); }}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>🔒 Enforce Verification</h2>
-                <button onClick={() => setEnforceModal({ show: false, verification: null })} style={styles.closeBtn}>×</button>
+                <button onClick={() => { setEnforceModal({ show: false, verification: null }); setSelectedReasonId(''); }} style={styles.closeBtn}>×</button>
               </div>
               <div style={styles.modalBody}>
                 <p><strong>User:</strong> {enforceModal.verification.email}</p>
@@ -827,18 +861,46 @@ export default function VerificationsPage() {
                 </div>
                 <div style={{ marginTop: '20px' }}>
                   <label style={styles.label}>Reason for Enforcement *</label>
-                  <textarea
-                    id="enforce-reason"
-                    style={styles.textarea}
-                    rows={3}
-                    placeholder="Enter reason for enforcement..."
+                  <select
+                    value={selectedReasonId}
+                    onChange={(e) => setSelectedReasonId(e.target.value)}
+                    style={{ ...styles.textarea, height: 'auto', padding: '12px' }}
                     required
-                  />
+                  >
+                    <option value="">-- Select a Reason --</option>
+                    {Object.entries(verificationReasons).map(([type, categories]) => (
+                      Object.entries(categories).map(([category, reasons]) => (
+                        <optgroup key={`${type}-${category}`} label={`${type.toUpperCase()} - ${category}`}>
+                          {reasons.map((reason) => (
+                            <option key={reason.id} value={reason.id}>
+                              {reason.text}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))
+                    ))}
+                  </select>
+                  {selectedReasonId && (
+                    <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '8px', fontSize: '13px', color: '#0369a1' }}>
+                      <strong>ℹ️ What the user will see:</strong>
+                      <p style={{ margin: '8px 0 0 0' }}>
+                        {(() => {
+                          for (const categories of Object.values(verificationReasons)) {
+                            for (const reasons of Object.values(categories)) {
+                              const reason = reasons.find(r => r.id === selectedReasonId);
+                              if (reason) return reason.displayMessage || reason.text;
+                            }
+                          }
+                          return '';
+                        })()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={styles.modalFooter}>
                 <button
-                  onClick={() => setEnforceModal({ show: false, verification: null })}
+                  onClick={() => { setEnforceModal({ show: false, verification: null }); setSelectedReasonId(''); }}
                   style={styles.cancelButton}
                 >
                   Cancel
@@ -847,7 +909,7 @@ export default function VerificationsPage() {
                   onClick={enforceVerificationAction}
                   style={{
                     ...styles.confirmButton,
-                    background: '#f59e0b' // Enforce button color
+                    background: '#f59e0b'
                   }}
                 >
                   Enforce
