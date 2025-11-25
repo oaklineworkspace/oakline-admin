@@ -17,10 +17,12 @@ export default async function handler(req, res) {
 
     console.log('Fetching verifications with filters:', { statusFilter, typeFilter, searchEmail, dateRange, userFilter });
 
-    // First, fetch all verifications
+    // First, fetch all verifications - get latest submission per user per type
     let verificationsQuery = supabaseAdmin
       .from('selfie_verifications')
       .select('*')
+      .order('user_id')
+      .order('verification_type')
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -51,9 +53,23 @@ export default async function handler(req, res) {
       throw queryError;
     }
 
-    console.log(`Found ${verifications?.length || 0} verifications`);
+    console.log(`Found ${verifications?.length || 0} verifications before deduplication`);
 
-    if (!verifications || verifications.length === 0) {
+    // Deduplicate: keep only the latest verification per user per type
+    const seen = new Map();
+    const deduplicatedVerifications = [];
+    
+    for (const v of verifications) {
+      const key = `${v.user_id}_${v.verification_type}`;
+      if (!seen.has(key)) {
+        seen.set(key, true);
+        deduplicatedVerifications.push(v);
+      }
+    }
+
+    console.log(`After deduplication: ${deduplicatedVerifications.length} verifications`);
+
+    if (!deduplicatedVerifications || deduplicatedVerifications.length === 0) {
       return res.status(200).json({
         success: true,
         verifications: [],
@@ -67,7 +83,7 @@ export default async function handler(req, res) {
     }
 
     // Get all unique user IDs
-    const userIds = [...new Set(verifications.map(v => v.user_id).filter(id => id))];
+    const userIds = [...new Set(deduplicatedVerifications.map(v => v.user_id).filter(id => id))];
 
     console.log(`Fetching profiles for ${userIds.length} users`);
 
@@ -87,18 +103,51 @@ export default async function handler(req, res) {
       profileMap[profile.id] = profile;
     });
 
-    // Format verifications with user info
-    let formattedVerifications = verifications.map(v => ({
-      ...v,
-      email: profileMap[v.user_id]?.email || 'Unknown',
-      first_name: profileMap[v.user_id]?.first_name || '',
-      last_name: profileMap[v.user_id]?.last_name || '',
-      requires_verification: profileMap[v.user_id]?.requires_verification || false,
-      is_verified: profileMap[v.user_id]?.is_verified || false,
-      verification_reason: profileMap[v.user_id]?.verification_reason || '',
-      verification_required_at: profileMap[v.user_id]?.verification_required_at || null,
-      last_verified_at: profileMap[v.user_id]?.last_verified_at || null
-    }));
+    // Generate signed URLs for video/image paths
+    const formattedVerificationsPromises = verifications.map(async (v) => {
+      let video_url = null;
+      let image_url = null;
+
+      // Generate signed URL for video
+      if (v.video_path) {
+        try {
+          const { data } = await supabaseAdmin.storage
+            .from('verification-media')
+            .createSignedUrl(v.video_path.replace('verification-media/', ''), 3600);
+          video_url = data?.signedUrl;
+        } catch (err) {
+          console.error('Error generating video signed URL:', err);
+        }
+      }
+
+      // Generate signed URL for image
+      if (v.image_path) {
+        try {
+          const { data } = await supabaseAdmin.storage
+            .from('verification-media')
+            .createSignedUrl(v.image_path.replace('verification-media/', ''), 3600);
+          image_url = data?.signedUrl;
+        } catch (err) {
+          console.error('Error generating image signed URL:', err);
+        }
+      }
+
+      return {
+        ...v,
+        video_path: video_url || v.video_path,
+        image_path: image_url || v.image_path,
+        email: profileMap[v.user_id]?.email || 'Unknown',
+        first_name: profileMap[v.user_id]?.first_name || '',
+        last_name: profileMap[v.user_id]?.last_name || '',
+        requires_verification: profileMap[v.user_id]?.requires_verification || false,
+        is_verified: profileMap[v.user_id]?.is_verified || false,
+        verification_reason: profileMap[v.user_id]?.verification_reason || '',
+        verification_required_at: profileMap[v.user_id]?.verification_required_at || null,
+        last_verified_at: profileMap[v.user_id]?.last_verified_at || null
+      };
+    });
+
+    let formattedVerifications = await Promise.all(formattedVerificationsPromises);
 
     // Apply email search filter after joining with profiles
     if (searchEmail) {
@@ -106,6 +155,9 @@ export default async function handler(req, res) {
         v.email.toLowerCase().includes(searchEmail.toLowerCase())
       );
     }
+
+    // Sort by most recent first
+    formattedVerifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     // Calculate stats
     const today = new Date();

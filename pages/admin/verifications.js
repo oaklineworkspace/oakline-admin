@@ -748,8 +748,10 @@ export default function VerificationsPage() {
                     <h3>Video Verification</h3>
                     <video
                       controls
-                      style={{ width: '100%', maxHeight: '500px', borderRadius: '8px' }}
+                      controlsList="nodownload"
+                      style={{ width: '100%', maxHeight: '500px', borderRadius: '8px', backgroundColor: '#000' }}
                       src={selectedVerification.video_path}
+                      onError={(e) => console.error('Video load error:', e)}
                     >
                       Your browser does not support video playback.
                     </video>
