@@ -17,6 +17,8 @@ export default function VerificationsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchEmail, setSearchEmail] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [userFilter, setUserFilter] = useState('all');
+  const [allUsers, setAllUsers] = useState([]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,8 +33,32 @@ export default function VerificationsPage() {
   });
 
   useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
     fetchVerifications();
-  }, [statusFilter, typeFilter, searchEmail, dateRange]);
+  }, [statusFilter, typeFilter, searchEmail, dateRange, userFilter]);
+
+  const fetchUsers = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-users', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAllUsers(result.users || []);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
 
   const fetchVerifications = async () => {
     try {
@@ -58,7 +84,8 @@ export default function VerificationsPage() {
           statusFilter,
           typeFilter,
           searchEmail,
-          dateRange
+          dateRange,
+          userFilter
         })
       });
 
@@ -234,6 +261,16 @@ export default function VerificationsPage() {
             onChange={(e) => setSearchEmail(e.target.value)}
             style={styles.searchInput}
           />
+          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Users</option>
+            {allUsers.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.profiles?.first_name && user.profiles?.last_name 
+                  ? `${user.profiles.first_name} ${user.profiles.last_name}` 
+                  : user.email}
+              </option>
+            ))}
+          </select>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={styles.filterSelect}>
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>

@@ -13,9 +13,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { statusFilter, typeFilter, searchEmail, dateRange } = req.body;
+    const { statusFilter, typeFilter, searchEmail, dateRange, userFilter } = req.body;
 
-    console.log('Fetching verifications with filters:', { statusFilter, typeFilter, searchEmail, dateRange });
+    console.log('Fetching verifications with filters:', { statusFilter, typeFilter, searchEmail, dateRange, userFilter });
 
     // First, fetch all verifications
     let verificationsQuery = supabaseAdmin
@@ -24,6 +24,10 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: false });
 
     // Apply filters
+    if (userFilter && userFilter !== 'all') {
+      verificationsQuery = verificationsQuery.eq('user_id', userFilter);
+    }
+
     if (statusFilter && statusFilter !== 'all') {
       verificationsQuery = verificationsQuery.eq('status', statusFilter);
     }
