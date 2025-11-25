@@ -71,10 +71,10 @@ export default async function handler(req, res) {
 
     console.log(`Fetching profiles for ${userIds.length} users`);
 
-    // Fetch profiles for all users
+    // Fetch profiles for all users with verification details
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, first_name, last_name, requires_verification, is_verified')
+      .select('id, email, first_name, last_name, requires_verification, is_verified, verification_reason, verification_required_at, last_verified_at')
       .in('id', userIds);
 
     if (profilesError) {
@@ -94,7 +94,10 @@ export default async function handler(req, res) {
       first_name: profileMap[v.user_id]?.first_name || '',
       last_name: profileMap[v.user_id]?.last_name || '',
       requires_verification: profileMap[v.user_id]?.requires_verification || false,
-      is_verified: profileMap[v.user_id]?.is_verified || false
+      is_verified: profileMap[v.user_id]?.is_verified || false,
+      verification_reason: profileMap[v.user_id]?.verification_reason || '',
+      verification_required_at: profileMap[v.user_id]?.verification_required_at || null,
+      last_verified_at: profileMap[v.user_id]?.last_verified_at || null
     }));
 
     // Apply email search filter after joining with profiles

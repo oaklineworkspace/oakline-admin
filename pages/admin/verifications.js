@@ -19,6 +19,8 @@ export default function VerificationsPage() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [userFilter, setUserFilter] = useState('all');
   const [allUsers, setAllUsers] = useState([]);
+  const [viewMode, setViewMode] = useState('verifications'); // 'verifications' or 'all_users'
+  const [allUsersData, setAllUsersData] = useState([]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,11 +36,18 @@ export default function VerificationsPage() {
 
   useEffect(() => {
     fetchUsers();
+    if (viewMode === 'all_users') {
+      fetchAllUsersVerificationStatus();
+    }
   }, []);
 
   useEffect(() => {
-    fetchVerifications();
-  }, [statusFilter, typeFilter, searchEmail, dateRange, userFilter]);
+    if (viewMode === 'verifications') {
+      fetchVerifications();
+    } else {
+      fetchAllUsersVerificationStatus();
+    }
+  }, [statusFilter, typeFilter, searchEmail, dateRange, userFilter, viewMode]);
 
   const fetchUsers = async () => {
     try {
@@ -57,6 +66,40 @@ export default function VerificationsPage() {
       }
     } catch (err) {
       console.error('Error fetching users:', err);
+    }
+  };
+
+  const fetchAllUsersVerificationStatus = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Authentication required. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/verifications/get-all-users', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch users');
+      }
+
+      setAllUsersData(result.users || []);
+    } catch (err) {
+      console.error('Error fetching all users:', err);
+      setError(err.message || 'Failed to fetch users');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,7 +219,8 @@ export default function VerificationsPage() {
   };
 
   const handleEnforceVerification = async (verification) => {
-    if (!confirm(`Mark ${verification.email} as requiring verification?`)) return;
+    const reason = prompt(`Enter reason for requiring verification for ${verification.email}:`);
+    if (!reason) return;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -185,16 +229,78 @@ export default function VerificationsPage() {
         .from('profiles')
         .update({
           requires_verification: true,
-          verification_reason: 'Admin enforced verification',
+          verification_reason: reason,
+          verification_required_at: new Date().toISOString(),
+          is_verified: false
+        })
+        .eq('id', verification.user_id);
+
+      if (updateError) throw updateError;
+
+      alert(`Verification requirement enforced for ${verification.email}`);
+      await fetchVerifications();
+    } catch (err) {
+      console.error('Error enforcing verification:', err);
+      setError(err.message);
+    }
+  };
+
+  const handleRemoveVerificationRequirement = async (verification) => {
+    if (!confirm(`Remove verification requirement for ${verification.email}?`)) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          requires_verification: false,
+          verification_reason: null,
+          verification_required_at: null
+        })
+        .eq('id', verification.user_id);
+
+      if (updateError) throw updateError;
+
+      alert(`Verification requirement removed for ${verification.email}`);
+      if (viewMode === 'all_users') {
+        await fetchAllUsersVerificationStatus();
+      } else {
+        await fetchVerifications();
+      }
+    } catch (err) {
+      console.error('Error removing verification requirement:', err);
+      setError(err.message);
+    }
+  };
+
+  const handleRevokeVerification = async (verification) => {
+    const reason = prompt(`Enter reason for revoking verification for ${verification.email}:`);
+    if (!reason) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          is_verified: false,
+          requires_verification: true,
+          verification_reason: reason,
           verification_required_at: new Date().toISOString()
         })
         .eq('id', verification.user_id);
 
       if (updateError) throw updateError;
 
-      await fetchVerifications();
+      alert(`Verification revoked for ${verification.email}`);
+      if (viewMode === 'all_users') {
+        await fetchAllUsersVerificationStatus();
+      } else {
+        await fetchVerifications();
+      }
     } catch (err) {
-      console.error('Error enforcing verification:', err);
+      console.error('Error revoking verification:', err);
       setError(err.message);
     }
   };
@@ -252,6 +358,28 @@ export default function VerificationsPage() {
           </div>
         </div>
 
+        {/* View Mode Toggle */}
+        <div style={styles.viewModeSection}>
+          <button
+            onClick={() => setViewMode('verifications')}
+            style={{
+              ...styles.viewModeButton,
+              ...(viewMode === 'verifications' ? styles.viewModeButtonActive : {})
+            }}
+          >
+            📋 Verification Requests
+          </button>
+          <button
+            onClick={() => setViewMode('all_users')}
+            style={{
+              ...styles.viewModeButton,
+              ...(viewMode === 'all_users' ? styles.viewModeButtonActive : {})
+            }}
+          >
+            👥 All Users Status
+          </button>
+        </div>
+
         {/* Filters */}
         <div style={styles.filtersSection}>
           <input
@@ -288,13 +416,95 @@ export default function VerificationsPage() {
           </select>
         </div>
 
-        {/* Verifications Table */}
+        {/* Table */}
         <div style={styles.tableContainer}>
           {loading ? (
             <div style={styles.loadingState}>
               <div style={styles.spinner}></div>
               <p>Loading verifications...</p>
             </div>
+          ) : viewMode === 'all_users' ? (
+            allUsersData.length === 0 ? (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyIcon}>👥</p>
+                <p style={styles.emptyText}>No users found</p>
+              </div>
+            ) : (
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>User</th>
+                    <th style={styles.th}>Email</th>
+                    <th style={styles.th}>Verified Status</th>
+                    <th style={styles.th}>Requires Verification</th>
+                    <th style={styles.th}>Verification Reason</th>
+                    <th style={styles.th}>Last Verified</th>
+                    <th style={styles.th}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allUsersData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((user) => (
+                    <tr key={user.id} style={styles.tr}>
+                      <td style={styles.td}>
+                        <div>
+                          <div style={styles.userEmail}>
+                            {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'N/A'}
+                          </div>
+                          <div style={styles.userId}>ID: {user.id?.substring(0, 8)}...</div>
+                        </div>
+                      </td>
+                      <td style={styles.td}>{user.email}</td>
+                      <td style={styles.td}>
+                        <span style={user.is_verified ? 
+                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d1fae5', color: '#065f46'} : 
+                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fee2e2', color: '#991b1b'}
+                        }>
+                          {user.is_verified ? '✓ Verified' : '✕ Not Verified'}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={user.requires_verification ? 
+                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fef3c7', color: '#92400e'} : 
+                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#f3f4f6', color: '#6b7280'}
+                        }>
+                          {user.requires_verification ? '⚠️ Required' : 'Not Required'}
+                        </span>
+                      </td>
+                      <td style={styles.td}>{user.verification_reason || 'N/A'}</td>
+                      <td style={styles.td}>{formatDate(user.last_verified_at)}</td>
+                      <td style={styles.td}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {!user.requires_verification && (
+                            <button
+                              onClick={() => handleEnforceVerification({user_id: user.id, email: user.email})}
+                              style={{...styles.viewButton, background: '#f59e0b'}}
+                            >
+                              🔒 Enforce
+                            </button>
+                          )}
+                          {user.requires_verification && (
+                            <button
+                              onClick={() => handleRemoveVerificationRequirement({user_id: user.id, email: user.email})}
+                              style={{...styles.viewButton, background: '#8b5cf6'}}
+                            >
+                              ✓ Remove Requirement
+                            </button>
+                          )}
+                          {user.is_verified && (
+                            <button
+                              onClick={() => handleRevokeVerification({user_id: user.id, email: user.email})}
+                              style={{...styles.viewButton, background: '#ef4444'}}
+                            >
+                              ✕ Revoke Verification
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
           ) : paginatedVerifications.length === 0 ? (
             <div style={styles.emptyState}>
               <p style={styles.emptyIcon}>🔍</p>
@@ -323,9 +533,10 @@ export default function VerificationsPage() {
                   <th style={styles.th}>User</th>
                   <th style={styles.th}>Type</th>
                   <th style={styles.th}>Status</th>
+                  <th style={styles.th}>Verified</th>
+                  <th style={styles.th}>Requires Verification</th>
                   <th style={styles.th}>Reason</th>
                   <th style={styles.th}>Submitted</th>
-                  <th style={styles.th}>Expires</th>
                   <th style={styles.th}>Actions</th>
                 </tr>
               </thead>
@@ -348,9 +559,24 @@ export default function VerificationsPage() {
                         {verification.status}
                       </span>
                     </td>
-                    <td style={styles.td}>{verification.reason}</td>
+                    <td style={styles.td}>
+                      <span style={verification.is_verified ? 
+                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d1fae5', color: '#065f46'} : 
+                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fee2e2', color: '#991b1b'}
+                      }>
+                        {verification.is_verified ? '✓ Verified' : '✕ Not Verified'}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={verification.requires_verification ? 
+                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fef3c7', color: '#92400e'} : 
+                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#f3f4f6', color: '#6b7280'}
+                      }>
+                        {verification.requires_verification ? '⚠️ Required' : 'Not Required'}
+                      </span>
+                    </td>
+                    <td style={styles.td}>{verification.verification_reason || verification.reason || 'N/A'}</td>
                     <td style={styles.td}>{formatDate(verification.submitted_at)}</td>
-                    <td style={styles.td}>{formatDate(verification.expires_at)}</td>
                     <td style={styles.td}>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         {(verification.image_path || verification.video_path) && (
@@ -377,12 +603,22 @@ export default function VerificationsPage() {
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={() => handleEnforceVerification(verification)}
-                          style={{...styles.viewButton, background: '#f59e0b'}}
-                        >
-                          🔒 Enforce
-                        </button>
+                        {!verification.requires_verification && (
+                          <button
+                            onClick={() => handleEnforceVerification(verification)}
+                            style={{...styles.viewButton, background: '#f59e0b'}}
+                          >
+                            🔒 Enforce
+                          </button>
+                        )}
+                        {verification.requires_verification && (
+                          <button
+                            onClick={() => handleRemoveVerificationRequirement(verification)}
+                            style={{...styles.viewButton, background: '#8b5cf6'}}
+                          >
+                            ✓ Remove Requirement
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -875,5 +1111,30 @@ const styles = {
     fontFamily: 'inherit',
     resize: 'vertical',
     outline: 'none'
+  },
+  viewModeSection: {
+    backgroundColor: 'white',
+    padding: '16px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    display: 'flex',
+    gap: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  viewModeButton: {
+    padding: '12px 24px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    color: '#475569',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  viewModeButtonActive: {
+    backgroundColor: '#1e40af',
+    color: 'white',
+    borderColor: '#1e40af'
   }
 };
