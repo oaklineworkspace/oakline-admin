@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     }
 
     // Update verification status
-    const { error: updateError } = await supabaseAdmin
+    const { data: verification, error: updateError } = await supabaseAdmin
       .from('selfie_verifications')
       .update({
         status: 'rejected',
@@ -33,9 +33,24 @@ export default async function handler(req, res) {
         rejection_reason: rejectionReason,
         admin_notes: adminNotes || null
       })
-      .eq('id', verificationId);
+      .eq('id', verificationId)
+      .select('user_id')
+      .single();
 
     if (updateError) throw updateError;
+
+    // Update user profile to still require verification (keep requires_verification as true)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        requires_verification: true,
+        is_verified: false
+      })
+      .eq('id', verification.user_id);
+
+    if (profileError) {
+      console.error('Error updating profile:', profileError);
+    }
 
     return res.status(200).json({
       success: true,
