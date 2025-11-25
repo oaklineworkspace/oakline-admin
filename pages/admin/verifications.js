@@ -41,9 +41,12 @@ export default function VerificationsPage() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setError('Authentication required');
+        setError('Authentication required. Please login again.');
+        setLoading(false);
         return;
       }
+
+      console.log('Fetching verifications...');
 
       const response = await fetch('/api/admin/verifications/list', {
         method: 'POST',
@@ -59,16 +62,24 @@ export default function VerificationsPage() {
         })
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to fetch verifications');
+        throw new Error(result.error || result.details || 'Failed to fetch verifications');
       }
 
-      const result = await response.json();
+      console.log('Verifications fetched:', result.verifications?.length || 0);
+
       setVerifications(result.verifications || []);
-      setStats(result.stats || stats);
+      setStats(result.stats || {
+        totalPending: 0,
+        totalSubmitted: 0,
+        approvedToday: 0,
+        rejectedToday: 0
+      });
     } catch (err) {
       console.error('Error fetching verifications:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to fetch verifications');
     } finally {
       setLoading(false);
     }
@@ -250,7 +261,23 @@ export default function VerificationsPage() {
           ) : paginatedVerifications.length === 0 ? (
             <div style={styles.emptyState}>
               <p style={styles.emptyIcon}>🔍</p>
-              <p style={styles.emptyText}>No verifications found</p>
+              <p style={styles.emptyText}>
+                {searchEmail || statusFilter !== 'all' || typeFilter !== 'all' 
+                  ? 'No verifications match your filters' 
+                  : 'No verification requests yet'}
+              </p>
+              {(searchEmail || statusFilter !== 'all' || typeFilter !== 'all') && (
+                <button 
+                  onClick={() => {
+                    setSearchEmail('');
+                    setStatusFilter('all');
+                    setTypeFilter('all');
+                  }}
+                  style={{...styles.refreshButton, marginTop: '16px'}}
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
             <table style={styles.table}>

@@ -15,6 +15,8 @@ export default async function handler(req, res) {
   try {
     const { statusFilter, typeFilter, searchEmail, dateRange } = req.body;
 
+    console.log('Fetching verifications with filters:', { statusFilter, typeFilter, searchEmail, dateRange });
+
     // First, fetch all verifications
     let verificationsQuery = supabaseAdmin
       .from('selfie_verifications')
@@ -40,10 +42,30 @@ export default async function handler(req, res) {
 
     const { data: verifications, error: queryError } = await verificationsQuery;
 
-    if (queryError) throw queryError;
+    if (queryError) {
+      console.error('Error querying verifications:', queryError);
+      throw queryError;
+    }
+
+    console.log(`Found ${verifications?.length || 0} verifications`);
+
+    if (!verifications || verifications.length === 0) {
+      return res.status(200).json({
+        success: true,
+        verifications: [],
+        stats: {
+          totalPending: 0,
+          totalSubmitted: 0,
+          approvedToday: 0,
+          rejectedToday: 0
+        }
+      });
+    }
 
     // Get all unique user IDs
-    const userIds = [...new Set(verifications.map(v => v.user_id))];
+    const userIds = [...new Set(verifications.map(v => v.user_id).filter(id => id))];
+
+    console.log(`Fetching profiles for ${userIds.length} users`);
 
     // Fetch profiles for all users
     const { data: profiles, error: profilesError } = await supabaseAdmin
@@ -94,6 +116,8 @@ export default async function handler(req, res) {
         v.status === 'rejected' && v.reviewed_at && new Date(v.reviewed_at) >= today
       ).length
     };
+
+    console.log('Stats:', stats);
 
     return res.status(200).json({
       success: true,
