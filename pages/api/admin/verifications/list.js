@@ -104,7 +104,7 @@ export default async function handler(req, res) {
     });
 
     // Generate signed URLs for video/image paths
-    const formattedVerificationsPromises = verifications.map(async (v) => {
+    const formattedVerificationsPromises = deduplicatedVerifications.map(async (v) => {
       let video_url = null;
       let image_url = null;
 
