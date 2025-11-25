@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -11,7 +10,7 @@ export default function VerificationsPage() {
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -21,7 +20,7 @@ export default function VerificationsPage() {
   const [allUsers, setAllUsers] = useState([]);
   const [viewMode, setViewMode] = useState('verifications'); // 'verifications' or 'all_users'
   const [allUsersData, setAllUsersData] = useState([]);
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -33,6 +32,16 @@ export default function VerificationsPage() {
     approvedToday: 0,
     rejectedToday: 0
   });
+
+  // Modals and Banners state
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedVerification, setSelectedVerification] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [actionModal, setActionModal] = useState({ show: false, type: '', verification: null });
+  const [enforceModal, setEnforceModal] = useState({ show: false, verification: null });
 
   useEffect(() => {
     fetchUsers();
@@ -155,10 +164,6 @@ export default function VerificationsPage() {
     }
   };
 
-  const [selectedVerification, setSelectedVerification] = useState(null);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [actionModal, setActionModal] = useState({ show: false, type: '', verification: null });
-
   const handleViewMedia = async (verification) => {
     setSelectedVerification(verification);
     setShowImageModal(true);
@@ -174,18 +179,18 @@ export default function VerificationsPage() {
 
   const executeAction = async () => {
     const { type, verification } = actionModal;
-    
+
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      
-      const endpoint = type === 'approve' 
+
+      const endpoint = type === 'approve'
         ? '/api/admin/verifications/approve'
         : '/api/admin/verifications/reject';
-      
+
       const body = {
         verificationId: verification.id,
-        ...(type === 'reject' && { 
+        ...(type === 'reject' && {
           rejectionReason: document.getElementById('rejection-reason')?.value || 'Not specified',
           adminNotes: document.getElementById('admin-notes')?.value || ''
         }),
@@ -210,26 +215,49 @@ export default function VerificationsPage() {
       setActionModal({ show: false, type: '', verification: null });
       await fetchVerifications();
       setError('');
+      setSuccessMessage(`Verification ${type}d successfully.`);
+      setShowSuccessBanner(true);
+      setTimeout(() => setShowSuccessBanner(false), 3000);
     } catch (err) {
       console.error('Error processing verification:', err);
       setError(err.message);
+      setErrorMessage(err.message || 'Failed to process verification.');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEnforceVerification = async (verification) => {
-    const reason = prompt(`Enter reason for requiring verification for ${verification.email}:`);
-    if (!reason) return;
+  const handleEnforceVerification = async (verificationToEnforce) => {
+    setEnforceModal({ show: true, verification: verificationToEnforce });
+  };
+
+  const enforceVerificationAction = async () => {
+    const { verification } = enforceModal;
+    const verificationTypes = [];
+    if (document.getElementById('enforce-selfie')?.checked) verificationTypes.push('selfie');
+    if (document.getElementById('enforce-video')?.checked) verificationTypes.push('video');
+    if (document.getElementById('enforce-liveness')?.checked) verificationTypes.push('liveness');
+    const reason = document.getElementById('enforce-reason')?.value || 'Not specified';
+
+    if (verificationTypes.length === 0) {
+      setErrorMessage('Please select at least one verification type.');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+      return;
+    }
 
     try {
+      setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
           requires_verification: true,
           verification_reason: reason,
+          verification_types: verificationTypes,
           verification_required_at: new Date().toISOString(),
           is_verified: false
         })
@@ -237,11 +265,22 @@ export default function VerificationsPage() {
 
       if (updateError) throw updateError;
 
-      alert(`Verification requirement enforced for ${verification.email}`);
-      await fetchVerifications();
+      setEnforceModal({ show: false, verification: null });
+      setSuccessMessage(`Verification requirement enforced for ${verification.email}.`);
+      setShowSuccessBanner(true);
+      setTimeout(() => setShowSuccessBanner(false), 3000);
+      if (viewMode === 'all_users') {
+        await fetchAllUsersVerificationStatus();
+      } else {
+        await fetchVerifications();
+      }
     } catch (err) {
       console.error('Error enforcing verification:', err);
-      setError(err.message);
+      setErrorMessage(err.message || 'Failed to enforce verification.');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -250,19 +289,22 @@ export default function VerificationsPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
           requires_verification: false,
           verification_reason: null,
+          verification_types: null,
           verification_required_at: null
         })
         .eq('id', verification.user_id);
 
       if (updateError) throw updateError;
 
-      alert(`Verification requirement removed for ${verification.email}`);
+      setSuccessMessage(`Verification requirement removed for ${verification.email}`);
+      setShowSuccessBanner(true);
+      setTimeout(() => setShowSuccessBanner(false), 3000);
       if (viewMode === 'all_users') {
         await fetchAllUsersVerificationStatus();
       } else {
@@ -270,7 +312,9 @@ export default function VerificationsPage() {
       }
     } catch (err) {
       console.error('Error removing verification requirement:', err);
-      setError(err.message);
+      setErrorMessage(err.message || 'Failed to remove verification requirement.');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
     }
   };
 
@@ -280,20 +324,23 @@ export default function VerificationsPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
           is_verified: false,
           requires_verification: true,
           verification_reason: reason,
+          verification_types: ['selfie', 'video', 'liveness'], // Defaulting to all types for re-verification
           verification_required_at: new Date().toISOString()
         })
         .eq('id', verification.user_id);
 
       if (updateError) throw updateError;
 
-      alert(`Verification revoked for ${verification.email}`);
+      setSuccessMessage(`Verification revoked for ${verification.email}`);
+      setShowSuccessBanner(true);
+      setTimeout(() => setShowSuccessBanner(false), 3000);
       if (viewMode === 'all_users') {
         await fetchAllUsersVerificationStatus();
       } else {
@@ -301,7 +348,9 @@ export default function VerificationsPage() {
       }
     } catch (err) {
       console.error('Error revoking verification:', err);
-      setError(err.message);
+      setErrorMessage(err.message || 'Failed to revoke verification.');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
     }
   };
 
@@ -393,8 +442,8 @@ export default function VerificationsPage() {
             <option value="all">All Users</option>
             {allUsers.map(user => (
               <option key={user.id} value={user.id}>
-                {user.profiles?.first_name && user.profiles?.last_name 
-                  ? `${user.profiles.first_name} ${user.profiles.last_name}` 
+                {user.profiles?.first_name && user.profiles?.last_name
+                  ? `${user.profiles.first_name} ${user.profiles.last_name}`
                   : user.email}
               </option>
             ))}
@@ -455,16 +504,16 @@ export default function VerificationsPage() {
                       </td>
                       <td style={styles.td}>{user.email}</td>
                       <td style={styles.td}>
-                        <span style={user.is_verified ? 
-                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d1fae5', color: '#065f46'} : 
+                        <span style={user.is_verified ?
+                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d1fae5', color: '#065f46'} :
                           {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fee2e2', color: '#991b1b'}
                         }>
                           {user.is_verified ? '✓ Verified' : '✕ Not Verified'}
                         </span>
                       </td>
                       <td style={styles.td}>
-                        <span style={user.requires_verification ? 
-                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fef3c7', color: '#92400e'} : 
+                        <span style={user.requires_verification ?
+                          {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fef3c7', color: '#92400e'} :
                           {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#f3f4f6', color: '#6b7280'}
                         }>
                           {user.requires_verification ? '⚠️ Required' : 'Not Required'}
@@ -509,12 +558,12 @@ export default function VerificationsPage() {
             <div style={styles.emptyState}>
               <p style={styles.emptyIcon}>🔍</p>
               <p style={styles.emptyText}>
-                {searchEmail || statusFilter !== 'all' || typeFilter !== 'all' 
-                  ? 'No verifications match your filters' 
+                {searchEmail || statusFilter !== 'all' || typeFilter !== 'all'
+                  ? 'No verifications match your filters'
                   : 'No verification requests yet'}
               </p>
               {(searchEmail || statusFilter !== 'all' || typeFilter !== 'all') && (
-                <button 
+                <button
                   onClick={() => {
                     setSearchEmail('');
                     setStatusFilter('all');
@@ -560,16 +609,16 @@ export default function VerificationsPage() {
                       </span>
                     </td>
                     <td style={styles.td}>
-                      <span style={verification.is_verified ? 
-                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d1fae5', color: '#065f46'} : 
+                      <span style={verification.is_verified ?
+                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d1fae5', color: '#065f46'} :
                         {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fee2e2', color: '#991b1b'}
                       }>
                         {verification.is_verified ? '✓ Verified' : '✕ Not Verified'}
                       </span>
                     </td>
                     <td style={styles.td}>
-                      <span style={verification.requires_verification ? 
-                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fef3c7', color: '#92400e'} : 
+                      <span style={verification.requires_verification ?
+                        {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#fef3c7', color: '#92400e'} :
                         {padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#f3f4f6', color: '#6b7280'}
                       }>
                         {verification.requires_verification ? '⚠️ Required' : 'Not Required'}
@@ -663,8 +712,8 @@ export default function VerificationsPage() {
                 {selectedVerification.video_path && (
                   <div style={{ marginBottom: '20px' }}>
                     <h3>Video Verification</h3>
-                    <video 
-                      controls 
+                    <video
+                      controls
                       style={{ width: '100%', maxHeight: '500px', borderRadius: '8px' }}
                       src={selectedVerification.video_path}
                     >
@@ -675,8 +724,8 @@ export default function VerificationsPage() {
                 {selectedVerification.image_path && (
                   <div>
                     <h3>Selfie Verification</h3>
-                    <img 
-                      src={selectedVerification.image_path} 
+                    <img
+                      src={selectedVerification.image_path}
                       alt="Verification selfie"
                       style={{ width: '100%', borderRadius: '8px' }}
                     />
@@ -704,7 +753,7 @@ export default function VerificationsPage() {
                 <p><strong>User:</strong> {actionModal.verification.email}</p>
                 <p><strong>Type:</strong> {actionModal.verification.verification_type}</p>
                 <p><strong>Submitted:</strong> {formatDate(actionModal.verification.submitted_at)}</p>
-                
+
                 {actionModal.type === 'reject' && (
                   <div style={{ marginTop: '20px' }}>
                     <label style={styles.label}>Rejection Reason *</label>
@@ -717,7 +766,7 @@ export default function VerificationsPage() {
                     />
                   </div>
                 )}
-                
+
                 <div style={{ marginTop: '20px' }}>
                   <label style={styles.label}>Admin Notes (Optional)</label>
                   <textarea
@@ -744,6 +793,109 @@ export default function VerificationsPage() {
                 >
                   {actionModal.type === 'approve' ? 'Approve' : 'Reject'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enforce Verification Modal */}
+        {enforceModal.show && enforceModal.verification && (
+          <div style={styles.modalOverlay} onClick={() => setEnforceModal({ show: false, verification: null })}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>🔒 Enforce Verification</h2>
+                <button onClick={() => setEnforceModal({ show: false, verification: null })} style={styles.closeBtn}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <p><strong>User:</strong> {enforceModal.verification.email}</p>
+                <div style={{ marginTop: '20px' }}>
+                  <label style={styles.label}>Verification Types *</label>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    <div>
+                      <input type="checkbox" id="enforce-selfie" />
+                      <label htmlFor="enforce-selfie" style={{ marginLeft: '8px' }}>Selfie</label>
+                    </div>
+                    <div>
+                      <input type="checkbox" id="enforce-video" />
+                      <label htmlFor="enforce-video" style={{ marginLeft: '8px' }}>Video</label>
+                    </div>
+                    <div>
+                      <input type="checkbox" id="enforce-liveness" />
+                      <label htmlFor="enforce-liveness" style={{ marginLeft: '8px' }}>Liveness</label>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '20px' }}>
+                  <label style={styles.label}>Reason for Enforcement *</label>
+                  <textarea
+                    id="enforce-reason"
+                    style={styles.textarea}
+                    rows={3}
+                    placeholder="Enter reason for enforcement..."
+                    required
+                  />
+                </div>
+              </div>
+              <div style={styles.modalFooter}>
+                <button
+                  onClick={() => setEnforceModal({ show: false, verification: null })}
+                  style={styles.cancelButton}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={enforceVerificationAction}
+                  style={{
+                    ...styles.confirmButton,
+                    background: '#f59e0b' // Enforce button color
+                  }}
+                >
+                  Enforce
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>Notification</span>
+                <div style={styles.successBannerActions}>
+                  <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerAction}>Success!</p>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+              <div style={styles.successBannerFooter}>
+                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerOkButton}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {showErrorBanner && (
+          <div style={styles.errorBannerOverlay}>
+            <div style={styles.errorBannerContainer}>
+              <div style={styles.errorBannerHeader}>
+                <span style={styles.errorBannerLogo}>Error</span>
+                <div style={styles.errorBannerActions}>
+                  <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.errorBannerContent}>
+                <p style={styles.errorBannerAction}>Oops!</p>
+                <p style={styles.errorBannerMessage}>{errorMessage}</p>
+              </div>
+              <div style={styles.errorBannerFooter}>
+                <span style={styles.errorBannerWarning}>⚠️ An error occurred</span>
+                <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerOkButton}>OK</button>
               </div>
             </div>
           </div>
@@ -1090,6 +1242,7 @@ const styles = {
     padding: '12px 24px',
     border: 'none',
     borderRadius: '8px',
+    backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
     color: 'white',
     fontSize: '14px',
     fontWeight: '600',
@@ -1136,5 +1289,215 @@ const styles = {
     backgroundColor: '#1e40af',
     color: 'white',
     borderColor: '#1e40af'
+  },
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  successBannerIcon: {
+    fontSize: '32px',
+    animation: 'bounce 0.6s ease-in-out'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  },
+  errorBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  errorBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  errorBannerHeader: {
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  errorBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  errorBannerIcon: {
+    fontSize: '32px',
+    animation: 'bounce 0.6s ease-in-out'
+  },
+  errorBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  errorBannerContent: {
+    padding: '30px 20px'
+  },
+  errorBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#dc2626',
+    textAlign: 'center'
+  },
+  errorBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  errorBannerFooter: {
+    backgroundColor: '#fef2f2',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerWarning: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  errorBannerOkButton: {
+    padding: '8px 24px',
+    background: '#dc2626',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   }
 };
