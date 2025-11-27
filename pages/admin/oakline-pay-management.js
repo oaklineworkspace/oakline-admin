@@ -307,133 +307,149 @@ export default function OaklinePayManagement() {
 
   const styles = {
     container: {
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: 'clamp(0.75rem, 3vw, 2rem)',
-      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-      '@media (max-width: 768px)': {
-        padding: 'clamp(0.5rem, 2vw, 1rem)'
-      }
+      minHeight: '100vh',
+      backgroundImage: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      padding: '20px',
+      paddingBottom: '100px',
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
     },
     header: {
-      background: 'linear-gradient(135deg, #1A3E6F 0%, #3b82f6 100%)',
-      color: 'white',
-      padding: 'clamp(1rem, 3vw, 2.5rem)',
-      borderRadius: '8px',
-      marginBottom: '1.5rem',
-      boxShadow: '0 4px 15px rgba(26, 62, 111, 0.2)'
+      backgroundColor: 'white',
+      padding: '24px',
+      borderRadius: '12px',
+      marginBottom: '20px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      flexWrap: 'wrap',
+      gap: '16px'
+    },
+    headerContent: {
+      flex: 1,
+      minWidth: '250px'
     },
     title: {
-      fontSize: 'clamp(1.25rem, 2.5vw, 2.5rem)',
-      fontWeight: '700',
-      margin: '0 0 0.25rem 0'
+      margin: '0 0 8px 0',
+      fontSize: '28px',
+      color: '#1A3E6F',
+      fontWeight: '700'
     },
     subtitle: {
-      fontSize: 'clamp(0.75rem, 1.5vw, 14px)',
-      opacity: '0.9'
+      margin: 0,
+      color: '#718096',
+      fontSize: '14px'
     },
     tabs: {
       display: 'flex',
-      gap: 'clamp(0.5rem, 2vw, 1rem)',
-      marginBottom: '1.5rem',
-      borderBottom: '2px solid #e5e7eb',
-      overflowX: 'auto',
-      WebkitOverflowScrolling: 'touch',
-      paddingBottom: '0.5rem'
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '5px',
+      marginBottom: '20px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      gap: '5px',
+      flexWrap: 'wrap',
+      overflowX: 'auto'
     },
     tab: {
-      padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 20px)',
-      backgroundColor: 'transparent',
-      color: '#6b7280',
+      flex: '1 1 auto',
+      minWidth: '120px',
+      padding: '12px 16px',
       border: 'none',
-      borderBottom: '3px solid transparent',
-      fontSize: 'clamp(12px, 1.8vw, 14px)',
-      fontWeight: '600',
+      backgroundColor: 'transparent',
+      borderRadius: '8px',
       cursor: 'pointer',
-      transition: 'all 0.3s ease',
+      fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+      fontWeight: '500',
+      color: '#666',
+      transition: 'all 0.3s',
       whiteSpace: 'nowrap'
     },
     activeTab: {
-      color: '#3b82f6',
-      borderBottomColor: '#3b82f6'
+      backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+      color: 'white'
     },
     statsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(clamp(140px, 25vw, 200px), 1fr))',
-      gap: 'clamp(0.75rem, 2vw, 1rem)',
-      marginBottom: '1.5rem'
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '16px',
+      marginBottom: '20px'
     },
     statCard: {
-      background: 'white',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      padding: 'clamp(0.75rem, 2vw, 1rem)',
-      textAlign: 'center',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      backgroundColor: 'white',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
     },
     statLabel: {
-      fontSize: 'clamp(10px, 1.5vw, 12px)',
-      color: '#6b7280',
-      margin: '0',
-      fontWeight: '600'
+      margin: '0 0 8px 0',
+      fontSize: 'clamp(0.85rem, 2vw, 14px)',
+      color: '#718096',
+      fontWeight: '500'
     },
     statValue: {
-      fontSize: 'clamp(18px, 3vw, 24px)',
-      fontWeight: '700',
-      color: '#1f2937',
-      margin: '0.25rem 0 0 0'
+      margin: 0,
+      fontSize: 'clamp(1.5rem, 4vw, 28px)',
+      color: '#1A3E6F',
+      fontWeight: '700'
     },
     filterSection: {
+      backgroundColor: 'white',
+      padding: '20px',
+      borderRadius: '12px',
+      marginBottom: '20px',
       display: 'flex',
-      gap: 'clamp(0.5rem, 2vw, 1rem)',
-      marginBottom: '1.5rem',
-      flexWrap: 'wrap'
+      gap: '12px',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
     },
     searchInput: {
-      flex: '1 1 150px',
-      minWidth: '150px',
-      padding: 'clamp(8px, 1.5vw, 10px) clamp(10px, 2vw, 12px)',
-      border: '1px solid #d1d5db',
-      borderRadius: '6px',
-      fontSize: 'clamp(12px, 1.8vw, 14px)',
+      flex: 1,
+      minWidth: '250px',
+      padding: '12px',
+      border: '2px solid #e2e8f0',
+      borderRadius: '8px',
+      fontSize: 'clamp(0.85rem, 2vw, 14px)',
       outline: 'none',
       boxSizing: 'border-box'
     },
     select: {
-      padding: 'clamp(8px, 1.5vw, 10px) clamp(10px, 2vw, 12px)',
-      border: '1px solid #d1d5db',
-      borderRadius: '6px',
-      fontSize: 'clamp(12px, 1.8vw, 14px)',
-      backgroundColor: 'white',
+      padding: '12px',
+      border: '2px solid #e2e8f0',
+      borderRadius: '8px',
+      fontSize: 'clamp(0.85rem, 2vw, 14px)',
       cursor: 'pointer',
-      minWidth: 'clamp(100px, 20vw, 140px)',
+      outline: 'none',
+      minWidth: '150px',
+      backgroundColor: 'white',
       boxSizing: 'border-box'
     },
     tableContainer: {
       backgroundColor: 'white',
-      borderRadius: '8px',
-      border: '1px solid #e5e7eb',
+      borderRadius: '12px',
+      padding: 'clamp(1.5rem, 4vw, 24px)',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
       overflowX: 'auto',
-      WebkitOverflowScrolling: 'touch',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      WebkitOverflowScrolling: 'touch'
     },
     table: {
       width: '100%',
       borderCollapse: 'collapse',
-      fontSize: 'clamp(11px, 1.5vw, 14px)',
-      minWidth: '600px'
+      fontSize: 'clamp(0.85rem, 1.8vw, 14px)',
+      minWidth: '700px'
     },
     th: {
-      backgroundColor: '#f3f4f6',
-      padding: 'clamp(8px, 1.5vw, 12px)',
+      backgroundColor: '#f9fafb',
+      padding: '16px',
       textAlign: 'left',
       fontWeight: '600',
-      color: '#374151',
+      color: '#1a202c',
       borderBottom: '2px solid #e5e7eb',
       whiteSpace: 'nowrap'
     },
     td: {
-      padding: 'clamp(8px, 1.5vw, 12px)',
+      padding: '16px',
       borderBottom: '1px solid #e5e7eb'
     },
     actionButtons: {
@@ -466,23 +482,34 @@ export default function OaklinePayManagement() {
     errorBanner: {
       backgroundColor: '#fee2e2',
       color: '#dc2626',
-      padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
-      borderRadius: '6px',
-      marginBottom: '1rem',
-      fontSize: 'clamp(12px, 1.5vw, 14px)'
+      padding: '16px',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      fontSize: 'clamp(0.85rem, 2vw, 14px)',
+      fontWeight: '500',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
     },
     successBanner: {
       backgroundColor: '#d1fae5',
       color: '#065f46',
-      padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
-      borderRadius: '6px',
-      marginBottom: '1rem',
-      fontSize: 'clamp(12px, 1.5vw, 14px)'
+      padding: '16px',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      fontSize: 'clamp(0.85rem, 2vw, 14px)',
+      fontWeight: '500',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
     },
     emptyState: {
       textAlign: 'center',
-      padding: 'clamp(1rem, 3vw, 2rem)',
-      color: '#6b7280'
+      padding: '60px 20px',
+      color: '#718096',
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
     },
     modal: {
       position: 'fixed',
@@ -495,12 +522,12 @@ export default function OaklinePayManagement() {
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: '1000',
-      padding: '1rem'
+      padding: '20px'
     },
     modalContent: {
       backgroundColor: 'white',
-      borderRadius: '8px',
-      padding: 'clamp(1rem, 3vw, 2rem)',
+      borderRadius: '12px',
+      padding: '32px',
       maxWidth: '500px',
       width: '100%',
       boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
@@ -543,12 +570,14 @@ export default function OaklinePayManagement() {
     <AdminAuth>
       <div style={styles.container}>
         <div style={styles.header}>
-          <h1 style={styles.title}>💳 Oakline Pay Management</h1>
-          <p style={styles.subtitle}>Manage Oakline Tags and Payment History</p>
+          <div style={styles.headerContent}>
+            <h1 style={styles.title}>💳 Oakline Pay Management</h1>
+            <p style={styles.subtitle}>Manage Oakline Tags and Payment History</p>
+          </div>
         </div>
 
-        {error && <div style={styles.errorBanner}>{error}</div>}
-        {success && <div style={styles.successBanner}>{success}</div>}
+        {error && <div style={styles.errorBanner}>{error} <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>✕</button></div>}
+        {success && <div style={styles.successBanner}>{success} <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>✕</button></div>}
 
         {/* Stats */}
         <div style={styles.statsGrid}>
