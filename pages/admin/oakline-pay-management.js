@@ -130,6 +130,68 @@ export default function OaklinePayManagement() {
     setShowModal(true);
   };
 
+  const handleDeleteTag = async (tagId) => {
+    if (!confirm('Are you sure you want to delete this tag? This action cannot be undone.')) return;
+    
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/delete-oakline-tag', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ tagId })
+      });
+
+      if (!response.ok) throw new Error('Failed to delete tag');
+      setSuccess('✅ Tag deleted successfully!');
+      fetchAllData();
+    } catch (error) {
+      console.error('Error:', error);
+      setError('❌ ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId) => {
+    if (!confirm('Are you sure you want to delete this payment? This action cannot be undone.')) return;
+    
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        return;
+      }
+
+      const response = await fetch('/api/admin/delete-oakline-payment', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ paymentId })
+      });
+
+      if (!response.ok) throw new Error('Failed to delete payment');
+      setSuccess('✅ Payment deleted successfully!');
+      fetchAllData();
+    } catch (error) {
+      console.error('Error:', error);
+      setError('❌ ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const submitAction = async (e) => {
     e.preventDefault();
     setActionLoading(true);
@@ -565,6 +627,13 @@ export default function OaklinePayManagement() {
                             >
                               {tag.is_active ? '🔒 Deactivate' : '🔓 Activate'}
                             </button>
+                            <button 
+                              onClick={() => handleDeleteTag(tag.id)}
+                              style={{ ...styles.actionButton, ...styles.dangerButton }}
+                              disabled={actionLoading}
+                            >
+                              🗑️ Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -655,6 +724,13 @@ export default function OaklinePayManagement() {
                                 ⏱️ Expire
                               </button>
                             )}
+                            <button 
+                              onClick={() => handleDeletePayment(payment.id)}
+                              style={{ ...styles.actionButton, ...styles.dangerButton }}
+                              disabled={actionLoading}
+                            >
+                              🗑️ Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
