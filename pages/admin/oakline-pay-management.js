@@ -309,42 +309,49 @@ export default function OaklinePayManagement() {
     container: {
       maxWidth: '1400px',
       margin: '0 auto',
-      padding: 'clamp(1rem, 3vw, 2rem)',
-      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
+      padding: 'clamp(0.75rem, 3vw, 2rem)',
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      '@media (max-width: 768px)': {
+        padding: 'clamp(0.5rem, 2vw, 1rem)'
+      }
     },
     header: {
       background: 'linear-gradient(135deg, #1A3E6F 0%, #3b82f6 100%)',
       color: 'white',
-      padding: 'clamp(1.5rem, 4vw, 2.5rem)',
+      padding: 'clamp(1rem, 3vw, 2.5rem)',
       borderRadius: '8px',
-      marginBottom: '2rem',
+      marginBottom: '1.5rem',
       boxShadow: '0 4px 15px rgba(26, 62, 111, 0.2)'
     },
     title: {
-      fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+      fontSize: 'clamp(1.25rem, 2.5vw, 2.5rem)',
       fontWeight: '700',
-      margin: '0 0 0.5rem 0'
+      margin: '0 0 0.25rem 0'
     },
     subtitle: {
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
+      fontSize: 'clamp(0.75rem, 1.5vw, 14px)',
       opacity: '0.9'
     },
     tabs: {
       display: 'flex',
-      gap: '1rem',
-      marginBottom: '2rem',
-      borderBottom: '2px solid #e5e7eb'
+      gap: 'clamp(0.5rem, 2vw, 1rem)',
+      marginBottom: '1.5rem',
+      borderBottom: '2px solid #e5e7eb',
+      overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      paddingBottom: '0.5rem'
     },
     tab: {
-      padding: '12px 20px',
+      padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 20px)',
       backgroundColor: 'transparent',
       color: '#6b7280',
       border: 'none',
       borderBottom: '3px solid transparent',
-      fontSize: '14px',
+      fontSize: 'clamp(12px, 1.8vw, 14px)',
       fontWeight: '600',
       cursor: 'pointer',
-      transition: 'all 0.3s ease'
+      transition: 'all 0.3s ease',
+      whiteSpace: 'nowrap'
     },
     activeTab: {
       color: '#3b82f6',
@@ -352,89 +359,97 @@ export default function OaklinePayManagement() {
     },
     statsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-      gap: '1rem',
-      marginBottom: '2rem'
+      gridTemplateColumns: 'repeat(auto-fit, minmax(clamp(140px, 25vw, 200px), 1fr))',
+      gap: 'clamp(0.75rem, 2vw, 1rem)',
+      marginBottom: '1.5rem'
     },
     statCard: {
       background: 'white',
       border: '1px solid #e5e7eb',
       borderRadius: '8px',
-      padding: '1rem',
+      padding: 'clamp(0.75rem, 2vw, 1rem)',
       textAlign: 'center',
       boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
     },
     statLabel: {
-      fontSize: '12px',
+      fontSize: 'clamp(10px, 1.5vw, 12px)',
       color: '#6b7280',
       margin: '0',
       fontWeight: '600'
     },
     statValue: {
-      fontSize: '24px',
+      fontSize: 'clamp(18px, 3vw, 24px)',
       fontWeight: '700',
       color: '#1f2937',
-      margin: '0.5rem 0 0 0'
+      margin: '0.25rem 0 0 0'
     },
     filterSection: {
       display: 'flex',
-      gap: '1rem',
+      gap: 'clamp(0.5rem, 2vw, 1rem)',
       marginBottom: '1.5rem',
       flexWrap: 'wrap'
     },
     searchInput: {
-      flex: '1 1 200px',
-      padding: '10px 12px',
+      flex: '1 1 150px',
+      minWidth: '150px',
+      padding: 'clamp(8px, 1.5vw, 10px) clamp(10px, 2vw, 12px)',
       border: '1px solid #d1d5db',
       borderRadius: '6px',
-      fontSize: '14px',
-      outline: 'none'
+      fontSize: 'clamp(12px, 1.8vw, 14px)',
+      outline: 'none',
+      boxSizing: 'border-box'
     },
     select: {
-      padding: '10px 12px',
+      padding: 'clamp(8px, 1.5vw, 10px) clamp(10px, 2vw, 12px)',
       border: '1px solid #d1d5db',
       borderRadius: '6px',
-      fontSize: '14px',
+      fontSize: 'clamp(12px, 1.8vw, 14px)',
       backgroundColor: 'white',
-      cursor: 'pointer'
+      cursor: 'pointer',
+      minWidth: 'clamp(100px, 20vw, 140px)',
+      boxSizing: 'border-box'
     },
     tableContainer: {
       backgroundColor: 'white',
       borderRadius: '8px',
       border: '1px solid #e5e7eb',
-      overflow: 'hidden',
+      overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch',
       boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
     },
     table: {
       width: '100%',
       borderCollapse: 'collapse',
-      fontSize: 'clamp(0.75rem, 1.8vw, 14px)'
+      fontSize: 'clamp(11px, 1.5vw, 14px)',
+      minWidth: '600px'
     },
     th: {
       backgroundColor: '#f3f4f6',
-      padding: '12px',
+      padding: 'clamp(8px, 1.5vw, 12px)',
       textAlign: 'left',
       fontWeight: '600',
       color: '#374151',
-      borderBottom: '2px solid #e5e7eb'
+      borderBottom: '2px solid #e5e7eb',
+      whiteSpace: 'nowrap'
     },
     td: {
-      padding: '12px',
+      padding: 'clamp(8px, 1.5vw, 12px)',
       borderBottom: '1px solid #e5e7eb'
     },
     actionButtons: {
       display: 'flex',
-      gap: '0.5rem',
+      gap: 'clamp(0.25rem, 1vw, 0.5rem)',
       flexWrap: 'wrap'
     },
     actionButton: {
-      padding: '6px 12px',
+      padding: 'clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 12px)',
       borderRadius: '6px',
       border: 'none',
-      fontSize: '12px',
+      fontSize: 'clamp(10px, 1.2vw, 12px)',
       fontWeight: '600',
       cursor: 'pointer',
-      transition: 'all 0.3s ease'
+      transition: 'all 0.3s ease',
+      whiteSpace: 'nowrap'
     },
     primaryButton: {
       backgroundColor: '#3b82f6',
@@ -451,20 +466,22 @@ export default function OaklinePayManagement() {
     errorBanner: {
       backgroundColor: '#fee2e2',
       color: '#dc2626',
-      padding: '12px 16px',
+      padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
       borderRadius: '6px',
-      marginBottom: '1rem'
+      marginBottom: '1rem',
+      fontSize: 'clamp(12px, 1.5vw, 14px)'
     },
     successBanner: {
       backgroundColor: '#d1fae5',
       color: '#065f46',
-      padding: '12px 16px',
+      padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
       borderRadius: '6px',
-      marginBottom: '1rem'
+      marginBottom: '1rem',
+      fontSize: 'clamp(12px, 1.5vw, 14px)'
     },
     emptyState: {
       textAlign: 'center',
-      padding: '2rem',
+      padding: 'clamp(1rem, 3vw, 2rem)',
       color: '#6b7280'
     },
     modal: {
@@ -477,15 +494,18 @@ export default function OaklinePayManagement() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: '1000'
+      zIndex: '1000',
+      padding: '1rem'
     },
     modalContent: {
       backgroundColor: 'white',
       borderRadius: '8px',
-      padding: '2rem',
+      padding: 'clamp(1rem, 3vw, 2rem)',
       maxWidth: '500px',
-      width: '90%',
-      boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+      width: '100%',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
     },
     formGroup: {
       marginBottom: '1rem'
@@ -494,25 +514,25 @@ export default function OaklinePayManagement() {
       display: 'block',
       marginBottom: '0.5rem',
       fontWeight: '600',
-      fontSize: '14px',
+      fontSize: 'clamp(12px, 1.5vw, 14px)',
       color: '#374151'
     },
     formInput: {
       width: '100%',
-      padding: '10px',
+      padding: 'clamp(8px, 1.5vw, 10px)',
       border: '1px solid #d1d5db',
       borderRadius: '6px',
-      fontSize: '14px',
+      fontSize: 'clamp(12px, 1.5vw, 14px)',
       boxSizing: 'border-box'
     },
     submitButton: {
       width: '100%',
-      padding: '10px',
+      padding: 'clamp(8px, 1.5vw, 10px)',
       backgroundColor: '#3b82f6',
       color: 'white',
       border: 'none',
       borderRadius: '6px',
-      fontSize: '14px',
+      fontSize: 'clamp(12px, 1.5vw, 14px)',
       fontWeight: '600',
       cursor: 'pointer',
       marginTop: '1rem'
@@ -580,7 +600,7 @@ export default function OaklinePayManagement() {
             <div style={styles.filterSection}>
               <input
                 type="text"
-                placeholder="🔍 Search tags..."
+                placeholder="🔍 Search..."
                 value={tagSearchTerm}
                 onChange={(e) => setTagSearchTerm(e.target.value)}
                 style={styles.searchInput}
@@ -652,7 +672,7 @@ export default function OaklinePayManagement() {
             <div style={styles.filterSection}>
               <input
                 type="text"
-                placeholder="🔍 Search payments..."
+                placeholder="🔍 Search..."
                 value={paymentSearchTerm}
                 onChange={(e) => setPaymentSearchTerm(e.target.value)}
                 style={styles.searchInput}
@@ -664,7 +684,7 @@ export default function OaklinePayManagement() {
                 ))}
               </select>
               <select value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)} style={styles.select}>
-                <option value="all">All Status</option>
+                <option value="all">Status</option>
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="expired">Expired</option>
