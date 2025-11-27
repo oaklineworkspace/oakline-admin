@@ -53,17 +53,17 @@ export default function OaklinePayManagement() {
       setLoading(true);
       setError('');
 
-      const [tagsResult, paymentsResult, usersResult] = await Promise.all([
+      const [tagsResult, transactionsResult, usersResult] = await Promise.all([
         supabase.from('oakline_pay_profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('oakline_pay_pending_payments').select('*').order('created_at', { ascending: false }),
+        supabase.from('oakline_pay_transactions').select('*').order('created_at', { ascending: false }),
         supabase.from('applications').select('user_id, email, first_name, last_name')
       ]);
 
       if (tagsResult.error) throw tagsResult.error;
-      if (paymentsResult.error) throw paymentsResult.error;
+      if (transactionsResult.error) throw transactionsResult.error;
 
       setTags(tagsResult.data || []);
-      setPayments(paymentsResult.data || []);
+      setPayments(transactionsResult.data || []);
       
       const uniqueUsers = Array.from(new Map((usersResult.data || []).map(u => [u.user_id, { user_id: u.user_id, email: u.email, name: `${u.first_name} ${u.last_name}` }])).values());
       setTagUsers(uniqueUsers);
@@ -98,14 +98,15 @@ export default function OaklinePayManagement() {
     let filtered = [...payments];
 
     if (selectedPaymentUser !== 'all') {
-      filtered = filtered.filter(p => p.sender_id === selectedPaymentUser);
+      filtered = filtered.filter(p => (p.sender_id || p.user_id) === selectedPaymentUser);
     }
 
     if (paymentSearchTerm) {
       const search = paymentSearchTerm.toLowerCase();
       filtered = filtered.filter(p =>
         p.recipient_email?.toLowerCase().includes(search) ||
-        p.reference_number?.toLowerCase().includes(search)
+        p.reference_number?.toLowerCase().includes(search) ||
+        p.transaction_id?.toLowerCase().includes(search)
       );
     }
 
@@ -178,11 +179,11 @@ export default function OaklinePayManagement() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ paymentId })
+        body: JSON.stringify({ paymentId, isTransaction: true })
       });
 
-      if (!response.ok) throw new Error('Failed to delete payment');
-      setSuccess('✅ Payment deleted successfully!');
+      if (!response.ok) throw new Error('Failed to delete transaction');
+      setSuccess('✅ Transaction deleted successfully!');
       fetchAllData();
     } catch (error) {
       console.error('Error:', error);
@@ -684,8 +685,8 @@ export default function OaklinePayManagement() {
                       <th style={styles.th}>Recipient</th>
                       <th style={styles.th}>Reference</th>
                       <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Type</th>
                       <th style={styles.th}>Created</th>
-                      <th style={styles.th}>Expires</th>
                       <th style={styles.th}>Actions</th>
                     </tr>
                   </thead>
@@ -693,11 +694,11 @@ export default function OaklinePayManagement() {
                     {filteredPayments.map(payment => (
                       <tr key={payment.id}>
                         <td style={styles.td}><strong>{formatCurrency(payment.amount)}</strong></td>
-                        <td style={styles.td}>{payment.recipient_email}</td>
-                        <td style={styles.td}>{payment.reference_number.slice(0, 8)}...</td>
+                        <td style={styles.td}>{payment.recipient_email || payment.recipient || '—'}</td>
+                        <td style={styles.td}>{(payment.reference_number || payment.transaction_id || '').slice(0, 8)}...</td>
                         <td style={styles.td}>{getStatusBadge(payment.status)}</td>
+                        <td style={styles.td}>{payment.type || payment.transaction_type || '—'}</td>
                         <td style={styles.td}>{formatDateTime(payment.created_at)}</td>
-                        <td style={styles.td}>{formatDateTime(payment.expires_at)}</td>
                         <td style={styles.td}>
                           <div style={styles.actionButtons}>
                             {payment.status === 'pending' && (

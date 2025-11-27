@@ -12,14 +12,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { paymentId } = req.body;
+    const { paymentId, isTransaction } = req.body;
 
     if (!paymentId) {
       return res.status(400).json({ error: 'Payment ID is required' });
     }
 
+    // Delete from transactions table if isTransaction flag is set, otherwise from pending payments
+    const tableName = isTransaction ? 'oakline_pay_transactions' : 'oakline_pay_pending_payments';
+
     const { error: deleteError } = await supabaseAdmin
-      .from('oakline_pay_pending_payments')
+      .from(tableName)
       .delete()
       .eq('id', paymentId);
 
@@ -27,7 +30,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Payment deleted successfully'
+      message: `${isTransaction ? 'Transaction' : 'Payment'} deleted successfully`
     });
   } catch (error) {
     console.error('Error deleting payment:', error);
