@@ -57,7 +57,7 @@ export default function OaklinePayManagement() {
 
       const [tagsResult, transactionsResult, usersResult] = await Promise.all([
         supabase.from('oakline_pay_profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('oakline_pay_transactions').select('*').order('created_at', { ascending: false }),
+        supabase.from('oakline_pay_pending_payments').select('*').order('created_at', { ascending: false }),
         supabase.from('applications').select('user_id, email, first_name, last_name')
       ]);
 
@@ -100,7 +100,7 @@ export default function OaklinePayManagement() {
     let filtered = [...payments];
 
     if (selectedPaymentUser !== 'all') {
-      filtered = filtered.filter(p => (p.sender_id || p.user_id) === selectedPaymentUser);
+      filtered = filtered.filter(p => p.sender_id === selectedPaymentUser);
     }
 
     if (paymentSearchTerm) {

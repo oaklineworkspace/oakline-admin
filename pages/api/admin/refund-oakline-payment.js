@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     }
 
     const { data: payment, error: fetchError } = await supabaseAdmin
-      .from('oakline_pay_transactions')
+      .from('oakline_pay_pending_payments')
       .select('*')
       .eq('id', paymentId)
       .single();
@@ -34,11 +34,11 @@ export default async function handler(req, res) {
 
     const actualRefundAmount = refundAmount || payment.amount;
 
-    // Get user's account and credit the refund amount
+    // Get user's account and credit the refund amount using sender_id
     const { data: account, error: accountError } = await supabaseAdmin
       .from('accounts')
       .select('id, balance, user_id')
-      .eq('user_id', payment.user_id)
+      .eq('user_id', payment.sender_id)
       .single();
 
     if (!accountError && account) {
@@ -50,11 +50,10 @@ export default async function handler(req, res) {
     }
 
     const { error: updateError } = await supabaseAdmin
-      .from('oakline_pay_transactions')
+      .from('oakline_pay_pending_payments')
       .update({
         status: 'refunded',
-        refund_reason: refundReason || 'Customer refund request',
-        refund_amount: actualRefundAmount,
+        memo: `Refunded: ${refundReason || 'Customer refund request'}`,
         updated_at: new Date().toISOString()
       })
       .eq('id', paymentId);
