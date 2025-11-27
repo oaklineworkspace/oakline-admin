@@ -40,7 +40,6 @@ export default async function handler(req, res) {
         status: 'refunded',
         refund_reason: refundReason || 'Customer refund request',
         refund_amount: actualRefundAmount,
-        refunded_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', paymentId);

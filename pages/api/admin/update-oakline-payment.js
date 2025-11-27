@@ -32,11 +32,6 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString()
     };
 
-    // If completing the payment, set completed_at
-    if (status === 'completed') {
-      updateData.completed_at = new Date().toISOString();
-    }
-
     const { error: updateError } = await supabaseAdmin
       .from('oakline_pay_transactions')
       .update(updateData)
