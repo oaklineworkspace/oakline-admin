@@ -27,6 +27,35 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid status provided' });
     }
 
+    // Fetch the payment transaction
+    const { data: payment, error: fetchError } = await supabaseAdmin
+      .from('oakline_pay_transactions')
+      .select('*')
+      .eq('id', paymentId)
+      .single();
+
+    if (fetchError || !payment) {
+      throw new Error('Payment not found');
+    }
+
+    // If completing payment, credit user's account
+    if (status === 'completed' && payment.status !== 'completed') {
+      // Get user's account
+      const { data: account, error: accountError } = await supabaseAdmin
+        .from('accounts')
+        .select('id, balance, user_id')
+        .eq('user_id', payment.user_id)
+        .single();
+
+      if (!accountError && account) {
+        const newBalance = parseFloat(account.balance || 0) + parseFloat(payment.amount || 0);
+        await supabaseAdmin
+          .from('accounts')
+          .update({ balance: newBalance, updated_at: new Date().toISOString() })
+          .eq('id', account.id);
+      }
+    }
+
     const updateData = {
       status,
       updated_at: new Date().toISOString()
