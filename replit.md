@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 11. **Timestamp Editor:** Professional bulk update functionality for user timestamps with multi-select filters and date/datetime toggle.
 12. **Account Restriction Reasons Management:** Complete CRUD interface for managing professional account restriction reasons used in security actions (ban, lock, suspend, close accounts). Includes categorization, severity levels, contact email management, search/filter capabilities, and integration with the security dashboard. All reasons stored in database with appropriate bank contact emails.
 13. **Account Restoration Reasons Management:** New table for managing reasons for restoring user access (unban, lift suspension, unlock, reactivate). Supports multiple action types with predefined categories including appeals, compliance, legal, security, and technical reasons. Enables consistent documentation of why accounts are being restored.
+14. **Oakline Pay Management System:** Complete payment and tag management dashboard with professional interface. Features include payment status updates with automatic user account crediting (complete action), full/partial refund system with reason tracking (similar to PayPal/Cash App), advanced search/filter by recipient/reference, select-all/individual payment selection with visual highlighting, bulk delete functionality with confirmation dialogs, and comprehensive statistics dashboard. All changes tracked with timestamps and user attribution.
 
 ## Database Schema Notes
 

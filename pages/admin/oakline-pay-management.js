@@ -24,6 +24,7 @@ export default function OaklinePayManagement() {
   const [selectedPaymentUser, setSelectedPaymentUser] = useState('all');
   const [paymentSearchTerm, setPaymentSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [selectedPayments, setSelectedPayments] = useState(new Set());
 
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -137,6 +138,72 @@ export default function OaklinePayManagement() {
     setModalType('refund');
     setRefundForm({ reason: '', amount: payment.amount });
     setShowModal(true);
+  };
+
+  const togglePaymentSelection = (paymentId) => {
+    const newSelected = new Set(selectedPayments);
+    if (newSelected.has(paymentId)) {
+      newSelected.delete(paymentId);
+    } else {
+      newSelected.add(paymentId);
+    }
+    setSelectedPayments(newSelected);
+  };
+
+  const toggleSelectAllPayments = () => {
+    if (selectedPayments.size === filteredPayments.length && selectedPayments.size > 0) {
+      setSelectedPayments(new Set());
+    } else {
+      const allIds = new Set(filteredPayments.map(p => p.id));
+      setSelectedPayments(allIds);
+    }
+  };
+
+  const handleBulkDeletePayments = async () => {
+    if (selectedPayments.size === 0) {
+      setError('Please select payments to delete');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedPayments.size} payment(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        setActionLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/bulk-delete-oakline-payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ paymentIds: Array.from(selectedPayments) })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to delete payments');
+        setActionLoading(false);
+        return;
+      }
+
+      setSuccess(`✅ ${selectedPayments.size} payment(s) deleted successfully!`);
+      setSelectedPayments(new Set());
+      setTimeout(() => fetchAllData(), 500);
+    } catch (error) {
+      console.error('Error:', error);
+      setError('❌ ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleDeleteTag = async (tagId) => {
@@ -744,6 +811,15 @@ export default function OaklinePayManagement() {
                 <option value="expired">Expired</option>
                 <option value="cancelled">Cancelled</option>
               </select>
+              {selectedPayments.size > 0 && (
+                <button 
+                  onClick={handleBulkDeletePayments}
+                  style={{ ...styles.select, backgroundColor: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: '600', border: 'none' }}
+                  disabled={actionLoading}
+                >
+                  🗑️ Delete {selectedPayments.size} Selected
+                </button>
+              )}
             </div>
 
             {loading ? (
@@ -755,6 +831,14 @@ export default function OaklinePayManagement() {
                 <table style={styles.table}>
                   <thead>
                     <tr>
+                      <th style={{ ...styles.th, width: '30px', textAlign: 'center' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedPayments.size === filteredPayments.length && filteredPayments.length > 0}
+                          onChange={toggleSelectAllPayments}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
                       <th style={styles.th}>Amount</th>
                       <th style={styles.th}>Recipient</th>
                       <th style={styles.th}>Reference</th>
@@ -766,7 +850,15 @@ export default function OaklinePayManagement() {
                   </thead>
                   <tbody>
                     {filteredPayments.map(payment => (
-                      <tr key={payment.id}>
+                      <tr key={payment.id} style={selectedPayments.has(payment.id) ? { backgroundColor: '#f0fdf4' } : {}}>
+                        <td style={{ ...styles.td, textAlign: 'center', width: '30px' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedPayments.has(payment.id)}
+                            onChange={() => togglePaymentSelection(payment.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </td>
                         <td style={styles.td}><strong>{formatCurrency(payment.amount)}</strong></td>
                         <td style={styles.td}>{payment.recipient_email || payment.recipient || '—'}</td>
                         <td style={styles.td}>{(payment.reference_number || payment.transaction_id || '').slice(0, 8)}...</td>
