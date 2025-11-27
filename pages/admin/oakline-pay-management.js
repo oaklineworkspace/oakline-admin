@@ -32,9 +32,10 @@ export default function OaklinePayManagement() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(''); // 'tagStatus' or 'paymentStatus'
+  const [modalType, setModalType] = useState(''); // 'tagStatus', 'paymentStatus', or 'refund'
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionForm, setActionForm] = useState({ action: '', notes: '' });
+  const [refundForm, setRefundForm] = useState({ reason: '', amount: '' });
 
   useEffect(() => {
     fetchAllData();
@@ -128,6 +129,13 @@ export default function OaklinePayManagement() {
     setSelectedItem(payment);
     setModalType('paymentStatus');
     setActionForm({ action, notes: '' });
+    setShowModal(true);
+  };
+
+  const handleRefundPayment = (payment) => {
+    setSelectedItem(payment);
+    setModalType('refund');
+    setRefundForm({ reason: '', amount: payment.amount });
     setShowModal(true);
   };
 
@@ -238,6 +246,22 @@ export default function OaklinePayManagement() {
         });
 
         if (!response.ok) throw new Error('Failed to update payment');
+      } else if (modalType === 'refund') {
+        const response = await fetch('/api/admin/refund-oakline-payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            paymentId: selectedItem.id,
+            refundReason: refundForm.reason || 'Customer refund request',
+            refundAmount: parseFloat(refundForm.amount)
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to process refund');
       }
 
       setSuccess(`✅ Action completed successfully!`);
@@ -275,7 +299,8 @@ export default function OaklinePayManagement() {
       completed: { bg: '#d1fae5', color: '#065f46' },
       pending: { bg: '#fef3c7', color: '#92400e' },
       expired: { bg: '#fee2e2', color: '#991b1b' },
-      cancelled: { bg: '#fee2e2', color: '#991b1b' }
+      cancelled: { bg: '#fee2e2', color: '#991b1b' },
+      refunded: { bg: '#e0e7ff', color: '#3730a3' }
     };
 
     const style = colors[status?.toLowerCase()] || colors.pending;
@@ -766,7 +791,15 @@ export default function OaklinePayManagement() {
                                 </button>
                               </>
                             )}
-                            {payment.status !== 'completed' && payment.status !== 'cancelled' && (
+                            {payment.status === 'completed' && (
+                              <button 
+                                onClick={() => handleRefundPayment(payment)}
+                                style={{ ...styles.actionButton, backgroundColor: '#7c3aed', color: 'white' }}
+                              >
+                                ↶ Refund
+                              </button>
+                            )}
+                            {payment.status !== 'completed' && payment.status !== 'cancelled' && payment.status !== 'refunded' && (
                               <button 
                                 onClick={() => handlePaymentAction(payment, 'expired')}
                                 style={{ ...styles.actionButton, ...styles.dangerButton }}
@@ -797,23 +830,55 @@ export default function OaklinePayManagement() {
           <div style={styles.modal} onClick={() => setShowModal(false)}>
             <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
               <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '18px', fontWeight: '700' }}>
-                {modalType === 'tagStatus' ? 'Update Tag Status' : 'Update Payment Status'}
+                {modalType === 'tagStatus' ? 'Update Tag Status' : modalType === 'refund' ? 'Process Refund' : 'Update Payment Status'}
               </h2>
               <form onSubmit={submitAction}>
-                <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Action: {actionForm.action?.toUpperCase()}</label>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Notes (Optional)</label>
-                  <textarea
-                    value={actionForm.notes}
-                    onChange={(e) => setActionForm({ ...actionForm, notes: e.target.value })}
-                    style={{ ...styles.formInput, minHeight: '80px' }}
-                    placeholder="Add any notes..."
-                  />
-                </div>
+                {modalType === 'refund' ? (
+                  <>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Original Amount: <strong>{formatCurrency(selectedItem?.amount)}</strong></label>
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Refund Amount</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={selectedItem?.amount}
+                        value={refundForm.amount}
+                        onChange={(e) => setRefundForm({ ...refundForm, amount: parseFloat(e.target.value) })}
+                        style={styles.formInput}
+                        placeholder="Enter refund amount"
+                      />
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Refund Reason</label>
+                      <textarea
+                        value={refundForm.reason}
+                        onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
+                        style={{ ...styles.formInput, minHeight: '80px' }}
+                        placeholder="e.g., Customer requested, duplicate charge, product issue..."
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Action: {actionForm.action?.toUpperCase()}</label>
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Notes (Optional)</label>
+                      <textarea
+                        value={actionForm.notes}
+                        onChange={(e) => setActionForm({ ...actionForm, notes: e.target.value })}
+                        style={{ ...styles.formInput, minHeight: '80px' }}
+                        placeholder="Add any notes..."
+                      />
+                    </div>
+                  </>
+                )}
                 <button type="submit" style={styles.submitButton} disabled={actionLoading}>
-                  {actionLoading ? '⏳ Processing...' : '✅ Confirm Action'}
+                  {actionLoading ? '⏳ Processing...' : modalType === 'refund' ? '↶ Process Refund' : '✅ Confirm Action'}
                 </button>
               </form>
             </div>

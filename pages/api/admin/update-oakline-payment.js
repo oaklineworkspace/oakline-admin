@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     }
 
     const { error: updateError } = await supabaseAdmin
-      .from('oakline_pay_pending_payments')
+      .from('oakline_pay_transactions')
       .update(updateData)
       .eq('id', paymentId);
 
