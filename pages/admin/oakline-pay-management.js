@@ -6,86 +6,57 @@ import AdminFooter from '../../components/AdminFooter';
 import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
-const PAYMENT_STATUSES = ['pending', 'completed', 'expired', 'cancelled'];
-const REQUEST_STATUSES = ['pending', 'accepted', 'declined', 'cancelled', 'expired'];
-
 export default function OaklinePayManagement() {
   const router = useRouter();
-  const [activeView, setActiveView] = useState('tags'); // 'tags' or 'payments'
+  const [activeTab, setActiveTab] = useState('tags');
   
   // Tags state
   const [tags, setTags] = useState([]);
   const [filteredTags, setFilteredTags] = useState([]);
+  const [tagUsers, setTagUsers] = useState([]);
+  const [selectedTagUser, setSelectedTagUser] = useState('all');
   const [tagSearchTerm, setTagSearchTerm] = useState('');
-  const [tagStatusFilter, setTagStatusFilter] = useState('all');
   
   // Payments state
   const [payments, setPayments] = useState([]);
   const [filteredPayments, setFilteredPayments] = useState([]);
+  const [paymentUsers, setPaymentUsers] = useState([]);
+  const [selectedPaymentUser, setSelectedPaymentUser] = useState('all');
   const [paymentSearchTerm, setPaymentSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
-  const [paymentDateFilter, setPaymentDateFilter] = useState('all');
-  const [paymentDateRange, setPaymentDateRange] = useState({ start: '', end: '' });
 
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loadingBanner, setLoadingBanner] = useState({
-    visible: false,
-    current: 0,
-    total: 0,
-    action: '',
-    message: ''
-  });
 
-  // Modal states
-  const [showTagModal, setShowTagModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedTag, setSelectedTag] = useState(null);
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  const [tagForm, setTagForm] = useState({
-    is_active: true,
-    is_public: true,
-    allow_requests: true
-  });
-  const [paymentForm, setPaymentForm] = useState({
-    status: ''
-  });
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'tagStatus' or 'paymentStatus'
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [actionForm, setActionForm] = useState({ action: '', notes: '' });
 
   useEffect(() => {
-    fetchData();
+    fetchAllData();
   }, []);
 
   useEffect(() => {
     filterTags();
-  }, [tags, tagSearchTerm, tagStatusFilter]);
+  }, [tags, selectedTagUser, tagSearchTerm]);
 
   useEffect(() => {
     filterPayments();
-  }, [payments, paymentSearchTerm, paymentStatusFilter, paymentDateFilter, paymentDateRange]);
+  }, [payments, selectedPaymentUser, paymentSearchTerm, paymentStatusFilter]);
 
-  const fetchData = async () => {
+  const fetchAllData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const [tagsResult, paymentsResult] = await Promise.all([
-        supabase
-          .from('oakline_pay_profiles')
-          .select(`
-            *,
-            user:user_id (id, email)
-          `)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('oakline_pay_pending_payments')
-          .select(`
-            *,
-            sender:sender_id (id, email),
-            claimed:claimed_by (id, email)
-          `)
-          .order('created_at', { ascending: false })
+      const [tagsResult, paymentsResult, usersResult] = await Promise.all([
+        supabase.from('oakline_pay_profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('oakline_pay_pending_payments').select('*').order('created_at', { ascending: false }),
+        supabase.from('applications').select('user_id, email, first_name, last_name')
       ]);
 
       if (tagsResult.error) throw tagsResult.error;
@@ -93,6 +64,10 @@ export default function OaklinePayManagement() {
 
       setTags(tagsResult.data || []);
       setPayments(paymentsResult.data || []);
+      
+      const uniqueUsers = Array.from(new Map((usersResult.data || []).map(u => [u.user_id, { user_id: u.user_id, email: u.email, name: `${u.first_name} ${u.last_name}` }])).values());
+      setTagUsers(uniqueUsers);
+      setPaymentUsers(uniqueUsers);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to fetch Oakline Pay data: ' + error.message);
@@ -104,21 +79,16 @@ export default function OaklinePayManagement() {
   const filterTags = () => {
     let filtered = [...tags];
 
+    if (selectedTagUser !== 'all') {
+      filtered = filtered.filter(tag => tag.user_id === selectedTagUser);
+    }
+
     if (tagSearchTerm) {
       const search = tagSearchTerm.toLowerCase();
       filtered = filtered.filter(tag =>
         tag.oakline_tag?.toLowerCase().includes(search) ||
-        tag.display_name?.toLowerCase().includes(search) ||
-        tag.user?.email?.toLowerCase().includes(search)
+        tag.display_name?.toLowerCase().includes(search)
       );
-    }
-
-    if (tagStatusFilter !== 'all') {
-      if (tagStatusFilter === 'active') {
-        filtered = filtered.filter(tag => tag.is_active === true);
-      } else if (tagStatusFilter === 'inactive') {
-        filtered = filtered.filter(tag => tag.is_active === false);
-      }
     }
 
     setFilteredTags(filtered);
@@ -127,11 +97,14 @@ export default function OaklinePayManagement() {
   const filterPayments = () => {
     let filtered = [...payments];
 
+    if (selectedPaymentUser !== 'all') {
+      filtered = filtered.filter(p => p.sender_id === selectedPaymentUser);
+    }
+
     if (paymentSearchTerm) {
       const search = paymentSearchTerm.toLowerCase();
       filtered = filtered.filter(p =>
         p.recipient_email?.toLowerCase().includes(search) ||
-        p.sender?.email?.toLowerCase().includes(search) ||
         p.reference_number?.toLowerCase().includes(search)
       );
     }
@@ -140,50 +113,24 @@ export default function OaklinePayManagement() {
       filtered = filtered.filter(p => p.status === paymentStatusFilter);
     }
 
-    if (paymentDateFilter === 'custom' && (paymentDateRange.start || paymentDateRange.end)) {
-      filtered = filtered.filter(p => {
-        const pDate = new Date(p.created_at);
-        const start = paymentDateRange.start ? new Date(paymentDateRange.start) : null;
-        const end = paymentDateRange.end ? new Date(paymentDateRange.end + 'T23:59:59') : null;
-        
-        if (start && end) return pDate >= start && pDate <= end;
-        if (start) return pDate >= start;
-        if (end) return pDate <= end;
-        return true;
-      });
-    } else if (paymentDateFilter !== 'all') {
-      const now = new Date();
-      const startDate = new Date();
-
-      switch (paymentDateFilter) {
-        case 'today':
-          startDate.setHours(0, 0, 0, 0);
-          break;
-        case 'week':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-      }
-
-      filtered = filtered.filter(p => new Date(p.created_at) >= startDate);
-    }
-
     setFilteredPayments(filtered);
   };
 
-  const handleEditTag = (tag) => {
-    setSelectedTag(tag);
-    setTagForm({
-      is_active: tag.is_active,
-      is_public: tag.is_public,
-      allow_requests: tag.allow_requests
-    });
-    setShowTagModal(true);
+  const handleTagAction = (tag, action) => {
+    setSelectedItem(tag);
+    setModalType('tagStatus');
+    setActionForm({ action, notes: '' });
+    setShowModal(true);
   };
 
-  const handleUpdateTag = async (e) => {
+  const handlePaymentAction = (payment, action) => {
+    setSelectedItem(payment);
+    setModalType('paymentStatus');
+    setActionForm({ action, notes: '' });
+    setShowModal(true);
+  };
+
+  const submitAction = async (e) => {
     e.preventDefault();
     setActionLoading(true);
 
@@ -194,120 +141,51 @@ export default function OaklinePayManagement() {
         return;
       }
 
-      const response = await fetch('/api/admin/update-oakline-tag', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          tagId: selectedTag.id,
-          is_active: tagForm.is_active,
-          is_public: tagForm.is_public,
-          allow_requests: tagForm.allow_requests
-        })
-      });
+      if (modalType === 'tagStatus') {
+        const endpoint = actionForm.action === 'activate' 
+          ? '/api/admin/update-oakline-tag'
+          : '/api/admin/update-oakline-tag';
 
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || 'Failed to update tag');
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            tagId: selectedItem.id,
+            is_active: actionForm.action === 'activate' ? true : false,
+            is_public: selectedItem.is_public,
+            allow_requests: selectedItem.allow_requests
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to update tag');
+      } else if (modalType === 'paymentStatus') {
+        const response = await fetch('/api/admin/update-oakline-payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            paymentId: selectedItem.id,
+            status: actionForm.action
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to update payment');
       }
 
-      setSuccess('✅ Oakline tag updated successfully!');
-      setShowTagModal(false);
-      fetchData();
+      setSuccess(`✅ Action completed successfully!`);
+      setShowModal(false);
+      fetchAllData();
     } catch (error) {
-      console.error('Error updating tag:', error);
-      setError('❌ Failed to update tag: ' + error.message);
+      console.error('Error:', error);
+      setError('❌ ' + error.message);
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const handleEditPayment = (payment) => {
-    setSelectedPayment(payment);
-    setPaymentForm({ status: payment.status });
-    setShowPaymentModal(true);
-  };
-
-  const handleUpdatePayment = async (e) => {
-    e.preventDefault();
-    setActionLoading(true);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in');
-        return;
-      }
-
-      const response = await fetch('/api/admin/update-oakline-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          paymentId: selectedPayment.id,
-          status: paymentForm.status
-        })
-      });
-
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || 'Failed to update payment');
-      }
-
-      setSuccess('✅ Payment status updated successfully!');
-      setShowPaymentModal(false);
-      fetchData();
-    } catch (error) {
-      console.error('Error updating payment:', error);
-      setError('❌ Failed to update payment: ' + error.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const getPaymentStatusBadge = (status) => {
-    const styles = {
-      completed: { bg: '#d1fae5', color: '#065f46' },
-      pending: { bg: '#fef3c7', color: '#92400e' },
-      cancelled: { bg: '#fee2e2', color: '#991b1b' },
-      expired: { bg: '#dbeafe', color: '#1e40af' }
-    };
-
-    const style = styles[status?.toLowerCase()] || styles.pending;
-
-    return (
-      <span style={{
-        padding: '6px 12px',
-        borderRadius: '6px',
-        fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
-        fontWeight: '700',
-        backgroundColor: style.bg,
-        color: style.color,
-        textTransform: 'uppercase'
-      }}>
-        {status || 'Unknown'}
-      </span>
-    );
-  };
-
-  const getTagStatusBadge = (isActive) => {
-    return (
-      <span style={{
-        padding: '6px 12px',
-        borderRadius: '6px',
-        fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
-        fontWeight: '700',
-        backgroundColor: isActive ? '#d1fae5' : '#fee2e2',
-        color: isActive ? '#065f46' : '#991b1b',
-        textTransform: 'uppercase'
-      }}>
-        {isActive ? 'Active' : 'Inactive'}
-      </span>
-    );
   };
 
   const formatCurrency = (amount) => {
@@ -327,6 +205,43 @@ export default function OaklinePayManagement() {
     });
   };
 
+  const getStatusBadge = (status, type = 'tag') => {
+    const colors = {
+      active: { bg: '#d1fae5', color: '#065f46' },
+      inactive: { bg: '#fee2e2', color: '#991b1b' },
+      completed: { bg: '#d1fae5', color: '#065f46' },
+      pending: { bg: '#fef3c7', color: '#92400e' },
+      expired: { bg: '#fee2e2', color: '#991b1b' },
+      cancelled: { bg: '#fee2e2', color: '#991b1b' }
+    };
+
+    const style = colors[status?.toLowerCase()] || colors.pending;
+    const label = type === 'tag' && status === 'active' ? 'ACTIVE' : type === 'tag' && status === 'inactive' ? 'INACTIVE' : status?.toUpperCase();
+
+    return (
+      <span style={{
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: '11px',
+        fontWeight: '700',
+        backgroundColor: style.bg,
+        color: style.color,
+        textTransform: 'uppercase'
+      }}>
+        {label}
+      </span>
+    );
+  };
+
+  const stats = {
+    totalTags: tags.length,
+    activeTags: tags.filter(t => t.is_active).length,
+    totalPayments: payments.length,
+    pendingPayments: payments.filter(p => p.status === 'pending').length,
+    completedPayments: payments.filter(p => p.status === 'completed').length,
+    totalVolume: payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+  };
+
   const styles = {
     container: {
       maxWidth: '1400px',
@@ -335,70 +250,23 @@ export default function OaklinePayManagement() {
       fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
     },
     header: {
+      background: 'linear-gradient(135deg, #1A3E6F 0%, #3b82f6 100%)',
+      color: 'white',
+      padding: 'clamp(1.5rem, 4vw, 2.5rem)',
+      borderRadius: '8px',
       marginBottom: '2rem',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start'
+      boxShadow: '0 4px 15px rgba(26, 62, 111, 0.2)'
     },
     title: {
       fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
       fontWeight: '700',
-      margin: '0 0 0.5rem 0',
-      color: '#1f2937'
+      margin: '0 0 0.5rem 0'
     },
     subtitle: {
       fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      color: '#6b7280',
-      margin: '0'
+      opacity: '0.9'
     },
-    headerActions: {
-      display: 'flex',
-      gap: 'clamp(0.5rem, 2vw, 1rem)',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-end'
-    },
-    backButton: {
-      padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-      backgroundColor: '#718096',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      fontWeight: '600',
-      cursor: 'pointer',
-      textDecoration: 'none',
-      display: 'inline-block'
-    },
-    refreshButton: {
-      padding: 'clamp(0.5rem, 2vw, 10px) clamp(1rem, 3vw, 20px)',
-      backgroundColor: '#4299e1',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease'
-    },
-    errorBanner: {
-      backgroundColor: '#fee2e2',
-      color: '#dc2626',
-      padding: '16px',
-      borderRadius: '8px',
-      marginBottom: '20px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      fontWeight: '500'
-    },
-    successBanner: {
-      backgroundColor: '#d1fae5',
-      color: '#065f46',
-      padding: '16px',
-      borderRadius: '8px',
-      marginBottom: '20px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      fontWeight: '500'
-    },
-    viewTabs: {
+    tabs: {
       display: 'flex',
       gap: '1rem',
       marginBottom: '2rem',
@@ -419,209 +287,142 @@ export default function OaklinePayManagement() {
       color: '#3b82f6',
       borderBottomColor: '#3b82f6'
     },
-    filtersSection: {
+    statsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: '1rem',
+      marginBottom: '2rem'
+    },
+    statCard: {
+      background: 'white',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      padding: '1rem',
+      textAlign: 'center',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    },
+    statLabel: {
+      fontSize: '12px',
+      color: '#6b7280',
+      margin: '0',
+      fontWeight: '600'
+    },
+    statValue: {
+      fontSize: '24px',
+      fontWeight: '700',
+      color: '#1f2937',
+      margin: '0.5rem 0 0 0'
+    },
+    filterSection: {
       display: 'flex',
-      gap: 'clamp(0.5rem, 2vw, 1rem)',
+      gap: '1rem',
       marginBottom: '1.5rem',
       flexWrap: 'wrap'
     },
     searchInput: {
       flex: '1 1 200px',
-      padding: 'clamp(0.5rem, 2vw, 10px) clamp(0.75rem, 2vw, 12px)',
+      padding: '10px 12px',
       border: '1px solid #d1d5db',
       borderRadius: '6px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      outline: 'none',
-      transition: 'border-color 0.3s ease'
+      fontSize: '14px',
+      outline: 'none'
     },
-    filterSelect: {
-      padding: 'clamp(0.5rem, 2vw, 10px) clamp(0.75rem, 2vw, 12px)',
+    select: {
+      padding: '10px 12px',
       border: '1px solid #d1d5db',
       borderRadius: '6px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
+      fontSize: '14px',
       backgroundColor: 'white',
-      cursor: 'pointer',
-      minWidth: '120px'
-    },
-    dateRangeSection: {
-      backgroundColor: '#f3f4f6',
-      padding: '1rem',
-      borderRadius: '8px',
-      marginBottom: '1.5rem'
-    },
-    dateRangeLabel: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.5rem',
-      marginBottom: '0.75rem',
-      fontWeight: '600',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)'
-    },
-    dateRangeInputs: {
-      display: 'flex',
-      gap: '1rem',
-      flexWrap: 'wrap'
-    },
-    dateInputGroup: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.25rem'
-    },
-    dateLabel: {
-      fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
-      fontWeight: '600',
-      color: '#4b5563'
-    },
-    dateInput: {
-      padding: 'clamp(0.5rem, 2vw, 8px) clamp(0.75rem, 2vw, 12px)',
-      border: '1px solid #d1d5db',
-      borderRadius: '6px',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)'
-    },
-    clearDateButton: {
-      padding: 'clamp(0.5rem, 2vw, 8px) clamp(0.75rem, 2vw, 12px)',
-      backgroundColor: '#dc2626',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      fontWeight: '600',
-      alignSelf: 'flex-end'
+      cursor: 'pointer'
     },
     tableContainer: {
-      marginBottom: '2rem'
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      border: '1px solid #e5e7eb',
+      overflow: 'hidden',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    },
+    table: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      fontSize: 'clamp(0.75rem, 1.8vw, 14px)'
+    },
+    th: {
+      backgroundColor: '#f3f4f6',
+      padding: '12px',
+      textAlign: 'left',
+      fontWeight: '600',
+      color: '#374151',
+      borderBottom: '2px solid #e5e7eb'
+    },
+    td: {
+      padding: '12px',
+      borderBottom: '1px solid #e5e7eb'
+    },
+    actionButtons: {
+      display: 'flex',
+      gap: '0.5rem',
+      flexWrap: 'wrap'
+    },
+    actionButton: {
+      padding: '6px 12px',
+      borderRadius: '6px',
+      border: 'none',
+      fontSize: '12px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease'
+    },
+    primaryButton: {
+      backgroundColor: '#3b82f6',
+      color: 'white'
+    },
+    dangerButton: {
+      backgroundColor: '#dc2626',
+      color: 'white'
+    },
+    successButton: {
+      backgroundColor: '#10b981',
+      color: 'white'
+    },
+    errorBanner: {
+      backgroundColor: '#fee2e2',
+      color: '#dc2626',
+      padding: '12px 16px',
+      borderRadius: '6px',
+      marginBottom: '1rem'
+    },
+    successBanner: {
+      backgroundColor: '#d1fae5',
+      color: '#065f46',
+      padding: '12px 16px',
+      borderRadius: '6px',
+      marginBottom: '1rem'
     },
     emptyState: {
       textAlign: 'center',
       padding: '2rem',
-      backgroundColor: '#f9fafb',
-      borderRadius: '8px'
+      color: '#6b7280'
     },
-    emptyIcon: {
-      fontSize: '2rem',
-      margin: '0'
-    },
-    emptyText: {
-      color: '#6b7280',
-      fontSize: 'clamp(0.85rem, 2vw, 14px)',
-      margin: '0.5rem 0 0 0'
-    },
-    cardGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-      gap: '1.5rem'
-    },
-    card: {
-      backgroundColor: 'white',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      padding: '1rem',
-      transition: 'all 0.3s ease',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    },
-    cardHeader: {
-      marginBottom: '1rem',
-      paddingBottom: '1rem',
-      borderBottom: '1px solid #e5e7eb',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start'
-    },
-    cardTitle: {
-      fontSize: '14px',
-      fontWeight: '700',
-      color: '#1f2937',
-      margin: '0'
-    },
-    cardBody: {
-      marginBottom: '1rem'
-    },
-    cardInfo: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: '0.5rem',
-      fontSize: 'clamp(0.75rem, 1.8vw, 12px)'
-    },
-    cardLabel: {
-      color: '#6b7280',
-      fontWeight: '600'
-    },
-    cardValue: {
-      color: '#1f2937',
-      fontWeight: '500'
-    },
-    cardFooter: {
-      display: 'flex',
-      gap: '0.5rem'
-    },
-    editButton: {
-      flex: '1',
-      padding: '8px',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      fontSize: '12px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease'
-    },
-    deleteButton: {
-      flex: '1',
-      padding: '8px',
-      backgroundColor: '#dc2626',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      fontSize: '12px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease'
-    },
-    modalOverlay: {
+    modal: {
       position: 'fixed',
       top: '0',
       left: '0',
       right: '0',
       bottom: '0',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: 'rgba(0,0,0,0.5)',
       display: 'flex',
-      justifyContent: 'center',
       alignItems: 'center',
+      justifyContent: 'center',
       zIndex: '1000'
     },
-    modal: {
+    modalContent: {
       backgroundColor: 'white',
       borderRadius: '8px',
-      boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+      padding: '2rem',
       maxWidth: '500px',
       width: '90%',
-      maxHeight: '90vh',
-      overflow: 'auto'
-    },
-    modalHeader: {
-      padding: '1.5rem',
-      borderBottom: '1px solid #e5e7eb',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    modalTitle: {
-      fontSize: '18px',
-      fontWeight: '700',
-      margin: '0'
-    },
-    closeBtn: {
-      fontSize: '24px',
-      fontWeight: 'bold',
-      cursor: 'pointer',
-      border: 'none',
-      background: 'none',
-      color: '#6b7280'
-    },
-    modalBody: {
-      padding: '1.5rem'
+      boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
     },
     formGroup: {
       marginBottom: '1rem'
@@ -629,8 +430,8 @@ export default function OaklinePayManagement() {
     formLabel: {
       display: 'block',
       marginBottom: '0.5rem',
-      fontSize: '12px',
-      fontWeight: '700',
+      fontWeight: '600',
+      fontSize: '14px',
       color: '#374151'
     },
     formInput: {
@@ -640,22 +441,6 @@ export default function OaklinePayManagement() {
       borderRadius: '6px',
       fontSize: '14px',
       boxSizing: 'border-box'
-    },
-    checkboxContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.5rem',
-      marginBottom: '0.75rem'
-    },
-    checkbox: {
-      width: '18px',
-      height: '18px',
-      cursor: 'pointer'
-    },
-    checkboxLabel: {
-      fontSize: '13px',
-      cursor: 'pointer',
-      fontWeight: '500'
     },
     submitButton: {
       width: '100%',
@@ -671,346 +456,239 @@ export default function OaklinePayManagement() {
     }
   };
 
-  const stats = {
-    totalTags: tags.length,
-    activeTags: tags.filter(t => t.is_active).length,
-    totalPayments: payments.length,
-    pendingPayments: payments.filter(p => p.status === 'pending').length,
-    completedPayments: payments.filter(p => p.status === 'completed').length,
-    totalPaymentVolume: payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-  };
-
   return (
     <AdminAuth>
-      <AdminLoadingBanner
-        isVisible={loadingBanner.visible}
-        current={loadingBanner.current}
-        total={loadingBanner.total}
-        action={loadingBanner.action}
-        message={loadingBanner.message}
-      />
       <div style={styles.container}>
         <div style={styles.header}>
-          <div>
-            <h1 style={styles.title}>💳 Oakline Pay Management</h1>
-            <p style={styles.subtitle}>Manage Oakline Tags and Payment History</p>
-          </div>
-          <div style={styles.headerActions}>
-            <button onClick={fetchData} style={styles.refreshButton} disabled={loading}>
-              {loading ? '⏳' : '🔄'} Refresh
-            </button>
-            <Link href="/admin/admin-dashboard" style={styles.backButton}>
-              ← Dashboard
-            </Link>
-          </div>
+          <h1 style={styles.title}>💳 Oakline Pay Management</h1>
+          <p style={styles.subtitle}>Manage Oakline Tags and Payment History</p>
         </div>
 
         {error && <div style={styles.errorBanner}>{error}</div>}
         {success && <div style={styles.successBanner}>{success}</div>}
 
-        {/* View Tabs */}
-        <div style={styles.viewTabs}>
+        {/* Stats */}
+        <div style={styles.statsGrid}>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #3b82f6' }}>
+            <h3 style={styles.statLabel}>Total Tags</h3>
+            <p style={styles.statValue}>{stats.totalTags}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #10b981' }}>
+            <h3 style={styles.statLabel}>Active Tags</h3>
+            <p style={styles.statValue}>{stats.activeTags}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #f59e0b' }}>
+            <h3 style={styles.statLabel}>Total Payments</h3>
+            <p style={styles.statValue}>{stats.totalPayments}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #fbbf24' }}>
+            <h3 style={styles.statLabel}>Pending</h3>
+            <p style={styles.statValue}>{stats.pendingPayments}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #10b981' }}>
+            <h3 style={styles.statLabel}>Completed</h3>
+            <p style={styles.statValue}>{stats.completedPayments}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #7c3aed' }}>
+            <h3 style={styles.statLabel}>Total Volume</h3>
+            <p style={styles.statValue}>${(stats.totalVolume / 1000).toFixed(0)}K</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={styles.tabs}>
           <button
-            onClick={() => setActiveView('tags')}
-            style={activeView === 'tags' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
+            onClick={() => setActiveTab('tags')}
+            style={activeTab === 'tags' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
           >
-            🏷️ Oakline Tags ({stats.totalTags})
+            🏷️ Oakline Tags
           </button>
           <button
-            onClick={() => setActiveView('payments')}
-            style={activeView === 'payments' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
+            onClick={() => setActiveTab('payments')}
+            style={activeTab === 'payments' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
           >
-            💰 Payment History ({stats.totalPayments})
+            💰 Payment History
           </button>
         </div>
 
         {/* Tags View */}
-        {activeView === 'tags' && (
-          <div style={styles.tableContainer}>
-            <div style={styles.filtersSection}>
+        {activeTab === 'tags' && (
+          <>
+            <div style={styles.filterSection}>
               <input
                 type="text"
-                placeholder="🔍 Search by tag, name or email..."
+                placeholder="🔍 Search tags..."
                 value={tagSearchTerm}
                 onChange={(e) => setTagSearchTerm(e.target.value)}
                 style={styles.searchInput}
               />
-              <select value={tagStatusFilter} onChange={(e) => setTagStatusFilter(e.target.value)} style={styles.filterSelect}>
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+              <select value={selectedTagUser} onChange={(e) => setSelectedTagUser(e.target.value)} style={styles.select}>
+                <option value="all">All Users</option>
+                {tagUsers.map(user => (
+                  <option key={user.user_id} value={user.user_id}>{user.name}</option>
+                ))}
               </select>
             </div>
 
             {loading ? (
-              <div style={styles.emptyState}>
-                <p>Loading Oakline tags...</p>
-              </div>
+              <div style={styles.emptyState}>Loading...</div>
             ) : filteredTags.length === 0 ? (
-              <div style={styles.emptyState}>
-                <p style={styles.emptyIcon}>🏷️</p>
-                <p style={styles.emptyText}>No Oakline tags found</p>
-              </div>
+              <div style={styles.emptyState}>No tags found</div>
             ) : (
-              <div style={styles.cardGrid}>
-                {filteredTags.map((tag) => (
-                  <div key={tag.id} style={styles.card}>
-                    <div style={styles.cardHeader}>
-                      <h3 style={styles.cardTitle}>@{tag.oakline_tag}</h3>
-                      {getTagStatusBadge(tag.is_active)}
-                    </div>
-                    <div style={styles.cardBody}>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Name:</span>
-                        <span style={styles.cardValue}>{tag.display_name || 'N/A'}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Email:</span>
-                        <span style={styles.cardValue}>{tag.user?.email || 'N/A'}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Public:</span>
-                        <span style={styles.cardValue}>{tag.is_public ? '✓ Yes' : '✗ No'}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Allow Requests:</span>
-                        <span style={styles.cardValue}>{tag.allow_requests ? '✓ Yes' : '✗ No'}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Created:</span>
-                        <span style={styles.cardValue}>{formatDateTime(tag.created_at)}</span>
-                      </div>
-                    </div>
-                    <div style={styles.cardFooter}>
-                      <button onClick={() => handleEditTag(tag)} style={styles.editButton}>
-                        ✏️ Edit
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div style={styles.tableContainer}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Oakline Tag</th>
+                      <th style={styles.th}>Display Name</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Public</th>
+                      <th style={styles.th}>Allows Requests</th>
+                      <th style={styles.th}>Created</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTags.map(tag => (
+                      <tr key={tag.id}>
+                        <td style={styles.td}>@{tag.oakline_tag}</td>
+                        <td style={styles.td}>{tag.display_name || '—'}</td>
+                        <td style={styles.td}>{getStatusBadge(tag.is_active ? 'active' : 'inactive', 'tag')}</td>
+                        <td style={styles.td}>{tag.is_public ? '✓' : '✗'}</td>
+                        <td style={styles.td}>{tag.allow_requests ? '✓' : '✗'}</td>
+                        <td style={styles.td}>{formatDateTime(tag.created_at)}</td>
+                        <td style={styles.td}>
+                          <div style={styles.actionButtons}>
+                            <button 
+                              onClick={() => handleTagAction(tag, tag.is_active ? 'deactivate' : 'activate')}
+                              style={{ ...styles.actionButton, ...styles.primaryButton }}
+                            >
+                              {tag.is_active ? '🔒 Deactivate' : '🔓 Activate'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
+          </>
         )}
 
         {/* Payments View */}
-        {activeView === 'payments' && (
-          <div style={styles.tableContainer}>
-            <div style={styles.filtersSection}>
+        {activeTab === 'payments' && (
+          <>
+            <div style={styles.filterSection}>
               <input
                 type="text"
-                placeholder="🔍 Search by email, recipient or reference..."
+                placeholder="🔍 Search payments..."
                 value={paymentSearchTerm}
                 onChange={(e) => setPaymentSearchTerm(e.target.value)}
                 style={styles.searchInput}
               />
-              <select value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)} style={styles.filterSelect}>
-                <option value="all">All Status</option>
-                {PAYMENT_STATUSES.map(status => (
-                  <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
+              <select value={selectedPaymentUser} onChange={(e) => setSelectedPaymentUser(e.target.value)} style={styles.select}>
+                <option value="all">All Users</option>
+                {paymentUsers.map(user => (
+                  <option key={user.user_id} value={user.user_id}>{user.name}</option>
                 ))}
               </select>
-              <select value={paymentDateFilter} onChange={(e) => setPaymentDateFilter(e.target.value)} style={styles.filterSelect}>
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-                <option value="custom">Custom Range</option>
+              <select value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)} style={styles.select}>
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="expired">Expired</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
-
-            {paymentDateFilter === 'custom' && (
-              <div style={styles.dateRangeSection}>
-                <div style={styles.dateRangeLabel}>
-                  <span>📅</span>
-                  <span>Filter by Date Range:</span>
-                </div>
-                <div style={styles.dateRangeInputs}>
-                  <div style={styles.dateInputGroup}>
-                    <label style={styles.dateLabel}>From:</label>
-                    <input
-                      type="date"
-                      value={paymentDateRange.start}
-                      onChange={(e) => setPaymentDateRange({ ...paymentDateRange, start: e.target.value })}
-                      style={styles.dateInput}
-                    />
-                  </div>
-                  <div style={styles.dateInputGroup}>
-                    <label style={styles.dateLabel}>To:</label>
-                    <input
-                      type="date"
-                      value={paymentDateRange.end}
-                      onChange={(e) => setPaymentDateRange({ ...paymentDateRange, end: e.target.value })}
-                      style={styles.dateInput}
-                    />
-                  </div>
-                  {(paymentDateRange.start || paymentDateRange.end) && (
-                    <button
-                      onClick={() => setPaymentDateRange({ start: '', end: '' })}
-                      style={styles.clearDateButton}
-                    >
-                      ✕ Clear Dates
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
 
             {loading ? (
-              <div style={styles.emptyState}>
-                <p>Loading payments...</p>
-              </div>
+              <div style={styles.emptyState}>Loading...</div>
             ) : filteredPayments.length === 0 ? (
-              <div style={styles.emptyState}>
-                <p style={styles.emptyIcon}>💰</p>
-                <p style={styles.emptyText}>No payments found</p>
-              </div>
+              <div style={styles.emptyState}>No payments found</div>
             ) : (
-              <div style={styles.cardGrid}>
-                {filteredPayments.map((payment) => (
-                  <div key={payment.id} style={styles.card}>
-                    <div style={styles.cardHeader}>
-                      <h3 style={styles.cardTitle}>{formatCurrency(payment.amount)}</h3>
-                      {getPaymentStatusBadge(payment.status)}
-                    </div>
-                    <div style={styles.cardBody}>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Sender:</span>
-                        <span style={styles.cardValue}>{payment.sender?.email || 'N/A'}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Recipient:</span>
-                        <span style={styles.cardValue}>{payment.recipient_email}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Reference:</span>
-                        <span style={styles.cardValue}>{payment.reference_number.slice(0, 8)}...</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Memo:</span>
-                        <span style={styles.cardValue}>{payment.memo || 'No memo'}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Created:</span>
-                        <span style={styles.cardValue}>{formatDateTime(payment.created_at)}</span>
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <span style={styles.cardLabel}>Expires:</span>
-                        <span style={styles.cardValue}>{formatDateTime(payment.expires_at)}</span>
-                      </div>
-                    </div>
-                    <div style={styles.cardFooter}>
-                      <button onClick={() => handleEditPayment(payment)} style={styles.editButton}>
-                        ✏️ Edit Status
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div style={styles.tableContainer}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Amount</th>
+                      <th style={styles.th}>Recipient</th>
+                      <th style={styles.th}>Reference</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Created</th>
+                      <th style={styles.th}>Expires</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPayments.map(payment => (
+                      <tr key={payment.id}>
+                        <td style={styles.td}><strong>{formatCurrency(payment.amount)}</strong></td>
+                        <td style={styles.td}>{payment.recipient_email}</td>
+                        <td style={styles.td}>{payment.reference_number.slice(0, 8)}...</td>
+                        <td style={styles.td}>{getStatusBadge(payment.status)}</td>
+                        <td style={styles.td}>{formatDateTime(payment.created_at)}</td>
+                        <td style={styles.td}>{formatDateTime(payment.expires_at)}</td>
+                        <td style={styles.td}>
+                          <div style={styles.actionButtons}>
+                            {payment.status === 'pending' && (
+                              <>
+                                <button 
+                                  onClick={() => handlePaymentAction(payment, 'completed')}
+                                  style={{ ...styles.actionButton, ...styles.successButton }}
+                                >
+                                  ✓ Complete
+                                </button>
+                                <button 
+                                  onClick={() => handlePaymentAction(payment, 'cancelled')}
+                                  style={{ ...styles.actionButton, ...styles.dangerButton }}
+                                >
+                                  ✗ Cancel
+                                </button>
+                              </>
+                            )}
+                            {payment.status !== 'completed' && payment.status !== 'cancelled' && (
+                              <button 
+                                onClick={() => handlePaymentAction(payment, 'expired')}
+                                style={{ ...styles.actionButton, ...styles.dangerButton }}
+                              >
+                                ⏱️ Expire
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {/* Tag Modal */}
-        {showTagModal && selectedTag && (
-          <div style={styles.modalOverlay} onClick={() => setShowTagModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Edit Oakline Tag: @{selectedTag.oakline_tag}</h2>
-                <button onClick={() => setShowTagModal(false)} style={styles.closeBtn}>×</button>
-              </div>
-              <form onSubmit={handleUpdateTag}>
-                <div style={styles.modalBody}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>User Email</label>
-                    <input
-                      type="text"
-                      value={selectedTag.user?.email || ''}
-                      disabled
-                      style={{ ...styles.formInput, backgroundColor: '#f3f4f6' }}
-                    />
-                  </div>
-
-                  <div style={styles.checkboxContainer}>
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      checked={tagForm.is_active}
-                      onChange={(e) => setTagForm({ ...tagForm, is_active: e.target.checked })}
-                      style={styles.checkbox}
-                    />
-                    <label htmlFor="is_active" style={styles.checkboxLabel}>Active</label>
-                  </div>
-
-                  <div style={styles.checkboxContainer}>
-                    <input
-                      type="checkbox"
-                      id="is_public"
-                      checked={tagForm.is_public}
-                      onChange={(e) => setTagForm({ ...tagForm, is_public: e.target.checked })}
-                      style={styles.checkbox}
-                    />
-                    <label htmlFor="is_public" style={styles.checkboxLabel}>Public Profile</label>
-                  </div>
-
-                  <div style={styles.checkboxContainer}>
-                    <input
-                      type="checkbox"
-                      id="allow_requests"
-                      checked={tagForm.allow_requests}
-                      onChange={(e) => setTagForm({ ...tagForm, allow_requests: e.target.checked })}
-                      style={styles.checkbox}
-                    />
-                    <label htmlFor="allow_requests" style={styles.checkboxLabel}>Allow Payment Requests</label>
-                  </div>
-
-                  <button type="submit" style={styles.submitButton} disabled={actionLoading}>
-                    {actionLoading ? '⏳ Updating...' : '✅ Update Tag'}
-                  </button>
+        {/* Action Modal */}
+        {showModal && (
+          <div style={styles.modal} onClick={() => setShowModal(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '18px', fontWeight: '700' }}>
+                {modalType === 'tagStatus' ? 'Update Tag Status' : 'Update Payment Status'}
+              </h2>
+              <form onSubmit={submitAction}>
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabel}>Action: {actionForm.action?.toUpperCase()}</label>
                 </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Payment Modal */}
-        {showPaymentModal && selectedPayment && (
-          <div style={styles.modalOverlay} onClick={() => setShowPaymentModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Update Payment Status</h2>
-                <button onClick={() => setShowPaymentModal(false)} style={styles.closeBtn}>×</button>
-              </div>
-              <form onSubmit={handleUpdatePayment}>
-                <div style={styles.modalBody}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Amount</label>
-                    <input
-                      type="text"
-                      value={formatCurrency(selectedPayment.amount)}
-                      disabled
-                      style={{ ...styles.formInput, backgroundColor: '#f3f4f6' }}
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Status *</label>
-                    <select
-                      value={paymentForm.status}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value })}
-                      style={styles.formInput}
-                      required
-                    >
-                      {PAYMENT_STATUSES.map(status => (
-                        <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button type="submit" style={styles.submitButton} disabled={actionLoading}>
-                    {actionLoading ? '⏳ Updating...' : '✅ Update Status'}
-                  </button>
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabel}>Notes (Optional)</label>
+                  <textarea
+                    value={actionForm.notes}
+                    onChange={(e) => setActionForm({ ...actionForm, notes: e.target.value })}
+                    style={{ ...styles.formInput, minHeight: '80px' }}
+                    placeholder="Add any notes..."
+                  />
                 </div>
+                <button type="submit" style={styles.submitButton} disabled={actionLoading}>
+                  {actionLoading ? '⏳ Processing...' : '✅ Confirm Action'}
+                </button>
               </form>
             </div>
           </div>
