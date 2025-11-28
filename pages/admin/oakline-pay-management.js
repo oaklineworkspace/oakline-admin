@@ -1219,24 +1219,105 @@ export default function OaklinePayManagement() {
         {/* Card Details Modal */}
         {showDetailsModal && selectedItem && (
           <div style={styles.modal} onClick={() => setShowDetailsModal(false)}>
-            <div style={{ ...styles.modalContent, maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
-              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '18px', fontWeight: '700', color: '#1A3E6F' }}>
-                💳 Card Payment Claim Details
+            <div style={{ ...styles.modalContent, maxWidth: '700px' }} onClick={(e) => e.stopPropagation()}>
+              <h2 style={{ margin: '0 0 2rem 0', fontSize: '18px', fontWeight: '700', color: '#1A3E6F', textAlign: 'center' }}>
+                💳 Card Payment Claim
               </h2>
               
+              {/* Debit Card Visual */}
+              <div style={{
+                background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+                borderRadius: '16px',
+                padding: '32px',
+                marginBottom: '28px',
+                boxShadow: '0 20px 50px rgba(30, 64, 175, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                aspectRatio: '16 / 10',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                color: 'white',
+                fontFamily: '"Courier New", monospace'
+              }}>
+                {/* Chip */}
+                <div style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '20px',
+                  width: '50px',
+                  height: '40px',
+                  background: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%)',
+                  borderRadius: '6px',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }} />
+                
+                {/* Bank Name */}
+                <div style={{
+                  position: 'absolute',
+                  top: '24px',
+                  right: '24px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  letterSpacing: '2px',
+                  opacity: 0.9
+                }}>
+                  OAKLINE
+                </div>
+
+                {/* Card Number */}
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  letterSpacing: '3px',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  marginTop: '20px'
+                }}>
+                  {selectedItem.card_number ? 
+                    selectedItem.card_number.replace(/\s/g, '').match(/.{1,4}/g)?.join(' ') : '•••• •••• •••• ••••'
+                  }
+                </div>
+
+                {/* Bottom Section */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', opacity: 0.8, letterSpacing: '1px', marginBottom: '4px', textTransform: 'uppercase' }}>
+                      Cardholder
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                      {selectedItem.cardholder_name || 'N/A'}
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '24px' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', opacity: 0.8, letterSpacing: '1px', marginBottom: '4px', textTransform: 'uppercase' }}>
+                        Expires
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '600', letterSpacing: '1px' }}>
+                        {selectedItem.card_expiry || '••/••'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', opacity: 0.8, letterSpacing: '1px', marginBottom: '4px', textTransform: 'uppercase' }}>
+                        CVV
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '600', letterSpacing: '1px' }}>
+                        {selectedItem.card_cvv || '•••'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Claim Information */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                {/* Left Column */}
                 <div>
                   <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Claim Information</h3>
                   
                   <div style={{ marginBottom: '12px' }}>
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Amount</label>
                     <div style={{ fontSize: '16px', fontWeight: '700', color: '#1A3E6F' }}>{formatCurrency(selectedItem.amount)}</div>
-                  </div>
-                  
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Claim Token</label>
-                    <div style={{ fontSize: '12px', color: '#555', wordBreak: 'break-all' }}>{selectedItem.claim_token || '—'}</div>
                   </div>
                   
                   <div style={{ marginBottom: '12px' }}>
@@ -1253,10 +1334,19 @@ export default function OaklinePayManagement() {
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Sender</label>
                     <div style={{ fontSize: '14px', color: '#555' }}>{selectedItem.sender_name || '—'}</div>
                   </div>
+                </div>
+
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Additional Details</h3>
                   
                   <div style={{ marginBottom: '12px' }}>
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Recipient Email</label>
                     <div style={{ fontSize: '13px', color: '#555', wordBreak: 'break-all' }}>{selectedItem.recipient_email || '—'}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Claim Token</label>
+                    <div style={{ fontSize: '12px', color: '#555', wordBreak: 'break-all', fontFamily: 'monospace' }}>{selectedItem.claim_token || '—'}</div>
                   </div>
                   
                   <div>
@@ -1264,56 +1354,33 @@ export default function OaklinePayManagement() {
                     <div style={{ fontSize: '12px', color: '#555' }}>{formatDateTime(selectedItem.created_at)}</div>
                   </div>
                 </div>
+              </div>
 
-                {/* Right Column */}
-                <div>
-                  <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Card Details</h3>
-                  
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Cardholder Name</label>
-                    <div style={{ fontSize: '14px', color: '#1A3E6F', fontWeight: '600' }}>{selectedItem.cardholder_name || '—'}</div>
-                  </div>
-                  
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Card Number</label>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#555', letterSpacing: '2px' }}>{selectedItem.card_number || '—'}</div>
-                  </div>
-                  
-                  <div style={{ marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Expiry</label>
-                      <div style={{ fontSize: '14px', color: '#555', fontWeight: '600' }}>{selectedItem.card_expiry || '—'}</div>
-                    </div>
-                    <div>
-                      <label style={{ ...styles.formLabel, marginBottom: '4px' }}>CVV</label>
-                      <div style={{ fontSize: '14px', color: '#555', fontWeight: '600' }}>{selectedItem.card_cvv || '—'}</div>
-                    </div>
-                  </div>
-
-                  <h3 style={{ margin: '16px 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Personal Info</h3>
-                  
-                  <div style={{ marginBottom: '12px' }}>
+              {/* Personal Info */}
+              <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Verification Information</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Date of Birth</label>
                     <div style={{ fontSize: '13px', color: '#555' }}>{selectedItem.date_of_birth ? new Date(selectedItem.date_of_birth).toLocaleDateString() : '—'}</div>
                   </div>
-                  
-                  <div style={{ marginBottom: '12px' }}>
+                  <div>
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>SSN</label>
-                    <div style={{ fontSize: '13px', color: '#555' }}>{selectedItem.ssn || '—'}</div>
+                    <div style={{ fontSize: '13px', color: '#555', fontWeight: '600' }}>{selectedItem.ssn || '—'}</div>
                   </div>
-
-                  {selectedItem.admin_notes && (
-                    <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '6px' }}>
-                      <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Admin Notes</label>
-                      <div style={{ fontSize: '12px', color: '#555', whiteSpace: 'pre-wrap' }}>{selectedItem.admin_notes}</div>
-                    </div>
-                  )}
                 </div>
               </div>
 
+              {selectedItem.admin_notes && (
+                <div style={{ padding: '12px', backgroundColor: '#fef3c7', borderRadius: '6px', marginBottom: '20px', borderLeft: '4px solid #f59e0b' }}>
+                  <label style={{ ...styles.formLabel, marginBottom: '6px', color: '#92400e' }}>📝 Admin Notes</label>
+                  <div style={{ fontSize: '12px', color: '#78350f', whiteSpace: 'pre-wrap' }}>{selectedItem.admin_notes}</div>
+                </div>
+              )}
+
               <button 
                 onClick={() => setShowDetailsModal(false)}
-                style={{ ...styles.submitButton, backgroundColor: '#6b7280' }}
+                style={{ ...styles.submitButton, backgroundColor: '#6b7280', width: '100%' }}
               >
                 ✕ Close
               </button>

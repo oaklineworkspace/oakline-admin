@@ -44,8 +44,14 @@ Preferred communication style: Simple, everyday language.
     - **Pending Claims Management (ENHANCED):** Complete dual-action workflow for card payment claims:
       * **Card Details Submitted Status:** Complete/Cancel buttons to process submitted card payments
       * **Pending Approval Status:** Approve/Reject buttons for claim approval workflow
-      * View card details modal showing complete payment information (cardholder name, card number, CVV, SSN, card expiry)
+      * Professional debit card visual display with:
+        - Gradient blue card design (Oakline branded)
+        - Gold chip element
+        - Card number formatted in groups of 4
+        - Cardholder name, expiry date, and CVV displayed on card
+        - Realistic card styling with shadows and professional appearance
       * Complete card details visibility for payment processing (card number, CVV, SSN fully visible)
+      * Organized claim and verification information sections below the card
       * Bulk selection with select-all checkbox functionality
       * Bulk Complete/Cancel and Approve/Reject operations with visual confirmation
       * Automatic email notifications for all actions (Complete, Cancel, Approve, Reject)
