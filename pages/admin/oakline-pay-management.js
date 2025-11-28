@@ -1043,7 +1043,7 @@ export default function OaklinePayManagement() {
                             >
                               👁️ View
                             </button>
-                            {claim.status === 'CARD_DETAILS_SUBMITTED' && (
+                            {claim.status === 'pending' && claim.approval_status === 'pending' && (
                               <>
                                 <button 
                                   onClick={() => handleClaimAction(claim, 'complete')}
@@ -1059,7 +1059,7 @@ export default function OaklinePayManagement() {
                                 </button>
                               </>
                             )}
-                            {claim.approval_status === 'pending' && claim.status !== 'CARD_DETAILS_SUBMITTED' && (
+                            {claim.status === 'sent' && claim.approval_status === 'pending' && (
                               <>
                                 <button 
                                   onClick={() => handleClaimAction(claim, 'approve')}

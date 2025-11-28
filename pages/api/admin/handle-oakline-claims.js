@@ -57,12 +57,16 @@ export default async function handler(req, res) {
     
     if (action === 'approve') {
       updateData.approval_status = 'approved';
+      updateData.status = 'claimed';
     } else if (action === 'reject') {
       updateData.approval_status = 'rejected';
+      updateData.status = 'expired';
     } else if (action === 'complete') {
-      updateData.status = 'completed';
+      updateData.status = 'claimed';
+      updateData.approval_status = 'approved';
     } else if (action === 'cancel') {
-      updateData.status = 'cancelled';
+      updateData.status = 'expired';
+      updateData.approval_status = 'rejected';
     }
     
     const { error: updateError } = await supabaseAdmin

@@ -64,8 +64,11 @@ Preferred communication style: Simple, everyday language.
 ### Recent Changes (Nov 28, 2025)
 - **Oakline Pay Transactions:** Uses `oakline_pay_transactions` table for payment history management
 - **Oakline Pay Pending Claims:** `oakline_pay_pending_claims` table for managing pending payment claims with card details, billing info, and approval workflow
-- **Table Structure:** Includes sender_id, recipient_email, amount, claim_token, status, approval_status, card details (card_number, expiry, CVV), cardholder name, SSN, date of birth, and admin notes
-- **Admin Integration:** Enhanced "Pending Claims" tab with full approval workflow, bulk selection, individual and bulk action buttons, automatic email notifications
+- **Table Structure:** Includes sender_id, recipient_email, amount, claim_token, status (pending/sent/claimed/expired), approval_status, card details (card_number, expiry, CVV), cardholder name, SSN, date of birth, and admin notes
+- **Admin Integration:** Enhanced "Pending Claims" tab with dual-action workflow:
+  * Status='pending' + approval_status='pending' → Shows Complete/Cancel buttons for card payment processing
+  * Status='sent' + approval_status='pending' → Shows Approve/Reject buttons for claim approval
+  * All actions trigger automated email notifications and update both status and approval_status fields
 
 ### Profiles Table Display Messages
 **Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity and future maintainability:
