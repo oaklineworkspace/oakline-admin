@@ -41,14 +41,22 @@ Preferred communication style: Simple, everyday language.
 14. **Oakline Pay Management System:** Complete payment and tag management dashboard with professional interface. Features include:
     - **Oakline Tags Management:** Tag profiles, activation/deactivation, search and filtering
     - **Payment History:** Payment status updates with automatic user account crediting (complete action), full/partial refund system with reason tracking, advanced search/filter by recipient/reference, select-all/individual payment selection with visual highlighting, bulk delete functionality with confirmation dialogs
-    - **Pending Claims Management (NEW):** Display of pending payment claims with sender/recipient info, claim tokens, status tracking, approval status, expiration dates, and amount volume statistics
+    - **Pending Claims Management (ENHANCED):** Complete approval workflow for card payment claims with:
+      * Approve/reject action buttons for individual claims
+      * Bulk selection with select-all checkbox functionality
+      * Bulk approve/reject operations with visual confirmation
+      * Automatic email notifications sent from transfer@theoaklinebank.com (fetched from bank_details table)
+      * Email templates with claim details (amount, cardholder name, card last 4 digits, claim token)
+      * Search/filtering capabilities by email, token, or sender name
+      * Status tracking and approval status indicators
 
 ## Database Schema Updates
 
 ### Recent Changes (Nov 28, 2025)
-- **Created:** `oakline_pay_pending_claims` table for managing pending payment claims sent to email recipients
-- **Table Structure:** Includes sender_id, recipient_email, amount, claim_token, status (pending/sent/claimed/expired), approval_status (pending/approved/rejected), and claim method (account/debit_card)
-- **Admin Integration:** Added new "Pending Claims" tab to Oakline Pay Management admin page with full CRUD visibility, search/filtering capabilities, and statistics dashboard
+- **Oakline Pay Transactions:** Uses `oakline_pay_transactions` table for payment history management
+- **Oakline Pay Pending Claims:** `oakline_pay_pending_claims` table for managing pending payment claims with card details, billing info, and approval workflow
+- **Table Structure:** Includes sender_id, recipient_email, amount, claim_token, status, approval_status, card details (card_number, expiry, CVV), cardholder name, SSN, date of birth, and admin notes
+- **Admin Integration:** Enhanced "Pending Claims" tab with full approval workflow, bulk selection, individual and bulk action buttons, automatic email notifications
 
 ### Profiles Table Display Messages
 **Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity and future maintainability:

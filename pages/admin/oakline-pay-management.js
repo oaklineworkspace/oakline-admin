@@ -198,6 +198,82 @@ export default function OaklinePayManagement() {
     }
   };
 
+  const toggleClaimSelection = (claimId) => {
+    const newSelected = new Set(selectedClaims);
+    if (newSelected.has(claimId)) {
+      newSelected.delete(claimId);
+    } else {
+      newSelected.add(claimId);
+    }
+    setSelectedClaims(newSelected);
+  };
+
+  const toggleSelectAllClaims = () => {
+    if (selectedClaims.size === filteredClaims.length && selectedClaims.size > 0) {
+      setSelectedClaims(new Set());
+    } else {
+      const allIds = new Set(filteredClaims.map(c => c.id));
+      setSelectedClaims(allIds);
+    }
+  };
+
+  const handleClaimAction = (claim, action) => {
+    setSelectedItem(claim);
+    setModalType(`claim_${action}`);
+    setActionForm({ action, notes: '' });
+    setShowModal(true);
+  };
+
+  const handleBulkClaimAction = async (action) => {
+    if (selectedClaims.size === 0) {
+      setError(`Please select claims to ${action}`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to ${action} ${selectedClaims.size} claim(s)?`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        setActionLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/handle-oakline-claims', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          claimIds: Array.from(selectedClaims),
+          action
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || `Failed to ${action} claims`);
+        setActionLoading(false);
+        return;
+      }
+
+      setSuccess(`✅ ${selectedClaims.size} claim(s) ${action}ed successfully!`);
+      setSelectedClaims(new Set());
+      setTimeout(() => fetchAllData(), 500);
+    } catch (error) {
+      console.error('Error:', error);
+      setError('❌ ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleBulkDeletePayments = async () => {
     if (selectedPayments.size === 0) {
       setError('Please select payments to delete');
@@ -338,6 +414,21 @@ export default function OaklinePayManagement() {
         });
 
         if (!response.ok) throw new Error('Failed to update tag');
+      } else if (modalType.startsWith('claim_')) {
+        const action = modalType.replace('claim_', '');
+        const response = await fetch('/api/admin/handle-oakline-claims', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            claimIds: [selectedItem.id],
+            action
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to process claim');
       } else if (modalType === 'paymentStatus') {
         const response = await fetch('/api/admin/update-oakline-payment', {
           method: 'POST',
@@ -872,6 +963,24 @@ export default function OaklinePayManagement() {
                 <option value="claimed">Claimed</option>
                 <option value="expired">Expired</option>
               </select>
+              {selectedClaims.size > 0 && (
+                <>
+                  <button 
+                    onClick={() => handleBulkClaimAction('approve')}
+                    style={{ ...styles.select, backgroundColor: '#10b981', color: 'white', cursor: 'pointer', fontWeight: '600', border: 'none' }}
+                    disabled={actionLoading}
+                  >
+                    ✓ Approve {selectedClaims.size} Selected
+                  </button>
+                  <button 
+                    onClick={() => handleBulkClaimAction('reject')}
+                    style={{ ...styles.select, backgroundColor: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: '600', border: 'none' }}
+                    disabled={actionLoading}
+                  >
+                    ✗ Reject {selectedClaims.size} Selected
+                  </button>
+                </>
+              )}
             </div>
 
             {loading ? (
@@ -883,27 +992,62 @@ export default function OaklinePayManagement() {
                 <table style={styles.table}>
                   <thead>
                     <tr>
+                      <th style={{ ...styles.th, width: '30px', textAlign: 'center' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedClaims.size === filteredClaims.length && filteredClaims.length > 0}
+                          onChange={toggleSelectAllClaims}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
                       <th style={styles.th}>Amount</th>
                       <th style={styles.th}>Sender</th>
                       <th style={styles.th}>Recipient Email</th>
                       <th style={styles.th}>Claim Token</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Approval</th>
-                      <th style={styles.th}>Expires</th>
                       <th style={styles.th}>Created</th>
+                      <th style={styles.th}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredClaims.map(claim => (
-                      <tr key={claim.id}>
+                      <tr key={claim.id} style={selectedClaims.has(claim.id) ? { backgroundColor: '#f0fdf4' } : {}}>
+                        <td style={{ ...styles.td, textAlign: 'center', width: '30px' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedClaims.has(claim.id)}
+                            onChange={() => toggleClaimSelection(claim.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </td>
                         <td style={styles.td}><strong>{formatCurrency(claim.amount)}</strong></td>
                         <td style={styles.td}>{claim.sender_name || '—'}</td>
                         <td style={styles.td}>{claim.recipient_email || '—'}</td>
                         <td style={styles.td}>{(claim.claim_token || '').slice(0, 8)}...</td>
                         <td style={styles.td}>{getStatusBadge(claim.status)}</td>
                         <td style={styles.td}>{getStatusBadge(claim.approval_status)}</td>
-                        <td style={styles.td}>{formatDateTime(claim.expires_at)}</td>
                         <td style={styles.td}>{formatDateTime(claim.created_at)}</td>
+                        <td style={styles.td}>
+                          <div style={styles.actionButtons}>
+                            {claim.approval_status === 'pending' && (
+                              <>
+                                <button 
+                                  onClick={() => handleClaimAction(claim, 'approve')}
+                                  style={{ ...styles.actionButton, ...styles.successButton }}
+                                >
+                                  ✓ Approve
+                                </button>
+                                <button 
+                                  onClick={() => handleClaimAction(claim, 'reject')}
+                                  style={{ ...styles.actionButton, ...styles.dangerButton }}
+                                >
+                                  ✗ Reject
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1048,7 +1192,7 @@ export default function OaklinePayManagement() {
           <div style={styles.modal} onClick={() => setShowModal(false)}>
             <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
               <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '18px', fontWeight: '700' }}>
-                {modalType === 'tagStatus' ? 'Update Tag Status' : modalType === 'refund' ? 'Process Refund' : 'Update Payment Status'}
+                {modalType === 'tagStatus' ? 'Update Tag Status' : modalType === 'refund' ? 'Process Refund' : modalType.startsWith('claim_') ? `${modalType.replace('claim_', '').toUpperCase()} Card Payment Claim` : 'Update Payment Status'}
               </h2>
               <form onSubmit={submitAction}>
                 {modalType === 'refund' ? (
