@@ -80,6 +80,12 @@ export default function OaklinePayManagement() {
       if (transactionsResult.error) throw transactionsResult.error;
       if (claimsResult.error) throw claimsResult.error;
 
+      console.log('Fetch results:', {
+        tagsCount: tagsResult.data?.length || 0,
+        paymentsCount: transactionsResult.data?.length || 0,
+        claimsCount: claimsResult.data?.length || 0
+      });
+      
       setTags(tagsResult.data || []);
       setPayments(transactionsResult.data || []);
       setClaims(claimsResult.data || []);
@@ -502,13 +508,36 @@ export default function OaklinePayManagement() {
       inactive: { bg: '#fee2e2', color: '#991b1b' },
       completed: { bg: '#d1fae5', color: '#065f46' },
       pending: { bg: '#fef3c7', color: '#92400e' },
+      sent: { bg: '#dbeafe', color: '#1e40af' },
+      claimed: { bg: '#d1fae5', color: '#065f46' },
       expired: { bg: '#fee2e2', color: '#991b1b' },
       cancelled: { bg: '#fee2e2', color: '#991b1b' },
+      rejected: { bg: '#fee2e2', color: '#991b1b' },
+      approved: { bg: '#d1fae5', color: '#065f46' },
       refunded: { bg: '#e0e7ff', color: '#3730a3' }
     };
 
-    const style = colors[status?.toLowerCase()] || colors.pending;
-    const label = type === 'tag' && status === 'active' ? 'ACTIVE' : type === 'tag' && status === 'inactive' ? 'INACTIVE' : status?.toUpperCase();
+    const statusLower = status?.toLowerCase();
+    const style = colors[statusLower] || colors.pending;
+    
+    let label;
+    if (type === 'tag') {
+      label = status === 'active' ? 'ACTIVE' : status === 'inactive' ? 'INACTIVE' : statusLower?.toUpperCase();
+    } else {
+      // For claims and payments, use proper label mapping
+      const labelMap = {
+        'pending': 'PENDING',
+        'sent': 'SENT',
+        'claimed': 'CLAIMED',
+        'expired': 'EXPIRED',
+        'cancelled': 'CANCELLED',
+        'rejected': 'REJECTED',
+        'approved': 'APPROVED',
+        'completed': 'COMPLETED',
+        'refunded': 'REFUNDED'
+      };
+      label = labelMap[statusLower] || statusLower?.toUpperCase();
+    }
 
     return (
       <span style={{
