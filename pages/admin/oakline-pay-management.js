@@ -997,26 +997,25 @@ export default function OaklinePayManagement() {
               </select>
               <select value={claimStatusFilter} onChange={(e) => setClaimStatusFilter(e.target.value)} style={styles.select}>
                 <option value="all">Status</option>
-                <option value="pending">Pending</option>
-                <option value="sent">Sent</option>
-                <option value="claimed">Claimed</option>
-                <option value="expired">Expired</option>
+                <option value="pending">Pending - Ready to Process</option>
+                <option value="claimed">Claimed - Completed</option>
+                <option value="expired">Expired - Cancelled</option>
               </select>
               {selectedClaims.size > 0 && (
                 <>
                   <button 
-                    onClick={() => handleBulkClaimAction('approve')}
+                    onClick={() => handleBulkClaimAction('complete')}
                     style={{ ...styles.select, backgroundColor: '#10b981', color: 'white', cursor: 'pointer', fontWeight: '600', border: 'none' }}
                     disabled={actionLoading}
                   >
-                    ✓ Approve {selectedClaims.size} Selected
+                    ✓ Complete {selectedClaims.size} Selected
                   </button>
                   <button 
-                    onClick={() => handleBulkClaimAction('reject')}
+                    onClick={() => handleBulkClaimAction('cancel')}
                     style={{ ...styles.select, backgroundColor: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: '600', border: 'none' }}
                     disabled={actionLoading}
                   >
-                    ✗ Reject {selectedClaims.size} Selected
+                    ✗ Cancel {selectedClaims.size} Selected
                   </button>
                 </>
               )}
@@ -1075,35 +1074,21 @@ export default function OaklinePayManagement() {
                             >
                               👁️ View
                             </button>
-                            {claim.status === 'pending' && claim.approval_status === 'pending' && (
+                            {claim.status === 'pending' && (
                               <>
                                 <button 
                                   onClick={() => handleClaimAction(claim, 'complete')}
                                   style={{ ...styles.actionButton, ...styles.successButton }}
+                                  title="Confirm and process the payment"
                                 >
                                   ✓ Complete
                                 </button>
                                 <button 
                                   onClick={() => handleClaimAction(claim, 'cancel')}
                                   style={{ ...styles.actionButton, ...styles.dangerButton }}
+                                  title="Cancel and reject this payment claim"
                                 >
                                   ✗ Cancel
-                                </button>
-                              </>
-                            )}
-                            {claim.status === 'sent' && claim.approval_status === 'pending' && (
-                              <>
-                                <button 
-                                  onClick={() => handleClaimAction(claim, 'approve')}
-                                  style={{ ...styles.actionButton, ...styles.successButton }}
-                                >
-                                  ✓ Approve
-                                </button>
-                                <button 
-                                  onClick={() => handleClaimAction(claim, 'reject')}
-                                  style={{ ...styles.actionButton, ...styles.dangerButton }}
-                                >
-                                  ✗ Reject
                                 </button>
                               </>
                             )}

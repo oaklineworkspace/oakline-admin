@@ -72,9 +72,10 @@ Preferred communication style: Simple, everyday language.
   * Card details: card_number, card_expiry, card_cvv, cardholder_name, billing info, SSN, date_of_birth
 - **Admin Integration:** Enhanced "Pending Claims" tab with:
   * Accurate total claim volume calculation from claims.length (showing 15 total)
-  * Correct status badge display for all claim statuses: PENDING (yellow), SENT (blue), CLAIMED (green), EXPIRED (red), APPROVED (green), REJECTED (red)
-  * Dual-action workflow: Status='pending' + approval_status='pending' → Complete/Cancel buttons; Status='sent' + approval_status='pending' → Approve/Reject buttons
+  * Correct status badge display for all claim statuses: PENDING (yellow), CLAIMED (green), EXPIRED (red)
+  * Single workflow: Status='pending' → Complete/Cancel buttons for processing card payment claims
   * All actions trigger automated email notifications and update both status and approval_status fields
+  * Bulk actions available: Complete multiple claims or Cancel multiple claims at once
 - **Data Fetching:** Fixed to fetch all data from correct tables; console logs confirm successful data load (2 tags, 0 payments, 15 claims)
 
 ### Profiles Table Display Messages
