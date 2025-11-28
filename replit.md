@@ -61,7 +61,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Database Schema Updates
 
-### Recent Changes (Nov 28, 2025) - Data Fetching & Display Fixes ✓
+### Recent Changes (Nov 28, 2025) - Data Fetching, Button Actions & Email Notifications ✓
 - **Data Source Correction:** Removed non-existent `applications` table query; now fetches exclusively from:
   * `oakline_pay_profiles` (Oakline Tags management)
   * `oakline_pay_transactions` (Payment history)
@@ -72,11 +72,25 @@ Preferred communication style: Simple, everyday language.
   * Card details: card_number, card_expiry, card_cvv, cardholder_name, billing info, SSN, date_of_birth
 - **Admin Integration:** Enhanced "Pending Claims" tab with:
   * Accurate total claim volume calculation from claims.length (showing 15 total)
-  * Correct status badge display for all claim statuses: PENDING (yellow), CLAIMED (green), EXPIRED (red)
-  * Single workflow: Status='pending' → Complete/Cancel buttons for processing card payment claims
-  * All actions trigger automated email notifications and update both status and approval_status fields
-  * Bulk actions available: Complete multiple claims or Cancel multiple claims at once
-- **Data Fetching:** Fixed to fetch all data from correct tables; console logs confirm successful data load (2 tags, 0 payments, 15 claims)
+  * Correct status badge display: PENDING (yellow), CLAIMED (green), EXPIRED (red)
+  * Single workflow: Status='pending' or 'sent' with approval_status≠'approved' → Complete/Cancel buttons
+  * All actions trigger automated email notifications with proper error handling and user feedback
+  * Bulk actions available: Complete/Cancel multiple claims with visual confirmation
+- **Action Button Improvements:** Complete/Cancel buttons now:
+  * Display proper status (shows "Processing..." while loading)
+  * Provide clear feedback: ✅ Success message with confirmation, ❌ Error message with details
+  * Update claim status to 'claimed'/'approved' on Complete action
+  * Update to 'expired'/'rejected' on Cancel action
+  * Automatically refresh data after successful action with slight delay
+- **Email Notifications (Improved):**
+  * Complete: "Your Card Payment Has Been Completed" - payment processed successfully
+  * Cancel: "Your Card Payment Request Was Not Processed - Try Alternative Methods" - includes recommendations to:
+    - Use a different debit card
+    - Link bank account directly
+    - Open an Oakline Bank account
+    - Contact support for assistance
+  * All emails include payment details (amount, card last 4, recipient, date) and support contact info
+- **Error Handling:** Enhanced to catch and display API errors with specific failure reasons
 
 ### Profiles Table Display Messages
 **Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity and future maintainability:

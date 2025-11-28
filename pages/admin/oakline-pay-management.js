@@ -444,7 +444,10 @@ export default function OaklinePayManagement() {
           })
         });
 
-        if (!response.ok) throw new Error('Failed to process claim');
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || `Failed to ${action} claim`);
+        }
       } else if (modalType === 'paymentStatus') {
         const response = await fetch('/api/admin/update-oakline-payment', {
           method: 'POST',
@@ -479,10 +482,11 @@ export default function OaklinePayManagement() {
 
       setSuccess(`✅ Action completed successfully!`);
       setShowModal(false);
-      fetchAllData();
+      setActionForm({ action: '', notes: '' });
+      setTimeout(() => fetchAllData(), 800);
     } catch (error) {
       console.error('Error:', error);
-      setError('❌ ' + error.message);
+      setError('❌ ' + (error.message || 'An unexpected error occurred'));
     } finally {
       setActionLoading(false);
     }

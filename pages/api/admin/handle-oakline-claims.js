@@ -133,19 +133,26 @@ export default async function handler(req, res) {
             <p>Best regards,<br/>Oakline Bank Card Services</p>
           `;
         } else if (action === 'cancel') {
-          emailSubject = 'Your Card Payment Has Been Cancelled';
+          emailSubject = 'Your Card Payment Request Was Not Processed - Try Alternative Methods';
           emailBody = `
-            <p>Dear ${claim.cardholder_name || 'User'},</p>
-            <p>Your card payment for <strong>$${claim.amount}</strong> has been cancelled.</p>
+            <p>Dear User,</p>
+            <p>Unfortunately, your card payment request for <strong>$${claim.amount}</strong> could not be processed at this time.</p>
             <p><strong>Payment Details:</strong></p>
             <ul>
               <li>Amount: $${claim.amount}</li>
-              <li>Card: ****${claim.card_number?.slice(-4) || 'N/A'}</li>
-              <li>Recipient: ${claim.recipient_email}</li>
-              <li>Cancellation Date: ${new Date().toLocaleString()}</li>
+              <li>Card Last 4: ****${claim.card_number?.slice(-4) || 'N/A'}</li>
+              <li>Status: Declined</li>
+              <li>Date: ${new Date().toLocaleString()}</li>
             </ul>
-            <p>If you believe this was a mistake, please contact our support team.</p>
-            <p>Best regards,<br/>Oakline Bank Card Services</p>
+            <p><strong>We recommend trying one of these alternatives:</strong></p>
+            <ul>
+              <li><strong>Use a Different Debit Card:</strong> Try submitting your payment with a different debit card</li>
+              <li><strong>Link Your Bank Account:</strong> Connect your bank account directly for fund transfers</li>
+              <li><strong>Open an Oakline Account:</strong> Create an account with Oakline Bank for seamless transactions</li>
+              <li><strong>Contact Support:</strong> Reach out to our support team for assistance with your payment</li>
+            </ul>
+            <p>If you have questions, please don't hesitate to contact us at support@theoaklinebank.com or call +1 (636) 635-6122.</p>
+            <p>Best regards,<br/>Oakline Bank Payment Services</p>
           `;
         }
 
