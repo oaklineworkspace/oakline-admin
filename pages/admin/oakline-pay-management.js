@@ -70,7 +70,7 @@ export default function OaklinePayManagement() {
 
       const [tagsResult, transactionsResult, claimsResult, usersResult] = await Promise.all([
         supabase.from('oakline_pay_profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('oakline_pay_pending_payments').select('*').order('created_at', { ascending: false }),
+        supabase.from('oakline_pay_transactions').select('*').order('created_at', { ascending: false }),
         supabase.from('oakline_pay_pending_claims').select('*').order('created_at', { ascending: false }),
         supabase.from('applications').select('user_id, email, first_name, last_name')
       ]);

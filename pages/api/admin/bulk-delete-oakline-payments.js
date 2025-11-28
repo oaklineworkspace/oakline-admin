@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
     // Delete all payments
     const { error: deleteError } = await supabaseAdmin
-      .from('oakline_pay_pending_payments')
+      .from('oakline_pay_transactions')
       .delete()
       .in('id', paymentIds);
 
