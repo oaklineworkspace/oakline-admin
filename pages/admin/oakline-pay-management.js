@@ -26,6 +26,15 @@ export default function OaklinePayManagement() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [selectedPayments, setSelectedPayments] = useState(new Set());
 
+  // Claims state
+  const [claims, setClaims] = useState([]);
+  const [filteredClaims, setFilteredClaims] = useState([]);
+  const [claimUsers, setClaimUsers] = useState([]);
+  const [selectedClaimUser, setSelectedClaimUser] = useState('all');
+  const [claimSearchTerm, setClaimSearchTerm] = useState('');
+  const [claimStatusFilter, setClaimStatusFilter] = useState('all');
+  const [selectedClaims, setSelectedClaims] = useState(new Set());
+
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
@@ -50,26 +59,34 @@ export default function OaklinePayManagement() {
     filterPayments();
   }, [payments, selectedPaymentUser, paymentSearchTerm, paymentStatusFilter]);
 
+  useEffect(() => {
+    filterClaims();
+  }, [claims, selectedClaimUser, claimSearchTerm, claimStatusFilter]);
+
   const fetchAllData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const [tagsResult, transactionsResult, usersResult] = await Promise.all([
+      const [tagsResult, transactionsResult, claimsResult, usersResult] = await Promise.all([
         supabase.from('oakline_pay_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('oakline_pay_pending_payments').select('*').order('created_at', { ascending: false }),
+        supabase.from('oakline_pay_pending_claims').select('*').order('created_at', { ascending: false }),
         supabase.from('applications').select('user_id, email, first_name, last_name')
       ]);
 
       if (tagsResult.error) throw tagsResult.error;
       if (transactionsResult.error) throw transactionsResult.error;
+      if (claimsResult.error) throw claimsResult.error;
 
       setTags(tagsResult.data || []);
       setPayments(transactionsResult.data || []);
+      setClaims(claimsResult.data || []);
       
       const uniqueUsers = Array.from(new Map((usersResult.data || []).map(u => [u.user_id, { user_id: u.user_id, email: u.email, name: `${u.first_name} ${u.last_name}` }])).values());
       setTagUsers(uniqueUsers);
       setPaymentUsers(uniqueUsers);
+      setClaimUsers(uniqueUsers);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to fetch Oakline Pay data: ' + error.message);
@@ -107,8 +124,7 @@ export default function OaklinePayManagement() {
       const search = paymentSearchTerm.toLowerCase();
       filtered = filtered.filter(p =>
         p.recipient_email?.toLowerCase().includes(search) ||
-        p.reference_number?.toLowerCase().includes(search) ||
-        p.transaction_id?.toLowerCase().includes(search)
+        p.reference_number?.toLowerCase().includes(search)
       );
     }
 
@@ -117,6 +133,29 @@ export default function OaklinePayManagement() {
     }
 
     setFilteredPayments(filtered);
+  };
+
+  const filterClaims = () => {
+    let filtered = [...claims];
+
+    if (selectedClaimUser !== 'all') {
+      filtered = filtered.filter(c => c.sender_id === selectedClaimUser);
+    }
+
+    if (claimSearchTerm) {
+      const search = claimSearchTerm.toLowerCase();
+      filtered = filtered.filter(c =>
+        c.recipient_email?.toLowerCase().includes(search) ||
+        c.claim_token?.toLowerCase().includes(search) ||
+        c.sender_name?.toLowerCase().includes(search)
+      );
+    }
+
+    if (claimStatusFilter !== 'all') {
+      filtered = filtered.filter(c => c.status === claimStatusFilter);
+    }
+
+    setFilteredClaims(filtered);
   };
 
   const handleTagAction = (tag, action) => {
@@ -394,7 +433,11 @@ export default function OaklinePayManagement() {
     totalPayments: payments.length,
     pendingPayments: payments.filter(p => p.status === 'pending').length,
     completedPayments: payments.filter(p => p.status === 'completed').length,
-    totalVolume: payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+    totalVolume: payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
+    totalClaims: claims.length,
+    pendingClaims: claims.filter(c => c.status === 'pending').length,
+    claimedClaims: claims.filter(c => c.status === 'claimed').length,
+    claimVolume: claims.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)
   };
 
   const styles = {
@@ -697,6 +740,18 @@ export default function OaklinePayManagement() {
             <h3 style={styles.statLabel}>Total Volume</h3>
             <p style={styles.statValue}>${(stats.totalVolume / 1000).toFixed(0)}K</p>
           </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #8b5cf6' }}>
+            <h3 style={styles.statLabel}>Total Claims</h3>
+            <p style={styles.statValue}>{stats.totalClaims}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #ec4899' }}>
+            <h3 style={styles.statLabel}>Pending Claims</h3>
+            <p style={styles.statValue}>{stats.pendingClaims}</p>
+          </div>
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #f97316' }}>
+            <h3 style={styles.statLabel}>Claim Volume</h3>
+            <p style={styles.statValue}>${(stats.claimVolume / 1000).toFixed(0)}K</p>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -712,6 +767,12 @@ export default function OaklinePayManagement() {
             style={activeTab === 'payments' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
           >
             💰 Payment History
+          </button>
+          <button
+            onClick={() => setActiveTab('claims')}
+            style={activeTab === 'claims' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
+          >
+            📋 Pending Claims
           </button>
         </div>
 
@@ -778,6 +839,71 @@ export default function OaklinePayManagement() {
                             </button>
                           </div>
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Claims View */}
+        {activeTab === 'claims' && (
+          <>
+            <div style={styles.filterSection}>
+              <input
+                type="text"
+                placeholder="🔍 Search by email, token, or sender..."
+                value={claimSearchTerm}
+                onChange={(e) => setClaimSearchTerm(e.target.value)}
+                style={styles.searchInput}
+              />
+              <select value={selectedClaimUser} onChange={(e) => setSelectedClaimUser(e.target.value)} style={styles.select}>
+                <option value="all">All Users</option>
+                {claimUsers.map(user => (
+                  <option key={user.user_id} value={user.user_id}>{user.name}</option>
+                ))}
+              </select>
+              <select value={claimStatusFilter} onChange={(e) => setClaimStatusFilter(e.target.value)} style={styles.select}>
+                <option value="all">Status</option>
+                <option value="pending">Pending</option>
+                <option value="sent">Sent</option>
+                <option value="claimed">Claimed</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+
+            {loading ? (
+              <div style={styles.emptyState}>Loading...</div>
+            ) : filteredClaims.length === 0 ? (
+              <div style={styles.emptyState}>No claims found</div>
+            ) : (
+              <div style={styles.tableContainer}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Amount</th>
+                      <th style={styles.th}>Sender</th>
+                      <th style={styles.th}>Recipient Email</th>
+                      <th style={styles.th}>Claim Token</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Approval</th>
+                      <th style={styles.th}>Expires</th>
+                      <th style={styles.th}>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredClaims.map(claim => (
+                      <tr key={claim.id}>
+                        <td style={styles.td}><strong>{formatCurrency(claim.amount)}</strong></td>
+                        <td style={styles.td}>{claim.sender_name || '—'}</td>
+                        <td style={styles.td}>{claim.recipient_email || '—'}</td>
+                        <td style={styles.td}>{(claim.claim_token || '').slice(0, 8)}...</td>
+                        <td style={styles.td}>{getStatusBadge(claim.status)}</td>
+                        <td style={styles.td}>{getStatusBadge(claim.approval_status)}</td>
+                        <td style={styles.td}>{formatDateTime(claim.expires_at)}</td>
+                        <td style={styles.td}>{formatDateTime(claim.created_at)}</td>
                       </tr>
                     ))}
                   </tbody>

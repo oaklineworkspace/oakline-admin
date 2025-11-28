@@ -38,9 +38,17 @@ Preferred communication style: Simple, everyday language.
 11. **Timestamp Editor:** Professional bulk update functionality for user timestamps with multi-select filters and date/datetime toggle.
 12. **Account Restriction Reasons Management:** Complete CRUD interface for managing professional account restriction reasons used in security actions (ban, lock, suspend, close accounts). Includes categorization, severity levels, contact email management, search/filter capabilities, and integration with the security dashboard. All reasons stored in database with appropriate bank contact emails.
 13. **Account Restoration Reasons Management:** New table for managing reasons for restoring user access (unban, lift suspension, unlock, reactivate). Supports multiple action types with predefined categories including appeals, compliance, legal, security, and technical reasons. Enables consistent documentation of why accounts are being restored.
-14. **Oakline Pay Management System:** Complete payment and tag management dashboard with professional interface. Features include payment status updates with automatic user account crediting (complete action), full/partial refund system with reason tracking (similar to PayPal/Cash App), advanced search/filter by recipient/reference, select-all/individual payment selection with visual highlighting, bulk delete functionality with confirmation dialogs, and comprehensive statistics dashboard. All changes tracked with timestamps and user attribution.
+14. **Oakline Pay Management System:** Complete payment and tag management dashboard with professional interface. Features include:
+    - **Oakline Tags Management:** Tag profiles, activation/deactivation, search and filtering
+    - **Payment History:** Payment status updates with automatic user account crediting (complete action), full/partial refund system with reason tracking, advanced search/filter by recipient/reference, select-all/individual payment selection with visual highlighting, bulk delete functionality with confirmation dialogs
+    - **Pending Claims Management (NEW):** Display of pending payment claims with sender/recipient info, claim tokens, status tracking, approval status, expiration dates, and amount volume statistics
 
-## Database Schema Notes
+## Database Schema Updates
+
+### Recent Changes (Nov 28, 2025)
+- **Created:** `oakline_pay_pending_claims` table for managing pending payment claims sent to email recipients
+- **Table Structure:** Includes sender_id, recipient_email, amount, claim_token, status (pending/sent/claimed/expired), approval_status (pending/approved/rejected), and claim method (account/debit_card)
+- **Admin Integration:** Added new "Pending Claims" tab to Oakline Pay Management admin page with full CRUD visibility, search/filtering capabilities, and statistics dashboard
 
 ### Profiles Table Display Messages
 **Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity and future maintainability:
