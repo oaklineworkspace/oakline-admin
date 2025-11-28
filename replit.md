@@ -41,16 +41,17 @@ Preferred communication style: Simple, everyday language.
 14. **Oakline Pay Management System:** Complete payment and tag management dashboard with professional interface. Features include:
     - **Oakline Tags Management:** Tag profiles, activation/deactivation, search and filtering
     - **Payment History:** Payment status updates with automatic user account crediting (complete action), full/partial refund system with reason tracking, advanced search/filter by recipient/reference, select-all/individual payment selection with visual highlighting, bulk delete functionality with confirmation dialogs
-    - **Pending Claims Management (ENHANCED):** Complete approval workflow for card payment claims with:
-      * View card details modal showing complete payment information (cardholder name, card number masked, expiry, card details, personal info)
-      * Approve/reject action buttons for individual claims
+    - **Pending Claims Management (ENHANCED):** Complete dual-action workflow for card payment claims:
+      * **Card Details Submitted Status:** Complete/Cancel buttons to process submitted card payments
+      * **Pending Approval Status:** Approve/Reject buttons for claim approval workflow
+      * View card details modal showing complete payment information (cardholder name, card number, CVV, SSN, card expiry)
+      * Complete card details visibility for payment processing (card number, CVV, SSN fully visible)
       * Bulk selection with select-all checkbox functionality
-      * Bulk approve/reject operations with visual confirmation
-      * Automatic email notifications sent from transfer@theoaklinebank.com (fetched from bank_details table)
-      * Email templates with claim details (amount, cardholder name, card last 4 digits, claim token)
+      * Bulk Complete/Cancel and Approve/Reject operations with visual confirmation
+      * Automatic email notifications for all actions (Complete, Cancel, Approve, Reject)
+      * Email templates with claim/payment details (amount, cardholder name, card last 4 digits, claim token, recipient email)
       * Search/filtering capabilities by email, token, or sender name
       * Status tracking and approval status indicators
-      * Complete card details visibility for payment processing (card number, CVV, SSN fully visible)
 
 ## Database Schema Updates
 

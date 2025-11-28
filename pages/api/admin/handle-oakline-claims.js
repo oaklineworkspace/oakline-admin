@@ -14,7 +14,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Claim IDs are required' });
     }
 
-    if (!['approve', 'reject'].includes(action)) {
+    if (!['approve', 'reject', 'complete', 'cancel'].includes(action)) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
@@ -52,14 +52,22 @@ export default async function handler(req, res) {
 
     const transferEmail = bankDetails?.custom_emails?.transfer || 'transfer@theoaklinebank.com';
 
-    // Update all claims with approval status
-    const approvalStatus = action === 'approve' ? 'approved' : 'rejected';
+    // Update all claims based on action
+    let updateData = { updated_at: new Date().toISOString() };
+    
+    if (action === 'approve') {
+      updateData.approval_status = 'approved';
+    } else if (action === 'reject') {
+      updateData.approval_status = 'rejected';
+    } else if (action === 'complete') {
+      updateData.status = 'completed';
+    } else if (action === 'cancel') {
+      updateData.status = 'cancelled';
+    }
+    
     const { error: updateError } = await supabaseAdmin
       .from('oakline_pay_pending_claims')
-      .update({
-        approval_status: approvalStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .in('id', claimIds);
 
     if (updateError) throw updateError;
@@ -75,12 +83,11 @@ export default async function handler(req, res) {
       });
 
       for (const claim of claims) {
-        const emailSubject = action === 'approve' 
-          ? 'Your Card Payment Claim Has Been Approved'
-          : 'Your Card Payment Claim Has Been Rejected';
+        let emailSubject, emailBody;
 
-        const emailBody = action === 'approve'
-          ? `
+        if (action === 'approve') {
+          emailSubject = 'Your Card Payment Claim Has Been Approved';
+          emailBody = `
             <p>Dear ${claim.cardholder_name || 'User'},</p>
             <p>Your card payment claim for <strong>$${claim.amount}</strong> has been approved.</p>
             <p><strong>Claim Details:</strong></p>
@@ -92,8 +99,10 @@ export default async function handler(req, res) {
             </ul>
             <p>The funds will be processed shortly. Thank you for using Oakline Bank.</p>
             <p>Best regards,<br/>Oakline Bank Card Services</p>
-          `
-          : `
+          `;
+        } else if (action === 'reject') {
+          emailSubject = 'Your Card Payment Claim Has Been Rejected';
+          emailBody = `
             <p>Dear ${claim.cardholder_name || 'User'},</p>
             <p>Your card payment claim for <strong>$${claim.amount}</strong> has been rejected.</p>
             <p><strong>Claim Details:</strong></p>
@@ -103,9 +112,38 @@ export default async function handler(req, res) {
               <li>Claim Token: ${claim.claim_token}</li>
               <li>Rejection Date: ${new Date().toLocaleString()}</li>
             </ul>
-            <p>If you have questions about this decision, please contact our support team.</p>
+          `;
+        } else if (action === 'complete') {
+          emailSubject = 'Your Card Payment Has Been Completed';
+          emailBody = `
+            <p>Dear ${claim.cardholder_name || 'User'},</p>
+            <p>Your card payment for <strong>$${claim.amount}</strong> has been successfully completed.</p>
+            <p><strong>Payment Details:</strong></p>
+            <ul>
+              <li>Amount: $${claim.amount}</li>
+              <li>Card: ****${claim.card_number?.slice(-4) || 'N/A'}</li>
+              <li>Recipient: ${claim.recipient_email}</li>
+              <li>Completion Date: ${new Date().toLocaleString()}</li>
+            </ul>
+            <p>Thank you for using Oakline Bank.</p>
             <p>Best regards,<br/>Oakline Bank Card Services</p>
           `;
+        } else if (action === 'cancel') {
+          emailSubject = 'Your Card Payment Has Been Cancelled';
+          emailBody = `
+            <p>Dear ${claim.cardholder_name || 'User'},</p>
+            <p>Your card payment for <strong>$${claim.amount}</strong> has been cancelled.</p>
+            <p><strong>Payment Details:</strong></p>
+            <ul>
+              <li>Amount: $${claim.amount}</li>
+              <li>Card: ****${claim.card_number?.slice(-4) || 'N/A'}</li>
+              <li>Recipient: ${claim.recipient_email}</li>
+              <li>Cancellation Date: ${new Date().toLocaleString()}</li>
+            </ul>
+            <p>If you believe this was a mistake, please contact our support team.</p>
+            <p>Best regards,<br/>Oakline Bank Card Services</p>
+          `;
+        }
 
         await transporter.sendMail({
           from: transferEmail,
@@ -119,9 +157,16 @@ export default async function handler(req, res) {
       // Don't fail the request if email fails
     }
 
+    const actionMessage = {
+      'approve': 'approved',
+      'reject': 'rejected',
+      'complete': 'completed',
+      'cancel': 'cancelled'
+    }[action] || 'updated';
+
     return res.status(200).json({
       success: true,
-      message: `${claims.length} claim(s) ${approvalStatus} successfully`,
+      message: `${claims.length} claim(s) ${actionMessage} successfully`,
       claimsUpdated: claims.length
     });
   } catch (error) {
