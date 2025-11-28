@@ -836,6 +836,46 @@ export default function OaklinePayManagement() {
       fontWeight: '600',
       cursor: 'pointer',
       marginTop: '1rem'
+    },
+    successBannerOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 99999,
+      backdropFilter: 'blur(4px)',
+      animation: 'fadeIn 0.3s ease-out'
+    },
+    successBannerContainer: {
+      backgroundColor: '#ffffff',
+      borderRadius: '16px',
+      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+      minWidth: '400px',
+      maxWidth: '500px',
+      overflow: 'hidden',
+      animation: 'slideIn 0.3s ease-out'
+    },
+    successBannerHeader: {
+      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      padding: '20px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    successBannerLogo: {
+      color: '#ffffff',
+      fontSize: '16px',
+      fontWeight: '700',
+      letterSpacing: '2px',
+      textTransform: 'uppercase'
+    },
+    successBannerBody: {
+      padding: '30px 20px'
     }
   };
 
@@ -1414,25 +1454,32 @@ export default function OaklinePayManagement() {
         )}
 
         {/* Success/Error Banner */}
-        {(success || error) && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            padding: '16px 24px',
-            borderRadius: '8px',
-            backgroundColor: success ? '#10b981' : '#ef4444',
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: '600',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            maxWidth: '500px',
-            textAlign: 'center',
-            animation: 'slideDown 0.3s ease-out'
-          }}>
-            {success || error}
+        {success && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>✅ Success</span>
+              </div>
+              <div style={styles.successBannerBody}>
+                <p style={{ margin: '0 0 12px 0', fontSize: '14px', lineHeight: '1.5' }}>
+                  {success}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {error && (
+          <div style={{ ...styles.successBannerOverlay, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ ...styles.successBannerContainer, borderLeft: '4px solid #ef4444' }}>
+              <div style={{ ...styles.successBannerHeader, backgroundColor: '#fee2e2' }}>
+                <span style={{ ...styles.successBannerLogo, color: '#991b1b' }}>❌ Error</span>
+              </div>
+              <div style={styles.successBannerBody}>
+                <p style={{ margin: '0', fontSize: '14px', color: '#991b1b', lineHeight: '1.5' }}>
+                  {error}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

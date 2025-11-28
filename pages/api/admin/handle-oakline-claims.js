@@ -147,7 +147,7 @@ export default async function handler(req, res) {
 
         await transporter.sendMail({
           from: transferEmail,
-          to: claim.recipient_email,
+          to: claim.sender_contact || claim.recipient_email,
           subject: emailSubject,
           html: emailBody
         });
