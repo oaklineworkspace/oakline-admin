@@ -230,11 +230,6 @@ export default function OaklinePayManagement() {
     setShowDetailsModal(true);
   };
 
-  const maskCardNumber = (cardNum) => {
-    if (!cardNum) return '—';
-    const str = cardNum.toString();
-    return str.slice(0, 4) + '*'.repeat(Math.max(0, str.length - 8)) + str.slice(-4);
-  };
 
   const handleBulkClaimAction = async (action) => {
     if (selectedClaims.size === 0) {
@@ -1265,7 +1260,7 @@ export default function OaklinePayManagement() {
                   
                   <div style={{ marginBottom: '12px' }}>
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Card Number</label>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#555', letterSpacing: '2px' }}>{maskCardNumber(selectedItem.card_number)}</div>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#555', letterSpacing: '2px' }}>{selectedItem.card_number || '—'}</div>
                   </div>
                   
                   <div style={{ marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1275,7 +1270,7 @@ export default function OaklinePayManagement() {
                     </div>
                     <div>
                       <label style={{ ...styles.formLabel, marginBottom: '4px' }}>CVV</label>
-                      <div style={{ fontSize: '14px', color: '#555', fontWeight: '600' }}>***</div>
+                      <div style={{ fontSize: '14px', color: '#555', fontWeight: '600' }}>{selectedItem.card_cvv || '—'}</div>
                     </div>
                   </div>
 
@@ -1288,7 +1283,7 @@ export default function OaklinePayManagement() {
                   
                   <div style={{ marginBottom: '12px' }}>
                     <label style={{ ...styles.formLabel, marginBottom: '4px' }}>SSN</label>
-                    <div style={{ fontSize: '13px', color: '#555' }}>***-**-{selectedItem.ssn?.slice(-4) || '—'}</div>
+                    <div style={{ fontSize: '13px', color: '#555' }}>{selectedItem.ssn || '—'}</div>
                   </div>
 
                   {selectedItem.admin_notes && (

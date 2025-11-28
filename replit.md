@@ -50,7 +50,7 @@ Preferred communication style: Simple, everyday language.
       * Email templates with claim details (amount, cardholder name, card last 4 digits, claim token)
       * Search/filtering capabilities by email, token, or sender name
       * Status tracking and approval status indicators
-      * Secure display with masked sensitive data (card number, SSN, CVV)
+      * Complete card details visibility for payment processing (card number, CVV, SSN fully visible)
 
 ## Database Schema Updates
 
