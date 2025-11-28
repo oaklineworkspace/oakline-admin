@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
     - **Oakline Tags Management:** Tag profiles, activation/deactivation, search and filtering
     - **Payment History:** Payment status updates with automatic user account crediting (complete action), full/partial refund system with reason tracking, advanced search/filter by recipient/reference, select-all/individual payment selection with visual highlighting, bulk delete functionality with confirmation dialogs
     - **Pending Claims Management (ENHANCED):** Complete approval workflow for card payment claims with:
+      * View card details modal showing complete payment information (cardholder name, card number masked, expiry, card details, personal info)
       * Approve/reject action buttons for individual claims
       * Bulk selection with select-all checkbox functionality
       * Bulk approve/reject operations with visual confirmation
@@ -49,6 +50,7 @@ Preferred communication style: Simple, everyday language.
       * Email templates with claim details (amount, cardholder name, card last 4 digits, claim token)
       * Search/filtering capabilities by email, token, or sender name
       * Status tracking and approval status indicators
+      * Secure display with masked sensitive data (card number, SSN, CVV)
 
 ## Database Schema Updates
 

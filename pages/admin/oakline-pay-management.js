@@ -42,7 +42,8 @@ export default function OaklinePayManagement() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(''); // 'tagStatus', 'paymentStatus', or 'refund'
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'tagStatus', 'paymentStatus', 'refund', or 'claimDetails'
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionForm, setActionForm] = useState({ action: '', notes: '' });
   const [refundForm, setRefundForm] = useState({ reason: '', amount: '' });
@@ -222,6 +223,17 @@ export default function OaklinePayManagement() {
     setModalType(`claim_${action}`);
     setActionForm({ action, notes: '' });
     setShowModal(true);
+  };
+
+  const handleViewClaimDetails = (claim) => {
+    setSelectedItem(claim);
+    setShowDetailsModal(true);
+  };
+
+  const maskCardNumber = (cardNum) => {
+    if (!cardNum) return '—';
+    const str = cardNum.toString();
+    return str.slice(0, 4) + '*'.repeat(Math.max(0, str.length - 8)) + str.slice(-4);
   };
 
   const handleBulkClaimAction = async (action) => {
@@ -1030,6 +1042,12 @@ export default function OaklinePayManagement() {
                         <td style={styles.td}>{formatDateTime(claim.created_at)}</td>
                         <td style={styles.td}>
                           <div style={styles.actionButtons}>
+                            <button 
+                              onClick={() => handleViewClaimDetails(claim)}
+                              style={{ ...styles.actionButton, backgroundColor: '#6366f1', color: 'white' }}
+                            >
+                              👁️ View
+                            </button>
                             {claim.approval_status === 'pending' && (
                               <>
                                 <button 
@@ -1185,6 +1203,111 @@ export default function OaklinePayManagement() {
               </div>
             )}
           </>
+        )}
+
+        {/* Card Details Modal */}
+        {showDetailsModal && selectedItem && (
+          <div style={styles.modal} onClick={() => setShowDetailsModal(false)}>
+            <div style={{ ...styles.modalContent, maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
+              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '18px', fontWeight: '700', color: '#1A3E6F' }}>
+                💳 Card Payment Claim Details
+              </h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                {/* Left Column */}
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Claim Information</h3>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Amount</label>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#1A3E6F' }}>{formatCurrency(selectedItem.amount)}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Claim Token</label>
+                    <div style={{ fontSize: '12px', color: '#555', wordBreak: 'break-all' }}>{selectedItem.claim_token || '—'}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Status</label>
+                    <div>{getStatusBadge(selectedItem.status)}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Approval Status</label>
+                    <div>{getStatusBadge(selectedItem.approval_status)}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Sender</label>
+                    <div style={{ fontSize: '14px', color: '#555' }}>{selectedItem.sender_name || '—'}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Recipient Email</label>
+                    <div style={{ fontSize: '13px', color: '#555', wordBreak: 'break-all' }}>{selectedItem.recipient_email || '—'}</div>
+                  </div>
+                  
+                  <div>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Submitted Date</label>
+                    <div style={{ fontSize: '12px', color: '#555' }}>{formatDateTime(selectedItem.created_at)}</div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Card Details</h3>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Cardholder Name</label>
+                    <div style={{ fontSize: '14px', color: '#1A3E6F', fontWeight: '600' }}>{selectedItem.cardholder_name || '—'}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Card Number</label>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#555', letterSpacing: '2px' }}>{maskCardNumber(selectedItem.card_number)}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Expiry</label>
+                      <div style={{ fontSize: '14px', color: '#555', fontWeight: '600' }}>{selectedItem.card_expiry || '—'}</div>
+                    </div>
+                    <div>
+                      <label style={{ ...styles.formLabel, marginBottom: '4px' }}>CVV</label>
+                      <div style={{ fontSize: '14px', color: '#555', fontWeight: '600' }}>***</div>
+                    </div>
+                  </div>
+
+                  <h3 style={{ margin: '16px 0 12px 0', fontSize: '12px', fontWeight: '700', color: '#666', textTransform: 'uppercase' }}>Personal Info</h3>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Date of Birth</label>
+                    <div style={{ fontSize: '13px', color: '#555' }}>{selectedItem.date_of_birth ? new Date(selectedItem.date_of_birth).toLocaleDateString() : '—'}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ ...styles.formLabel, marginBottom: '4px' }}>SSN</label>
+                    <div style={{ fontSize: '13px', color: '#555' }}>***-**-{selectedItem.ssn?.slice(-4) || '—'}</div>
+                  </div>
+
+                  {selectedItem.admin_notes && (
+                    <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '6px' }}>
+                      <label style={{ ...styles.formLabel, marginBottom: '4px' }}>Admin Notes</label>
+                      <div style={{ fontSize: '12px', color: '#555', whiteSpace: 'pre-wrap' }}>{selectedItem.admin_notes}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowDetailsModal(false)}
+                style={{ ...styles.submitButton, backgroundColor: '#6b7280' }}
+              >
+                ✕ Close
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Action Modal */}
