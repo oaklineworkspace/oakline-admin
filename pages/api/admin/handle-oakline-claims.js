@@ -1,5 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
@@ -18,20 +17,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
-    const cookieStore = cookies();
-    const supabaseAdmin = createServerClient(
+    // Create Supabase admin client for API routes
+    const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     // Fetch all claims
@@ -120,7 +109,7 @@ export default async function handler(req, res) {
         } else if (action === 'complete') {
           emailSubject = 'Your Card Payment Has Been Completed';
           emailBody = `
-            <p>Dear ${claim.cardholder_name || 'User'},</p>
+            <p>Dear User,</p>
             <p>Your card payment for <strong>$${claim.amount}</strong> has been successfully completed.</p>
             <p><strong>Payment Details:</strong></p>
             <ul>
