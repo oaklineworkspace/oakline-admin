@@ -91,6 +91,13 @@ Preferred communication style: Simple, everyday language.
     - Contact support for assistance
   * All emails include payment details (amount, card last 4, recipient, date) and support contact info
 - **Error Handling:** Enhanced to catch and display API errors with specific failure reasons
+- **UI/UX Improvements:**
+  * Loading spinner on buttons: "⏳ Processing..." during action execution
+  * Success/Error banner displayed at top of page in front of modal
+  * Green banner for successful actions, red banner for errors
+  * Auto-dismisses after 2 seconds (success) or 5 seconds (errors)
+  * Modal auto-closes on successful action completion
+  * Data automatically refreshes after action
 
 ### Profiles Table Display Messages
 **Column Strategy:** The `ban_display_message` column currently serves as a multi-purpose display message column for all account restriction statuses (ban, suspend, close). To improve clarity and future maintainability:

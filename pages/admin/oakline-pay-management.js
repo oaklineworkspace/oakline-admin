@@ -483,10 +483,14 @@ export default function OaklinePayManagement() {
       setSuccess(`✅ Action completed successfully!`);
       setShowModal(false);
       setActionForm({ action: '', notes: '' });
-      setTimeout(() => fetchAllData(), 800);
+      setTimeout(() => {
+        setSuccess('');
+        fetchAllData();
+      }, 2000);
     } catch (error) {
       console.error('Error:', error);
       setError('❌ ' + (error.message || 'An unexpected error occurred'));
+      setTimeout(() => setError(''), 5000);
     } finally {
       setActionLoading(false);
     }
@@ -1406,6 +1410,29 @@ export default function OaklinePayManagement() {
                 ✕ Close
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Success/Error Banner */}
+        {(success || error) && (
+          <div style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            padding: '16px 24px',
+            borderRadius: '8px',
+            backgroundColor: success ? '#10b981' : '#ef4444',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: '600',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            maxWidth: '500px',
+            textAlign: 'center',
+            animation: 'slideDown 0.3s ease-out'
+          }}>
+            {success || error}
           </div>
         )}
 
