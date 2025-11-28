@@ -69,11 +69,10 @@ export default function OaklinePayManagement() {
       setLoading(true);
       setError('');
 
-      const [tagsResult, transactionsResult, claimsResult, usersResult] = await Promise.all([
+      const [tagsResult, transactionsResult, claimsResult] = await Promise.all([
         supabase.from('oakline_pay_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('oakline_pay_transactions').select('*').order('created_at', { ascending: false }),
-        supabase.from('oakline_pay_pending_claims').select('*').order('created_at', { ascending: false }),
-        supabase.from('applications').select('user_id, email, first_name, last_name')
+        supabase.from('oakline_pay_pending_claims').select('*').order('created_at', { ascending: false })
       ]);
 
       if (tagsResult.error) throw tagsResult.error;
@@ -90,10 +89,14 @@ export default function OaklinePayManagement() {
       setPayments(transactionsResult.data || []);
       setClaims(claimsResult.data || []);
       
-      const uniqueUsers = Array.from(new Map((usersResult.data || []).map(u => [u.user_id, { user_id: u.user_id, email: u.email, name: `${u.first_name} ${u.last_name}` }])).values());
-      setTagUsers(uniqueUsers);
-      setPaymentUsers(uniqueUsers);
-      setClaimUsers(uniqueUsers);
+      // Extract unique users from the data itself
+      const tagsUsers = Array.from(new Map((tagsResult.data || []).map(t => [t.user_id, { user_id: t.user_id, name: 'Tag User' }])).values());
+      const paymentsUsers = Array.from(new Map((transactionsResult.data || []).map(p => [p.sender_id, { user_id: p.sender_id, name: p.sender_name || 'Unknown' }])).values());
+      const claimsUsers = Array.from(new Map((claimsResult.data || []).map(c => [c.sender_id, { user_id: c.sender_id, name: c.sender_name || 'Unknown' }])).values());
+      
+      setTagUsers(tagsUsers);
+      setPaymentUsers(paymentsUsers);
+      setClaimUsers(claimsUsers);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to fetch Oakline Pay data: ' + error.message);
