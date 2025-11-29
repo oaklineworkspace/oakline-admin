@@ -61,11 +61,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Database Schema Updates
 
-### Recent Changes (Nov 29, 2025) - Card Issuance Bug Fix ✓
-- **Issue:** Debit card issuance modal was not saving the cardholder name to the database
-- **Root Cause:** The `issue-card.js` API endpoint was missing `cardholder_name: cardholderName` in the database insert
-- **Fix Applied:** Added `cardholder_name` field to the card insert operation in `/api/admin/issue-card.js`
-- **Result:** Cards now successfully issue with all information including cardholder name
+### Recent Changes (Nov 29, 2025) - Card Issuance Enhancement ✓
+- **Issue 1:** Debit card issuance modal was not saving the cardholder name to the database
+  - **Root Cause:** The `issue-card.js` API endpoint was missing `cardholder_name: cardholderName` in the database insert
+  - **Fix Applied:** Added `cardholder_name` field to the card insert operation in `/api/admin/issue-card.js`
+  - **Result:** Cards now successfully issue with all information including cardholder name
+
+- **Issue 2:** Account numbers were not displaying properly when admin selected a user during card issuance
+  - **Root Cause:** The `get-accounts.js` API was not filtering by the selected `userId` parameter
+  - **Fixes Applied:**
+    * Updated `/api/admin/get-accounts.js` to accept and filter by `userId` query parameter
+    * Enhanced `/admin/manage-cards.js` to show account selection only after user is selected
+    * Improved account display format: `Account Number - Type - Balance: $amount`
+    * Added helpful loading message when accounts are being fetched
+  - **Result:** Admins now see the selected user's active accounts with clear, formatted details
 
 ### Recent Changes (Nov 28, 2025) - Data Fetching, Button Actions & Email Notifications ✓
 - **Data Source Correction:** Removed non-existent `applications` table query; now fetches exclusively from:

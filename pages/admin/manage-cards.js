@@ -68,13 +68,15 @@ export default function ManageCards() {
 
   const fetchUserAccounts = async (userId) => {
     try {
-      const response = await fetch(`/api/admin/get-accounts?userId=${userId}`);
+      const response = await fetch(`/api/admin/get-accounts?userId=${userId}&status=active`);
       const data = await response.json();
       if (data.accounts) {
-        setAccounts(data.accounts.filter(acc => acc.status === 'active'));
+        console.log('Fetched active accounts for user:', data.accounts);
+        setAccounts(data.accounts);
       }
     } catch (error) {
       console.error('Error fetching accounts:', error);
+      setAccounts([]);
     }
   };
 
@@ -465,22 +467,28 @@ export default function ManageCards() {
                   )}
                 </div>
 
-                {accounts.length > 0 && (
+                {issueForm.userId && (
                   <div style={styles.field}>
                     <label style={styles.label}>Select Account *</label>
-                    <select
-                      value={issueForm.accountId}
-                      onChange={(e) => setIssueForm(prev => ({ ...prev, accountId: e.target.value }))}
-                      required
-                      style={styles.select}
-                    >
-                      <option value="">Choose an account...</option>
-                      {accounts.map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_number} - {account.account_type.toUpperCase()} - ${parseFloat(account.balance).toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
+                    {accounts.length > 0 ? (
+                      <select
+                        value={issueForm.accountId}
+                        onChange={(e) => setIssueForm(prev => ({ ...prev, accountId: e.target.value }))}
+                        required
+                        style={styles.select}
+                      >
+                        <option value="">Choose an account...</option>
+                        {accounts.map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.account_number} - {account.account_type?.toUpperCase() || 'UNKNOWN'} - Balance: ${parseFloat(account.balance || 0).toFixed(2)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0.5rem 0' }}>
+                        Loading accounts or no active accounts found for this user...
+                      </p>
+                    )}
                   </div>
                 )}
 

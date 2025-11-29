@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { status } = req.query;
+    const { status, userId } = req.query;
 
     let query = supabaseAdmin
       .from('accounts')
@@ -29,6 +29,10 @@ export default async function handler(req, res) {
         )
       `)
       .order('created_at', { ascending: false });
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
 
     if (status) {
       query = query.eq('status', status);
