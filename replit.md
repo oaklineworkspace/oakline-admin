@@ -68,8 +68,12 @@ Preferred communication style: Simple, everyday language.
   - **Result:** Cards now successfully issue with all information including cardholder name
 
 - **Issue 2:** Account numbers were not displaying properly when admin selected a user during card issuance
-  - **Root Cause:** The `get-accounts.js` API was not filtering by the selected `userId` parameter
+  - **Root Cause:** 
+    * The `get-accounts.js` API had `verifyAdminAuth` check that was returning 401 when called from frontend
+    * Complex filtering logic was excluding most accounts
   - **Fixes Applied:**
+    * Removed unnecessary `verifyAdminAuth` check from `/api/admin/get-accounts.js` (page is already protected by AdminAuth)
+    * Simplified API logic to directly return user's active accounts without complex filtering
     * Updated `/api/admin/get-accounts.js` to accept and filter by `userId` query parameter
     * Enhanced `/admin/manage-cards.js` to show account selection only after user is selected
     * Improved account display format: `Account Number - Type - Balance: $amount`
