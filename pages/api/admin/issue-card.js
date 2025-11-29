@@ -116,6 +116,46 @@ export default async function handler(req, res) {
 
     console.log('Card issued successfully:', card.id);
 
+    // Fetch user profile for email notification
+    try {
+      const { data: authUser, error: userError } = await supabaseAdmin
+        .auth.admin.getUserById(userId);
+
+      if (!userError && authUser?.user?.email) {
+        const { data: userProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', userId)
+          .single();
+
+        const userEmail = authUser.user.email;
+        const firstName = userProfile?.first_name || '';
+        const lastName = userProfile?.last_name || '';
+        const cardLastFour = cardNumber.slice(-4);
+
+        // Send email notification asynchronously (don't wait for it)
+        fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:5000'}/api/email/send-card-issued-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: userEmail,
+            firstName,
+            lastName,
+            cardBrand: cardBrand || 'visa',
+            cardCategory: cardCategory || 'debit',
+            accountNumber,
+            cardLastFour,
+            expiryDate,
+            dailyLimit: parseFloat(dailyLimit) || 1000.00,
+            monthlyLimit: parseFloat(monthlyLimit) || 10000.00
+          })
+        }).catch(err => console.error('Error sending card issuance email:', err));
+      }
+    } catch (emailError) {
+      console.error('Error in email notification process:', emailError);
+      // Don't fail the card issuance if email fails
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Card issued successfully',

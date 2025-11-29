@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 2.  **Account Management:** Approve pending accounts, manage statuses, update information, and process additional account requests with automated creation, card issuance, and email notifications.
 3.  **Application Processing:** Review, approve/reject user and card applications.
 4.  **Transaction Management:** View, create, process bulk, and reverse transactions with enhanced security for deletion.
-5.  **Card Management:** Issue, manage statuses, process applications, and assign cards.
+5.  **Card Management:** Issue debit/credit cards with immediate email notifications to users, manage statuses, process applications, and assign cards. Users receive professional email with card details, limits, and security tips immediately upon issuance.
 6.  **Reporting & Audit:** System logs, audit trails, transaction reports, email delivery tracking, and storage diagnostics.
 7.  **Bank Details Management:** Manage bank information, contact details, and dynamically add/update email fields.
 8.  **Crypto Wallet & Deposit Management:** Assign crypto wallet addresses, review/manage crypto deposit requests, approve/reject deposits with automatic balance crediting and email notifications.
@@ -48,3 +48,27 @@ Preferred communication style: Simple, everyday language.
 *   **React:** Frontend library.
 *   **CSS Modules:** For styling.
 *   **Resend/SendGrid:** Email delivery services with automatic fallback.
+## Recent Enhancements (Nov 29, 2025)
+
+### Card Issuance with Email Notifications ✓
+- **Feature:** Admins can issue debit cards for user accounts through manage-cards page
+- **Immediate Email Notification:** User receives professional email immediately when admin issues a card
+- **Email Template Features:**
+  - Green gradient header matching brand colors
+  - Card details: type, last 4 digits, expiry date, linked account
+  - Transaction limits: daily and monthly
+  - Security tips and warnings
+  - Call-to-action to access online banking
+  - 24/7 customer support contact information
+- **Technical Implementation:**
+  - New email template at `pages/api/email/send-card-issued-email.js`
+  - Issue-card API automatically sends email after successful card creation
+  - Non-blocking: email failure doesn't prevent card issuance
+  - Uses existing SMTP configuration (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
+
+### Card Issuance UI Improvements ✓
+- Professional success/error banners with auto-dismiss timers
+- Loading spinner overlay during card processing
+- Account number display: full numbers (305224016184) for active accounts only
+- Error details shown to admin for troubleshooting
+- Consistent design with admin/verifications page
