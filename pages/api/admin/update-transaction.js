@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
 const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit', 'wire_transfer', 'check_deposit', 'atm_withdrawal', 'debit_card', 'transfer_in', 'transfer_out', 'ach_transfer', 'check_payment', 'service_fee', 'refund', 'interest', 'bonus', 'other'];
@@ -8,36 +9,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const authResult = await verifyAdminAuth(req);
+  if (authResult.error) {
+    return res.status(authResult.status || 401).json({ error: authResult.error });
+  }
+
+  const user = authResult.user;
+
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    
-    let user;
-    try {
-      const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !authUser) {
-        throw new Error('Invalid token');
-      }
-      user = authUser;
-    } catch (tokenError) {
-      console.error('Token verification failed:', tokenError.message);
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { data: adminProfile, error: adminError } = await supabaseAdmin
-      .from('admin_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (adminError || !adminProfile) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { 
       transactionId, 
       type, 
