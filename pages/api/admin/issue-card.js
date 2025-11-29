@@ -10,7 +10,6 @@ export default async function handler(req, res) {
     const {
       userId,
       accountId,
-      cardholderName,
       cardNumber,
       cardBrand,
       cardCategory,
@@ -21,8 +20,8 @@ export default async function handler(req, res) {
       monthlyLimit
     } = req.body;
 
-    if (!userId || !accountId || !cardholderName || !cardNumber) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!userId || !accountId || !cardNumber) {
+      return res.status(400).json({ error: 'Missing required fields: userId, accountId, cardNumber' });
     }
 
     // Verify account exists
@@ -83,11 +82,10 @@ export default async function handler(req, res) {
       .insert({
         user_id: userId,
         account_id: accountId,
-        cardholder_name: cardholderName,
         card_number: cardNumber,
         card_brand: cardBrand || 'visa',
         card_category: cardCategory || 'debit',
-        card_type: cardType || cardCategory || 'debit',
+        card_type: cardBrand || 'visa',
         cvc: cvc,
         expiry_date: expiryDate,
         daily_limit: parseFloat(dailyLimit) || 1000.00,
@@ -105,7 +103,6 @@ export default async function handler(req, res) {
       console.error('Card data attempted:', {
         user_id: userId,
         account_id: accountId,
-        cardholder_name: cardholderName,
         card_number: cardNumber,
         card_brand: cardBrand,
         card_category: cardCategory
