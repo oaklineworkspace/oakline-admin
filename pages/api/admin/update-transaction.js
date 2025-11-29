@@ -15,9 +15,16 @@ export default async function handler(req, res) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user) {
+    
+    let user;
+    try {
+      const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !authUser) {
+        throw new Error('Invalid token');
+      }
+      user = authUser;
+    } catch (tokenError) {
+      console.error('Token verification failed:', tokenError.message);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
