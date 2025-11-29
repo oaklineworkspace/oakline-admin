@@ -1,0 +1,131 @@
+Real Estate & Crypto Business Transactions - Sample Data
+
+=== REAL ESTATE TRANSACTIONS ===
+1. Commercial property down payment - $50000
+2. Residential property purchase - $350000
+3. Real estate agent commission - $8500
+4. Property inspection fee - $650
+5. Title insurance payment - $2300
+6. Property maintenance - $3200
+7. Real estate closing costs - $4100
+8. Rental property deposit received - $12000
+9. Property mortgage payment - $2150
+10. Real estate tax payment - $5600
+
+=== CRYPTOCURRENCY TRANSACTIONS ===
+11. Bitcoin purchase - $15000
+12. Ethereum purchase - $8500
+13. Crypto exchange transfer - $3200
+14. Bitcoin sale proceeds - $18500
+15. Ethereum staking rewards - $450
+16. Crypto mining payout - $2100
+17. Polygon tokens purchase - $1200
+18. Crypto wallet transfer fee - $35
+19. Bitcoin trading loss settlement - $1050
+20. DeFi protocol yield farming income - $890
+
+=== DAILY BUSINESS EXPENSES ===
+21. Office supplies - $245
+22. Internet and utilities - $185
+23. Monthly rent office space - $2500
+24. Employee payroll - $8500
+25. Insurance premium - $1200
+26. Equipment maintenance - $450
+27. Software subscriptions - $320
+28. Professional consulting fee - $3000
+29. Legal document review - $850
+30. Accounting services - $1500
+
+=== TRANSPORTATION & FUEL ===
+31. Fuel - $65
+32. Vehicle maintenance - $320
+33. Parking fees - $45
+34. Vehicle registration - $180
+35. Uber ride - $28
+
+=== MEALS & DINING ===
+36. Business lunch meeting - $85
+37. Team dinner celebration - $240
+38. Coffee shop - $12
+39. Lunch delivery - $35
+40. Restaurant dinner - $125
+
+=== GROCERIES & HOUSEHOLD ===
+41. Grocery shopping - $185
+42. Household supplies - $95
+43. Pharmacy - $45
+44. Personal care items - $55
+45. Bulk food purchase - $210
+
+=== ENTERTAINMENT & RECREATION ===
+46. Movie tickets - $35
+47. Gym membership - $50
+48. Sports equipment - $120
+49. Concert tickets - $150
+50. Books purchase - $65
+
+=== TRAVEL & ACCOMMODATION ===
+51. Hotel booking - $450
+52. Flight tickets - $680
+53. Rental car - $280
+54. Travel insurance - $120
+55. Restaurant in travel - $95
+
+=== UTILITIES & BILLS ===
+56. Electric bill - $145
+57. Water bill - $65
+58. Gas bill - $85
+59. Internet service - $80
+60. Mobile phone bill - $75
+
+=== BANKING & FINANCIAL ===
+61. Bank transfer fee - $5
+62. ATM withdrawal - $200
+63. Wire transfer - $10
+64. Overdraft fee reversal - $35
+65. Account maintenance fee - $25
+
+=== SHOPPING & RETAIL ===
+66. Clothing purchase - $185
+67. Shoes - $95
+68. Electronics - $450
+69. Home decor - $275
+70. Beauty products - $110
+
+=== HEALTHCARE ===
+71. Doctor visit - $150
+72. Dental checkup - $200
+73. Eye exam - $125
+74. Prescription medication - $45
+75. Medical supplies - $35
+
+=== SUBSCRIPTIONS & MEMBERSHIPS ===
+76. Streaming service - $15
+77. Cloud storage - $10
+78. Productivity app - $12
+79. News subscription - $8
+80. Password manager - $3
+
+=== BUSINESS INCOME ===
+81. Rental property income deposit - $4500
+82. Real estate commission received - $12000
+83. Consulting project payment - $5000
+84. Crypto trading profit settlement - $3200
+85. Investment dividend payment - $850
+86. Freelance project payout - $2100
+87. Partnership revenue share - $6500
+88. Stock dividend received - $420
+89. Loan repayment received - $1500
+90. Business refund - $230
+
+=== INVESTMENT TRANSACTIONS ===
+91. Stock market purchase - $2500
+92. Mutual fund investment - $1800
+93. Bond purchase - $3000
+94. Index fund contribution - $5000
+95. Dividend reinvestment - $250
+96. Real estate investment trust - $4000
+97. Retirement account contribution - $6500
+98. Education savings fund - $2000
+99. Emergency fund deposit - $3500
+100. Brokerage account transfer - $10000
