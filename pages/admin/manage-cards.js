@@ -17,6 +17,10 @@ export default function ManageCards() {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Issue card form
   const [issueForm, setIssueForm] = useState({
@@ -156,7 +160,9 @@ export default function ManageCards() {
       const result = await response.json();
 
       if (response.ok) {
-        setMessage(`✅ ${result.message || 'Card issued successfully'}`);
+        setSuccessMessage(result.message || 'Card issued successfully');
+        setShowSuccessBanner(true);
+        setTimeout(() => setShowSuccessBanner(false), 3000);
         setShowIssueModal(false);
         setIssueForm({
           userId: '',
@@ -169,11 +175,15 @@ export default function ManageCards() {
         });
         await fetchData();
       } else {
-        setMessage(`❌ ${result.error || 'Failed to issue card'}`);
+        setErrorMessage(result.error || 'Failed to issue card');
+        setShowErrorBanner(true);
+        setTimeout(() => setShowErrorBanner(false), 5000);
       }
     } catch (error) {
       console.error('Error issuing card:', error);
-      setMessage('❌ Failed to issue card');
+      setErrorMessage(error.message || 'Failed to issue card');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 5000);
     } finally {
       setProcessing(false);
     }
@@ -286,13 +296,37 @@ export default function ManageCards() {
           </div>
         </div>
 
-        {message && (
-          <div style={{
-            ...styles.alert,
-            backgroundColor: message.includes('✅') ? '#d1fae5' : '#fee2e2',
-            color: message.includes('✅') ? '#059669' : '#dc2626'
-          }}>
-            {message}
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>✓ Success</span>
+                <div style={styles.successBannerActions}>
+                  <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {showErrorBanner && (
+          <div style={styles.errorBannerOverlay}>
+            <div style={styles.errorBannerContainer}>
+              <div style={styles.errorBannerHeader}>
+                <span style={styles.errorBannerLogo}>✕ Error</span>
+                <div style={styles.errorBannerActions}>
+                  <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.errorBannerContent}>
+                <p style={styles.errorBannerMessage}>{errorMessage}</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -439,6 +473,12 @@ export default function ManageCards() {
         {showIssueModal && (
           <div style={styles.modalOverlay} onClick={() => setShowIssueModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              {processing && (
+                <div style={styles.loadingOverlay}>
+                  <div style={styles.spinnerSmall}></div>
+                  <p>Processing...</p>
+                </div>
+              )}
               <h2 style={styles.modalTitle}>Issue New Card</h2>
               <form onSubmit={handleIssueCard} style={styles.form}>
                 <div style={styles.field}>
@@ -966,6 +1006,147 @@ const styles = {
     maxHeight: '200px',
     overflowY: 'auto',
     cursor: 'pointer'
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '16px',
+    zIndex: 5000
+  },
+  spinnerSmall: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e2e8f0',
+    borderTop: '4px solid #0f766e',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '1rem'
+  },
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    fontWeight: '700',
+    fontSize: '1.1rem',
+    color: 'white'
+  },
+  successBannerActions: {
+    display: 'flex',
+    gap: '10px'
+  },
+  successBannerClose: {
+    background: 'transparent',
+    border: 'none',
+    color: 'white',
+    fontSize: '1.2rem',
+    cursor: 'pointer',
+    padding: '0',
+    width: '24px',
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  successBannerContent: {
+    padding: '20px'
+  },
+  successBannerMessage: {
+    margin: '0',
+    color: '#1e293b',
+    fontSize: '1rem',
+    lineHeight: '1.5'
+  },
+  errorBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)'
+  },
+  errorBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden'
+  },
+  errorBannerHeader: {
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerLogo: {
+    fontWeight: '700',
+    fontSize: '1.1rem',
+    color: 'white'
+  },
+  errorBannerActions: {
+    display: 'flex',
+    gap: '10px'
+  },
+  errorBannerClose: {
+    background: 'transparent',
+    border: 'none',
+    color: 'white',
+    fontSize: '1.2rem',
+    cursor: 'pointer',
+    padding: '0',
+    width: '24px',
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  errorBannerContent: {
+    padding: '20px'
+  },
+  errorBannerMessage: {
+    margin: '0',
+    color: '#1e293b',
+    fontSize: '1rem',
+    lineHeight: '1.5'
   },
   modalActions: {
     display: 'flex',

@@ -61,7 +61,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Database Schema Updates
 
-### Recent Changes (Nov 29, 2025) - Card Issuance Enhancement & Account Status Filtering ✓
+### Recent Changes (Nov 29, 2025) - Card Issuance UX & Modal Display ✓
+- **Enhancement:** Issue debit card modal now displays success/error messages in professional banners shown in front of the modal (not below the page)
+  - Success messages: Green gradient banner with "✓ Success" header, auto-dismisses after 3 seconds
+  - Error messages: Red gradient banner with "✕ Error" header, auto-dismisses after 5 seconds
+  - Added loading spinner overlay on the modal during card issuance to show "Processing..." state
+  - Banners styled consistently with admin/verifications page for unified admin experience
+  - Error details fully visible to admin for troubleshooting
+
+### Previous Changes (Nov 29, 2025) - Card Issuance Enhancement & Account Status Filtering ✓
 - **Issue 1:** Debit card issuance modal was not saving the cardholder name to the database
   - **Root Cause:** The `issue-card.js` API endpoint was missing `cardholder_name: cardholderName` in the database insert
   - **Fix Applied:** Added `cardholder_name` field to the card insert operation in `/api/admin/issue-card.js`
