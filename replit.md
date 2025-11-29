@@ -61,6 +61,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Database Schema Updates
 
+### Recent Changes (Nov 29, 2025) - Card Issuance Bug Fix ✓
+- **Issue:** Debit card issuance modal was not saving the cardholder name to the database
+- **Root Cause:** The `issue-card.js` API endpoint was missing `cardholder_name: cardholderName` in the database insert
+- **Fix Applied:** Added `cardholder_name` field to the card insert operation in `/api/admin/issue-card.js`
+- **Result:** Cards now successfully issue with all information including cardholder name
+
 ### Recent Changes (Nov 28, 2025) - Data Fetching, Button Actions & Email Notifications ✓
 - **Data Source Correction:** Removed non-existent `applications` table query; now fetches exclusively from:
   * `oakline_pay_profiles` (Oakline Tags management)

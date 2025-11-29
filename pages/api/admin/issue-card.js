@@ -83,6 +83,7 @@ export default async function handler(req, res) {
       .insert({
         user_id: userId,
         account_id: accountId,
+        cardholder_name: cardholderName,
         card_number: cardNumber,
         card_brand: cardBrand || 'visa',
         card_category: cardCategory || 'debit',
