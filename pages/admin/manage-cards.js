@@ -115,7 +115,7 @@ export default function ManageCards() {
     for (let i = 1; i < 16; i++) {
       cardNumber += Math.floor(Math.random() * 10);
     }
-    return cardNumber.match(/.{1,4}/g).join('-');
+    return cardNumber;
   };
 
   const generateCVC = () => {
@@ -139,6 +139,10 @@ export default function ManageCards() {
     setMessage('');
 
     try {
+      console.log('Issuing card with form data:', issueForm);
+      const cardNumber = generateCardNumber(issueForm.cardBrand);
+      console.log('Generated card number:', cardNumber);
+      
       const response = await fetch('/api/admin/issue-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,7 +150,7 @@ export default function ManageCards() {
           userId: issueForm.userId,
           accountId: issueForm.accountId,
           cardholderName: issueForm.cardholderName,
-          cardNumber: generateCardNumber(issueForm.cardBrand),
+          cardNumber: cardNumber,
           cardBrand: issueForm.cardBrand,
           cardCategory: issueForm.cardCategory,
           cardType: issueForm.cardCategory,
@@ -175,7 +179,8 @@ export default function ManageCards() {
         });
         await fetchData();
       } else {
-        setErrorMessage(result.error || 'Failed to issue card');
+        const errorMsg = result.details ? `${result.error}: ${result.details}` : (result.error || 'Failed to issue card');
+        setErrorMessage(errorMsg);
         setShowErrorBanner(true);
         setTimeout(() => setShowErrorBanner(false), 5000);
       }
