@@ -29,7 +29,10 @@ export default async function handler(req, res) {
       query = query.eq('user_id', userId);
     }
 
-    if (status) {
+    // For card issuance, always filter by active status if not explicitly set
+    if (!status) {
+      query = query.eq('status', 'active');
+    } else if (status) {
       query = query.eq('status', status);
     }
 
@@ -40,10 +43,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch accounts' });
     }
 
-    // For card issuance, just return active accounts (no complex filtering)
     const filteredAccounts = accounts || [];
 
-    console.log(`Fetched ${filteredAccounts.length} accounts for userId: ${userId}`);
+    console.log(`Fetched ${filteredAccounts.length} active accounts for userId: ${userId}`);
 
     return res.status(200).json({
       success: true,
