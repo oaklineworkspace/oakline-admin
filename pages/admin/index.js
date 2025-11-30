@@ -155,6 +155,7 @@ export default function AdminNavigationHub() {
       category: '💰 Financial Operations',
       pages: [
         { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸', description: 'View and monitor all transactions' },
+        { name: 'Withdrawal Requests', path: '/admin/admin-withdrawals', icon: '🏧', description: 'Manage and approve user withdrawal requests' },
         { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱', description: 'Review and approve mobile check deposits' },
         { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✍️', description: 'Create manual transactions' },
         { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦', description: 'Process multiple transactions at once' },
@@ -377,6 +378,10 @@ export default function AdminNavigationHub() {
         <Link href="/admin/admin-transactions" style={styles.navButton}>
           <div style={styles.navIcon}>💸</div>
           <div style={styles.navText}>Transactions</div>
+        </Link>
+        <Link href="/admin/admin-withdrawals" style={styles.navButton}>
+          <div style={styles.navIcon}>🏧</div>
+          <div style={styles.navText}>Withdrawals</div>
         </Link>
         <button
           onClick={() => setShowPageSearch(!showPageSearch)}
