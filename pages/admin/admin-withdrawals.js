@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -328,8 +327,6 @@ export default function AdminWithdrawals() {
       overflowY: 'auto'
     }
   };
-
-  if (!AdminAuth()) return null;
 
   return (
     <div>
