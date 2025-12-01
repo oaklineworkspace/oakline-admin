@@ -692,15 +692,15 @@ export default function AdminLoans() {
                           ${parseFloat(loan.deposit_required).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           {loan.deposit_status === 'completed' && loan.deposit_paid ? (
                             <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
-                              ✓ Paid via {loan.deposit_method || 'Unknown'} (${parseFloat(loan.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                              ✓ Verified - Paid via {loan.deposit_method || 'Unknown'} (${parseFloat(loan.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                             </span>
-                          ) : loan.deposit_status === 'pending' ? (
+                          ) : loan.deposit_status === 'pending' && loan.deposit_amount ? (
                             <span style={{...styles.depositBadge, background: '#fef3c7', color: '#92400e', marginLeft: '8px'}}>
-                              ⏳ Pending Verification
+                              ⏳ Pending Verification (Submitted: ${parseFloat(loan.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                             </span>
                           ) : (
                             <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
-                              ✗ Not Received
+                              ⏱ Awaiting Deposit - User has not submitted
                             </span>
                           )}
                         </span>
