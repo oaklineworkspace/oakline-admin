@@ -51,14 +51,52 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Loan not found' });
     }
 
-    // Fetch user ID documents
-    const { data: idDocuments, error: docsError } = await supabaseAdmin
+    // Fetch user ID documents from user_id_documents table
+    const { data: userIdDocs, error: userDocsError } = await supabaseAdmin
       .from('user_id_documents')
       .select('*')
       .eq('user_id', loan.user_id);
 
-    if (docsError) {
-      console.error('Error fetching ID documents:', docsError);
+    if (userDocsError) {
+      console.error('Error fetching user ID documents:', userDocsError);
+    }
+
+    // Also fetch loan application documents from applications table
+    const { data: applicationDocs, error: appDocsError } = await supabaseAdmin
+      .from('applications')
+      .select('*')
+      .eq('user_id', loan.user_id)
+      .not('id_front_path', 'is', null);
+
+    if (appDocsError) {
+      console.error('Error fetching application documents:', appDocsError);
+    }
+
+    // Combine both document sources
+    const idDocuments = [...(userIdDocs || [])];
+    
+    // Add application documents if not already in user_id_documents
+    if (applicationDocs && applicationDocs.length > 0) {
+      for (const appDoc of applicationDocs) {
+        // Check if this application is already in user_id_documents
+        const exists = userIdDocs?.some(doc => doc.application_id === appDoc.id);
+        if (!exists) {
+          idDocuments.push({
+            id: appDoc.id,
+            user_id: appDoc.user_id,
+            application_id: appDoc.id,
+            document_type: 'ID Card',
+            front_url: appDoc.id_front_path,
+            back_url: appDoc.id_back_path,
+            status: appDoc.application_status === 'approved' ? 'verified' : appDoc.application_status === 'rejected' ? 'rejected' : 'pending',
+            verified_at: appDoc.processed_at,
+            rejection_reason: appDoc.rejection_reason,
+            created_at: appDoc.submitted_at,
+            updated_at: appDoc.updated_at,
+            source: 'applications'
+          });
+        }
+      }
     }
 
     // Fetch collaterals
@@ -86,13 +124,20 @@ export default async function handler(req, res) {
     const documentsWithUrls = await Promise.all(
       (idDocuments || []).map(async (doc) => {
         try {
+          // Determine which storage bucket to use based on source
+          const storageBucket = doc.source === 'applications' ? 'documents' : 'id-documents';
+          
           const { data: frontData } = await supabaseAdmin.storage
-            .from('id-documents')
+            .from(storageBucket)
             .createSignedUrl(doc.front_url, 3600);
 
-          const { data: backData } = await supabaseAdmin.storage
-            .from('id-documents')
-            .createSignedUrl(doc.back_url, 3600);
+          let backData = null;
+          if (doc.back_url) {
+            const backResult = await supabaseAdmin.storage
+              .from(storageBucket)
+              .createSignedUrl(doc.back_url, 3600);
+            backData = backResult.data;
+          }
 
           return {
             ...doc,
@@ -100,7 +145,7 @@ export default async function handler(req, res) {
             back_signed_url: backData?.signedUrl || null,
           };
         } catch (err) {
-          console.error('Error generating signed URLs:', err);
+          console.error('Error generating signed URLs for document:', err);
           return doc;
         }
       })
