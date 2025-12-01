@@ -12,18 +12,14 @@ export default function AdminWithdrawals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
   const [userFilter, setUserFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const itemsPerPage = 10;
 
-  // Modals and Banners
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorBanner, setShowErrorBanner] = useState(false);
@@ -44,7 +40,7 @@ export default function AdminWithdrawals() {
 
   useEffect(() => {
     fetchWithdrawals();
-  }, [statusFilter, methodFilter, searchTerm, dateRange, userFilter]);
+  }, [statusFilter, methodFilter, searchTerm, userFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -88,7 +84,6 @@ export default function AdminWithdrawals() {
           statusFilter,
           methodFilter,
           searchTerm,
-          dateRange,
           userFilter
         })
       });
@@ -108,16 +103,30 @@ export default function AdminWithdrawals() {
     }
   };
 
-  const handleApprove = (withdrawal) => {
-    setActionModal({ show: true, type: 'approve', withdrawal });
-  };
+  const sendNotificationEmail = async (withdrawal, newStatus, reason = '') => {
+    try {
+      const response = await fetch('/api/email/send-withdrawal-status-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          to: withdrawal.applications?.email,
+          userName: `${withdrawal.applications?.first_name} ${withdrawal.applications?.last_name}`,
+          status: newStatus,
+          amount: withdrawal.amount,
+          method: withdrawal.withdrawal_method,
+          reference: withdrawal.reference_number,
+          reason: reason
+        })
+      });
 
-  const handleReject = (withdrawal) => {
-    setActionModal({ show: true, type: 'reject', withdrawal });
-  };
-
-  const handleComplete = (withdrawal) => {
-    setActionModal({ show: true, type: 'complete', withdrawal });
+      if (!response.ok) {
+        console.warn('Failed to send notification email:', response.statusText);
+      }
+    } catch (err) {
+      console.error('Error sending notification email:', err);
+    }
   };
 
   const executeAction = async () => {
@@ -156,10 +165,15 @@ export default function AdminWithdrawals() {
         throw new Error('Failed to process withdrawal');
       }
 
+      const result = await response.json();
+
+      // Send notification email
+      await sendNotificationEmail(withdrawal, result.withdrawal.status, body.rejectionReason);
+
       setActionModal({ show: false, type: '', withdrawal: null });
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
       await fetchWithdrawals();
-      setSuccessMessage(`Withdrawal ${type}d successfully.`);
+      setSuccessMessage(`Withdrawal ${type}d successfully. Notification sent to user.`);
       setShowSuccessBanner(true);
       setTimeout(() => setShowSuccessBanner(false), 3000);
     } catch (err) {
@@ -171,43 +185,19 @@ export default function AdminWithdrawals() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const badgeStyles = {
-      pending: { bg: '#fef3c7', color: '#92400e' },
-      approved: { bg: '#dbeafe', color: '#1e40af' },
-      processing: { bg: '#e0f2fe', color: '#075985' },
-      completed: { bg: '#d1fae5', color: '#065f46' },
-      failed: { bg: '#fee2e2', color: '#991b1b' },
-      cancelled: { bg: '#f3f4f6', color: '#6b7280' },
-      rejected: { bg: '#fee2e2', color: '#991b1b' }
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: '#f59e0b',
+      approved: '#3b82f6',
+      processing: '#06b6d4',
+      completed: '#10b981',
+      failed: '#ef4444',
+      hold: '#f59e0b',
+      cancelled: '#6b7280',
+      rejected: '#ef4444',
+      reversed: '#3b82f6'
     };
-    const style = badgeStyles[status] || badgeStyles.pending;
-    return {
-      padding: '4px 12px',
-      borderRadius: '6px',
-      fontSize: '12px',
-      fontWeight: '600',
-      backgroundColor: style.bg,
-      color: style.color,
-      textTransform: 'uppercase'
-    };
-  };
-
-  const getMethodBadge = (method) => {
-    return {
-      padding: '4px 12px',
-      borderRadius: '6px',
-      fontSize: '12px',
-      fontWeight: '600',
-      backgroundColor: '#f0f9ff',
-      color: '#0369a1',
-      textTransform: 'capitalize'
-    };
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    return colors[status] || '#64748b';
   };
 
   const formatCurrency = (amount) => {
@@ -217,15 +207,43 @@ export default function AdminWithdrawals() {
     }).format(amount);
   };
 
-  const filteredWithdrawals = withdrawals;
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const maskAccountNumber = (account) => {
+    if (!account) return 'N/A';
+    const str = String(account);
+    return str.slice(-4).padStart(str.length, '*');
+  };
+
+  const filteredWithdrawals = withdrawals.filter(w => {
+    if (statusFilter !== 'all' && w.status !== statusFilter) return false;
+    if (methodFilter !== 'all' && w.withdrawal_method !== methodFilter) return false;
+    if (userFilter !== 'all' && w.user_id !== userFilter) return false;
+    return true;
+  });
+
   const totalPages = Math.ceil(filteredWithdrawals.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedWithdrawals = filteredWithdrawals.slice(startIndex, startIndex + itemsPerPage);
 
+  const canComplete = (status) => ['approved'].includes(status);
+  const canReverse = (status) => ['completed'].includes(status);
+  const canHold = (status) => ['pending', 'approved'].includes(status);
+  const canApprove = (status) => status === 'pending';
+  const canReject = (status) => status === 'pending';
+
   return (
     <AdminAuth>
       <div style={styles.container}>
-        {/* Loading Banner */}
         {loadingBanner.visible && (
           <AdminLoadingBanner
             current={loadingBanner.current}
@@ -240,7 +258,6 @@ export default function AdminWithdrawals() {
           <p style={styles.subtitle}>Manage and approve user withdrawal requests</p>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div style={styles.errorBox}>
             <p>{error}</p>
@@ -249,53 +266,40 @@ export default function AdminWithdrawals() {
 
         {/* Filters */}
         <div style={styles.filterSection}>
-          <div style={styles.filterControls}>
+          <div style={styles.filterRow}>
             <input
               type="text"
               placeholder="Search by reference, account, or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={styles.input}
+              style={{...styles.input, flex: 1}}
             />
             <button
               onClick={() => { setLoading(true); fetchWithdrawals(); }}
               style={styles.refreshButton}
               title="Refresh data"
             >
-              🔄 Refresh
+              🔄
             </button>
           </div>
-          <div style={styles.filterGrid}>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={styles.select}
-            >
+          <div style={styles.filterRow}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={styles.select}>
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
-              <option value="processing">Processing</option>
               <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
               <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="hold">Hold</option>
+              <option value="reversed">Reversed</option>
             </select>
-            <select
-              value={methodFilter}
-              onChange={(e) => setMethodFilter(e.target.value)}
-              style={styles.select}
-            >
+            <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} style={styles.select}>
               <option value="all">All Methods</option>
               <option value="bank_transfer">Bank Transfer</option>
               <option value="wire_transfer">Wire Transfer</option>
               <option value="check">Check</option>
               <option value="ach">ACH</option>
             </select>
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              style={styles.select}
-            >
+            <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={styles.select}>
               <option value="all">All Users</option>
               {allUsers.map(user => (
                 <option key={user.user_id} value={user.user_id}>
@@ -306,89 +310,94 @@ export default function AdminWithdrawals() {
           </div>
         </div>
 
-        {/* Table */}
-        <div style={styles.tableWrapper}>
+        {/* Withdrawals Cards */}
+        <div style={styles.cardsContainer}>
           {loading ? (
             <p style={{ textAlign: 'center', padding: '40px' }}>Loading withdrawals...</p>
           ) : paginatedWithdrawals.length === 0 ? (
             <p style={{ textAlign: 'center', padding: '40px' }}>No withdrawals found</p>
           ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.thead}>
-                  <th style={styles.th}>Reference</th>
-                  <th style={styles.th}>User</th>
-                  <th style={styles.th}>Amount</th>
-                  <th style={styles.th}>Method</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Date</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedWithdrawals.map((withdrawal) => (
-                  <tr key={withdrawal.id} style={styles.tr}>
-                    <td style={styles.td}>
-                      <div>
-                        <div style={styles.refNumber}>{withdrawal.reference_number}</div>
-                      </div>
-                    </td>
-                    <td style={styles.td}>
-                      <div>
-                        <div style={styles.userName}>
-                          {withdrawal.applications?.first_name} {withdrawal.applications?.last_name}
-                        </div>
-                        <div style={styles.userEmail}>{withdrawal.applications?.email}</div>
-                      </div>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={{ fontWeight: '600', color: '#065f46' }}>
-                        {formatCurrency(withdrawal.amount)}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={getMethodBadge(withdrawal.withdrawal_method)}>
-                        {withdrawal.withdrawal_method.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={getStatusBadge(withdrawal.status)}>
-                        {withdrawal.status}
-                      </span>
-                    </td>
-                    <td style={styles.td}>{formatDate(withdrawal.created_at)}</td>
-                    <td style={styles.td}>
-                      <div style={styles.actionButtons}>
-                        {withdrawal.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(withdrawal)}
-                              style={{ ...styles.button, background: '#10b981' }}
-                            >
-                              ✓ Approve
-                            </button>
-                            <button
-                              onClick={() => handleReject(withdrawal)}
-                              style={{ ...styles.button, background: '#ef4444' }}
-                            >
-                              ✕ Reject
-                            </button>
-                          </>
-                        )}
-                        {withdrawal.status === 'approved' && (
-                          <button
-                            onClick={() => handleComplete(withdrawal)}
-                            style={{ ...styles.button, background: '#3b82f6' }}
-                          >
-                            ✓ Complete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            paginatedWithdrawals.map(withdrawal => (
+              <div key={withdrawal.id} style={styles.card}>
+                <div style={styles.cardHeader}>
+                  <div style={styles.cardHeaderContent}>
+                    <h3 style={styles.cardTitle}>
+                      {withdrawal.applications?.first_name} {withdrawal.applications?.last_name}
+                    </h3>
+                    <p style={styles.cardEmail}>{withdrawal.applications?.email}</p>
+                  </div>
+                  <div style={{...styles.statusBadge, backgroundColor: getStatusColor(withdrawal.status)}}>
+                    {withdrawal.status.toUpperCase()}
+                  </div>
+                </div>
+
+                <div style={styles.cardBody}>
+                  <div style={styles.infoRow}>
+                    <span style={styles.label}>Amount:</span>
+                    <span style={styles.amount}>{formatCurrency(withdrawal.amount)}</span>
+                  </div>
+                  <div style={styles.infoRow}>
+                    <span style={styles.label}>Reference:</span>
+                    <span style={styles.value}>{withdrawal.reference_number}</span>
+                  </div>
+                  <div style={styles.infoRow}>
+                    <span style={styles.label}>Method:</span>
+                    <span style={styles.value}>{withdrawal.withdrawal_method.replace(/_/g, ' ')}</span>
+                  </div>
+                  <div style={styles.infoRow}>
+                    <span style={styles.label}>Account:</span>
+                    <span style={styles.value}>{maskAccountNumber(withdrawal.accounts?.account_number)}</span>
+                  </div>
+                  <div style={styles.infoRow}>
+                    <span style={styles.label}>Date:</span>
+                    <span style={styles.value}>{formatDateTime(withdrawal.created_at)}</span>
+                  </div>
+                </div>
+
+                <div style={styles.cardFooter}>
+                  {canApprove(withdrawal.status) && (
+                    <button
+                      onClick={() => setActionModal({ show: true, type: 'approve', withdrawal })}
+                      style={{...styles.actionButton, backgroundColor: '#3b82f6'}}
+                    >
+                      ✓ Approve
+                    </button>
+                  )}
+                  {canReject(withdrawal.status) && (
+                    <button
+                      onClick={() => setActionModal({ show: true, type: 'reject', withdrawal })}
+                      style={{...styles.actionButton, backgroundColor: '#ef4444'}}
+                    >
+                      ✕ Reject
+                    </button>
+                  )}
+                  {canComplete(withdrawal.status) && (
+                    <button
+                      onClick={() => setActionModal({ show: true, type: 'complete', withdrawal })}
+                      style={{...styles.actionButton, backgroundColor: '#10b981'}}
+                    >
+                      ✓ Complete
+                    </button>
+                  )}
+                  {canHold(withdrawal.status) && (
+                    <button
+                      onClick={() => setActionModal({ show: true, type: 'hold', withdrawal })}
+                      style={{...styles.actionButton, backgroundColor: '#f59e0b'}}
+                    >
+                      ⏸ Hold
+                    </button>
+                  )}
+                  {canReverse(withdrawal.status) && (
+                    <button
+                      onClick={() => setActionModal({ show: true, type: 'reverse', withdrawal })}
+                      style={{...styles.actionButton, backgroundColor: '#8b5cf6'}}
+                    >
+                      ↩️ Reverse
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
           )}
         </div>
 
@@ -396,7 +405,7 @@ export default function AdminWithdrawals() {
         {totalPages > 1 && (
           <div style={styles.pagination}>
             <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               style={styles.paginationButton}
             >
@@ -406,7 +415,7 @@ export default function AdminWithdrawals() {
               Page {currentPage} of {totalPages}
             </span>
             <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               style={styles.paginationButton}
             >
@@ -421,42 +430,40 @@ export default function AdminWithdrawals() {
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>
-                  {actionModal.type === 'approve' ? '✓ Approve' : actionModal.type === 'reject' ? '✕ Reject' : '✓ Complete'} Withdrawal
+                  {actionModal.type === 'approve' && '✓ Approve Withdrawal'}
+                  {actionModal.type === 'reject' && '✕ Reject Withdrawal'}
+                  {actionModal.type === 'complete' && '✓ Complete Withdrawal'}
+                  {actionModal.type === 'hold' && '⏸ Place on Hold'}
+                  {actionModal.type === 'reverse' && '↩️ Reverse Withdrawal'}
                 </h2>
-                <button
-                  onClick={() => setActionModal({ show: false, type: '', withdrawal: null })}
-                  style={styles.closeBtn}
-                >
-                  ×
-                </button>
+                <button onClick={() => setActionModal({ show: false, type: '', withdrawal: null })} style={styles.closeBtn}>×</button>
               </div>
               <div style={styles.modalBody}>
-                <p><strong>Reference:</strong> {actionModal.withdrawal.reference_number}</p>
-                <p><strong>User:</strong> {actionModal.withdrawal.applications?.first_name} {actionModal.withdrawal.applications?.last_name}</p>
-                <p><strong>Amount:</strong> {formatCurrency(actionModal.withdrawal.amount)}</p>
-                <p><strong>Method:</strong> {actionModal.withdrawal.withdrawal_method}</p>
-                <p><strong>Status:</strong> {actionModal.withdrawal.status}</p>
+                <div style={styles.infoBox}>
+                  <strong>User:</strong> {actionModal.withdrawal.applications?.first_name} {actionModal.withdrawal.applications?.last_name}<br />
+                  <strong>Amount:</strong> {formatCurrency(actionModal.withdrawal.amount)}<br />
+                  <strong>Reference:</strong> {actionModal.withdrawal.reference_number}
+                </div>
 
-                {actionModal.type === 'reject' && (
-                  <div style={{ marginTop: '20px' }}>
-                    <label style={styles.label}>Rejection Reason *</label>
+                {(actionModal.type === 'reject') && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Rejection Reason</label>
                     <textarea
                       id="rejection-reason"
+                      placeholder="Provide a reason for rejection..."
                       style={styles.textarea}
                       rows={3}
-                      placeholder="Enter reason for rejection..."
-                      required
                     />
                   </div>
                 )}
 
-                <div style={{ marginTop: '20px' }}>
+                <div style={styles.formGroup}>
                   <label style={styles.label}>Admin Notes (Optional)</label>
                   <textarea
                     id="admin-notes"
+                    placeholder="Add internal notes..."
                     style={styles.textarea}
-                    rows={2}
-                    placeholder="Additional notes..."
+                    rows={3}
                   />
                 </div>
               </div>
@@ -469,12 +476,9 @@ export default function AdminWithdrawals() {
                 </button>
                 <button
                   onClick={executeAction}
-                  style={{
-                    ...styles.confirmButton,
-                    background: actionModal.type === 'approve' ? '#10b981' : actionModal.type === 'reject' ? '#ef4444' : '#3b82f6'
-                  }}
+                  style={{...styles.confirmButton, backgroundColor: getStatusColor(actionModal.type)}}
                 >
-                  {actionModal.type === 'approve' ? 'Approve' : actionModal.type === 'reject' ? 'Reject' : 'Complete'}
+                  Confirm
                 </button>
               </div>
             </div>
@@ -483,50 +487,19 @@ export default function AdminWithdrawals() {
 
         {/* Success Banner */}
         {showSuccessBanner && (
-          <div style={styles.successBannerOverlay}>
-            <div style={styles.successBannerContainer}>
-              <div style={styles.successBannerHeader}>
-                <span style={styles.successBannerLogo}>Notification</span>
-                <div style={styles.successBannerActions}>
-                  <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
-                </div>
-              </div>
-              <div style={styles.successBannerContent}>
-                <p style={styles.successBannerAction}>Success!</p>
-                <p style={styles.successBannerMessage}>{successMessage}</p>
-              </div>
-              <div style={styles.successBannerFooter}>
-                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
-                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerOkButton}>OK</button>
-              </div>
-            </div>
+          <div style={styles.successBanner}>
+            <p>✓ {successMessage}</p>
           </div>
         )}
 
         {/* Error Banner */}
         {showErrorBanner && (
-          <div style={styles.errorBannerOverlay}>
-            <div style={styles.errorBannerContainer}>
-              <div style={styles.errorBannerHeader}>
-                <span style={styles.errorBannerLogo}>Error</span>
-                <div style={styles.errorBannerActions}>
-                  <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerClose}>✕</button>
-                </div>
-              </div>
-              <div style={styles.errorBannerContent}>
-                <p style={styles.errorBannerAction}>Oops!</p>
-                <p style={styles.errorBannerMessage}>{errorMessage}</p>
-              </div>
-              <div style={styles.errorBannerFooter}>
-                <span style={styles.errorBannerWarning}>⚠️ An error occurred</span>
-                <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerOkButton}>OK</button>
-              </div>
-            </div>
+          <div style={styles.errorBanner}>
+            <p>✕ {errorMessage}</p>
           </div>
         )}
-
-        <AdminFooter />
       </div>
+      <AdminFooter />
     </AdminAuth>
   );
 }
@@ -535,127 +508,154 @@ const styles = {
   container: {
     minHeight: '100vh',
     backgroundImage: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-    padding: '20px',
+    padding: 'clamp(1rem, 3vw, 20px)',
     paddingBottom: '100px'
   },
   header: {
     backgroundColor: 'white',
-    padding: '24px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
     borderRadius: '12px',
     marginBottom: '20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   title: {
     margin: '0 0 8px 0',
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1a202c'
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
   },
   subtitle: {
-    margin: '0',
-    fontSize: '14px',
-    color: '#718096'
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
   },
   errorBox: {
     backgroundColor: '#fee2e2',
+    border: '1px solid #fecaca',
     color: '#991b1b',
-    padding: '16px',
+    padding: '12px 16px',
     borderRadius: '8px',
-    marginBottom: '20px',
-    borderLeft: '4px solid #dc2626'
+    marginBottom: '16px'
   },
   filterSection: {
     backgroundColor: 'white',
-    padding: '20px',
+    padding: '16px',
     borderRadius: '12px',
-    marginBottom: '20px',
+    marginBottom: '16px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
-  filterControls: {
+  filterRow: {
     display: 'flex',
-    gap: '12px',
-    marginBottom: '12px'
-  },
-  filterGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '12px'
-  },
-  refreshButton: {
-    padding: '10px 16px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'background-color 0.2s'
+    gap: '10px',
+    marginBottom: '10px',
+    flexWrap: 'wrap'
   },
   input: {
     padding: '10px 12px',
     border: '1px solid #e2e8f0',
     borderRadius: '8px',
     fontSize: '14px',
-    fontFamily: 'system-ui'
+    minWidth: '200px'
   },
   select: {
     padding: '10px 12px',
     border: '1px solid #e2e8f0',
     borderRadius: '8px',
     fontSize: '14px',
-    fontFamily: 'system-ui'
+    minWidth: '150px'
   },
-  tableWrapper: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  refreshButton: {
+    padding: '10px 12px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    fontSize: '14px',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
+  },
+  cardsContainer: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))',
+    gap: '16px',
     marginBottom: '20px'
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
+  card: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
   },
-  thead: {
-    backgroundColor: '#f8fafc'
-  },
-  th: {
-    padding: '12px 16px',
-    textAlign: 'left',
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#334155',
-    borderBottom: '1px solid #e2e8f0'
-  },
-  tr: {
-    borderBottom: '1px solid #e2e8f0',
-    transition: 'background-color 0.2s'
-  },
-  td: {
+  cardHeader: {
     padding: '16px',
-    fontSize: '14px',
-    color: '#475569'
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '10px'
   },
-  refNumber: {
+  cardHeaderContent: {
+    flex: 1
+  },
+  cardTitle: {
+    margin: '0 0 4px 0',
+    fontSize: '16px',
     fontWeight: '600',
-    color: '#0f172a'
+    color: '#1a202c'
   },
-  userName: {
-    fontWeight: '600',
-    color: '#0f172a'
-  },
-  userEmail: {
+  cardEmail: {
+    margin: 0,
     fontSize: '12px',
+    color: '#718096'
+  },
+  statusBadge: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    color: 'white',
+    fontSize: '11px',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+    minWidth: 'fit-content'
+  },
+  cardBody: {
+    padding: '16px',
+    flex: 1
+  },
+  infoRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '10px',
+    fontSize: '13px'
+  },
+  label: {
+    fontWeight: '600',
     color: '#64748b'
   },
-  actionButtons: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap'
+  value: {
+    color: '#1a202c',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: '8px'
   },
-  button: {
+  amount: {
+    color: '#10b981',
+    fontWeight: '700',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: '8px'
+  },
+  cardFooter: {
+    padding: '12px 16px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  actionButton: {
+    flex: '1 1 calc(50% - 4px)',
+    minWidth: '90px',
     padding: '8px 12px',
     border: 'none',
     borderRadius: '6px',
@@ -673,7 +673,7 @@ const styles = {
     marginTop: '20px'
   },
   paginationButton: {
-    padding: '8px 12px',
+    padding: '8px 16px',
     border: '1px solid #e2e8f0',
     borderRadius: '6px',
     backgroundColor: 'white',
@@ -729,12 +729,8 @@ const styles = {
   modalBody: {
     padding: '24px'
   },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#0f172a'
+  formGroup: {
+    marginBottom: '16px'
   },
   textarea: {
     width: '100%',
@@ -744,6 +740,15 @@ const styles = {
     fontFamily: 'system-ui',
     fontSize: '14px',
     resize: 'vertical'
+  },
+  infoBox: {
+    backgroundColor: '#f0f9ff',
+    border: '1px solid #bfdbfe',
+    padding: '12px',
+    borderRadius: '6px',
+    marginBottom: '16px',
+    fontSize: '13px',
+    color: '#1e40af'
   },
   modalFooter: {
     display: 'flex',
@@ -771,164 +776,28 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer'
   },
-  successBannerOverlay: {
+  successBanner: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: '20px',
+    right: '20px',
+    backgroundColor: '#d1fae5',
+    border: '1px solid #6ee7b7',
+    color: '#065f46',
+    padding: '16px 20px',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     zIndex: '2000'
   },
-  successBannerContainer: {
-    backgroundColor: '#f0fdf4',
-    border: '2px solid #22c55e',
-    borderRadius: '12px',
-    maxWidth: '500px',
-    width: '90%',
-    boxShadow: '0 20px 25px rgba(0,0,0,0.15)'
-  },
-  successBannerHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px 20px',
-    borderBottom: '1px solid #dcfce7'
-  },
-  successBannerLogo: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#16a34a'
-  },
-  successBannerActions: {
-    display: 'flex',
-    gap: '8px'
-  },
-  successBannerClose: {
-    background: 'none',
-    border: 'none',
-    fontSize: '18px',
-    cursor: 'pointer',
-    color: '#16a34a'
-  },
-  successBannerContent: {
-    padding: '16px 20px'
-  },
-  successBannerAction: {
-    margin: '0 0 8px 0',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#15803d'
-  },
-  successBannerMessage: {
-    margin: '0',
-    fontSize: '14px',
-    color: '#16a34a'
-  },
-  successBannerFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 20px',
-    borderTop: '1px solid #dcfce7',
-    backgroundColor: '#f9fdf7'
-  },
-  successBannerCheckmark: {
-    fontSize: '13px',
-    color: '#16a34a',
-    fontWeight: '500'
-  },
-  successBannerOkButton: {
-    padding: '6px 16px',
-    backgroundColor: '#22c55e',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer'
-  },
-  errorBannerOverlay: {
+  errorBanner: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: '2000'
-  },
-  errorBannerContainer: {
-    backgroundColor: '#fef2f2',
-    border: '2px solid #ef4444',
-    borderRadius: '12px',
-    maxWidth: '500px',
-    width: '90%',
-    boxShadow: '0 20px 25px rgba(0,0,0,0.15)'
-  },
-  errorBannerHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    top: '20px',
+    right: '20px',
+    backgroundColor: '#fee2e2',
+    border: '1px solid #fecaca',
+    color: '#991b1b',
     padding: '16px 20px',
-    borderBottom: '1px solid #fee2e2'
-  },
-  errorBannerLogo: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#dc2626'
-  },
-  errorBannerActions: {
-    display: 'flex',
-    gap: '8px'
-  },
-  errorBannerClose: {
-    background: 'none',
-    border: 'none',
-    fontSize: '18px',
-    cursor: 'pointer',
-    color: '#dc2626'
-  },
-  errorBannerContent: {
-    padding: '16px 20px'
-  },
-  errorBannerAction: {
-    margin: '0 0 8px 0',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#991b1b'
-  },
-  errorBannerMessage: {
-    margin: '0',
-    fontSize: '14px',
-    color: '#dc2626'
-  },
-  errorBannerFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 20px',
-    borderTop: '1px solid #fee2e2',
-    backgroundColor: '#fdf7f7'
-  },
-  errorBannerWarning: {
-    fontSize: '13px',
-    color: '#dc2626',
-    fontWeight: '500'
-  },
-  errorBannerOkButton: {
-    padding: '6px 16px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer'
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    zIndex: '2000'
   }
 };

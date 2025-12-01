@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Withdrawal ID is required' });
   }
 
-  if (!['approve', 'reject', 'complete'].includes(action)) {
+  if (!['approve', 'reject', 'complete', 'reverse', 'hold'].includes(action)) {
     return res.status(400).json({ error: 'Invalid action' });
   }
 
@@ -85,6 +85,45 @@ export default async function handler(req, res) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
+    } else if (action === 'reverse') {
+      updates.status = 'reversed';
+      
+      // If was completed, return funds to account
+      if (withdrawal.status === 'completed') {
+        const { data: account } = await supabaseAdmin
+          .from('accounts')
+          .select('balance')
+          .eq('id', withdrawal.account_id)
+          .single();
+
+        if (account) {
+          const newBalance = parseFloat(account.balance) + parseFloat(withdrawal.amount);
+          await supabaseAdmin
+            .from('accounts')
+            .update({
+              balance: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', withdrawal.account_id);
+        }
+
+        // Create reversal transaction record
+        await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: withdrawal.user_id,
+            account_id: withdrawal.account_id,
+            type: 'credit',
+            amount: withdrawal.amount,
+            description: `Withdrawal Reversal - ${withdrawal.withdrawal_method} - Ref: ${withdrawal.reference_number}`,
+            reference: withdrawal.reference_number,
+            status: 'completed',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+      }
+    } else if (action === 'hold') {
+      updates.status = 'hold';
     }
 
     // Update the withdrawal
