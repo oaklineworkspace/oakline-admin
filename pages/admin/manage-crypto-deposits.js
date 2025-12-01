@@ -222,23 +222,26 @@ export default function ManageCryptoDeposits() {
         throw new Error('No active session');
       }
 
-      // Determine storage bucket based on deposit type
-      // Loan deposits are stored in 'documents' bucket, general deposits in 'crypto-deposit-proofs'
-      const storageBucket = deposit.purpose === 'loan_requirement' ? 'documents' : 'crypto-deposit-proofs';
-      const proofPath = deposit.proof_path;
+      // Use API endpoint to get signed URL (uses admin credentials)
+      const response = await fetch('/api/admin/get-proof-url', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          proofPath: deposit.proof_path,
+          isLoanDeposit: deposit.purpose === 'loan_requirement'
+        })
+      });
 
-      // Create signed URL for the proof image
-      const { data: signedUrlData, error: signedUrlError } = await supabase
-        .storage
-        .from(storageBucket)
-        .createSignedUrl(proofPath, 3600); // 1 hour expiry
+      const result = await response.json();
 
-      if (signedUrlError) {
-        console.error('Error creating signed URL:', signedUrlError);
-        throw new Error('Failed to load proof of payment image');
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load proof');
       }
 
-      setProofImageUrl(signedUrlData.signedUrl);
+      setProofImageUrl(result.url);
     } catch (error) {
       console.error('Error loading proof:', error);
       setError(error.message);
