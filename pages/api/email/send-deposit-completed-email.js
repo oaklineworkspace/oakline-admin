@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, fromEmail, cryptoType, network, amount, fee, netAmount, depositId, userName, walletAddress, memo, txHash } = req.body;
+    const { to, fromEmail, cryptoType, network, amount, fee, netAmount, depositId, userName, walletAddress, memo, txHash, isLoanDeposit } = req.body;
 
     if (!to) {
       return res.status(400).json({ error: 'Recipient email is required' });
@@ -20,6 +20,14 @@ export default async function handler(req, res) {
 
     const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
     const from = fromEmail || `Oakline Bank - Crypto <crypto@${emailDomain}>`;
+
+    const headerMessage = isLoanDeposit 
+      ? 'Your 10% Loan Requirement Deposit Confirmed'
+      : '✓ Deposit Completed';
+    
+    const descriptionMessage = isLoanDeposit
+      ? '<p>Good news! Your 10% cryptocurrency loan requirement deposit has been successfully received and processed. The funds have been securely transferred to our treasury account.</p>'
+      : '<p>Good news! Your cryptocurrency deposit has been successfully processed and credited to your account.</p>';
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -36,19 +44,21 @@ export default async function handler(req, res) {
           .detail-value { font-weight: 700; color: #111827; }
           .amount { font-size: 24px; color: #10b981; }
           .footer { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+          .loan-badge { background: #fbbf24; color: #78350f; padding: 8px 12px; border-radius: 4px; font-weight: 600; display: inline-block; margin-bottom: 15px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1 style="margin: 0;">✓ Deposit Completed</h1>
+            <h1 style="margin: 0;">${headerMessage}</h1>
             <p style="margin: 10px 0 0 0; font-size: 18px;">Oakline Bank</p>
           </div>
           
           <div class="content">
+            ${isLoanDeposit ? '<div class="loan-badge">💼 Loan Application</div>' : ''}
             <p>Hello ${userName || 'Valued Customer'},</p>
             
-            <p>Good news! Your cryptocurrency deposit has been successfully processed and credited to your account.</p>
+            ${descriptionMessage}
             
             <div class="details">
               <h2 style="margin-top: 0; color: #111827;">Transaction Details:</h2>
@@ -103,7 +113,18 @@ export default async function handler(req, res) {
                 <span class="detail-label">Status:</span>
                 <span class="detail-value" style="color: #10b981;">Completed</span>
               </div>
+              
+              ${isLoanDeposit ? `
+              <div class="detail-row" style="border-bottom: none; margin-top: 10px; padding-top: 0;">
+                <span class="detail-label">Destination:</span>
+                <span class="detail-value" style="color: #6366f1;">Treasury Account</span>
+              </div>
+              ` : ''}
             </div>
+            
+            ${isLoanDeposit 
+              ? '<p><strong>Note:</strong> This deposit fulfills your 10% loan requirement and has been secured in our treasury account. You will be notified once your loan application is processed.</p>'
+              : '<p>The funds have been credited to your account and are now available for use.</p>'}
             
             <p>If you have any questions about this transaction, please contact our support team.</p>
             
@@ -119,11 +140,17 @@ export default async function handler(req, res) {
       </html>
     `;
 
-    const emailText = `Hello ${userName || 'Valued Customer'},\n\nYour cryptocurrency deposit has been completed!\n\nCrypto Type: ${cryptoType}\nNetwork: ${network}${walletAddress ? `\nWallet Address: ${walletAddress}` : ''}${memo ? `\nMemo/Tag: ${memo}` : ''}${txHash ? `\nTransaction Hash: ${txHash}` : ''}\nAmount: $${parseFloat(safeAmount).toFixed(2)}\nFee: $${parseFloat(safeFee).toFixed(2)}\nNet Amount: $${parseFloat(safeNetAmount).toFixed(2)}\nStatus: Completed\n\nThank you for banking with Oakline Bank.`;
+    const emailText = `Hello ${userName || 'Valued Customer'},\n\n${isLoanDeposit 
+      ? 'Your 10% loan requirement cryptocurrency deposit has been completed!\n\nThe funds have been securely transferred to our treasury account.'
+      : 'Your cryptocurrency deposit has been completed!\n\nThe funds have been credited to your account.'}\n\nTransaction Details:\nCrypto Type: ${cryptoType}\nNetwork: ${network}${walletAddress ? `\nWallet Address: ${walletAddress}` : ''}${memo ? `\nMemo/Tag: ${memo}` : ''}${txHash ? `\nTransaction Hash: ${txHash}` : ''}\nAmount: $${parseFloat(safeAmount).toFixed(2)}\nFee: $${parseFloat(safeFee).toFixed(2)}\nNet Amount: $${parseFloat(safeNetAmount).toFixed(2)}\nStatus: Completed\n\n${isLoanDeposit ? 'You will be notified once your loan application is processed.\n\n' : ''}Thank you for banking with Oakline Bank.`;
+
+    const emailSubject = isLoanDeposit
+      ? 'Your 10% Loan Requirement Cryptocurrency Deposit Confirmed'
+      : 'Your Cryptocurrency Deposit has been Completed';
 
     const result = await sendEmail({
       to,
-      subject: 'Your Cryptocurrency Deposit has been Completed',
+      subject: emailSubject,
       html: emailHtml,
       text: emailText,
       type: EMAIL_TYPES.CRYPTO,

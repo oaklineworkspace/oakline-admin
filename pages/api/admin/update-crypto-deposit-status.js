@@ -56,10 +56,7 @@ export default async function handler(req, res) {
       const amount = parseFloat(deposit.amount || 0);
       const fee = parseFloat(deposit.fee || 0);
       const netAmount = amount - fee;
-
-      if (!deposit.account_id) {
-        return res.status(400).json({ error: 'No account linked to this deposit' });
-      }
+      const isLoanDeposit = deposit.purpose === 'loan_requirement';
 
       // Get user profile for email
       const { data: profile } = await supabase
@@ -68,107 +65,171 @@ export default async function handler(req, res) {
         .eq('id', deposit.user_id)
         .single();
 
-      // Find existing pending transaction for this deposit
-      const { data: existingTx } = await supabase
-        .from('transactions')
-        .select('id')
-        .eq('reference', depositId)
-        .eq('type', 'credit')
-        .eq('status', 'pending')
-        .single();
-
-      let userTransaction;
-
-      if (existingTx) {
-        // Update existing pending transaction to completed
-        const { data: updatedTx, error: updateTxError } = await supabase
-          .from('transactions')
-          .update({
-            status: 'completed',
-            amount: netAmount,
-            description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
-            updated_at: new Date().toISOString(),
-            metadata: {
-              deposit_id: depositId,
-              crypto_type: deposit.crypto_assets?.crypto_type,
-              network: deposit.crypto_assets?.network_type,
-              gross_amount: amount,
-              fee: fee,
-              net_amount: netAmount
-            }
-          })
-          .eq('id', existingTx.id)
-          .select()
-          .single();
-
-        if (updateTxError) {
-          console.error('Transaction update error:', updateTxError);
-          return res.status(500).json({ error: 'Failed to update transaction' });
-        }
-        userTransaction = updatedTx;
-      } else {
-        // Fallback: Create new transaction if none exists
-        const { data: newTx, error: userTxError } = await supabase
-          .from('transactions')
-          .insert({
-            user_id: deposit.user_id,
-            account_id: deposit.account_id,
-            type: 'credit',
-            amount: netAmount,
-            description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
-            status: 'completed',
-            reference: depositId,
-            metadata: {
-              deposit_id: depositId,
-              crypto_type: deposit.crypto_assets?.crypto_type,
-              network: deposit.crypto_assets?.network_type,
-              gross_amount: amount,
-              fee: fee,
-              net_amount: netAmount
-            }
-          })
-          .select()
-          .single();
-
-        if (userTxError) {
-          console.error('User transaction error:', userTxError);
-          return res.status(500).json({ error: 'Failed to credit user account' });
-        }
-        userTransaction = newTx;
-      }
-
-      // Credit fee to Treasury account
-      if (fee > 0) {
-        // Get or create treasury account
+      // For LOAN deposits: Credit FULL amount to Treasury account
+      if (isLoanDeposit) {
         const { data: treasuryAccount } = await supabase
           .from('accounts')
           .select('*')
           .eq('account_number', 'TREASURY-001')
           .single();
 
-        if (treasuryAccount) {
-          const { error: treasuryTxError } = await supabase
+        if (!treasuryAccount) {
+          return res.status(400).json({ error: 'Treasury account not found' });
+        }
+
+        // Create transaction for the FULL amount to treasury (this is the 10% loan requirement)
+        const { error: treasuryTxError } = await supabase
+          .from('transactions')
+          .insert({
+            account_id: treasuryAccount.id,
+            type: 'credit',
+            amount: netAmount,
+            description: `10% Loan requirement deposit - ${deposit.crypto_assets?.crypto_type}`,
+            status: 'completed',
+            reference: depositId,
+            metadata: {
+              source: 'loan_requirement_deposit',
+              deposit_id: depositId,
+              user_id: deposit.user_id,
+              crypto_type: deposit.crypto_assets?.crypto_type,
+              network: deposit.crypto_assets?.network_type,
+              gross_amount: amount,
+              fee: fee,
+              net_amount: netAmount,
+              loan_id: deposit.loan_id
+            }
+          });
+
+        if (treasuryTxError) {
+          console.error('Treasury transaction error:', treasuryTxError);
+          return res.status(500).json({ error: 'Failed to credit loan deposit to treasury' });
+        }
+
+        // Also credit fee to treasury
+        if (fee > 0) {
+          const { error: feeError } = await supabase
             .from('transactions')
             .insert({
               account_id: treasuryAccount.id,
               type: 'credit',
               amount: fee,
-              description: `Crypto deposit fee - ${deposit.crypto_assets?.crypto_type}`,
+              description: `Loan deposit processing fee - ${deposit.crypto_assets?.crypto_type}`,
               status: 'completed',
               metadata: {
-                source: 'crypto_deposit_fee',
+                source: 'loan_deposit_fee',
                 deposit_id: depositId,
                 user_id: deposit.user_id,
+                crypto_type: deposit.crypto_assets?.crypto_type
+              }
+            });
+
+          if (feeError) {
+            console.error('Fee transaction error:', feeError);
+          }
+        }
+      } else {
+        // For GENERAL deposits: Credit to user's account (existing behavior)
+        if (!deposit.account_id) {
+          return res.status(400).json({ error: 'No account linked to this deposit' });
+        }
+
+        // Find existing pending transaction for this deposit
+        const { data: existingTx } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('reference', depositId)
+          .eq('type', 'credit')
+          .eq('status', 'pending')
+          .single();
+
+        if (existingTx) {
+          // Update existing pending transaction to completed
+          const { data: updatedTx, error: updateTxError } = await supabase
+            .from('transactions')
+            .update({
+              status: 'completed',
+              amount: netAmount,
+              description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
+              updated_at: new Date().toISOString(),
+              metadata: {
+                deposit_id: depositId,
                 crypto_type: deposit.crypto_assets?.crypto_type,
                 network: deposit.crypto_assets?.network_type,
                 gross_amount: amount,
                 fee: fee,
                 net_amount: netAmount
               }
-            });
+            })
+            .eq('id', existingTx.id)
+            .select()
+            .single();
 
-          if (treasuryTxError) {
-            console.error('Treasury transaction error:', treasuryTxError);
+          if (updateTxError) {
+            console.error('Transaction update error:', updateTxError);
+            return res.status(500).json({ error: 'Failed to update transaction' });
+          }
+        } else {
+          // Fallback: Create new transaction if none exists
+          const { error: userTxError } = await supabase
+            .from('transactions')
+            .insert({
+              user_id: deposit.user_id,
+              account_id: deposit.account_id,
+              type: 'credit',
+              amount: netAmount,
+              description: `Crypto deposit - ${deposit.crypto_assets?.crypto_type} (Net after ${fee} fee)`,
+              status: 'completed',
+              reference: depositId,
+              metadata: {
+                deposit_id: depositId,
+                crypto_type: deposit.crypto_assets?.crypto_type,
+                network: deposit.crypto_assets?.network_type,
+                gross_amount: amount,
+                fee: fee,
+                net_amount: netAmount
+              }
+            })
+            .select()
+            .single();
+
+          if (userTxError) {
+            console.error('User transaction error:', userTxError);
+            return res.status(500).json({ error: 'Failed to credit user account' });
+          }
+        }
+
+        // Credit fee to Treasury account
+        if (fee > 0) {
+          const { data: treasuryAccount } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('account_number', 'TREASURY-001')
+            .single();
+
+          if (treasuryAccount) {
+            const { error: treasuryTxError } = await supabase
+              .from('transactions')
+              .insert({
+                account_id: treasuryAccount.id,
+                type: 'credit',
+                amount: fee,
+                description: `Crypto deposit fee - ${deposit.crypto_assets?.crypto_type}`,
+                status: 'completed',
+                metadata: {
+                  source: 'crypto_deposit_fee',
+                  deposit_id: depositId,
+                  user_id: deposit.user_id,
+                  crypto_type: deposit.crypto_assets?.crypto_type,
+                  network: deposit.crypto_assets?.network_type,
+                  gross_amount: amount,
+                  fee: fee,
+                  net_amount: netAmount
+                }
+              });
+
+            if (treasuryTxError) {
+              console.error('Treasury transaction error:', treasuryTxError);
+            }
           }
         }
       }
@@ -190,7 +251,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to update deposit status' });
       }
 
-      // Send completion email
+      // Send completion email (with loan deposit flag)
       if (profile?.email) {
         try {
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
@@ -205,7 +266,11 @@ export default async function handler(req, res) {
               fee: fee,
               netAmount: netAmount,
               depositId: depositId,
-              userName: `${profile.first_name} ${profile.last_name}`
+              userName: `${profile.first_name} ${profile.last_name}`,
+              isLoanDeposit: isLoanDeposit,
+              walletAddress: deposit.wallet_address,
+              memo: deposit.memo,
+              txHash: deposit.tx_hash
             })
           });
         } catch (emailError) {
