@@ -222,17 +222,39 @@ export default function ManageCryptoDeposits() {
         throw new Error('No active session');
       }
 
-      // Determine storage bucket based on deposit type
+      // Determine storage bucket and path based on deposit type
       let storageBucket = 'crypto-deposit-proofs';
+      let proofPath = deposit.proof_path;
+      let secondaryBucket = null;
+      let secondaryPath = null;
+      
       if (deposit.purpose === 'loan_requirement') {
-        storageBucket = 'loan-deposits'; // For loan deposit proofs
+        // For loan deposits, try documents bucket first
+        storageBucket = 'documents';
+        // Remove 'documents/' prefix if present since we're already specifying the bucket
+        proofPath = deposit.proof_path.replace(/^documents\//, '');
+        // Fallback to crypto-deposit-proofs if documents bucket fails
+        secondaryBucket = 'crypto-deposit-proofs';
+        secondaryPath = deposit.proof_path.replace(/^crypto-deposit-proofs\//, '');
       }
 
-      // Create signed URL for the proof image
-      const { data: signedUrlData, error: signedUrlError } = await supabase
+      // Try to create signed URL from the primary bucket
+      let signedUrlData = null;
+      let signedUrlError = null;
+      
+      ({ data: signedUrlData, error: signedUrlError } = await supabase
         .storage
         .from(storageBucket)
-        .createSignedUrl(deposit.proof_path, 3600); // 1 hour expiry
+        .createSignedUrl(proofPath, 3600)); // 1 hour expiry
+
+      // If primary bucket fails and there's a secondary bucket, try that
+      if (signedUrlError && secondaryBucket) {
+        console.warn(`Failed to load from ${storageBucket}, trying ${secondaryBucket}:`, signedUrlError);
+        ({ data: signedUrlData, error: signedUrlError } = await supabase
+          .storage
+          .from(secondaryBucket)
+          .createSignedUrl(secondaryPath, 3600));
+      }
 
       if (signedUrlError) {
         console.error('Error creating signed URL:', signedUrlError);
