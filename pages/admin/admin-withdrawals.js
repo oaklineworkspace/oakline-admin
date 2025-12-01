@@ -8,12 +8,14 @@ import { supabase } from '../../lib/supabaseClient';
 export default function AdminWithdrawals() {
   const router = useRouter();
   const [withdrawals, setWithdrawals] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
@@ -36,12 +38,33 @@ export default function AdminWithdrawals() {
   });
 
   useEffect(() => {
+    fetchUsers();
     fetchWithdrawals();
   }, []);
 
   useEffect(() => {
     fetchWithdrawals();
-  }, [statusFilter, methodFilter, searchTerm, dateRange]);
+  }, [statusFilter, methodFilter, searchTerm, dateRange, userFilter]);
+
+  const fetchUsers = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/withdrawals/get-users', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAllUsers(result.users || []);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
 
   const fetchWithdrawals = async () => {
     try {
@@ -65,7 +88,8 @@ export default function AdminWithdrawals() {
           statusFilter,
           methodFilter,
           searchTerm,
-          dateRange
+          dateRange,
+          userFilter
         })
       });
 
@@ -225,7 +249,7 @@ export default function AdminWithdrawals() {
 
         {/* Filters */}
         <div style={styles.filterSection}>
-          <div style={styles.filterGrid}>
+          <div style={styles.filterControls}>
             <input
               type="text"
               placeholder="Search by reference, account, or name..."
@@ -233,6 +257,15 @@ export default function AdminWithdrawals() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={styles.input}
             />
+            <button
+              onClick={() => { setLoading(true); fetchWithdrawals(); }}
+              style={styles.refreshButton}
+              title="Refresh data"
+            >
+              🔄 Refresh
+            </button>
+          </div>
+          <div style={styles.filterGrid}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -257,6 +290,18 @@ export default function AdminWithdrawals() {
               <option value="wire_transfer">Wire Transfer</option>
               <option value="check">Check</option>
               <option value="ach">ACH</option>
+            </select>
+            <select
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+              style={styles.select}
+            >
+              <option value="all">All Users</option>
+              {allUsers.map(user => (
+                <option key={user.user_id} value={user.user_id}>
+                  {user.first_name} {user.last_name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -526,10 +571,27 @@ const styles = {
     marginBottom: '20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
+  filterControls: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '12px'
+  },
   filterGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '12px'
+  },
+  refreshButton: {
+    padding: '10px 16px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'background-color 0.2s'
   },
   input: {
     padding: '10px 12px',
