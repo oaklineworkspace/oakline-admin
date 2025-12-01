@@ -19,30 +19,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch loan with user profile and account details
+    // Fetch loan
     const { data: loan, error: loanError } = await supabaseAdmin
       .from('loans')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          email,
-          first_name,
-          last_name,
-          phone,
-          address,
-          city,
-          state,
-          zip_code,
-          employment_status,
-          annual_income
-        ),
-        accounts:account_id (
-          account_number,
-          account_type,
-          balance
-        )
-      `)
+      .select('*')
       .eq('id', loanId)
       .single();
 
@@ -50,6 +30,32 @@ export default async function handler(req, res) {
       console.error('Error fetching loan:', loanError);
       return res.status(404).json({ error: 'Loan not found' });
     }
+
+    // Fetch profile separately
+    let userProfile = null;
+    if (loan.user_id) {
+      const { data: profileData } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email, first_name, last_name, phone, address, city, state, zip_code, employment_status, annual_income')
+        .eq('id', loan.user_id)
+        .single();
+      userProfile = profileData;
+    }
+
+    // Fetch account separately
+    let accountData = null;
+    if (loan.account_id) {
+      const { data: acctData } = await supabaseAdmin
+        .from('accounts')
+        .select('account_number, account_type, balance')
+        .eq('id', loan.account_id)
+        .single();
+      accountData = acctData;
+    }
+
+    // Add profile and account to loan object
+    loan.profiles = userProfile;
+    loan.accounts = accountData;
 
     // Fetch user ID documents from user_id_documents table
     const { data: userIdDocs, error: userDocsError } = await supabaseAdmin
