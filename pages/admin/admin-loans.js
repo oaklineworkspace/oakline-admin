@@ -37,6 +37,8 @@ export default function AdminLoans() {
   const [treasuryBalance, setTreasuryBalance] = useState(0);
   const [recentPayments, setRecentPayments] = useState([]);
   const [showPaymentsSection, setShowPaymentsSection] = useState(false);
+  const [documentsToView, setDocumentsToView] = useState(null);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
 
   useEffect(() => {
     fetchLoans();
@@ -732,6 +734,35 @@ export default function AdminLoans() {
                     <button onClick={() => setSelectedLoan(loan)} style={styles.viewButton}>
                       👁️ Quick View
                     </button>
+                    <button 
+                      onClick={async () => {
+                        setLoadingDocuments(true);
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          const response = await fetch(`/api/admin/get-loan-detail?loanId=${loan.id}`, {
+                            headers: { Authorization: `Bearer ${session.access_token}` }
+                          });
+                          const result = await response.json();
+                          if (response.ok) {
+                            setDocumentsToView({
+                              loan: result.loan,
+                              idDocuments: result.idDocuments,
+                              collaterals: result.collaterals
+                            });
+                          } else {
+                            setError(result.error || 'Failed to load documents');
+                          }
+                        } catch (err) {
+                          setError(err.message);
+                        } finally {
+                          setLoadingDocuments(false);
+                        }
+                      }}
+                      style={styles.documentsButton}
+                      disabled={loadingDocuments}
+                    >
+                      📄 Documents
+                    </button>
                     {loan.status === 'pending' && (
                       <button
                         onClick={() => {
@@ -793,6 +824,74 @@ export default function AdminLoans() {
             </div>
           )}
         </div>
+
+        {/* Documents Viewer Modal */}
+        {documentsToView && (
+          <div style={styles.modalOverlay} onClick={() => setDocumentsToView(null)}>
+            <div style={{...styles.modal, maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📄 Loan Documents - {documentsToView.loan?.user_name}</h2>
+                <button onClick={() => setDocumentsToView(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                {/* ID Documents Section */}
+                <div style={{marginBottom: '30px'}}>
+                  <h3 style={{fontSize: '1.1rem', marginBottom: '15px', color: '#1f2937'}}>ID Documents</h3>
+                  {documentsToView.idDocuments && documentsToView.idDocuments.length > 0 ? (
+                    documentsToView.idDocuments.map((doc, idx) => (
+                      <div key={idx} style={{marginBottom: '20px', padding: '15px', backgroundColor: '#f9fafb', borderRadius: '8px'}}>
+                        <h4 style={{margin: '0 0 10px 0', color: '#374151'}}>{doc.document_type}</h4>
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px'}}>
+                          {doc.front_signed_url && (
+                            <div>
+                              <p style={{margin: '0 0 5px 0', fontSize: '12px', color: '#6b7280'}}>Front</p>
+                              <img src={doc.front_signed_url} alt="Front" style={{width: '100%', borderRadius: '6px', border: '1px solid #e5e7eb'}} />
+                            </div>
+                          )}
+                          {doc.back_signed_url && (
+                            <div>
+                              <p style={{margin: '0 0 5px 0', fontSize: '12px', color: '#6b7280'}}>Back</p>
+                              <img src={doc.back_signed_url} alt="Back" style={{width: '100%', borderRadius: '6px', border: '1px solid #e5e7eb'}} />
+                            </div>
+                          )}
+                        </div>
+                        <p style={{margin: '8px 0 0 0', fontSize: '12px', color: '#6b7280'}}>Status: <span style={{fontWeight: '600', color: doc.status === 'verified' ? '#10b981' : '#f59e0b'}}>{doc.status}</span></p>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{color: '#6b7280'}}>No ID documents uploaded</p>
+                  )}
+                </div>
+
+                {/* Collateral Section */}
+                <div>
+                  <h3 style={{fontSize: '1.1rem', marginBottom: '15px', color: '#1f2937'}}>Collateral</h3>
+                  {documentsToView.collaterals && documentsToView.collaterals.length > 0 ? (
+                    documentsToView.collaterals.map((collateral, idx) => (
+                      <div key={idx} style={{marginBottom: '20px', padding: '15px', backgroundColor: '#f9fafb', borderRadius: '8px'}}>
+                        <h4 style={{margin: '0 0 10px 0', color: '#374151'}}>{collateral.collateral_type}</h4>
+                        <p style={{margin: '0 0 5px 0', fontSize: '13px'}}><strong>Value:</strong> ${parseFloat(collateral.estimated_value || 0).toLocaleString()}</p>
+                        <p style={{margin: '0 0 5px 0', fontSize: '13px'}}><strong>Condition:</strong> {collateral.condition}</p>
+                        {collateral.signed_photos && collateral.signed_photos.length > 0 && (
+                          <div style={{marginTop: '10px'}}>
+                            <p style={{margin: '0 0 8px 0', fontSize: '12px', color: '#6b7280'}}>Photos:</p>
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px'}}>
+                              {collateral.signed_photos.map((photo, pidx) => (
+                                <img key={pidx} src={photo.signed_url} alt={`Photo ${pidx + 1}`} style={{width: '100%', height: '120px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e5e7eb'}} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{color: '#6b7280'}}>No collateral provided</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loan Details Modal */}
         {selectedLoan && (
@@ -1503,6 +1602,17 @@ const styles = {
     flex: 1,
     padding: '10px',
     background: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  documentsButton: {
+    flex: 1,
+    padding: '10px',
+    background: '#8b5cf6',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
