@@ -222,10 +222,16 @@ export default function ManageCryptoDeposits() {
         throw new Error('No active session');
       }
 
+      // Determine storage bucket based on deposit type
+      let storageBucket = 'crypto-deposit-proofs';
+      if (deposit.purpose === 'loan_requirement') {
+        storageBucket = 'loan-deposits'; // For loan deposit proofs
+      }
+
       // Create signed URL for the proof image
       const { data: signedUrlData, error: signedUrlError } = await supabase
         .storage
-        .from('crypto-deposit-proofs')
+        .from(storageBucket)
         .createSignedUrl(deposit.proof_path, 3600); // 1 hour expiry
 
       if (signedUrlError) {
