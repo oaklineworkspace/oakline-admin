@@ -43,6 +43,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Deposit not found' });
     }
 
+    console.log('Deposit fetched:', { id: deposit.id, purpose: deposit.purpose, status: deposit.status });
+
     // Get bank details for email
     const { data: bankDetails } = await supabase
       .from('bank_details')
@@ -57,6 +59,8 @@ export default async function handler(req, res) {
       const fee = parseFloat(deposit.fee || 0);
       const netAmount = amount - fee;
       const isLoanDeposit = deposit.purpose === 'loan_requirement';
+      
+      console.log('Completion handling - isLoanDeposit:', isLoanDeposit, 'deposit.purpose:', deposit.purpose);
 
       // Get user profile for email
       const { data: profile } = await supabase
@@ -254,24 +258,28 @@ export default async function handler(req, res) {
       // Send completion email (with loan deposit flag)
       if (profile?.email) {
         try {
+          const emailPayload = {
+            to: profile.email,
+            fromEmail,
+            cryptoType: deposit.crypto_assets?.crypto_type,
+            network: deposit.crypto_assets?.network_type,
+            amount: amount,
+            fee: fee,
+            netAmount: netAmount,
+            depositId: depositId,
+            userName: `${profile.first_name} ${profile.last_name}`,
+            isLoanDeposit: isLoanDeposit,
+            walletAddress: deposit.wallet_address,
+            memo: deposit.memo,
+            txHash: deposit.tx_hash
+          };
+          
+          console.log('Sending email with payload:', { isLoanDeposit: emailPayload.isLoanDeposit });
+
           await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000'}/api/email/send-deposit-completed-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: profile.email,
-              fromEmail,
-              cryptoType: deposit.crypto_assets?.crypto_type,
-              network: deposit.crypto_assets?.network_type,
-              amount: amount,
-              fee: fee,
-              netAmount: netAmount,
-              depositId: depositId,
-              userName: `${profile.first_name} ${profile.last_name}`,
-              isLoanDeposit: isLoanDeposit,
-              walletAddress: deposit.wallet_address,
-              memo: deposit.memo,
-              txHash: deposit.tx_hash
-            })
+            body: JSON.stringify(emailPayload)
           });
         } catch (emailError) {
           console.error('Email error:', emailError);

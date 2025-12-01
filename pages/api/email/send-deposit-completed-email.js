@@ -13,6 +13,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Recipient email is required' });
     }
 
+    // Ensure isLoanDeposit is a boolean
+    const isLoan = Boolean(isLoanDeposit);
+
     // Set defaults for numeric values to prevent errors
     const safeAmount = amount ?? 0;
     const safeFee = fee ?? 0;
@@ -21,11 +24,13 @@ export default async function handler(req, res) {
     const emailDomain = process.env.BANK_EMAIL_DOMAIN || 'theoaklinebank.com';
     const from = fromEmail || `Oakline Bank - Crypto <crypto@${emailDomain}>`;
 
-    const headerMessage = isLoanDeposit 
+    console.log('Sending email - isLoanDeposit flag:', isLoanDeposit, 'converted to:', isLoan);
+
+    const headerMessage = isLoan 
       ? 'Your 10% Loan Requirement Deposit Confirmed'
       : '✓ Deposit Completed';
     
-    const descriptionMessage = isLoanDeposit
+    const descriptionMessage = isLoan
       ? '<p>Good news! Your 10% cryptocurrency loan requirement deposit has been successfully received and processed. The funds have been securely transferred to our treasury account.</p>'
       : '<p>Good news! Your cryptocurrency deposit has been successfully processed and credited to your account.</p>';
 
@@ -55,7 +60,7 @@ export default async function handler(req, res) {
           </div>
           
           <div class="content">
-            ${isLoanDeposit ? '<div class="loan-badge">💼 Loan Application</div>' : ''}
+            ${isLoan ? '<div class="loan-badge">💼 Loan Application</div>' : ''}
             <p>Hello ${userName || 'Valued Customer'},</p>
             
             ${descriptionMessage}
@@ -114,7 +119,7 @@ export default async function handler(req, res) {
                 <span class="detail-value" style="color: #10b981;">Completed</span>
               </div>
               
-              ${isLoanDeposit ? `
+              ${isLoan ? `
               <div class="detail-row" style="border-bottom: none; margin-top: 10px; padding-top: 0;">
                 <span class="detail-label">Destination:</span>
                 <span class="detail-value" style="color: #6366f1;">Treasury Account</span>
@@ -122,7 +127,7 @@ export default async function handler(req, res) {
               ` : ''}
             </div>
             
-            ${isLoanDeposit 
+            ${isLoan 
               ? '<p><strong>Note:</strong> This deposit fulfills your 10% loan requirement and has been secured in our treasury account. You will be notified once your loan application is processed.</p>'
               : '<p>The funds have been credited to your account and are now available for use.</p>'}
             
@@ -140,11 +145,11 @@ export default async function handler(req, res) {
       </html>
     `;
 
-    const emailText = `Hello ${userName || 'Valued Customer'},\n\n${isLoanDeposit 
+    const emailText = `Hello ${userName || 'Valued Customer'},\n\n${isLoan 
       ? 'Your 10% loan requirement cryptocurrency deposit has been completed!\n\nThe funds have been securely transferred to our treasury account.'
-      : 'Your cryptocurrency deposit has been completed!\n\nThe funds have been credited to your account.'}\n\nTransaction Details:\nCrypto Type: ${cryptoType}\nNetwork: ${network}${walletAddress ? `\nWallet Address: ${walletAddress}` : ''}${memo ? `\nMemo/Tag: ${memo}` : ''}${txHash ? `\nTransaction Hash: ${txHash}` : ''}\nAmount: $${parseFloat(safeAmount).toFixed(2)}\nFee: $${parseFloat(safeFee).toFixed(2)}\nNet Amount: $${parseFloat(safeNetAmount).toFixed(2)}\nStatus: Completed\n\n${isLoanDeposit ? 'You will be notified once your loan application is processed.\n\n' : ''}Thank you for banking with Oakline Bank.`;
+      : 'Your cryptocurrency deposit has been completed!\n\nThe funds have been credited to your account.'}\n\nTransaction Details:\nCrypto Type: ${cryptoType}\nNetwork: ${network}${walletAddress ? `\nWallet Address: ${walletAddress}` : ''}${memo ? `\nMemo/Tag: ${memo}` : ''}${txHash ? `\nTransaction Hash: ${txHash}` : ''}\nAmount: $${parseFloat(safeAmount).toFixed(2)}\nFee: $${parseFloat(safeFee).toFixed(2)}\nNet Amount: $${parseFloat(safeNetAmount).toFixed(2)}\nStatus: Completed\n\n${isLoan ? 'You will be notified once your loan application is processed.\n\n' : ''}Thank you for banking with Oakline Bank.`;
 
-    const emailSubject = isLoanDeposit
+    const emailSubject = isLoan
       ? 'Your 10% Loan Requirement Cryptocurrency Deposit Confirmed'
       : 'Your Cryptocurrency Deposit has been Completed';
 
