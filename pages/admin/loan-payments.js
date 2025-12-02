@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -43,6 +44,7 @@ export default function LoanPayments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterLoanType, setFilterLoanType] = useState('all');
 
   // Modal states
   const [loadingBanner, setLoadingBanner] = useState({
@@ -63,6 +65,24 @@ export default function LoanPayments() {
     visible: false,
     message: '',
     duration: 3000
+  });
+
+  const [showUpdateModal, setShowUpdateModal] = useState(null);
+  const [showProofModal, setShowProofModal] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [proofImageUrl, setProofImageUrl] = useState(null);
+  const [loadingProof, setLoadingProof] = useState(false);
+  const [processing, setProcessing] = useState(null);
+
+  const [updateForm, setUpdateForm] = useState({
+    amount: '',
+    principalAmount: '',
+    interestAmount: '',
+    lateFee: '',
+    confirmations: '',
+    status: '',
+    rejectionReason: '',
+    adminNotes: ''
   });
 
   useEffect(() => {
@@ -134,122 +154,180 @@ export default function LoanPayments() {
     }
   };
 
-  const handleApprovePayment = async (paymentId, paymentAmount) => {
-    setLoadingBanner({
-      visible: true,
-      current: 0,
-      total: 1,
-      action: 'Approving Payment',
-      message: `Processing $${parseFloat(paymentAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}...`
+  const openUpdateModal = (payment) => {
+    setUpdateForm({
+      amount: payment.amount || '',
+      principalAmount: payment.principal_amount || '',
+      interestAmount: payment.interest_amount || '',
+      lateFee: payment.late_fee || '',
+      confirmations: payment.confirmations || '',
+      status: payment.status || 'pending',
+      rejectionReason: payment.notes?.includes('Rejected:') ? payment.notes.split('Rejected:')[1]?.trim() : '',
+      adminNotes: payment.notes || ''
     });
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setErrorBanner({
-          visible: true,
-          message: '❌ You must be logged in',
-          duration: 3000
-        });
-        return;
-      }
-
-      const response = await fetch('/api/admin/approve-loan-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ paymentId, action: 'approve' })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to approve payment');
-      }
-
-      const successMsg = result.loan?.is_closed 
-        ? `✅ Payment approved! Loan has been paid off completely!`
-        : `✅ Payment approved! ${result.payment?.months_covered || 1} month(s) covered. New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`;
-      
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
-      setSuccessBanner({
-        visible: true,
-        message: successMsg,
-        duration: 4000
-      });
-      
-      fetchPayments();
-    } catch (err) {
-      console.error('Error approving payment:', err);
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
-      setErrorBanner({
-        visible: true,
-        message: `❌ Failed to approve payment: ${err.message}`,
-        duration: 4000
-      });
-    }
+    setShowUpdateModal(payment);
   };
 
-  const handleRejectPayment = async (paymentId, paymentAmount) => {
-    const reason = prompt('Please enter rejection reason:');
-    if (!reason) return;
-
-    setLoadingBanner({
-      visible: true,
-      current: 0,
-      total: 1,
-      action: 'Rejecting Payment',
-      message: `Rejecting $${parseFloat(paymentAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}...`
-    });
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    setProcessing(showUpdateModal.id);
+    setErrorBanner({ visible: false, message: '', duration: 3000 });
+    setSuccessBanner({ visible: false, message: '', duration: 3000 });
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setErrorBanner({
-          visible: true,
-          message: '❌ You must be logged in',
-          duration: 3000
-        });
-        return;
+        throw new Error('No active session. Please log in again.');
       }
+
+      const action = updateForm.status === 'completed' ? 'approve' : 
+                     updateForm.status === 'failed' ? 'reject' : 'update';
 
       const response = await fetch('/api/admin/approve-loan-payment', {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ 
-          paymentId, 
-          action: 'reject',
-          rejectionReason: reason
+        body: JSON.stringify({
+          paymentId: showUpdateModal.id,
+          action: action,
+          amount: updateForm.amount ? parseFloat(updateForm.amount) : undefined,
+          principalAmount: updateForm.principalAmount ? parseFloat(updateForm.principalAmount) : undefined,
+          interestAmount: updateForm.interestAmount ? parseFloat(updateForm.interestAmount) : undefined,
+          lateFee: updateForm.lateFee ? parseFloat(updateForm.lateFee) : undefined,
+          confirmations: updateForm.confirmations ? parseInt(updateForm.confirmations) : undefined,
+          rejectionReason: updateForm.rejectionReason || undefined,
+          adminNotes: updateForm.adminNotes || undefined
         })
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to reject payment');
+        throw new Error(result.error || result.details || 'Failed to update payment');
       }
 
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      const successMessage = updateForm.status === 'completed' 
+        ? `✅ Payment approved successfully! ${result.loan?.is_closed ? 'Loan has been paid off!' : `New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`}`
+        : updateForm.status === 'failed'
+        ? '✅ Payment rejected successfully!'
+        : '✅ Payment updated successfully!';
+
       setSuccessBanner({
         visible: true,
-        message: '✅ Payment rejected successfully',
+        message: successMessage,
+        duration: 4000
+      });
+      
+      setShowUpdateModal(null);
+      await fetchPayments();
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      setErrorBanner({
+        visible: true,
+        message: `❌ Failed to update payment: ${error.message}`,
+        duration: 4000
+      });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleViewProof = async (payment) => {
+    if (!payment.proof_path) {
+      setErrorBanner({
+        visible: true,
+        message: '❌ No proof of payment uploaded for this payment',
+        duration: 3000
+      });
+      return;
+    }
+
+    setLoadingProof(true);
+    setShowProofModal(payment);
+    setProofImageUrl(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const { data: signedUrlData, error: signedUrlError } = await supabase
+        .storage
+        .from('loan-payment-proofs')
+        .createSignedUrl(payment.proof_path, 3600);
+
+      if (signedUrlError) {
+        console.error('Error creating signed URL:', signedUrlError);
+        throw new Error('Failed to load proof of payment image');
+      }
+
+      setProofImageUrl(signedUrlData.signedUrl);
+    } catch (error) {
+      console.error('Error loading proof:', error);
+      setErrorBanner({
+        visible: true,
+        message: `❌ ${error.message}`,
+        duration: 5000
+      });
+      setShowProofModal(null);
+    } finally {
+      setLoadingProof(false);
+    }
+  };
+
+  const handleDeletePayment = async () => {
+    if (!showDeleteConfirm) return;
+
+    setProcessing(showDeleteConfirm.id);
+    setErrorBanner({ visible: false, message: '', duration: 3000 });
+    setSuccessBanner({ visible: false, message: '', duration: 3000 });
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
+      const response = await fetch('/api/admin/delete-loan-payment', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          paymentId: showDeleteConfirm.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to delete payment');
+      }
+
+      setSuccessBanner({
+        visible: true,
+        message: '✅ Payment deleted successfully!',
         duration: 3000
       });
       
-      fetchPayments();
-    } catch (err) {
-      console.error('Error rejecting payment:', err);
-      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setTimeout(() => {
+        setShowDeleteConfirm(null);
+      }, 1000);
+      
+      await fetchPayments();
+    } catch (error) {
+      console.error('Error deleting payment:', error);
       setErrorBanner({
         visible: true,
-        message: `❌ Failed to reject payment: ${err.message}`,
+        message: `❌ ${error.message}`,
         duration: 4000
       });
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -262,10 +340,15 @@ export default function LoanPayments() {
       payment.loans?.loan_type?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === 'all' || payment.status === filterStatus;
-    const matchesType = filterType === 'all' || payment.payment_type === filterType || payment.loan_type === filterType;
+    const matchesType = filterType === 'all' || payment.payment_type === filterType;
+    const matchesLoanType = filterLoanType === 'all' || payment.loan_type === filterLoanType;
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus && matchesType && matchesLoanType;
   });
+
+  // Separate payments into deposit and regular categories
+  const depositPayments = filteredPayments.filter(p => p.payment_type === 'deposit' || p.is_deposit);
+  const regularPayments = filteredPayments.filter(p => p.payment_type !== 'deposit' && !p.is_deposit);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -274,6 +357,163 @@ export default function LoanPayments() {
       failed: { bg: '#fee2e2', text: '#991b1b', badge: '#ef4444' }
     };
     return colors[status?.toLowerCase()] || colors.pending;
+  };
+
+  const getStatusEmoji = (status) => {
+    const emojis = {
+      completed: '✅',
+      pending: '⏳',
+      failed: '❌'
+    };
+    return emojis[status?.toLowerCase()] || '📋';
+  };
+
+  const PaymentCard = ({ payment }) => {
+    const statusColor = getStatusColor(payment.status);
+    const isDeposit = payment.payment_type === 'deposit' || payment.is_deposit;
+    
+    return (
+      <div style={styles.paymentCard}>
+        <div style={styles.cardHeader}>
+          <div>
+            <h3 style={styles.paymentName}>{payment.user_name || payment.user_email}</h3>
+            <p style={styles.paymentEmail}>{payment.user_email}</p>
+            {isDeposit && (
+              <span style={{...styles.depositBadge}}>💰 10% Minimum Deposit</span>
+            )}
+          </div>
+          <div style={{...styles.statusBadge, backgroundColor: statusColor.bg, color: statusColor.text}}>
+            {getStatusEmoji(payment.status)} {payment.status?.toUpperCase()}
+          </div>
+        </div>
+
+        <div style={styles.amountDisplay}>
+          <span style={styles.amountLabel}>Payment Amount</span>
+          <span style={styles.amountValue}>
+            ${parseFloat(payment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          {payment.late_fee && parseFloat(payment.late_fee) > 0 && (
+            <span style={styles.lateFeeTag}>Late Fee: ${parseFloat(payment.late_fee).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          )}
+          {payment.fee && parseFloat(payment.fee) > 0 && (
+            <span style={styles.feeTag}>Processing Fee: ${parseFloat(payment.fee).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          )}
+        </div>
+
+        <div style={styles.detailsGrid}>
+          <div style={styles.detailItem}>
+            <span style={styles.detailLabel}>Payment Date</span>
+            <span style={styles.detailValue}>
+              {new Date(payment.payment_date).toLocaleDateString()}
+            </span>
+          </div>
+          <div style={styles.detailItem}>
+            <span style={styles.detailLabel}>Type</span>
+            <span style={styles.detailValue}>
+              {payment.payment_type?.replace(/_/g, ' ').toUpperCase()}
+            </span>
+          </div>
+          <div style={styles.detailItem}>
+            <span style={styles.detailLabel}>Loan Type</span>
+            <span style={styles.detailValue}>
+              {payment.loan_type?.toUpperCase()}
+            </span>
+          </div>
+          <div style={styles.detailItem}>
+            <span style={styles.detailLabel}>Account</span>
+            <span style={styles.detailValue}>
+              {payment.account_number}
+            </span>
+          </div>
+          {payment.principal_amount !== null && payment.principal_amount !== undefined && (
+            <div style={styles.detailItem}>
+              <span style={styles.detailLabel}>Principal</span>
+              <span style={styles.detailValue}>
+                ${parseFloat(payment.principal_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+          {payment.interest_amount !== null && payment.interest_amount !== undefined && (
+            <div style={styles.detailItem}>
+              <span style={styles.detailLabel}>Interest</span>
+              <span style={styles.detailValue}>
+                ${parseFloat(payment.interest_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+          {payment.balance_after !== null && payment.balance_after !== undefined && (
+            <div style={styles.detailItem}>
+              <span style={styles.detailLabel}>Balance After</span>
+              <span style={{...styles.detailValue, color: '#059669', fontWeight: '700'}}>
+                ${parseFloat(payment.balance_after).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+          {payment.deposit_method && (
+            <div style={styles.detailItem}>
+              <span style={styles.detailLabel}>Method</span>
+              <span style={styles.detailValue}>
+                {payment.deposit_method?.replace(/_/g, ' ').toUpperCase()}
+              </span>
+            </div>
+          )}
+          {payment.confirmations !== null && payment.confirmations !== undefined && (
+            <div style={styles.detailItem}>
+              <span style={styles.detailLabel}>Confirmations</span>
+              <span style={styles.detailValue}>
+                {payment.confirmations}/{payment.required_confirmations || 3}
+              </span>
+            </div>
+          )}
+          {payment.metadata?.months_covered && payment.metadata.months_covered > 1 && (
+            <div style={{...styles.detailItem, backgroundColor: '#dbeafe', padding: '12px', borderRadius: '6px', gridColumn: 'span 2'}}>
+              <span style={{...styles.detailLabel, color: '#1e40af'}}>⚡ Prepayment</span>
+              <span style={{...styles.detailValue, color: '#1e40af'}}>
+                {payment.metadata.months_covered} months covered
+              </span>
+            </div>
+          )}
+        </div>
+
+        {payment.notes && (
+          <div style={styles.notesSection}>
+            <span style={styles.notesLabel}>Notes:</span>
+            <span style={styles.notesText}>{payment.notes}</span>
+          </div>
+        )}
+
+        <div style={styles.cardFooter}>
+          <Link 
+            href={`/admin/loans/${payment.loan_id}`}
+            style={styles.viewLoanButton}
+          >
+            👁️ View Loan
+          </Link>
+          <button
+            onClick={() => openUpdateModal(payment)}
+            style={styles.updateButton}
+          >
+            📊 Update Status
+          </button>
+          {payment.proof_path && (
+            <button
+              onClick={() => handleViewProof(payment)}
+              style={styles.proofButton}
+            >
+              🖼️ Proof
+            </button>
+          )}
+          {payment.status === 'pending' && (
+            <button
+              onClick={() => setShowDeleteConfirm(payment)}
+              style={styles.deleteButton}
+            >
+              🗑️ Delete
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -372,126 +612,314 @@ export default function LoanPayments() {
             <option value="manual">Manual</option>
             <option value="auto_payment">Auto Payment</option>
             <option value="early_payoff">Early Payoff</option>
+            <option value="deposit">Deposit (10%)</option>
+          </select>
+          <select 
+            value={filterLoanType} 
+            onChange={(e) => setFilterLoanType(e.target.value)} 
+            style={styles.filterSelect}
+          >
+            <option value="all">All Loan Types</option>
+            <option value="personal">Personal</option>
+            <option value="business">Business</option>
+            <option value="auto">Auto</option>
+            <option value="mortgage">Mortgage</option>
+            <option value="student">Student</option>
           </select>
         </div>
 
-        <div style={styles.tableContainer}>
-          {loading ? (
-            <div style={styles.loadingState}>
-              <div style={styles.spinner}></div>
-              <p style={styles.loadingText}>Loading payments...</p>
-            </div>
-          ) : filteredPayments.length === 0 ? (
-            <div style={styles.emptyState}>
-              <p style={styles.emptyIcon}>📋</p>
-              <p style={styles.emptyText}>No payments found</p>
-            </div>
-          ) : (
-            <div style={styles.paymentsGrid}>
-              {filteredPayments.map(payment => {
-                const statusColor = getStatusColor(payment.status);
-                return (
-                  <div key={payment.id} style={styles.paymentCard}>
-                    <div style={styles.cardHeader}>
-                      <div>
-                        <h3 style={styles.paymentName}>{payment.user_name || payment.user_email}</h3>
-                        <p style={styles.paymentEmail}>{payment.user_email}</p>
-                      </div>
-                      <div style={{...styles.statusBadge, backgroundColor: statusColor.bg, color: statusColor.text}}>
-                        {payment.status?.toUpperCase()}
-                      </div>
-                    </div>
+        {loading ? (
+          <div style={styles.loadingState}>
+            <div style={styles.spinner}></div>
+            <p style={styles.loadingText}>Loading payments...</p>
+          </div>
+        ) : (
+          <>
+            {/* Minimum Deposit Payments Section */}
+            {depositPayments.length > 0 && (
+              <div style={styles.sectionContainer}>
+                <div style={styles.sectionHeader}>
+                  <h2 style={styles.sectionTitle}>💰 Minimum Loan Deposits (10%)</h2>
+                  <span style={styles.sectionCount}>{depositPayments.length} payment{depositPayments.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div style={styles.paymentsGrid}>
+                  {depositPayments.map(payment => (
+                    <PaymentCard key={payment.id} payment={payment} />
+                  ))}
+                </div>
+              </div>
+            )}
 
-                    <div style={styles.amountDisplay}>
-                      <span style={styles.amountLabel}>Payment Amount</span>
-                      <span style={styles.amountValue}>
-                        ${parseFloat(payment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      {payment.late_fee && parseFloat(payment.late_fee) > 0 && (
-                        <span style={styles.lateFeeTag}>Late Fee: ${parseFloat(payment.late_fee).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                      )}
-                    </div>
+            {/* Regular Payments Section */}
+            {regularPayments.length > 0 && (
+              <div style={styles.sectionContainer}>
+                <div style={styles.sectionHeader}>
+                  <h2 style={styles.sectionTitle}>📅 Regular Loan Payments</h2>
+                  <span style={styles.sectionCount}>{regularPayments.length} payment{regularPayments.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div style={styles.paymentsGrid}>
+                  {regularPayments.map(payment => (
+                    <PaymentCard key={payment.id} payment={payment} />
+                  ))}
+                </div>
+              </div>
+            )}
 
-                    <div style={styles.detailsGrid}>
-                      <div style={styles.detailItem}>
-                        <span style={styles.detailLabel}>Payment Date</span>
-                        <span style={styles.detailValue}>
-                          {new Date(payment.payment_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <span style={styles.detailLabel}>Type</span>
-                        <span style={styles.detailValue}>
-                          {payment.payment_type?.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <span style={styles.detailLabel}>Loan Type</span>
-                        <span style={styles.detailValue}>
-                          {payment.loan_type?.toUpperCase()}
-                        </span>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <span style={styles.detailLabel}>Account</span>
-                        <span style={styles.detailValue}>
-                          {payment.account_number}
-                        </span>
-                      </div>
-                      {payment.balance_after !== null && payment.balance_after !== undefined && (
-                        <div style={styles.detailItem}>
-                          <span style={styles.detailLabel}>Balance After</span>
-                          <span style={{...styles.detailValue, color: '#059669', fontWeight: '700'}}>
-                            ${parseFloat(payment.balance_after).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      )}
-                      {payment.metadata?.months_covered && payment.metadata.months_covered > 1 && (
-                        <div style={{...styles.detailItem, backgroundColor: '#dbeafe', padding: '12px', borderRadius: '6px', gridColumn: 'span 2'}}>
-                          <span style={{...styles.detailLabel, color: '#1e40af'}}>⚡ Prepayment</span>
-                          <span style={{...styles.detailValue, color: '#1e40af'}}>
-                            {payment.metadata.months_covered} months covered
-                          </span>
-                        </div>
-                      )}
-                    </div>
+            {/* Empty State */}
+            {depositPayments.length === 0 && regularPayments.length === 0 && (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyIcon}>📋</p>
+                <p style={styles.emptyText}>No payments found</p>
+              </div>
+            )}
+          </>
+        )}
 
-                    {payment.notes && (
-                      <div style={styles.notesSection}>
-                        <span style={styles.notesLabel}>Notes:</span>
-                        <span style={styles.notesText}>{payment.notes}</span>
-                      </div>
-                    )}
+        {/* Proof of Payment Modal */}
+        {showProofModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowProofModal(null)}>
+            <div style={{...styles.modal, maxWidth: '900px'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📸 Proof of Payment</h2>
+                <button onClick={() => setShowProofModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <div style={{...styles.formGroup, marginBottom: '16px'}}>
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                    <strong>Payment ID:</strong> {showProofModal.id.slice(0, 8)}...
+                  </p>
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                    <strong>Amount:</strong> ${parseFloat(showProofModal.amount || 0).toFixed(2)}
+                  </p>
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                    <strong>Status:</strong> {showProofModal.status}
+                  </p>
+                </div>
 
-                    <div style={styles.cardFooter}>
-                      <Link 
-                        href={`/admin/loans/${payment.loan_id}`}
-                        style={styles.viewLoanButton}
-                      >
-                        👁️ View Loan
-                      </Link>
-                      {payment.status === 'pending' && (
-                        <>
-                          <button
-                            onClick={() => handleApprovePayment(payment.id, payment.amount)}
-                            style={styles.approveButton}
-                          >
-                            ✅ Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectPayment(payment.id, payment.amount)}
-                            style={styles.rejectButton}
-                          >
-                            ❌ Reject
-                          </button>
-                        </>
-                      )}
-                    </div>
+                {loadingProof ? (
+                  <div style={{textAlign: 'center', padding: '40px'}}>
+                    <div style={styles.spinner}></div>
+                    <p>Loading proof of payment...</p>
                   </div>
-                );
-              })}
+                ) : proofImageUrl ? (
+                  <div style={{textAlign: 'center'}}>
+                    <img
+                      src={proofImageUrl}
+                      alt="Proof of Payment"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '70vh',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        border: '2px solid #e2e8f0',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => window.open(proofImageUrl, '_blank')}
+                    />
+                    <p style={{marginTop: '12px', fontSize: 'clamp(0.8rem, 2vw, 13px)', color: '#64748b'}}>
+                      Click image to open in new tab
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{textAlign: 'center', padding: '40px', color: '#ef4444'}}>
+                    <p>Failed to load proof of payment image</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Update Payment Modal */}
+        {showUpdateModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowUpdateModal(null)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>📊 Update Payment Status</h2>
+                <button onClick={() => setShowUpdateModal(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <form onSubmit={handleUpdateSubmit}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Payment Amount (USD)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={updateForm.amount}
+                      onChange={(e) => setUpdateForm({...updateForm, amount: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Principal Amount</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={updateForm.principalAmount}
+                      onChange={(e) => setUpdateForm({...updateForm, principalAmount: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Interest Amount</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={updateForm.interestAmount}
+                      onChange={(e) => setUpdateForm({...updateForm, interestAmount: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Late Fee</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={updateForm.lateFee}
+                      onChange={(e) => setUpdateForm({...updateForm, lateFee: e.target.value})}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  {showUpdateModal.deposit_method === 'crypto' && (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Confirmations</label>
+                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                        <button
+                          type="button"
+                          onClick={() => setUpdateForm({
+                            ...updateForm, 
+                            confirmations: Math.max(0, parseInt(updateForm.confirmations || 0) - 1)
+                          })}
+                          style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          value={updateForm.confirmations}
+                          onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
+                          style={{...styles.input, textAlign: 'center'}}
+                          placeholder="0"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setUpdateForm({
+                            ...updateForm, 
+                            confirmations: parseInt(updateForm.confirmations || 0) + 1
+                          })}
+                          style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <small style={{color: '#64748b', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', display: 'block'}}>
+                        Current: {updateForm.confirmations || 0} / {showUpdateModal?.required_confirmations || 3} required
+                      </small>
+                    </div>
+                  )}
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Status *</label>
+                    <select
+                      value={updateForm.status}
+                      onChange={(e) => setUpdateForm({...updateForm, status: e.target.value})}
+                      style={styles.input}
+                      required
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed (Approve)</option>
+                      <option value="failed">Failed (Reject)</option>
+                    </select>
+                  </div>
+
+                  {updateForm.status === 'failed' && (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Rejection Reason</label>
+                      <textarea
+                        value={updateForm.rejectionReason}
+                        onChange={(e) => setUpdateForm({...updateForm, rejectionReason: e.target.value})}
+                        style={{...styles.input, minHeight: '80px'}}
+                        placeholder="Enter reason for rejection"
+                      />
+                    </div>
+                  )}
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Admin Notes</label>
+                    <textarea
+                      value={updateForm.adminNotes}
+                      onChange={(e) => setUpdateForm({...updateForm, adminNotes: e.target.value})}
+                      style={{...styles.input, minHeight: '100px'}}
+                      placeholder="Add any additional notes"
+                    />
+                  </div>
+
+                  <div style={styles.modalActions}>
+                    <button
+                      type="button"
+                      onClick={() => setShowUpdateModal(null)}
+                      style={{...styles.btn, ...styles.btnSecondary}}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      style={{...styles.btn, ...styles.btnPrimary}}
+                      disabled={processing === showUpdateModal.id}
+                    >
+                      {processing === showUpdateModal.id ? 'Updating...' : 'Update Payment'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div style={styles.modalOverlay} onClick={() => setShowDeleteConfirm(null)}>
+            <div style={{...styles.modal, maxWidth: '400px'}} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>⚠️ Confirm Delete</h2>
+                <button onClick={() => setShowDeleteConfirm(null)} style={styles.closeButton}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <p style={{marginBottom: '20px', fontSize: 'clamp(0.9rem, 2.2vw, 15px)', lineHeight: '1.5'}}>
+                  Are you sure you want to delete this payment record? This action cannot be undone.
+                </p>
+                <div style={{background: '#fef2f2', padding: '12px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #fecaca'}}>
+                  <p style={{margin: 0, fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b'}}>
+                    <strong>Payment ID:</strong> {showDeleteConfirm.id.slice(0, 8)}...
+                  </p>
+                  <p style={{margin: '4px 0 0 0', fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b'}}>
+                    <strong>Amount:</strong> ${parseFloat(showDeleteConfirm.amount).toFixed(2)}
+                  </p>
+                </div>
+                <div style={styles.modalActions}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(null)}
+                    style={{...styles.btn, ...styles.btnSecondary}}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeletePayment}
+                    style={{...styles.btn, ...styles.btnDanger}}
+                    disabled={processing === showDeleteConfirm.id}
+                  >
+                    {processing === showDeleteConfirm.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <AdminFooter />
     </AdminAuth>
@@ -641,13 +1069,6 @@ const styles = {
     cursor: 'pointer',
     minWidth: '130px'
   },
-  tableContainer: {
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'hidden',
-    animation: 'fadeIn 0.4s ease-out'
-  },
   loadingState: {
     display: 'flex',
     flexDirection: 'column',
@@ -670,12 +1091,12 @@ const styles = {
     fontWeight: '600'
   },
   emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+    textAlign: 'center',
     padding: 'clamp(40px, 10vw, 60px) clamp(20px, 5vw, 40px)',
-    gap: '12px'
+    gap: '12px',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
   },
   emptyIcon: {
     fontSize: '48px',
@@ -687,22 +1108,52 @@ const styles = {
     fontWeight: '600',
     margin: 0
   },
+  sectionContainer: {
+    marginBottom: 'clamp(24px, 5vw, 40px)'
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 'clamp(12px, 3vw, 16px)',
+    padding: 'clamp(12px, 3vw, 16px)',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+  sectionTitle: {
+    fontSize: 'clamp(18px, 4vw, 24px)',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
+  },
+  sectionCount: {
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
+    fontWeight: '600',
+    color: '#6b7280',
+    background: '#f3f4f6',
+    padding: '6px 12px',
+    borderRadius: '6px'
+  },
   paymentsGrid: {
     display: 'grid',
-    gap: '0',
-    gridTemplateColumns: '1fr'
+    gap: 'clamp(12px, 3vw, 16px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))'
   },
   paymentCard: {
-    padding: 'clamp(16px, 3vw, 24px)',
-    borderBottom: '1px solid #e5e7eb',
-    transition: 'background 0.2s',
+    background: 'white',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
     animation: 'slideIn 0.4s ease-out'
   },
   cardHeader: {
+    padding: 'clamp(12px, 3vw, 16px)',
+    borderBottom: '1px solid #e5e7eb',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 'clamp(12px, 2.5vw, 16px)',
     gap: '12px',
     flexWrap: 'wrap'
   },
@@ -717,8 +1168,18 @@ const styles = {
     color: '#6b7280',
     margin: 0
   },
+  depositBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    background: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '6px',
+    fontSize: 'clamp(10px, 2vw, 12px)',
+    fontWeight: '700',
+    marginTop: '6px'
+  },
   statusBadge: {
-    padding: 'clamp(6px, 1.5vw, 8px) clamp(10px, 2vw, 12px)',
+    padding: '6px 12px',
     borderRadius: '6px',
     fontSize: 'clamp(10px, 2vw, 12px)',
     fontWeight: '700',
@@ -733,7 +1194,7 @@ const styles = {
     padding: 'clamp(12px, 2.5vw, 16px)',
     background: '#f9fafb',
     borderRadius: '8px',
-    marginBottom: 'clamp(12px, 2.5vw, 16px)',
+    margin: 'clamp(12px, 2.5vw, 16px)',
     border: '1px solid #e5e7eb'
   },
   amountLabel: {
@@ -756,10 +1217,20 @@ const styles = {
     borderRadius: '4px',
     width: 'fit-content'
   },
+  feeTag: {
+    fontSize: 'clamp(11px, 2.2vw, 12px)',
+    color: '#f59e0b',
+    fontWeight: '600',
+    background: '#fef3c7',
+    padding: '6px 10px',
+    borderRadius: '4px',
+    width: 'fit-content'
+  },
   detailsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
     gap: 'clamp(12px, 2.5vw, 16px)',
+    padding: '0 clamp(12px, 2.5vw, 16px)',
     marginBottom: 'clamp(12px, 2.5vw, 16px)'
   },
   detailItem: {
@@ -785,7 +1256,7 @@ const styles = {
     borderRadius: '8px',
     display: 'flex',
     gap: '8px',
-    marginBottom: 'clamp(12px, 2.5vw, 16px)',
+    margin: '0 clamp(12px, 2.5vw, 16px) clamp(12px, 2.5vw, 16px)',
     flexWrap: 'wrap'
   },
   notesLabel: {
@@ -802,10 +1273,12 @@ const styles = {
     display: 'flex',
     gap: 'clamp(8px, 2vw, 12px)',
     flexWrap: 'wrap',
-    paddingTop: 'clamp(12px, 2.5vw, 16px)',
+    padding: 'clamp(12px, 2.5vw, 16px)',
     borderTop: '1px solid #e5e7eb'
   },
   viewLoanButton: {
+    flex: 1,
+    minWidth: '100px',
     padding: 'clamp(6px, 1.5vw, 8px) clamp(12px, 2.5vw, 16px)',
     background: '#3b82f6',
     color: 'white',
@@ -816,9 +1289,12 @@ const styles = {
     border: 'none',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    textAlign: 'center'
   },
-  approveButton: {
+  updateButton: {
+    flex: 1,
+    minWidth: '100px',
     padding: 'clamp(6px, 1.5vw, 8px) clamp(12px, 2.5vw, 16px)',
     background: '#10b981',
     color: 'white',
@@ -830,7 +1306,23 @@ const styles = {
     transition: 'all 0.2s',
     whiteSpace: 'nowrap'
   },
-  rejectButton: {
+  proofButton: {
+    flex: 1,
+    minWidth: '100px',
+    padding: 'clamp(6px, 1.5vw, 8px) clamp(12px, 2.5vw, 16px)',
+    background: '#8b5cf6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
+  },
+  deleteButton: {
+    flex: 1,
+    minWidth: '100px',
     padding: 'clamp(6px, 1.5vw, 8px) clamp(12px, 2.5vw, 16px)',
     background: '#ef4444',
     color: 'white',
@@ -841,5 +1333,102 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s',
     whiteSpace: 'nowrap'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px'
+  },
+  modal: {
+    background: 'white',
+    borderRadius: '12px',
+    maxWidth: '600px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  },
+  modalHeader: {
+    padding: '20px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: 'clamp(1.25rem, 3.5vw, 24px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '32px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1,
+    padding: 0
+  },
+  modalBody: {
+    padding: '20px'
+  },
+  formGroup: {
+    marginBottom: '16px'
+  },
+  label: {
+    display: 'block',
+    marginBottom: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  input: {
+    width: '100%',
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    fontFamily: 'inherit'
+  },
+  btn: {
+    flex: 1,
+    minWidth: '100px',
+    padding: 'clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)',
+    borderRadius: '6px',
+    border: 'none',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    textAlign: 'center'
+  },
+  btnPrimary: {
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white'
+  },
+  btnSecondary: {
+    background: '#f1f5f9',
+    color: '#475569'
+  },
+  btnDanger: {
+    background: '#dc2626',
+    color: 'white'
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '20px',
+    flexWrap: 'wrap'
   }
 };
