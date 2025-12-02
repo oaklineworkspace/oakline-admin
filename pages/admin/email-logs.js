@@ -66,12 +66,11 @@ export default function EmailLogs() {
   const fetchEmailLogs = async () => {
     setLoading(true);
     try {
-      // First get email logs
+      // First get email logs - fetch ALL logs (no limit)
       const { data: logsData, error: logsError } = await supabase
         .from('email_logs')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500);
+        .order('created_at', { ascending: false });
 
       if (logsError) throw logsError;
 
