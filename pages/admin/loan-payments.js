@@ -254,17 +254,28 @@ export default function LoanPayments() {
         throw new Error('No active session');
       }
 
-      const { data: signedUrlData, error: signedUrlError } = await supabase
-        .storage
-        .from('loan-payment-proofs')
-        .createSignedUrl(payment.proof_path, 3600);
+      const isLoanDeposit = payment.payment_type === 'deposit' || payment.is_deposit;
+      
+      const response = await fetch('/api/admin/get-proof-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          proofPath: payment.proof_path,
+          isLoanDeposit: isLoanDeposit
+        })
+      });
 
-      if (signedUrlError) {
-        console.error('Error creating signed URL:', signedUrlError);
-        throw new Error('Failed to load proof of payment image');
+      const result = await response.json();
+
+      if (!response.ok || !result.url) {
+        console.error('Error getting proof URL:', result);
+        throw new Error(result.error || 'Failed to load proof of payment image');
       }
 
-      setProofImageUrl(signedUrlData.signedUrl);
+      setProofImageUrl(result.url);
     } catch (error) {
       console.error('Error loading proof:', error);
       setErrorBanner({
@@ -275,6 +286,68 @@ export default function LoanPayments() {
       setShowProofModal(null);
     } finally {
       setLoadingProof(false);
+    }
+  };
+
+  const handleQuickAction = async (payment, action) => {
+    setProcessing(payment.id);
+    setErrorBanner({ visible: false, message: '', duration: 3000 });
+    setSuccessBanner({ visible: false, message: '', duration: 3000 });
+
+    setLoadingBanner({
+      visible: true,
+      current: 1,
+      total: 1,
+      action: action === 'approve' ? 'Approving' : 'Rejecting',
+      message: `${action === 'approve' ? 'Approving' : 'Rejecting'} payment...`
+    });
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
+      const response = await fetch('/api/admin/approve-loan-payment', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          paymentId: payment.id,
+          action: action,
+          rejectionReason: action === 'reject' ? 'Payment rejected by admin' : undefined
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || `Failed to ${action} payment`);
+      }
+
+      const successMessage = action === 'approve' 
+        ? `✅ Payment approved! ${result.loan?.is_closed ? 'Loan fully paid off!' : `New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`}`
+        : '✅ Payment rejected successfully!';
+
+      setSuccessBanner({
+        visible: true,
+        message: successMessage,
+        duration: 4000
+      });
+      
+      await fetchPayments();
+    } catch (error) {
+      console.error(`Error ${action}ing payment:`, error);
+      setErrorBanner({
+        visible: true,
+        message: `❌ Failed to ${action} payment: ${error.message}`,
+        duration: 4000
+      });
+    } finally {
+      setProcessing(null);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
     }
   };
 
@@ -483,6 +556,28 @@ export default function LoanPayments() {
         )}
 
         <div style={styles.cardFooter}>
+          {payment.status === 'pending' && (
+            <>
+              <button
+                onClick={() => handleQuickAction(payment, 'approve')}
+                style={styles.approveButton}
+                disabled={processing === payment.id}
+              >
+                {processing === payment.id ? (
+                  <span style={styles.buttonSpinner}></span>
+                ) : '✅'} Approve
+              </button>
+              <button
+                onClick={() => handleQuickAction(payment, 'reject')}
+                style={styles.rejectButton}
+                disabled={processing === payment.id}
+              >
+                {processing === payment.id ? (
+                  <span style={styles.buttonSpinner}></span>
+                ) : '❌'} Reject
+              </button>
+            </>
+          )}
           <Link 
             href={`/admin/loans/${payment.loan_id}`}
             style={styles.viewLoanButton}
@@ -493,7 +588,7 @@ export default function LoanPayments() {
             onClick={() => openUpdateModal(payment)}
             style={styles.updateButton}
           >
-            📊 Update Status
+            📊 Update
           </button>
           {payment.proof_path && (
             <button
@@ -508,7 +603,7 @@ export default function LoanPayments() {
               onClick={() => setShowDeleteConfirm(payment)}
               style={styles.deleteButton}
             >
-              🗑️ Delete
+              🗑️
             </button>
           )}
         </div>
@@ -1321,9 +1416,9 @@ const styles = {
     whiteSpace: 'nowrap'
   },
   deleteButton: {
-    flex: 1,
-    minWidth: '100px',
-    padding: 'clamp(6px, 1.5vw, 8px) clamp(12px, 2.5vw, 16px)',
+    flex: '0 0 auto',
+    minWidth: '48px',
+    padding: 'clamp(6px, 1.5vw, 8px) clamp(10px, 2vw, 12px)',
     background: '#ef4444',
     color: 'white',
     border: 'none',
@@ -1333,6 +1428,53 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s',
     whiteSpace: 'nowrap'
+  },
+  approveButton: {
+    flex: 1,
+    minWidth: '90px',
+    padding: 'clamp(8px, 1.5vw, 10px) clamp(12px, 2.5vw, 16px)',
+    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    boxShadow: '0 2px 4px rgba(5, 150, 105, 0.3)'
+  },
+  rejectButton: {
+    flex: 1,
+    minWidth: '90px',
+    padding: 'clamp(8px, 1.5vw, 10px) clamp(12px, 2.5vw, 16px)',
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    boxShadow: '0 2px 4px rgba(220, 38, 38, 0.3)'
+  },
+  buttonSpinner: {
+    display: 'inline-block',
+    width: '14px',
+    height: '14px',
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderTopColor: 'white',
+    borderRadius: '50%',
+    animation: 'spinnerRotate 0.8s linear infinite'
   },
   modalOverlay: {
     position: 'fixed',
