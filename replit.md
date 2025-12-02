@@ -72,3 +72,28 @@ Preferred communication style: Simple, everyday language.
 - Account number display: full numbers (305224016184) for active accounts only
 - Error details shown to admin for troubleshooting
 - Consistent design with admin/verifications page
+
+## Recent Enhancements (Dec 02, 2025)
+
+### Loan Payment Management Improvements ✓
+- **Payment Proof Loading Fixed:** Corrected storage bucket reference to use `documents` bucket via `/api/admin/get-proof-url` API
+- **Quick Action Buttons:** Added inline Approve/Reject buttons on payment cards for streamlined admin workflow
+- **Enhanced UX:** Loading spinners with processing state indicators during approve/reject actions
+- **Success/Error Banners:** Professional animated banners with slideIn/slideOut animations and auto-dismiss timers
+
+### Email Notifications for Loan Payments ✓
+- **Approval Emails:** Users receive professional HTML emails when payments are approved
+- **Rejection Emails:** Users receive notification with rejection reason when payments are declined
+- **Template Features:**
+  - Bank-branded gradient header
+  - Payment details: amount, loan type, reference number
+  - Status indicator with color-coded badges
+  - For approvals: remaining balance, months covered, next payment date
+  - For rejections: clear reason and support contact
+  - Call-to-action to view loan details in dashboard
+
+### Treasury Crediting for All Payment Types ✓
+- **Deposit Handling:** 10% loan deposits are now properly credited to treasury account
+- **All Methods Supported:** Treasury crediting works for account balance, crypto, and wire payments
+- **Loan Activation:** Deposits automatically activate pending loans upon approval
+- **Transaction Tracking:** Complete metadata and transaction logging for audit trail
