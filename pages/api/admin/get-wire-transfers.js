@@ -33,17 +33,23 @@ export default async function handler(req, res) {
     }
 
     const userIds = [...new Set(wireTransfers.map(t => t.user_id).filter(Boolean))];
+    const fromAccountIds = [...new Set(wireTransfers.map(t => t.from_account_id).filter(Boolean))];
     const applicationIds = [...new Set(wireTransfers.map(t => t.accounts?.application_id).filter(Boolean))];
 
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, first_name, last_name')
+      .select('id, email, first_name, last_name, phone')
       .in('id', userIds);
 
     const { data: applications } = await supabaseAdmin
       .from('applications')
-      .select('id, email, first_name, last_name, phone, country')
+      .select('id, email, first_name, last_name, phone, address, city, state, zip_code, country')
       .in('id', applicationIds);
+
+    const { data: fromAccounts } = await supabaseAdmin
+      .from('accounts')
+      .select('id, account_number, account_type, balance, status')
+      .in('id', fromAccountIds);
 
     const profileMap = (profiles || []).reduce((acc, profile) => {
       acc[profile.id] = profile;
@@ -55,19 +61,42 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
+    const fromAccountMap = (fromAccounts || []).reduce((acc, account) => {
+      acc[account.id] = account;
+      return acc;
+    }, {});
+
     const enrichedTransfers = wireTransfers.map(transfer => {
       const profile = profileMap[transfer.user_id] || {};
       const application = transfer.accounts?.application_id ? applicationMap[transfer.accounts.application_id] : {};
+      const fromAccount = fromAccountMap[transfer.from_account_id] || {};
       
+      // Combine sender name from profile and application
+      const senderName = profile.first_name && profile.last_name 
+        ? `${profile.first_name} ${profile.last_name}`
+        : application.first_name && application.last_name
+        ? `${application.first_name} ${application.last_name}`
+        : 'Unknown User';
+
       return {
         ...transfer,
+        // Sender info
+        sender_name: senderName,
+        sender_email: profile.email || application.email || 'N/A',
+        sender_phone: profile.phone || application.phone || 'N/A',
+        sender_address: application.address || 'N/A',
+        sender_city: application.city || 'N/A',
+        sender_state: application.state || 'N/A',
+        sender_zip: application.zip_code || 'N/A',
+        sender_country: application.country || 'N/A',
+        sender_account_number: fromAccount.account_number || 'N/A',
+        sender_account_type: fromAccount.account_type || 'N/A',
+        sender_account_balance: fromAccount.balance || 0,
+        
+        // Legacy fields for backward compatibility
         user_email: profile.email || application.email || 'N/A',
-        user_name: profile.first_name && profile.last_name 
-          ? `${profile.first_name} ${profile.last_name}`
-          : application.first_name && application.last_name
-          ? `${application.first_name} ${application.last_name}`
-          : 'Unknown User',
-        user_phone: application.phone || 'N/A',
+        user_name: senderName,
+        user_phone: profile.phone || application.phone || 'N/A',
         user_country: application.country || 'N/A'
       };
     });

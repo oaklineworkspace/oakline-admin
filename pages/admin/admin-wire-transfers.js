@@ -856,39 +856,129 @@ export default function AdminWireTransfers() {
                     </div>
 
                     <div style={styles.transferBody}>
-                      <div style={styles.transferInfo}>
-                        <span style={styles.infoLabel}>Total Amount:</span>
-                        <span style={styles.infoValue}>${parseFloat(transfer.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div style={styles.transferInfo}>
-                        <span style={styles.infoLabel}>Recipient:</span>
-                        <span style={styles.infoValue}>{transfer.recipient_name}</span>
-                      </div>
-                      <div style={styles.transferInfo}>
-                        <span style={styles.infoLabel}>Bank:</span>
-                        <span style={{...styles.infoValue, fontSize: '13px'}}>{transfer.recipient_bank}</span>
-                      </div>
-                      {transfer.swift_code && (
+                      {/* Transfer Amount Section */}
+                      <div style={{borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px'}}>
                         <div style={styles.transferInfo}>
-                          <span style={styles.infoLabel}>SWIFT:</span>
-                          <span style={styles.infoValue}>{transfer.swift_code}</span>
+                          <span style={styles.infoLabel}>Transfer Amount:</span>
+                          <span style={{...styles.infoValue, color: '#059669', fontSize: '16px', fontWeight: '700'}}>
+                            ${parseFloat(transfer.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </span>
                         </div>
-                      )}
-                      {transfer.routing_number && (
+                        {transfer.fee > 0 && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Fee:</span>
+                            <span style={styles.infoValue}>${parseFloat(transfer.fee || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
                         <div style={styles.transferInfo}>
-                          <span style={styles.infoLabel}>Routing:</span>
-                          <span style={styles.infoValue}>{transfer.routing_number}</span>
+                          <span style={styles.infoLabel}>Total:</span>
+                          <span style={{...styles.infoValue, fontWeight: '700'}}>${parseFloat(transfer.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
-                      )}
-                      <div style={styles.transferInfo}>
-                        <span style={styles.infoLabel}>Created:</span>
-                        <span style={styles.infoValue}>{new Date(transfer.created_at).toLocaleDateString()}</span>
                       </div>
-                      {transfer.urgent_transfer && (
-                        <div style={{...styles.urgentBadge}}>
-                          ⚡ URGENT TRANSFER
+
+                      {/* Sender Information */}
+                      <div style={{borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px'}}>
+                        <p style={{margin: '0 0 8px 0', fontSize: '12px', fontWeight: '700', color: '#4b5563', textTransform: 'uppercase'}}>📤 Sender Information</p>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Name:</span>
+                          <span style={styles.infoValue}>{transfer.sender_name}</span>
                         </div>
-                      )}
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Email:</span>
+                          <span style={{...styles.infoValue, fontSize: '12px'}}>{transfer.sender_email}</span>
+                        </div>
+                        {transfer.sender_phone && transfer.sender_phone !== 'N/A' && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Phone:</span>
+                            <span style={styles.infoValue}>{transfer.sender_phone}</span>
+                          </div>
+                        )}
+                        {transfer.sender_address && transfer.sender_address !== 'N/A' && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Address:</span>
+                            <span style={{...styles.infoValue, fontSize: '12px', wordBreak: 'break-word'}}>
+                              {transfer.sender_address}
+                              {transfer.sender_city ? `, ${transfer.sender_city}` : ''}
+                              {transfer.sender_state ? `, ${transfer.sender_state}` : ''}
+                              {transfer.sender_zip ? ` ${transfer.sender_zip}` : ''}
+                            </span>
+                          </div>
+                        )}
+                        {transfer.sender_country && transfer.sender_country !== 'N/A' && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Country:</span>
+                            <span style={styles.infoValue}>{transfer.sender_country}</span>
+                          </div>
+                        )}
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Account:</span>
+                          <span style={{...styles.infoValue, fontSize: '12px'}}>{transfer.sender_account_number}</span>
+                        </div>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Account Type:</span>
+                          <span style={styles.infoValue}>{transfer.sender_account_type}</span>
+                        </div>
+                        {transfer.sender_account_balance >= 0 && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Balance:</span>
+                            <span style={{...styles.infoValue, color: '#059669', fontWeight: '700'}}>
+                              ${parseFloat(transfer.sender_account_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Recipient Information */}
+                      <div style={{borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px'}}>
+                        <p style={{margin: '0 0 8px 0', fontSize: '12px', fontWeight: '700', color: '#4b5563', textTransform: 'uppercase'}}>📥 Recipient Information</p>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Name:</span>
+                          <span style={styles.infoValue}>{transfer.recipient_name}</span>
+                        </div>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Account:</span>
+                          <span style={{...styles.infoValue, fontSize: '12px'}}>{transfer.recipient_account}</span>
+                        </div>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Bank:</span>
+                          <span style={{...styles.infoValue, fontSize: '13px'}}>{transfer.recipient_bank}</span>
+                        </div>
+                        {transfer.recipient_bank_address && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Bank Address:</span>
+                            <span style={{...styles.infoValue, fontSize: '12px', wordBreak: 'break-word'}}>{transfer.recipient_bank_address}</span>
+                          </div>
+                        )}
+                        {transfer.swift_code && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>SWIFT:</span>
+                            <span style={{...styles.infoValue, fontFamily: 'monospace'}}>{transfer.swift_code}</span>
+                          </div>
+                        )}
+                        {transfer.routing_number && (
+                          <div style={styles.transferInfo}>
+                            <span style={styles.infoLabel}>Routing:</span>
+                            <span style={{...styles.infoValue, fontFamily: 'monospace'}}>{transfer.routing_number}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Additional Details */}
+                      <div>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Reference:</span>
+                          <span style={{...styles.infoValue, fontSize: '12px', wordBreak: 'break-word'}}>{transfer.reference || 'N/A'}</span>
+                        </div>
+                        <div style={styles.transferInfo}>
+                          <span style={styles.infoLabel}>Created:</span>
+                          <span style={styles.infoValue}>{new Date(transfer.created_at).toLocaleDateString()}</span>
+                        </div>
+                        {transfer.urgent_transfer && (
+                          <div style={{...styles.urgentBadge}}>
+                            ⚡ URGENT TRANSFER
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div style={styles.transferFooter}>
