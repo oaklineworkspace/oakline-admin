@@ -171,6 +171,7 @@ export default function LoanPayments() {
       interestAmount: payment.interest_amount || '',
       lateFee: payment.late_fee || '',
       confirmations: payment.confirmations || '',
+      status: payment.status || 'pending',
       action: 'approve', // Default to approve
       rejectionReason: '', // Start clean for each payment
       adminNotes: '' // Start clean for each payment
@@ -198,19 +199,34 @@ export default function LoanPayments() {
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate action
-    if (!['approve', 'reject'].includes(updateForm.action)) {
-      setModalState({ loading: false, success: false, error: true, message: 'Please select Approve or Reject action' });
-      return;
+    // Determine if using status-based update or action-based update
+    const usingStatusUpdate = updateForm.status && updateForm.status !== showUpdateModal.status;
+    
+    if (!usingStatusUpdate) {
+      // Validate action for action-based updates
+      if (!['approve', 'reject'].includes(updateForm.action)) {
+        setModalState({ loading: false, success: false, error: true, message: 'Please select Approve or Reject action' });
+        return;
+      }
+
+      // Require rejection reason for reject action
+      if (updateForm.action === 'reject' && !updateForm.rejectionReason.trim()) {
+        setModalState({ loading: false, success: false, error: true, message: 'Please provide a rejection reason' });
+        return;
+      }
+    } else {
+      // Require rejection reason for failed status
+      if (updateForm.status === 'failed' && !updateForm.rejectionReason.trim()) {
+        setModalState({ loading: false, success: false, error: true, message: 'Please provide a rejection reason for failed status' });
+        return;
+      }
     }
 
-    // Require rejection reason for reject action
-    if (updateForm.action === 'reject' && !updateForm.rejectionReason.trim()) {
-      setModalState({ loading: false, success: false, error: true, message: 'Please provide a rejection reason' });
-      return;
-    }
+    const actionType = usingStatusUpdate 
+      ? (updateForm.status === 'completed' ? 'approve' : updateForm.status === 'failed' ? 'reject' : 'update')
+      : updateForm.action;
 
-    setModalState({ loading: true, success: false, error: false, message: 'Processing payment...', actionType: updateForm.action });
+    setModalState({ loading: true, success: false, error: false, message: 'Processing payment...', actionType });
     setProcessing(showUpdateModal.id);
 
     try {
@@ -218,6 +234,13 @@ export default function LoanPayments() {
       if (!session) {
         throw new Error('No active session. Please log in again.');
       }
+
+      // If using status update and status is 'completed', use approve action
+      const finalAction = usingStatusUpdate && updateForm.status === 'completed' 
+        ? 'approve' 
+        : usingStatusUpdate && updateForm.status === 'failed'
+        ? 'reject'
+        : updateForm.action;
 
       const response = await fetch('/api/admin/approve-loan-payment', {
         method: 'POST',
@@ -227,7 +250,7 @@ export default function LoanPayments() {
         },
         body: JSON.stringify({
           paymentId: showUpdateModal.id,
-          action: updateForm.action,
+          action: finalAction,
           amount: updateForm.amount ? parseFloat(updateForm.amount) : undefined,
           principalAmount: updateForm.principalAmount ? parseFloat(updateForm.principalAmount) : undefined,
           interestAmount: updateForm.interestAmount ? parseFloat(updateForm.interestAmount) : undefined,
@@ -245,7 +268,7 @@ export default function LoanPayments() {
       }
 
       // Capture action before any state changes
-      const currentAction = updateForm.action;
+      const currentAction = finalAction;
       const isApproval = currentAction === 'approve';
       
       const successMessage = isApproval 
@@ -296,6 +319,7 @@ export default function LoanPayments() {
         throw new Error('No active session');
       }
 
+      // Loan payments are stored in 'loan-payment-proofs' bucket
       const isLoanDeposit = payment.payment_type === 'deposit' || payment.is_deposit;
       
       const response = await fetch('/api/admin/get-proof-url', {
@@ -306,7 +330,7 @@ export default function LoanPayments() {
         },
         body: JSON.stringify({
           proofPath: payment.proof_path,
-          isLoanDeposit: isLoanDeposit
+          isLoanDeposit: true // Always use loan deposit bucket for loan payments
         })
       });
 
@@ -988,6 +1012,12 @@ export default function LoanPayments() {
                           </strong>
                         </div>
                         <div>
+                          <span style={{color: '#64748b'}}>Current Status:</span>
+                          <span style={{color: '#1e293b', marginLeft: '8px', textTransform: 'capitalize'}}>
+                            {showUpdateModal.status || 'Pending'}
+                          </span>
+                        </div>
+                        <div>
                           <span style={{color: '#64748b'}}>Type:</span>
                           <span style={{color: '#1e293b', marginLeft: '8px', textTransform: 'capitalize'}}>
                             {showUpdateModal.payment_type || 'Regular'}
@@ -999,7 +1029,7 @@ export default function LoanPayments() {
                             {showUpdateModal.user_name || showUpdateModal.user_email || 'N/A'}
                           </span>
                         </div>
-                        <div>
+                        <div style={{gridColumn: 'span 2'}}>
                           <span style={{color: '#64748b'}}>Loan:</span>
                           <span style={{color: '#1e293b', marginLeft: '8px', textTransform: 'capitalize'}}>
                             {showUpdateModal.loan_type || 'N/A'}
@@ -1008,59 +1038,61 @@ export default function LoanPayments() {
                       </div>
                     </div>
 
-                    {/* Action Selection */}
+                    {/* Status Selector */}
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>Select Action *</label>
-                      <div style={{display: 'flex', gap: '12px'}}>
-                        <button
-                          type="button"
-                          onClick={() => setUpdateForm({...updateForm, action: 'approve'})}
-                          style={{
-                            flex: 1,
-                            padding: '14px 20px',
-                            borderRadius: '8px',
-                            border: updateForm.action === 'approve' ? '2px solid #10b981' : '2px solid #e2e8f0',
-                            background: updateForm.action === 'approve' ? '#d1fae5' : '#ffffff',
-                            color: updateForm.action === 'approve' ? '#065f46' : '#64748b',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            fontSize: '14px',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          ✅ Approve
-                          <br/>
-                          <span style={{fontSize: '11px', fontWeight: '400', opacity: 0.8}}>
-                            Credit treasury
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUpdateForm({...updateForm, action: 'reject'})}
-                          style={{
-                            flex: 1,
-                            padding: '14px 20px',
-                            borderRadius: '8px',
-                            border: updateForm.action === 'reject' ? '2px solid #ef4444' : '2px solid #e2e8f0',
-                            background: updateForm.action === 'reject' ? '#fee2e2' : '#ffffff',
-                            color: updateForm.action === 'reject' ? '#991b1b' : '#64748b',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            fontSize: '14px',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          ❌ Reject
-                          <br/>
-                          <span style={{fontSize: '11px', fontWeight: '400', opacity: 0.8}}>
-                            Refund to user
-                          </span>
-                        </button>
+                      <label style={styles.label}>Update Status *</label>
+                      <select
+                        value={updateForm.status}
+                        onChange={(e) => setUpdateForm({...updateForm, status: e.target.value})}
+                        style={styles.input}
+                        required
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="completed">✅ Completed (Approve & Credit)</option>
+                        <option value="failed">❌ Failed (Reject & Refund)</option>
+                      </select>
+                    </div>
+
+                    {/* Amount Fields */}
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Payment Amount (USD)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={updateForm.amount}
+                        onChange={(e) => setUpdateForm({...updateForm, amount: e.target.value})}
+                        style={styles.input}
+                        placeholder="Enter payment amount"
+                      />
+                    </div>
+
+                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px'}}>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Principal Amount</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={updateForm.principalAmount}
+                          onChange={(e) => setUpdateForm({...updateForm, principalAmount: e.target.value})}
+                          style={styles.input}
+                          placeholder="Principal"
+                        />
+                      </div>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Interest Amount</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={updateForm.interestAmount}
+                          onChange={(e) => setUpdateForm({...updateForm, interestAmount: e.target.value})}
+                          style={styles.input}
+                          placeholder="Interest"
+                        />
                       </div>
                     </div>
 
-                    {/* Rejection Reason - Only show when reject is selected */}
-                    {updateForm.action === 'reject' && (
+                    {/* Rejection Reason - Show when status is failed */}
+                    {updateForm.status === 'failed' && (
                       <div style={styles.formGroup}>
                         <label style={styles.label}>Rejection Reason *</label>
                         <textarea
@@ -1125,26 +1157,28 @@ export default function LoanPayments() {
 
                     {/* Action Info Banner */}
                     <div style={{
-                      background: updateForm.action === 'approve' ? '#ecfdf5' : '#fef2f2',
-                      border: `1px solid ${updateForm.action === 'approve' ? '#a7f3d0' : '#fecaca'}`,
+                      background: updateForm.status === 'completed' ? '#ecfdf5' : updateForm.status === 'failed' ? '#fef2f2' : '#f0f9ff',
+                      border: `1px solid ${updateForm.status === 'completed' ? '#a7f3d0' : updateForm.status === 'failed' ? '#fecaca' : '#bae6fd'}`,
                       borderRadius: '8px',
                       padding: '12px 16px',
                       marginBottom: '20px'
                     }}>
                       <p style={{
-                        color: updateForm.action === 'approve' ? '#065f46' : '#991b1b',
+                        color: updateForm.status === 'completed' ? '#065f46' : updateForm.status === 'failed' ? '#991b1b' : '#0c4a6e',
                         margin: 0,
                         fontSize: '13px',
                         lineHeight: '1.5'
                       }}>
-                        {updateForm.action === 'approve' 
+                        {updateForm.status === 'completed' 
                           ? '✅ This will credit the bank treasury, update loan balance, and send an approval email to the user.'
-                          : '❌ This will refund the payment amount to the user\'s account and send a rejection email notification.'}
+                          : updateForm.status === 'failed'
+                          ? '❌ This will refund the payment amount to the user\'s account and send a rejection email notification.'
+                          : 'ℹ️ Payment will remain in pending status. No balance changes will be made.'}
                       </p>
                     </div>
 
-                    {/* Inline validation message for reject without reason */}
-                    {updateForm.action === 'reject' && !updateForm.rejectionReason.trim() && (
+                    {/* Inline validation message for failed status without reason */}
+                    {updateForm.status === 'failed' && !updateForm.rejectionReason.trim() && (
                       <div style={{
                         background: '#fef3c7',
                         border: '1px solid #fcd34d',
@@ -1171,17 +1205,17 @@ export default function LoanPayments() {
                         type="submit"
                         style={{
                           ...styles.btn,
-                          ...(updateForm.action === 'approve' ? styles.btnPrimary : styles.btnDanger),
-                          ...(updateForm.action === 'reject' && !updateForm.rejectionReason.trim() ? {
+                          ...(updateForm.status === 'completed' ? styles.btnPrimary : updateForm.status === 'failed' ? styles.btnDanger : styles.btnSecondary),
+                          ...(updateForm.status === 'failed' && !updateForm.rejectionReason.trim() ? {
                             opacity: 0.6,
                             cursor: 'not-allowed'
                           } : {})
                         }}
-                        disabled={processing === showUpdateModal.id || (updateForm.action === 'reject' && !updateForm.rejectionReason.trim())}
+                        disabled={processing === showUpdateModal.id || (updateForm.status === 'failed' && !updateForm.rejectionReason.trim())}
                       >
                         {processing === showUpdateModal.id 
-                          ? (updateForm.action === 'approve' ? 'Approving...' : 'Rejecting...')
-                          : (updateForm.action === 'approve' ? '✅ Approve Payment' : '❌ Reject Payment')}
+                          ? (updateForm.status === 'completed' ? 'Approving...' : updateForm.status === 'failed' ? 'Rejecting...' : 'Updating...')
+                          : (updateForm.status === 'completed' ? '✅ Approve & Complete' : updateForm.status === 'failed' ? '❌ Reject & Refund' : 'Update Payment')}
                       </button>
                     </div>
                   </form>
