@@ -4,31 +4,7 @@
 -- This updates the loan_payments table with proper status tracking and refund columns
 -- ============================================================================
 
--- 1. First, ensure the loan_payments table exists with all necessary columns
-CREATE TABLE IF NOT EXISTS public.loan_payments (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  loan_id uuid NOT NULL REFERENCES public.loans(id) ON DELETE CASCADE,
-  account_id uuid REFERENCES public.accounts(id) ON DELETE SET NULL,
-  payment_amount numeric NOT NULL CHECK (payment_amount > 0),
-  principal_amount numeric DEFAULT 0 CHECK (principal_amount >= 0),
-  interest_amount numeric DEFAULT 0 CHECK (interest_amount >= 0),
-  payment_method text NOT NULL CHECK (payment_method = ANY (ARRAY['account_balance'::text, 'crypto'::text, 'wire_transfer'::text, 'check'::text, 'external'::text])),
-  payment_type text DEFAULT 'regular' CHECK (payment_type = ANY (ARRAY['regular'::text, 'prepayment'::text, 'final'::text, 'extra'::text])),
-  reference_number text UNIQUE,
-  transaction_hash text,
-  crypto_asset_id uuid REFERENCES public.crypto_assets(id) ON DELETE SET NULL,
-  wallet_address text,
-  proof_of_payment text,
-  notes text,
-  admin_notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  processed_at timestamp with time zone,
-  CONSTRAINT loan_payments_pkey PRIMARY KEY (id)
-);
-
--- 2. Add status column with comprehensive status options
+-- 1. Add status column with comprehensive status options
 DO $$ 
 BEGIN
   IF NOT EXISTS (
@@ -61,7 +37,47 @@ CHECK (status = ANY (ARRAY[
   'refund_failed'::text
 ]));
 
--- 3. Add refund tracking columns
+-- 2. Add payment_amount column if it doesn't exist (for consistency)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='loan_payments' AND column_name='payment_amount'
+  ) THEN
+    ALTER TABLE public.loan_payments 
+    ADD COLUMN payment_amount numeric;
+    
+    -- Copy amount to payment_amount if it exists
+    UPDATE public.loan_payments SET payment_amount = amount WHERE amount IS NOT NULL;
+  END IF;
+END $$;
+
+-- 3. Add payment_method column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='loan_payments' AND column_name='payment_method'
+  ) THEN
+    ALTER TABLE public.loan_payments 
+    ADD COLUMN payment_method text DEFAULT 'account_balance' 
+    CHECK (payment_method = ANY (ARRAY['account_balance'::text, 'crypto'::text, 'wire_transfer'::text, 'check'::text, 'external'::text]));
+  END IF;
+END $$;
+
+-- 4. Add account_id column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='loan_payments' AND column_name='account_id'
+  ) THEN
+    ALTER TABLE public.loan_payments 
+    ADD COLUMN account_id uuid REFERENCES public.accounts(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- 5. Add refund tracking columns
 ALTER TABLE public.loan_payments 
 ADD COLUMN IF NOT EXISTS refund_requested_at timestamp with time zone,
 ADD COLUMN IF NOT EXISTS refund_reason text,
@@ -72,32 +88,31 @@ ADD COLUMN IF NOT EXISTS refund_reference text,
 ADD COLUMN IF NOT EXISTS refund_transaction_id uuid REFERENCES public.transactions(id) ON DELETE SET NULL,
 ADD COLUMN IF NOT EXISTS refund_notes text;
 
--- 4. Add rejection tracking columns
+-- 6. Add rejection tracking columns
 ALTER TABLE public.loan_payments 
 ADD COLUMN IF NOT EXISTS rejected_at timestamp with time zone,
 ADD COLUMN IF NOT EXISTS rejection_reason text,
 ADD COLUMN IF NOT EXISTS rejected_by uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
--- 5. Add approval tracking columns
+-- 7. Add approval tracking columns
 ALTER TABLE public.loan_payments 
 ADD COLUMN IF NOT EXISTS approved_at timestamp with time zone,
 ADD COLUMN IF NOT EXISTS approved_by uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
--- 6. Add failed payment tracking
+-- 8. Add failed payment tracking
 ALTER TABLE public.loan_payments 
 ADD COLUMN IF NOT EXISTS failed_at timestamp with time zone,
 ADD COLUMN IF NOT EXISTS failure_reason text,
 ADD COLUMN IF NOT EXISTS retry_count integer DEFAULT 0 CHECK (retry_count >= 0);
 
--- 7. Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_loan_payments_user_id ON public.loan_payments(user_id);
+-- 9. Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_loan_payments_loan_id ON public.loan_payments(loan_id);
 CREATE INDEX IF NOT EXISTS idx_loan_payments_status ON public.loan_payments(status);
 CREATE INDEX IF NOT EXISTS idx_loan_payments_reference_number ON public.loan_payments(reference_number);
-CREATE INDEX IF NOT EXISTS idx_loan_payments_created_at ON public.loan_payments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_loan_payments_payment_date ON public.loan_payments(payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_loan_payments_refund_status ON public.loan_payments(status) WHERE status LIKE 'refund%';
 
--- 8. Create updated_at trigger
+-- 10. Create updated_at trigger if it doesn't exist
 CREATE OR REPLACE FUNCTION update_loan_payments_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -112,38 +127,37 @@ CREATE TRIGGER trg_loan_payments_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_loan_payments_timestamp();
 
--- 9. Create audit log trigger for payment status changes
+-- 11. Create audit log trigger for payment status changes (if audit_logs table exists)
 CREATE OR REPLACE FUNCTION log_loan_payment_status_change()
 RETURNS TRIGGER AS $$
 BEGIN
   IF (TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status) THEN
-    INSERT INTO public.audit_logs (
-      event_type,
-      table_name,
-      record_id,
-      user_id,
-      old_values,
-      new_values,
-      ip_address,
-      user_agent
-    ) VALUES (
-      'loan_payment_status_change',
-      'loan_payments',
-      NEW.id,
-      COALESCE(NEW.approved_by, NEW.rejected_by, NEW.user_id),
-      jsonb_build_object(
-        'status', OLD.status,
-        'payment_amount', OLD.payment_amount
-      ),
-      jsonb_build_object(
-        'status', NEW.status,
-        'payment_amount', NEW.payment_amount,
-        'rejection_reason', NEW.rejection_reason,
-        'refund_reason', NEW.refund_reason
-      ),
-      current_setting('request.headers', true)::json->>'x-forwarded-for',
-      current_setting('request.headers', true)::json->>'user-agent'
-    );
+    -- Only insert if audit_logs table exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_logs') THEN
+      INSERT INTO public.audit_logs (
+        action,
+        table_name,
+        old_data,
+        new_data,
+        user_id,
+        created_at
+      ) VALUES (
+        'loan_payment_status_change',
+        'loan_payments',
+        jsonb_build_object(
+          'status', OLD.status,
+          'payment_amount', OLD.payment_amount
+        ),
+        jsonb_build_object(
+          'status', NEW.status,
+          'payment_amount', NEW.payment_amount,
+          'rejection_reason', NEW.rejection_reason,
+          'refund_reason', NEW.refund_reason
+        ),
+        COALESCE(NEW.approved_by, NEW.rejected_by, NEW.processed_by),
+        now()
+      );
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -155,11 +169,11 @@ CREATE TRIGGER trg_log_loan_payment_status_change
   FOR EACH ROW
   EXECUTE FUNCTION log_loan_payment_status_change();
 
--- 10. Grant permissions
+-- 12. Grant permissions
 GRANT SELECT, INSERT, UPDATE ON public.loan_payments TO authenticated;
 GRANT SELECT ON public.loan_payments TO anon;
 
--- 11. Add helpful comments
+-- 13. Add helpful comments
 COMMENT ON TABLE public.loan_payments IS 'Stores loan payment transactions with comprehensive status and refund tracking';
 COMMENT ON COLUMN public.loan_payments.status IS 'Payment status: pending, processing, completed, approved, rejected, failed, cancelled, refund_requested, refund_processing, refund_completed, refund_rejected, refund_failed';
 COMMENT ON COLUMN public.loan_payments.refund_requested_at IS 'Timestamp when refund was requested';
@@ -170,7 +184,7 @@ COMMENT ON COLUMN public.loan_payments.approved_at IS 'Timestamp when payment wa
 COMMENT ON COLUMN public.loan_payments.failed_at IS 'Timestamp when payment failed';
 COMMENT ON COLUMN public.loan_payments.failure_reason IS 'Reason for payment failure';
 
--- 12. Verify and output results
+-- 14. Verify and output results
 DO $$
 DECLARE
   v_column_count integer;
