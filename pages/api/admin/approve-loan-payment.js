@@ -1,12 +1,12 @@
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
+  const authResult = await verifyAdminAuth(req);
+  if (authResult.error) {
+    return res.status(authResult.status || 401).json({ error: authResult.error });
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch the payment with loan details
-    const { data: payment, error: fetchError } = await supabase
+    const { data: payment, error: fetchError } = await supabaseAdmin
       .from('loan_payments')
       .select(`
         *,
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
           }
 
           // Create transaction record for approved payment
-          const { error: txError } = await supabase
+          const { error: txError } = await supabaseAdmin
             .from('transactions')
             .insert({
               user_id: payment.loans.user_id,
@@ -175,7 +175,7 @@ export default async function handler(req, res) {
         };
 
         // Create refund transaction
-        const { error: refundTxError } = await supabase
+        const { error: refundTxError } = await supabaseAdmin
           .from('transactions')
           .insert({
             user_id: payment.user_id,
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
     }
 
     // Update the payment
-    const { data: updatedPayment, error: updateError } = await supabase
+    const { data: updatedPayment, error: updateError } = await supabaseAdmin
       .from('loan_payments')
       .update(updateData)
       .eq('id', paymentId)
@@ -220,7 +220,7 @@ export default async function handler(req, res) {
 
     // Update loan if needed
     if (loanUpdate && payment.loans) {
-      const { error: loanUpdateError } = await supabase
+      const { error: loanUpdateError } = await supabaseAdmin
         .from('loans')
         .update(loanUpdate)
         .eq('id', payment.loans.id);

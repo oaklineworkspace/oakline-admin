@@ -213,21 +213,32 @@ export default function LoanPayments() {
         throw new Error('No active session');
       }
 
-      // Create signed URL for the proof image
-      const { data: signedUrlData, error: signedUrlError } = await supabase
-        .storage
-        .from('loan-payment-proofs')
-        .createSignedUrl(payment.proof_path, 3600); // 1 hour expiry
+      // Determine if this is a loan deposit or regular payment
+      const isLoanDeposit = payment.is_deposit === true;
+      
+      // Call the admin API to get the signed URL
+      const response = await fetch('/api/admin/get-proof-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          proofPath: payment.proof_path,
+          isLoanDeposit: isLoanDeposit
+        })
+      });
 
-      if (signedUrlError) {
-        console.error('Error creating signed URL:', signedUrlError);
-        throw new Error('Failed to load proof of payment image');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to load proof of payment');
       }
 
-      setProofImageUrl(signedUrlData.signedUrl);
+      setProofImageUrl(result.url);
     } catch (error) {
       console.error('Error loading proof:', error);
-      setError(error.message);
+      setError(error.message || 'Failed to load proof of payment image');
       setTimeout(() => setError(''), 5000);
       setShowProofModal(null);
     } finally {

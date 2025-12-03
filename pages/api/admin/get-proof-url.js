@@ -18,27 +18,44 @@ export default async function handler(req, res) {
   }
 
   try {
-    const storageBucket = isLoanDeposit ? 'documents' : 'crypto-deposit-proofs';
+    // Try multiple buckets in order of likelihood
+    const bucketsToTry = isLoanDeposit 
+      ? ['documents', 'loan-payment-proofs', 'crypto-deposit-proofs']
+      : ['loan-payment-proofs', 'crypto-deposit-proofs', 'documents'];
 
-    console.log('Getting proof URL from bucket:', storageBucket);
-    console.log('With path:', proofPath);
+    console.log('Attempting to get proof URL for path:', proofPath);
+    
+    let signedUrl = null;
+    let lastError = null;
 
-    const { data, error } = await supabaseAdmin
-      .storage
-      .from(storageBucket)
-      .createSignedUrl(proofPath, 3600);
+    for (const bucket of bucketsToTry) {
+      console.log('Trying bucket:', bucket);
+      
+      const { data, error } = await supabaseAdmin
+        .storage
+        .from(bucket)
+        .createSignedUrl(proofPath, 3600);
 
-    if (error) {
-      console.error('Error creating signed URL:', error);
-      return res.status(400).json({ 
-        error: 'Failed to load proof',
-        details: error.message 
+      if (!error && data?.signedUrl) {
+        console.log('Successfully found proof in bucket:', bucket);
+        signedUrl = data.signedUrl;
+        break;
+      }
+      
+      lastError = error;
+    }
+
+    if (!signedUrl) {
+      console.error('Failed to find proof in any bucket. Last error:', lastError);
+      return res.status(404).json({ 
+        error: 'Proof of payment not found',
+        details: 'The uploaded proof image could not be located. It may have been deleted or the path is incorrect.'
       });
     }
 
     return res.status(200).json({ 
       success: true,
-      url: data.signedUrl
+      url: signedUrl
     });
 
   } catch (error) {
