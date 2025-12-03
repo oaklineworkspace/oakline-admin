@@ -97,3 +97,14 @@ Preferred communication style: Simple, everyday language.
 - **All Methods Supported:** Treasury crediting works for account balance, crypto, and wire payments
 - **Loan Activation:** Deposits automatically activate pending loans upon approval
 - **Transaction Tracking:** Complete metadata and transaction logging for audit trail
+
+## Recent Enhancements (Dec 03, 2025)
+
+### Loan Payment Modal UX Fixes ✓
+- **Action State Tracking:** Added `modalState.actionType` to properly track approve/reject action independently from form state
+- **Loading State Display:** Modal loading spinner correctly shows "Approving payment..." or "Rejecting payment..." based on actual action
+- **Success State Display:** Modal success state shows correct icon and message matching the action taken
+- **Form State Isolation:** Each modal session starts clean with proper form/state resets
+- **Quick Reject Flow:** Opens modal with reject pre-selected, requiring admin to provide rejection reason
+- **Validation:** Reject action requires non-empty rejection reason before submission
+- **Refund Processing:** Rejected payments automatically refund user account with full transaction logging
