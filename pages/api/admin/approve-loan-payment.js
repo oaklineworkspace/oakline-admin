@@ -9,11 +9,15 @@ export default async function handler(req, res) {
 
   const authResult = await verifyAdminAuth(req);
   if (authResult.error) {
+    console.error('Admin auth failed:', authResult.error);
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
+  console.log('Admin authenticated:', authResult.adminId);
+
   try {
     const { paymentId, action, rejectionReason } = req.body;
+    console.log('Processing payment action:', { paymentId, action });
 
     if (!paymentId || !action) {
       return res.status(400).json({ error: 'Payment ID and action are required' });
@@ -151,27 +155,38 @@ export default async function handler(req, res) {
       }
 
       // Update payment status with refund info
-      const { error: rejectError } = await supabaseAdmin
+      const { data: rejectedPayment, error: rejectError } = await supabaseAdmin
         .from('loan_payments')
         .update({
           status: 'failed',
           notes: `Rejected: ${rejectionReason || 'Payment rejected by admin'}${refunded ? '\nRefund processed and credited to user account.' : ''}`,
-          processed_by: authResult.adminId,
+          processed_by: authResult.adminId || null,
           updated_at: new Date().toISOString(),
           metadata: {
             ...payment.metadata,
             rejected_at: new Date().toISOString(),
-            rejected_by: authResult.adminId,
+            rejected_by: authResult.adminId || null,
             rejection_reason: rejectionReason,
             refunded: refunded,
             refund_transaction_id: refundTransactionId,
             refund_amount: refunded ? paymentAmount : null
           }
         })
-        .eq('id', paymentId);
+        .eq('id', paymentId)
+        .select()
+        .single();
 
       if (rejectError) {
-        return res.status(500).json({ error: 'Failed to reject payment' });
+        console.error('Error rejecting payment:', rejectError);
+        return res.status(500).json({ 
+          error: 'Failed to reject payment', 
+          details: rejectError.message 
+        });
+      }
+
+      if (!rejectedPayment) {
+        console.error('Payment rejection returned no data');
+        return res.status(500).json({ error: 'Payment rejection failed - no data returned' });
       }
 
       // Send rejection email notification
@@ -402,18 +417,18 @@ export default async function handler(req, res) {
     }
 
     // Update payment status to completed with comprehensive metadata
-    const { error: updateError } = await supabaseAdmin
+    const { data: updatedPayment, error: updateError } = await supabaseAdmin
       .from('loan_payments')
       .update({
         status: 'completed',
         balance_after: isDepositPayment ? remainingBalance : newLoanBalance,
-        processed_by: authResult.adminId,
+        processed_by: authResult.adminId || null,
         updated_at: new Date().toISOString(),
         notes: `${payment.notes || ''}\nApproved: ${new Date().toISOString()}${isDepositPayment ? '\n10% Deposit confirmed and credited to treasury' : `\nMonths covered: ${monthsCovered}\nNew balance: $${newLoanBalance.toLocaleString()}`}`,
         metadata: {
           ...payment.metadata,
           approved_at: new Date().toISOString(),
-          approved_by: authResult.adminId,
+          approved_by: authResult.adminId || null,
           transaction_id: transactionId,
           treasury_transaction_id: treasuryTransactionId,
           months_covered: isDepositPayment ? 0 : monthsCovered,
@@ -425,10 +440,21 @@ export default async function handler(req, res) {
           treasury_credited: !!treasuryTransactionId
         }
       })
-      .eq('id', paymentId);
+      .eq('id', paymentId)
+      .select()
+      .single();
 
     if (updateError) {
-      return res.status(500).json({ error: 'Failed to update payment status' });
+      console.error('Error updating payment status:', updateError);
+      return res.status(500).json({ 
+        error: 'Failed to update payment status', 
+        details: updateError.message 
+      });
+    }
+
+    if (!updatedPayment) {
+      console.error('Payment update returned no data');
+      return res.status(500).json({ error: 'Payment update failed - no data returned' });
     }
 
     // Send approval email notification
