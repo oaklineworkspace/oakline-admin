@@ -65,39 +65,52 @@ export default async function handler(req, res) {
           processed_at: new Date().toISOString()
         };
 
-        // Calculate new loan balance
-        const newBalance = Math.max(0, payment.loans.remaining_balance - payment.principal_amount);
-        const isFullyPaid = newBalance === 0;
+        // Only update loan balance if this is not a deposit payment
+        if (!payment.is_deposit) {
+          // Calculate new loan balance
+          const newBalance = Math.max(0, payment.loans.remaining_balance - (payment.principal_amount || 0));
+          const isFullyPaid = newBalance === 0;
 
-        loanUpdate = {
-          remaining_balance: newBalance,
-          status: isFullyPaid ? 'paid' : 'active',
-          updated_at: new Date().toISOString()
-        };
+          loanUpdate = {
+            remaining_balance: newBalance,
+            status: isFullyPaid ? 'paid' : 'active',
+            updated_at: new Date().toISOString()
+          };
 
-        // If not fully paid, calculate next payment date
-        if (!isFullyPaid) {
-          const nextPaymentDate = new Date(payment.loans.next_payment_date);
-          nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-          loanUpdate.next_payment_date = nextPaymentDate.toISOString().split('T')[0];
-        }
+          // If not fully paid, calculate next payment date
+          if (!isFullyPaid && payment.loans.next_payment_date) {
+            const nextPaymentDate = new Date(payment.loans.next_payment_date);
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+            loanUpdate.next_payment_date = nextPaymentDate.toISOString().split('T')[0];
+          }
 
-        // Create transaction record for approved payment
-        const { error: txError } = await supabase
-          .from('transactions')
-          .insert({
-            user_id: payment.user_id,
-            account_id: payment.account_id,
-            type: 'loan_payment',
-            amount: payment.payment_amount,
-            description: `Loan payment approved - Principal: $${payment.principal_amount}, Interest: $${payment.interest_amount}`,
-            status: 'completed',
-            reference_number: payment.reference_number,
-            created_at: new Date().toISOString()
-          });
+          // Create transaction record for approved payment
+          const { error: txError } = await supabase
+            .from('transactions')
+            .insert({
+              user_id: payment.loans.user_id,
+              account_id: payment.account_id,
+              type: 'debit',
+              amount: payment.payment_amount || payment.amount,
+              description: `Loan payment approved - Principal: $${payment.principal_amount || 0}, Interest: $${payment.interest_amount || 0}`,
+              status: 'completed',
+              reference_number: payment.reference_number,
+              created_at: new Date().toISOString()
+            });
 
-        if (txError) {
-          console.error('Transaction creation error:', txError);
+          if (txError) {
+            console.error('Transaction creation error:', txError);
+          }
+        } else {
+          // This is a deposit payment - update loan deposit status
+          loanUpdate = {
+            deposit_paid: true,
+            deposit_amount: payment.payment_amount || payment.amount,
+            deposit_date: new Date().toISOString(),
+            deposit_status: 'completed',
+            deposit_method: payment.actual_payment_method || payment.deposit_method || 'crypto',
+            updated_at: new Date().toISOString()
+          };
         }
         break;
 

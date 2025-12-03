@@ -409,17 +409,33 @@ export default function LoanPayments() {
 
                         <div style={styles.cardBody}>
                           <div style={styles.infoRow}>
-                            <span style={styles.infoLabel}>Principal:</span>
-                            <span style={styles.infoValue}>
-                              ${parseFloat(payment.principal_amount || 0).toFixed(2)}
+                            <span style={styles.infoLabel}>Purpose:</span>
+                            <span style={{...styles.infoValue, color: '#1e40af', fontWeight: '600'}}>
+                              {payment.payment_purpose || 'Regular Payment'}
                             </span>
                           </div>
                           <div style={styles.infoRow}>
-                            <span style={styles.infoLabel}>Interest:</span>
-                            <span style={styles.infoValue}>
-                              ${parseFloat(payment.interest_amount || 0).toFixed(2)}
+                            <span style={styles.infoLabel}>Payment Method:</span>
+                            <span style={{...styles.infoValue, textTransform: 'capitalize'}}>
+                              {payment.actual_payment_method?.replace(/_/g, ' ') || 'Account Balance'}
                             </span>
                           </div>
+                          {!payment.is_deposit && (
+                            <>
+                              <div style={styles.infoRow}>
+                                <span style={styles.infoLabel}>Principal:</span>
+                                <span style={styles.infoValue}>
+                                  ${parseFloat(payment.principal_amount || 0).toFixed(2)}
+                                </span>
+                              </div>
+                              <div style={styles.infoRow}>
+                                <span style={styles.infoLabel}>Interest:</span>
+                                <span style={styles.infoValue}>
+                                  ${parseFloat(payment.interest_amount || 0).toFixed(2)}
+                                </span>
+                              </div>
+                            </>
+                          )}
                           {payment.late_fee > 0 && (
                             <div style={styles.infoRow}>
                               <span style={styles.infoLabel}>Late Fee:</span>
@@ -484,7 +500,7 @@ export default function LoanPayments() {
 
                         {isExpanded && (
                           <div style={styles.expandedSection}>
-                            <h4 style={styles.detailsTitle}>Payment Details</h4>
+                            <h4 style={styles.detailsTitle}>Complete Payment Information</h4>
                             <div style={styles.detailsGrid}>
                               <div style={styles.detailItem}>
                                 <strong>Payment ID:</strong> {payment.id.slice(0, 8)}...
@@ -493,14 +509,43 @@ export default function LoanPayments() {
                                 <strong>Loan ID:</strong> {payment.loan_id?.slice(0, 8) || 'N/A'}...
                               </div>
                               <div style={styles.detailItem}>
-                                <strong>Payment Method:</strong> {payment.payment_method || 'N/A'}
+                                <strong>User ID:</strong> {payment.user_id?.slice(0, 8) || 'N/A'}...
                               </div>
                               <div style={styles.detailItem}>
-                                <strong>Payment Type:</strong> {payment.payment_type || 'N/A'}
+                                <strong>Phone:</strong> {payment.user_phone || 'N/A'}
                               </div>
                               <div style={styles.detailItem}>
-                                <strong>Balance After:</strong> ${parseFloat(payment.balance_after || 0).toFixed(2)}
+                                <strong>Payment Method:</strong> {payment.actual_payment_method?.replace(/_/g, ' ') || 'N/A'}
                               </div>
+                              <div style={styles.detailItem}>
+                                <strong>Payment Purpose:</strong> {payment.payment_purpose || 'N/A'}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Is Deposit:</strong> {payment.is_deposit ? 'Yes ✓' : 'No'}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Loan Status:</strong> {payment.loan_status || 'N/A'}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Loan Principal:</strong> ${parseFloat(payment.loan_principal || 0).toFixed(2)}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Remaining Balance:</strong> ${parseFloat(payment.loan_remaining_balance || 0).toFixed(2)}
+                              </div>
+                              <div style={styles.detailItem}>
+                                <strong>Monthly Payment:</strong> ${parseFloat(payment.loan_monthly_payment || 0).toFixed(2)}
+                              </div>
+                              {payment.tx_hash && (
+                                <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                  <strong>Transaction Hash:</strong>
+                                  <code style={styles.code}>{payment.tx_hash}</code>
+                                </div>
+                              )}
+                              {payment.confirmations !== undefined && (
+                                <div style={styles.detailItem}>
+                                  <strong>Confirmations:</strong> {payment.confirmations}/{payment.required_confirmations || 3}
+                                </div>
+                              )}
                               {payment.processed_at && (
                                 <div style={styles.detailItem}>
                                   <strong>Processed:</strong> {new Date(payment.processed_at).toLocaleString()}
@@ -524,7 +569,7 @@ export default function LoanPayments() {
                               )}
                               {payment.notes && (
                                 <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
-                                  <strong>Notes:</strong>
+                                  <strong>Admin Notes:</strong>
                                   <p style={styles.notes}>{payment.notes}</p>
                                 </div>
                               )}
@@ -1065,6 +1110,16 @@ const styles = {
     margin: '8px 0 0 0',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     lineHeight: '1.6'
+  },
+  code: {
+    background: '#f1f5f9',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    fontFamily: 'monospace',
+    display: 'block',
+    marginTop: '4px',
+    wordBreak: 'break-all'
   },
   btn: {
     flex: 1,

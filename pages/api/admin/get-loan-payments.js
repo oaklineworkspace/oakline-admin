@@ -13,9 +13,32 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Fetch payments with detailed loan information
     const { data: payments, error: paymentsError } = await supabaseAdmin
       .from('loan_payments')
-      .select('*, loans!inner(*)')
+      .select(`
+        *,
+        loans!inner(
+          id,
+          user_id,
+          account_id,
+          loan_type,
+          principal,
+          interest_rate,
+          term_months,
+          remaining_balance,
+          monthly_payment_amount,
+          status,
+          deposit_required,
+          deposit_paid,
+          deposit_method
+        ),
+        accounts!loan_payments_account_id_fkey(
+          id,
+          account_number,
+          account_type
+        )
+      `)
       .order('payment_date', { ascending: false });
 
     if (paymentsError) {
@@ -23,28 +46,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch loan payments', details: paymentsError.message });
     }
 
-    const loanIds = [...new Set(payments.map(p => p.loan_id).filter(Boolean))];
     const userIds = [...new Set(payments.map(p => p.loans?.user_id).filter(Boolean))];
-    const accountIds = [...new Set(payments.map(p => p.loans?.account_id).filter(Boolean))];
 
-    // Fetch profiles with first_name and last_name
+    // Fetch profiles with complete user information
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, first_name, last_name')
+      .select('id, email, first_name, last_name, phone')
       .in('id', userIds);
-
-    const { data: accounts } = await supabaseAdmin
-      .from('accounts')
-      .select('id, account_number, account_type')
-      .in('id', accountIds);
 
     const profileMap = (profiles || []).reduce((acc, profile) => {
       acc[profile.id] = profile;
-      return acc;
-    }, {});
-
-    const accountMap = (accounts || []).reduce((acc, account) => {
-      acc[account.id] = account;
       return acc;
     }, {});
 
@@ -54,22 +65,46 @@ export default async function handler(req, res) {
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : profile?.email || 'N/A';
       
+      // Determine actual payment method (prioritize deposit_method if it's a deposit)
+      let actualPaymentMethod = payment.payment_method || 'account_balance';
+      if (payment.is_deposit && payment.deposit_method) {
+        actualPaymentMethod = payment.deposit_method;
+      }
+      
+      // Determine payment purpose
+      let paymentPurpose = 'Regular Loan Payment';
+      if (payment.is_deposit) {
+        paymentPurpose = `Loan Collateral Deposit (${payment.loans?.deposit_required ? (payment.loans.deposit_required * 100 / payment.loans.principal).toFixed(0) + '%' : '10%'} of loan)`;
+      } else if (payment.payment_type === 'prepayment' || payment.payment_type === 'extra') {
+        paymentPurpose = 'Extra/Prepayment';
+      } else if (payment.payment_type === 'final') {
+        paymentPurpose = 'Final Loan Payment';
+      }
+      
       return {
         ...payment,
+        user_id: payment.loans?.user_id,
         user_email: profile?.email || 'N/A',
         user_name: fullName,
-        account_number: accountMap[payment.loans?.account_id]?.account_number || 'N/A',
-        account_type: accountMap[payment.loans?.account_id]?.account_type || 'N/A',
-        loan_type: payment.loans?.loan_type || 'N/A'
+        user_phone: profile?.phone || 'N/A',
+        account_number: payment.accounts?.account_number || 'N/A',
+        account_type: payment.accounts?.account_type || 'N/A',
+        loan_type: payment.loans?.loan_type || 'N/A',
+        loan_principal: payment.loans?.principal || 0,
+        loan_remaining_balance: payment.loans?.remaining_balance || 0,
+        loan_monthly_payment: payment.loans?.monthly_payment_amount || 0,
+        actual_payment_method: actualPaymentMethod,
+        payment_purpose: paymentPurpose,
+        loan_status: payment.loans?.status || 'N/A'
       };
     });
 
     const stats = {
       totalPayments: payments.length,
-      totalAmount: payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
-      completedPayments: payments.filter(p => p.status === 'completed').length,
+      totalAmount: payments.reduce((sum, p) => sum + (parseFloat(p.payment_amount || p.amount) || 0), 0),
+      completedPayments: payments.filter(p => p.status === 'completed' || p.status === 'approved').length,
       pendingPayments: payments.filter(p => p.status === 'pending').length,
-      failedPayments: payments.filter(p => p.status === 'failed').length
+      failedPayments: payments.filter(p => p.status === 'failed' || p.status === 'rejected').length
     };
 
     return res.status(200).json({
