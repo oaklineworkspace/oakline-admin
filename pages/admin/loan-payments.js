@@ -84,6 +84,13 @@ export default function LoanPayments() {
 
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate required fields based on status
+    if (updateForm.status === 'rejected' && !updateForm.rejectionReason?.trim()) {
+      setError('Please provide a rejection reason');
+      return;
+    }
+
     setProcessing(showUpdateModal.id);
     setError('');
     setMessage('');
@@ -108,6 +115,8 @@ export default function LoanPayments() {
         action = 'refund_approve';
       } else if (updateForm.status === 'refund_rejected') {
         action = 'refund_reject';
+      } else if (updateForm.status === 'approved' || updateForm.status === 'completed') {
+        action = 'approve';
       }
 
       const response = await fetch('/api/admin/approve-loan-payment', {
@@ -119,8 +128,8 @@ export default function LoanPayments() {
         body: JSON.stringify({
           paymentId: showUpdateModal.id,
           action: action,
-          rejectionReason: updateForm.rejectionReason || undefined,
-          refundReason: updateForm.refundReason || undefined,
+          rejectionReason: updateForm.rejectionReason?.trim() || undefined,
+          refundReason: updateForm.refundReason?.trim() || undefined,
           adminId: user?.id
         })
       });
@@ -144,7 +153,7 @@ export default function LoanPayments() {
       }, 5000);
     } catch (error) {
       console.error('Error updating payment:', error);
-      setError(error.message);
+      setError(error.message || 'An error occurred while updating the payment');
     } finally {
       setProcessing(null);
     }
@@ -513,14 +522,17 @@ export default function LoanPayments() {
                           <div style={styles.expandedSection}>
                             <h4 style={styles.detailsTitle}>Complete Payment Information</h4>
                             <div style={styles.detailsGrid}>
-                              <div style={styles.detailItem}>
-                                <strong>Payment ID:</strong> {payment.id.slice(0, 8)}...
+                              <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                <strong>Payment ID:</strong>
+                                <code style={styles.code}>{payment.id}</code>
                               </div>
-                              <div style={styles.detailItem}>
-                                <strong>Loan ID:</strong> {payment.loan_id?.slice(0, 8) || 'N/A'}...
+                              <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                <strong>Loan ID:</strong>
+                                <code style={styles.code}>{payment.loan_id || 'N/A'}</code>
                               </div>
-                              <div style={styles.detailItem}>
-                                <strong>User ID:</strong> {payment.user_id?.slice(0, 8) || 'N/A'}...
+                              <div style={{...styles.detailItem, gridColumn: '1 / -1'}}>
+                                <strong>User ID:</strong>
+                                <code style={styles.code}>{payment.user_id || 'N/A'}</code>
                               </div>
                               <div style={styles.detailItem}>
                                 <strong>Phone:</strong> {payment.user_phone || 'N/A'}
@@ -612,8 +624,8 @@ export default function LoanPayments() {
               </div>
               <div style={styles.modalBody}>
                 <div style={{...styles.formGroup, marginBottom: '16px'}}>
-                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
-                    <strong>Payment ID:</strong> {showProofModal.id.slice(0, 8)}...
+                  <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)', wordBreak: 'break-all'}}>
+                    <strong>Payment ID:</strong> {showProofModal.id}
                   </p>
                   <p style={{margin: '0 0 8px 0', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
                     <strong>Amount:</strong> ${parseFloat(showProofModal.payment_amount || showProofModal.amount || 0).toFixed(2)}
@@ -827,8 +839,8 @@ export default function LoanPayments() {
                 </p>
                 {showDeleteConfirm && (
                   <div style={{background: '#fef2f2', padding: '12px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #fecaca'}}>
-                    <p style={{margin: 0, fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b'}}>
-                      <strong>Payment ID:</strong> {showDeleteConfirm.id.slice(0, 8)}...
+                    <p style={{margin: 0, fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b', wordBreak: 'break-all'}}>
+                      <strong>Payment ID:</strong> {showDeleteConfirm.id}
                     </p>
                     {showDeleteConfirm.payment_amount > 0 && (
                       <p style={{margin: '4px 0 0 0', fontSize: 'clamp(0.85rem, 2vw, 14px)', color: '#991b1b'}}>
