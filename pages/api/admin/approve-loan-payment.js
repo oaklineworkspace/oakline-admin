@@ -86,14 +86,87 @@ export default async function handler(req, res) {
     const paymentAmount = parseFloat(payment.amount);
 
     if (action === 'reject') {
-      // Reject the payment
+      const paymentMethod = payment.metadata?.payment_method || payment.payment_method;
+      const accountId = payment.metadata?.account_id || payment.loans.account_id;
+      let refunded = false;
+      let refundTransactionId = null;
+
+      // Refund the user if payment was from account balance
+      if (paymentMethod === 'account_balance' && accountId) {
+        try {
+          // Get current account balance
+          const { data: userAccount, error: accountError } = await supabaseAdmin
+            .from('accounts')
+            .select('id, balance, account_number')
+            .eq('id', accountId)
+            .single();
+
+          if (!accountError && userAccount) {
+            const currentBalance = parseFloat(userAccount.balance || 0);
+            const newBalance = currentBalance + paymentAmount;
+
+            // Credit back to user account
+            const { error: refundError } = await supabaseAdmin
+              .from('accounts')
+              .update({
+                balance: newBalance,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', accountId);
+
+            if (!refundError) {
+              // Create refund transaction record
+              const { data: refundTx } = await supabaseAdmin
+                .from('transactions')
+                .insert({
+                  user_id: payment.loans.user_id,
+                  account_id: accountId,
+                  type: 'credit',
+                  amount: paymentAmount,
+                  balance_before: currentBalance,
+                  balance_after: newBalance,
+                  description: `Refund: ${isDepositPayment ? 'Loan deposit' : 'Loan payment'} rejected - ${payment.loans.loan_type} loan`,
+                  category: 'loan_payment_refund',
+                  status: 'completed',
+                  reference: payment.reference_number,
+                  metadata: {
+                    loan_id: payment.loan_id,
+                    payment_id: paymentId,
+                    rejection_reason: rejectionReason,
+                    refunded_by: authResult.adminId,
+                    original_payment_method: paymentMethod
+                  }
+                })
+                .select()
+                .single();
+
+              refundTransactionId = refundTx?.id;
+              refunded = true;
+              console.log(`Refunded $${paymentAmount} to account ${userAccount.account_number}`);
+            }
+          }
+        } catch (refundErr) {
+          console.error('Error processing refund:', refundErr);
+        }
+      }
+
+      // Update payment status with refund info
       const { error: rejectError } = await supabaseAdmin
         .from('loan_payments')
         .update({
           status: 'failed',
-          notes: `Rejected: ${rejectionReason || 'Payment rejected by admin'}`,
+          notes: `Rejected: ${rejectionReason || 'Payment rejected by admin'}${refunded ? '\nRefund processed and credited to user account.' : ''}`,
           processed_by: authResult.adminId,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          metadata: {
+            ...payment.metadata,
+            rejected_at: new Date().toISOString(),
+            rejected_by: authResult.adminId,
+            rejection_reason: rejectionReason,
+            refunded: refunded,
+            refund_transaction_id: refundTransactionId,
+            refund_amount: refunded ? paymentAmount : null
+          }
         })
         .eq('id', paymentId);
 
@@ -102,6 +175,7 @@ export default async function handler(req, res) {
       }
 
       // Send rejection email notification
+      let emailSent = false;
       if (userProfile?.email) {
         try {
           await sendEmail({
@@ -114,10 +188,12 @@ export default async function handler(req, res) {
               status: 'rejected',
               rejectionReason: rejectionReason || 'Payment could not be verified',
               isDeposit: isDepositPayment,
-              referenceNumber: payment.reference_number
+              referenceNumber: payment.reference_number,
+              refunded: refunded
             }),
             type: EMAIL_TYPES.LOANS
           });
+          emailSent = true;
           console.log('Rejection notification email sent to:', userProfile.email);
         } catch (emailError) {
           console.error('Failed to send rejection email:', emailError);
@@ -126,9 +202,15 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        message: 'Payment rejected successfully',
-        payment_id: paymentId,
-        status: 'failed'
+        message: `Payment rejected successfully${refunded ? '. Funds refunded to user account.' : ''}`,
+        payment: {
+          id: paymentId,
+          status: 'failed',
+          refunded: refunded,
+          refund_amount: refunded ? paymentAmount : null,
+          refund_transaction_id: refundTransactionId
+        },
+        email_sent: emailSent
       });
     }
 
@@ -350,6 +432,7 @@ export default async function handler(req, res) {
     }
 
     // Send approval email notification
+    let emailSent = false;
     if (userProfile?.email) {
       try {
         await sendEmail({
@@ -369,6 +452,7 @@ export default async function handler(req, res) {
           }),
           type: EMAIL_TYPES.LOANS
         });
+        emailSent = true;
         console.log('Approval notification email sent to:', userProfile.email);
       } catch (emailError) {
         console.error('Failed to send approval email:', emailError);
@@ -398,6 +482,7 @@ export default async function handler(req, res) {
         status: newLoanStatus,
         is_closed: newLoanBalance === 0
       },
+      email_sent: emailSent,
       transactions: {
         user_transaction_id: transactionId,
         treasury_transaction_id: treasuryTransactionId
@@ -421,7 +506,8 @@ function generatePaymentEmailHtml({
   newBalance,
   nextPaymentDate,
   monthsCovered,
-  loanActivated
+  loanActivated,
+  refunded
 }) {
   const isApproved = status === 'approved';
   const statusColor = isApproved ? '#059669' : '#dc2626';
@@ -527,6 +613,13 @@ function generatePaymentEmailHtml({
               ${rejectionReason}
             </p>
           </div>
+          ${refunded ? `
+          <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; margin: 24px 0;">
+            <p style="color: #065f46; font-size: 14px; font-weight: 500; margin: 0;">
+              💰 <strong>Refund Processed:</strong> The payment amount of $${paymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} has been credited back to your account.
+            </p>
+          </div>
+          ` : ''}
           <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 16px 0;">
             If you believe this is an error or need assistance, please contact our loan support team.
           </p>

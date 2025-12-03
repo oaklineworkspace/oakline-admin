@@ -74,13 +74,22 @@ export default function LoanPayments() {
   const [loadingProof, setLoadingProof] = useState(false);
   const [processing, setProcessing] = useState(null);
 
+  // Enhanced modal states for professional UX
+  const [modalState, setModalState] = useState({
+    loading: false,
+    success: false,
+    error: false,
+    message: '',
+    actionType: 'approve' // Track action type for correct display after form reset
+  });
+
   const [updateForm, setUpdateForm] = useState({
     amount: '',
     principalAmount: '',
     interestAmount: '',
     lateFee: '',
     confirmations: '',
-    status: '',
+    action: 'approve', // Default to approve
     rejectionReason: '',
     adminNotes: ''
   });
@@ -155,33 +164,60 @@ export default function LoanPayments() {
   };
 
   const openUpdateModal = (payment) => {
+    // Reset form to clean state for each payment
     setUpdateForm({
       amount: payment.amount || '',
       principalAmount: payment.principal_amount || '',
       interestAmount: payment.interest_amount || '',
       lateFee: payment.late_fee || '',
       confirmations: payment.confirmations || '',
-      status: payment.status || 'pending',
-      rejectionReason: payment.notes?.includes('Rejected:') ? payment.notes.split('Rejected:')[1]?.trim() : '',
-      adminNotes: payment.notes || ''
+      action: 'approve', // Default to approve
+      rejectionReason: '', // Start clean for each payment
+      adminNotes: '' // Start clean for each payment
     });
+    setModalState({ loading: false, success: false, error: false, message: '', actionType: 'approve' });
     setShowUpdateModal(payment);
+  };
+
+  const closeUpdateModal = () => {
+    // Reset everything when closing
+    setShowUpdateModal(null);
+    setModalState({ loading: false, success: false, error: false, message: '', actionType: 'approve' });
+    setUpdateForm({
+      amount: '',
+      principalAmount: '',
+      interestAmount: '',
+      lateFee: '',
+      confirmations: '',
+      action: 'approve',
+      rejectionReason: '',
+      adminNotes: ''
+    });
   };
 
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate action
+    if (!['approve', 'reject'].includes(updateForm.action)) {
+      setModalState({ loading: false, success: false, error: true, message: 'Please select Approve or Reject action' });
+      return;
+    }
+
+    // Require rejection reason for reject action
+    if (updateForm.action === 'reject' && !updateForm.rejectionReason.trim()) {
+      setModalState({ loading: false, success: false, error: true, message: 'Please provide a rejection reason' });
+      return;
+    }
+
+    setModalState({ loading: true, success: false, error: false, message: 'Processing payment...', actionType: updateForm.action });
     setProcessing(showUpdateModal.id);
-    setErrorBanner({ visible: false, message: '', duration: 3000 });
-    setSuccessBanner({ visible: false, message: '', duration: 3000 });
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session. Please log in again.');
       }
-
-      const action = updateForm.status === 'completed' ? 'approve' : 
-                     updateForm.status === 'failed' ? 'reject' : 'update';
 
       const response = await fetch('/api/admin/approve-loan-payment', {
         method: 'POST',
@@ -191,7 +227,7 @@ export default function LoanPayments() {
         },
         body: JSON.stringify({
           paymentId: showUpdateModal.id,
-          action: action,
+          action: updateForm.action,
           amount: updateForm.amount ? parseFloat(updateForm.amount) : undefined,
           principalAmount: updateForm.principalAmount ? parseFloat(updateForm.principalAmount) : undefined,
           interestAmount: updateForm.interestAmount ? parseFloat(updateForm.interestAmount) : undefined,
@@ -205,30 +241,36 @@ export default function LoanPayments() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || result.details || 'Failed to update payment');
+        throw new Error(result.error || result.details || 'Failed to process payment');
       }
 
-      const successMessage = updateForm.status === 'completed' 
-        ? `✅ Payment approved successfully! ${result.loan?.is_closed ? 'Loan has been paid off!' : `New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`}`
-        : updateForm.status === 'failed'
-        ? '✅ Payment rejected successfully!'
-        : '✅ Payment updated successfully!';
-
-      setSuccessBanner({
-        visible: true,
-        message: successMessage,
-        duration: 4000
-      });
+      // Capture action before any state changes
+      const currentAction = updateForm.action;
+      const isApproval = currentAction === 'approve';
       
-      setShowUpdateModal(null);
-      await fetchPayments();
+      const successMessage = isApproval 
+        ? `Payment approved successfully! ${result.loan?.is_closed ? 'Loan has been fully paid off!' : `Remaining balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`}${result.payment?.treasury_credited ? ' Treasury credited.' : ''}${result.email_sent ? ' Email notification sent.' : ''}`
+        : `Payment rejected. ${result.payment?.refunded ? 'Funds refunded to user account.' : ''}${result.email_sent ? ' Email notification sent.' : ''}`;
+
+      const bannerEmoji = isApproval ? '✅' : '🔄';
+
+      // Show in-modal success message (keep actionType for correct display)
+      setModalState({ loading: false, success: true, error: false, message: successMessage, actionType: currentAction });
+
+      // Auto-close modal and show page banner after delay
+      setTimeout(async () => {
+        closeUpdateModal();
+        setSuccessBanner({
+          visible: true,
+          message: `${bannerEmoji} ${successMessage}`,
+          duration: 5000
+        });
+        await fetchPayments();
+      }, 2000);
+
     } catch (error) {
-      console.error('Error updating payment:', error);
-      setErrorBanner({
-        visible: true,
-        message: `❌ Failed to update payment: ${error.message}`,
-        duration: 4000
-      });
+      console.error('Error processing payment:', error);
+      setModalState({ loading: false, success: false, error: true, message: error.message });
     } finally {
       setProcessing(null);
     }
@@ -289,7 +331,30 @@ export default function LoanPayments() {
     }
   };
 
+  // Open modal specifically for reject action with pre-selected reject
+  const openRejectModal = (payment) => {
+    setUpdateForm({
+      amount: payment.amount || '',
+      principalAmount: payment.principal_amount || '',
+      interestAmount: payment.interest_amount || '',
+      lateFee: payment.late_fee || '',
+      confirmations: payment.confirmations || '',
+      action: 'reject', // Pre-select reject
+      rejectionReason: '', // Start clean
+      adminNotes: '' // Start clean
+    });
+    setModalState({ loading: false, success: false, error: false, message: '', actionType: 'reject' });
+    setShowUpdateModal(payment);
+  };
+
   const handleQuickAction = async (payment, action) => {
+    // For reject, open modal to collect rejection reason
+    if (action === 'reject') {
+      openRejectModal(payment);
+      return;
+    }
+
+    // For approve, proceed with quick action
     setProcessing(payment.id);
     setErrorBanner({ visible: false, message: '', duration: 3000 });
     setSuccessBanner({ visible: false, message: '', duration: 3000 });
@@ -298,8 +363,8 @@ export default function LoanPayments() {
       visible: true,
       current: 1,
       total: 1,
-      action: action === 'approve' ? 'Approving' : 'Rejecting',
-      message: `${action === 'approve' ? 'Approving' : 'Rejecting'} payment...`
+      action: 'Approving',
+      message: 'Approving payment and crediting treasury...'
     });
 
     try {
@@ -316,33 +381,30 @@ export default function LoanPayments() {
         },
         body: JSON.stringify({
           paymentId: payment.id,
-          action: action,
-          rejectionReason: action === 'reject' ? 'Payment rejected by admin' : undefined
+          action: 'approve'
         })
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || result.details || `Failed to ${action} payment`);
+        throw new Error(result.error || result.details || 'Failed to approve payment');
       }
 
-      const successMessage = action === 'approve' 
-        ? `✅ Payment approved! ${result.loan?.is_closed ? 'Loan fully paid off!' : `New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`}`
-        : '✅ Payment rejected successfully!';
+      const successMessage = `✅ Payment approved! ${result.loan?.is_closed ? 'Loan fully paid off!' : `New balance: $${result.loan?.new_balance?.toLocaleString() || '0'}`}${result.payment?.treasury_credited ? ' Treasury credited.' : ''}${result.email_sent ? ' Email sent.' : ''}`;
 
       setSuccessBanner({
         visible: true,
         message: successMessage,
-        duration: 4000
+        duration: 5000
       });
       
       await fetchPayments();
     } catch (error) {
-      console.error(`Error ${action}ing payment:`, error);
+      console.error('Error approving payment:', error);
       setErrorBanner({
         visible: true,
-        message: `❌ Failed to ${action} payment: ${error.message}`,
+        message: `❌ Failed to approve payment: ${error.message}`,
         duration: 4000
       });
     } finally {
@@ -825,151 +887,305 @@ export default function LoanPayments() {
           </div>
         )}
 
-        {/* Update Payment Modal */}
+        {/* Update Payment Modal - Professional with in-modal states */}
         {showUpdateModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowUpdateModal(null)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div style={styles.modalOverlay} onClick={!modalState.loading ? closeUpdateModal : undefined}>
+            <div style={{...styles.modal, maxWidth: '520px'}} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>📊 Update Payment Status</h2>
-                <button onClick={() => setShowUpdateModal(null)} style={styles.closeButton}>×</button>
+                <h2 style={styles.modalTitle}>
+                  {modalState.success ? '✅' : modalState.error ? '❌' : '📊'} 
+                  {modalState.success ? ' Success' : modalState.error ? ' Error' : ' Update Payment Status'}
+                </h2>
+                {!modalState.loading && (
+                  <button onClick={closeUpdateModal} style={styles.closeButton}>×</button>
+                )}
               </div>
               <div style={styles.modalBody}>
-                <form onSubmit={handleUpdateSubmit}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Payment Amount (USD)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={updateForm.amount}
-                      onChange={(e) => setUpdateForm({...updateForm, amount: e.target.value})}
-                      style={styles.input}
-                    />
+                {/* Loading State */}
+                {modalState.loading && (
+                  <div style={{textAlign: 'center', padding: '40px 20px'}}>
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      border: '4px solid #e2e8f0',
+                      borderTop: '4px solid #3b82f6',
+                      borderRadius: '50%',
+                      margin: '0 auto 20px',
+                      animation: 'spinnerRotate 1s linear infinite'
+                    }}></div>
+                    <p style={{color: '#64748b', fontSize: '16px', margin: 0}}>
+                      {modalState.actionType === 'approve' ? 'Approving payment...' : 'Rejecting payment...'}
+                    </p>
+                    <p style={{color: '#94a3b8', fontSize: '14px', marginTop: '8px'}}>
+                      {modalState.actionType === 'approve' 
+                        ? 'Crediting treasury and sending notification...'
+                        : 'Processing refund and sending notification...'}
+                    </p>
                   </div>
+                )}
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Principal Amount</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={updateForm.principalAmount}
-                      onChange={(e) => setUpdateForm({...updateForm, principalAmount: e.target.value})}
-                      style={styles.input}
-                    />
+                {/* Success State */}
+                {modalState.success && (
+                  <div style={{textAlign: 'center', padding: '40px 20px'}}>
+                    <div style={{
+                      width: '70px',
+                      height: '70px',
+                      background: modalState.actionType === 'approve' ? '#d1fae5' : '#fef3c7',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 20px',
+                      fontSize: '32px'
+                    }}>
+                      {modalState.actionType === 'approve' ? '✅' : '🔄'}
+                    </div>
+                    <h3 style={{
+                      color: modalState.actionType === 'approve' ? '#065f46' : '#92400e',
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      margin: '0 0 12px 0'
+                    }}>
+                      {modalState.actionType === 'approve' ? 'Payment Approved!' : 'Payment Rejected'}
+                    </h3>
+                    <p style={{color: '#64748b', fontSize: '14px', margin: 0, lineHeight: '1.6'}}>
+                      {modalState.message}
+                    </p>
                   </div>
+                )}
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Interest Amount</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={updateForm.interestAmount}
-                      onChange={(e) => setUpdateForm({...updateForm, interestAmount: e.target.value})}
-                      style={styles.input}
-                    />
+                {/* Error State */}
+                {modalState.error && (
+                  <div style={{
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '20px'
+                  }}>
+                    <p style={{color: '#991b1b', margin: 0, fontSize: '14px'}}>
+                      <strong>Error:</strong> {modalState.message}
+                    </p>
                   </div>
+                )}
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Late Fee</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={updateForm.lateFee}
-                      onChange={(e) => setUpdateForm({...updateForm, lateFee: e.target.value})}
-                      style={styles.input}
-                    />
-                  </div>
+                {/* Form - Only show when not loading and not success */}
+                {!modalState.loading && !modalState.success && (
+                  <form onSubmit={handleUpdateSubmit}>
+                    {/* Payment Info Summary */}
+                    <div style={{
+                      background: '#f8fafc',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      marginBottom: '20px',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px'}}>
+                        <div>
+                          <span style={{color: '#64748b'}}>Amount:</span>
+                          <strong style={{color: '#1e293b', marginLeft: '8px'}}>
+                            ${parseFloat(showUpdateModal.amount || 0).toLocaleString()}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{color: '#64748b'}}>Type:</span>
+                          <span style={{color: '#1e293b', marginLeft: '8px', textTransform: 'capitalize'}}>
+                            {showUpdateModal.payment_type || 'Regular'}
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{color: '#64748b'}}>User:</span>
+                          <span style={{color: '#1e293b', marginLeft: '8px'}}>
+                            {showUpdateModal.user_name || showUpdateModal.user_email || 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{color: '#64748b'}}>Loan:</span>
+                          <span style={{color: '#1e293b', marginLeft: '8px', textTransform: 'capitalize'}}>
+                            {showUpdateModal.loan_type || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                  {showUpdateModal.deposit_method === 'crypto' && (
+                    {/* Action Selection */}
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>Confirmations</label>
-                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                      <label style={styles.label}>Select Action *</label>
+                      <div style={{display: 'flex', gap: '12px'}}>
                         <button
                           type="button"
-                          onClick={() => setUpdateForm({
-                            ...updateForm, 
-                            confirmations: Math.max(0, parseInt(updateForm.confirmations || 0) - 1)
-                          })}
-                          style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
+                          onClick={() => setUpdateForm({...updateForm, action: 'approve'})}
+                          style={{
+                            flex: 1,
+                            padding: '14px 20px',
+                            borderRadius: '8px',
+                            border: updateForm.action === 'approve' ? '2px solid #10b981' : '2px solid #e2e8f0',
+                            background: updateForm.action === 'approve' ? '#d1fae5' : '#ffffff',
+                            color: updateForm.action === 'approve' ? '#065f46' : '#64748b',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            transition: 'all 0.2s ease'
+                          }}
                         >
-                          -
+                          ✅ Approve
+                          <br/>
+                          <span style={{fontSize: '11px', fontWeight: '400', opacity: 0.8}}>
+                            Credit treasury
+                          </span>
                         </button>
-                        <input
-                          type="number"
-                          value={updateForm.confirmations}
-                          onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
-                          style={{...styles.input, textAlign: 'center'}}
-                          placeholder="0"
-                        />
                         <button
                           type="button"
-                          onClick={() => setUpdateForm({
-                            ...updateForm, 
-                            confirmations: parseInt(updateForm.confirmations || 0) + 1
-                          })}
-                          style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
+                          onClick={() => setUpdateForm({...updateForm, action: 'reject'})}
+                          style={{
+                            flex: 1,
+                            padding: '14px 20px',
+                            borderRadius: '8px',
+                            border: updateForm.action === 'reject' ? '2px solid #ef4444' : '2px solid #e2e8f0',
+                            background: updateForm.action === 'reject' ? '#fee2e2' : '#ffffff',
+                            color: updateForm.action === 'reject' ? '#991b1b' : '#64748b',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            transition: 'all 0.2s ease'
+                          }}
                         >
-                          +
+                          ❌ Reject
+                          <br/>
+                          <span style={{fontSize: '11px', fontWeight: '400', opacity: 0.8}}>
+                            Refund to user
+                          </span>
                         </button>
                       </div>
-                      <small style={{color: '#64748b', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', display: 'block'}}>
-                        Current: {updateForm.confirmations || 0} / {showUpdateModal?.required_confirmations || 3} required
-                      </small>
                     </div>
-                  )}
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Status *</label>
-                    <select
-                      value={updateForm.status}
-                      onChange={(e) => setUpdateForm({...updateForm, status: e.target.value})}
-                      style={styles.input}
-                      required
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="completed">Completed (Approve)</option>
-                      <option value="failed">Failed (Reject)</option>
-                    </select>
-                  </div>
+                    {/* Rejection Reason - Only show when reject is selected */}
+                    {updateForm.action === 'reject' && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Rejection Reason *</label>
+                        <textarea
+                          value={updateForm.rejectionReason}
+                          onChange={(e) => setUpdateForm({...updateForm, rejectionReason: e.target.value})}
+                          style={{...styles.input, minHeight: '80px'}}
+                          placeholder="Enter reason for rejection (required)"
+                          required
+                        />
+                      </div>
+                    )}
 
-                  {updateForm.status === 'failed' && (
+                    {/* Admin Notes */}
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>Rejection Reason</label>
+                      <label style={styles.label}>Admin Notes (Optional)</label>
                       <textarea
-                        value={updateForm.rejectionReason}
-                        onChange={(e) => setUpdateForm({...updateForm, rejectionReason: e.target.value})}
+                        value={updateForm.adminNotes}
+                        onChange={(e) => setUpdateForm({...updateForm, adminNotes: e.target.value})}
                         style={{...styles.input, minHeight: '80px'}}
-                        placeholder="Enter reason for rejection"
+                        placeholder="Add any additional notes for this action"
                       />
                     </div>
-                  )}
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Admin Notes</label>
-                    <textarea
-                      value={updateForm.adminNotes}
-                      onChange={(e) => setUpdateForm({...updateForm, adminNotes: e.target.value})}
-                      style={{...styles.input, minHeight: '100px'}}
-                      placeholder="Add any additional notes"
-                    />
-                  </div>
+                    {/* Crypto confirmations if applicable */}
+                    {showUpdateModal.deposit_method === 'crypto' && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Confirmations</label>
+                        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                          <button
+                            type="button"
+                            onClick={() => setUpdateForm({
+                              ...updateForm, 
+                              confirmations: Math.max(0, parseInt(updateForm.confirmations || 0) - 1)
+                            })}
+                            style={{...styles.btn, ...styles.btnSecondary, flex: '0 0 auto', padding: '8px 16px'}}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={updateForm.confirmations}
+                            onChange={(e) => setUpdateForm({...updateForm, confirmations: e.target.value})}
+                            style={{...styles.input, textAlign: 'center'}}
+                            placeholder="0"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setUpdateForm({
+                              ...updateForm, 
+                              confirmations: parseInt(updateForm.confirmations || 0) + 1
+                            })}
+                            style={{...styles.btn, ...styles.btnPrimary, flex: '0 0 auto', padding: '8px 16px'}}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <small style={{color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block'}}>
+                          Current: {updateForm.confirmations || 0} / {showUpdateModal?.required_confirmations || 3} required
+                        </small>
+                      </div>
+                    )}
 
-                  <div style={styles.modalActions}>
-                    <button
-                      type="button"
-                      onClick={() => setShowUpdateModal(null)}
-                      style={{...styles.btn, ...styles.btnSecondary}}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      style={{...styles.btn, ...styles.btnPrimary}}
-                      disabled={processing === showUpdateModal.id}
-                    >
-                      {processing === showUpdateModal.id ? 'Updating...' : 'Update Payment'}
-                    </button>
-                  </div>
-                </form>
+                    {/* Action Info Banner */}
+                    <div style={{
+                      background: updateForm.action === 'approve' ? '#ecfdf5' : '#fef2f2',
+                      border: `1px solid ${updateForm.action === 'approve' ? '#a7f3d0' : '#fecaca'}`,
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      marginBottom: '20px'
+                    }}>
+                      <p style={{
+                        color: updateForm.action === 'approve' ? '#065f46' : '#991b1b',
+                        margin: 0,
+                        fontSize: '13px',
+                        lineHeight: '1.5'
+                      }}>
+                        {updateForm.action === 'approve' 
+                          ? '✅ This will credit the bank treasury, update loan balance, and send an approval email to the user.'
+                          : '❌ This will refund the payment amount to the user\'s account and send a rejection email notification.'}
+                      </p>
+                    </div>
+
+                    {/* Inline validation message for reject without reason */}
+                    {updateForm.action === 'reject' && !updateForm.rejectionReason.trim() && (
+                      <div style={{
+                        background: '#fef3c7',
+                        border: '1px solid #fcd34d',
+                        borderRadius: '6px',
+                        padding: '10px 14px',
+                        marginBottom: '16px'
+                      }}>
+                        <p style={{color: '#92400e', margin: 0, fontSize: '13px'}}>
+                          ⚠️ Please enter a rejection reason above before submitting.
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={styles.modalActions}>
+                      <button
+                        type="button"
+                        onClick={closeUpdateModal}
+                        style={{...styles.btn, ...styles.btnSecondary}}
+                        disabled={processing === showUpdateModal.id}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        style={{
+                          ...styles.btn,
+                          ...(updateForm.action === 'approve' ? styles.btnPrimary : styles.btnDanger),
+                          ...(updateForm.action === 'reject' && !updateForm.rejectionReason.trim() ? {
+                            opacity: 0.6,
+                            cursor: 'not-allowed'
+                          } : {})
+                        }}
+                        disabled={processing === showUpdateModal.id || (updateForm.action === 'reject' && !updateForm.rejectionReason.trim())}
+                      >
+                        {processing === showUpdateModal.id 
+                          ? (updateForm.action === 'approve' ? 'Approving...' : 'Rejecting...')
+                          : (updateForm.action === 'approve' ? '✅ Approve Payment' : '❌ Reject Payment')}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>
