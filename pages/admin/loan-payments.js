@@ -128,6 +128,7 @@ export default function LoanPayments() {
         body: JSON.stringify({
           paymentId: showUpdateModal.id,
           action: action,
+          targetStatus: updateForm.status,
           rejectionReason: updateForm.rejectionReason?.trim() || undefined,
           refundReason: updateForm.refundReason?.trim() || undefined,
           adminId: user?.id
@@ -140,8 +141,10 @@ export default function LoanPayments() {
         throw new Error(result.error || result.details || 'Failed to update payment');
       }
 
-      const successMessage = updateForm.status === 'approved' || updateForm.status === 'completed'
+      const successMessage = updateForm.status === 'approved' 
         ? '✅ Payment approved successfully! Loan balance has been updated.'
+        : updateForm.status === 'completed'
+        ? '✅ Payment completed successfully! Loan balance has been updated and user notified.'
         : `✅ Payment status updated to ${updateForm.status} successfully!`;
 
       setMessage(successMessage);
