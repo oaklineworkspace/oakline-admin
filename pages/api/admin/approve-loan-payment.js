@@ -32,7 +32,7 @@ export default async function handler(req, res) {
           user_id,
           remaining_balance,
           status,
-          monthly_payment,
+          monthly_payment_amount,
           next_payment_date
         )
       `)

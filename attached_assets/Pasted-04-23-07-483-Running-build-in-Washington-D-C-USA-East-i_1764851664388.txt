@@ -1,0 +1,301 @@
+04:23:07.483 Running build in Washington, D.C., USA (East) – iad1
+04:23:07.483 Build machine configuration: 2 cores, 8 GB
+04:23:07.639 Cloning github.com/oaklineworkspace/oakline-admin (Branch: main, Commit: 136176a)
+04:23:14.623 Cloning completed: 6.984s
+04:23:14.883 Restored build cache from previous deployment (31i9T6RmoHEBDcnBeF5CqNwN8UcX)
+04:23:15.495 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+04:23:15.496 Running "vercel build"
+04:23:15.941 Vercel CLI 48.12.0
+04:23:16.374 Warning: Due to "engines": { "node": "20.x" } in your `package.json` file, the Node.js Version defined in your Project Settings ("22.x") will not apply, Node.js Version "20.x" will be used instead. Learn More: http://vercel.link/node-version
+04:23:16.387 Running "install" command: `npm install`...
+04:23:23.672 
+04:23:23.673 up to date, audited 397 packages in 7s
+04:23:23.673 
+04:23:23.673 145 packages are looking for funding
+04:23:23.673   run `npm fund` for details
+04:23:23.737 
+04:23:23.738 8 vulnerabilities (1 low, 3 moderate, 4 high)
+04:23:23.738 
+04:23:23.738 To address issues that do not require attention, run:
+04:23:23.738   npm audit fix
+04:23:23.738 
+04:23:23.739 To address all issues (including breaking changes), run:
+04:23:23.739   npm audit fix --force
+04:23:23.739 
+04:23:23.739 Run `npm audit` for details.
+04:23:23.750 Detected Next.js version: 14.2.33
+04:23:23.751 Running "npm run build"
+04:23:23.885 
+04:23:23.885 > oakline-bank@1.0.0 build
+04:23:23.885 > next build
+04:23:23.885 
+04:23:24.591   ▲ Next.js 14.2.33
+04:23:24.592 
+04:23:24.592    Linting and checking validity of types ...
+04:23:24.786    Creating an optimized production build ...
+04:23:31.147 Failed to compile.
+04:23:31.147 
+04:23:31.148 ./pages/api/admin/delete-loan-payment.js
+04:23:31.148 Error: 
+04:23:31.148   [31mx[0m the name `handler` is defined multiple times
+04:23:31.148      ,-[[36;1;4m/vercel/path0/pages/api/admin/delete-loan-payment.js[0m:2:1]
+04:23:31.149  [2m  2[0m | import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+04:23:31.149  [2m  3[0m | import { verifyAdminAuth } from '../../../lib/adminAuth';
+04:23:31.149  [2m  4[0m | 
+04:23:31.149  [2m  5[0m | export default async function handler(req, res) {
+04:23:31.149      : [31;1m                              ^^^|^^^[0m
+04:23:31.150      :                                  [31;1m`-- [31;1mprevious definition of `handler` here[0m[0m
+04:23:31.150  [2m  6[0m |   if (req.method !== 'DELETE' && req.method !== 'POST') {
+04:23:31.150  [2m  7[0m |     return res.status(405).json({ error: 'Method not allowed' });
+04:23:31.150  [2m  8[0m |   }
+04:23:31.150  [2m  9[0m | 
+04:23:31.150  [2m 10[0m |   const authResult = await verifyAdminAuth(req);
+04:23:31.150  [2m 11[0m |   if (authResult.error) {
+04:23:31.151  [2m 12[0m |     return res.status(authResult.status || 401).json({ error: authResult.error });
+04:23:31.151  [2m 13[0m |   }
+04:23:31.151  [2m 14[0m | 
+04:23:31.151  [2m 15[0m |   try {
+04:23:31.152  [2m 16[0m |     const { paymentId } = req.body;
+04:23:31.152  [2m 17[0m | 
+04:23:31.152  [2m 18[0m |     console.log('Delete loan payment request:', paymentId);
+04:23:31.152  [2m 19[0m | 
+04:23:31.152  [2m 20[0m |     if (!paymentId) {
+04:23:31.152  [2m 21[0m |       return res.status(400).json({ error: 'Payment ID is required' });
+04:23:31.152  [2m 22[0m |     }
+04:23:31.153  [2m 23[0m | 
+04:23:31.153  [2m 24[0m |     // First, fetch the payment to ensure it exists
+04:23:31.153  [2m 25[0m |     const { data: payment, error: fetchError } = await supabaseAdmin
+04:23:31.153  [2m 26[0m |       .from('loan_payments')
+04:23:31.153  [2m 27[0m |       .select('*')
+04:23:31.153  [2m 28[0m |       .eq('id', paymentId)
+04:23:31.153  [2m 29[0m |       .single();
+04:23:31.153  [2m 30[0m | 
+04:23:31.153  [2m 31[0m |     if (fetchError || !payment) {
+04:23:31.153  [2m 32[0m |       console.error('Payment not found:', fetchError);
+04:23:31.153  [2m 33[0m |       return res.status(404).json({ error: 'Payment not found' });
+04:23:31.153  [2m 34[0m |     }
+04:23:31.153  [2m 35[0m | 
+04:23:31.153  [2m 36[0m |     // Prevent deletion of completed payments that have been processed
+04:23:31.153  [2m 37[0m |     if (payment.status === 'completed' && payment.processed_by) {
+04:23:31.153  [2m 38[0m |       return res.status(400).json({
+04:23:31.153  [2m 39[0m |         error: 'Cannot delete completed payments that have been processed. Please reject them first.'
+04:23:31.158  [2m 40[0m |       });
+04:23:31.158  [2m 41[0m |     }
+04:23:31.158  [2m 42[0m | 
+04:23:31.159  [2m 43[0m |     // Delete the payment
+04:23:31.164  [2m 44[0m |     const { error: deleteError } = await supabaseAdmin
+04:23:31.164  [2m 45[0m |       .from('loan_payments')
+04:23:31.164  [2m 46[0m |       .delete()
+04:23:31.164  [2m 47[0m |       .eq('id', paymentId);
+04:23:31.164  [2m 48[0m | 
+04:23:31.164  [2m 49[0m |     if (deleteError) {
+04:23:31.164  [2m 50[0m |       console.error('Error deleting payment:', deleteError);
+04:23:31.164  [2m 51[0m |       return res.status(500).json({
+04:23:31.164  [2m 52[0m |         error: 'Failed to delete payment',
+04:23:31.164  [2m 53[0m |         details: deleteError.message
+04:23:31.164  [2m 54[0m |       });
+04:23:31.164  [2m 55[0m |     }
+04:23:31.164  [2m 56[0m | 
+04:23:31.164  [2m 57[0m |     console.log('Payment deleted successfully:', paymentId);
+04:23:31.164  [2m 58[0m | 
+04:23:31.164  [2m 59[0m |     // Log the deletion
+04:23:31.164  [2m 60[0m |     await supabaseAdmin
+04:23:31.164  [2m 61[0m |       .from('system_logs')
+04:23:31.164  [2m 62[0m |       .insert({
+04:23:31.164  [2m 63[0m |         level: 'warning',
+04:23:31.164  [2m 64[0m |         type: 'transaction',
+04:23:31.164  [2m 65[0m |         message: `Loan payment deleted by admin`,
+04:23:31.165  [2m 66[0m |         details: {
+04:23:31.165  [2m 67[0m |           payment_id: paymentId,
+04:23:31.165  [2m 68[0m |           deleted_by: authResult.adminId,
+04:23:31.165  [2m 69[0m |           deleted_by_email: authResult.user?.email,
+04:23:31.165  [2m 70[0m |           payment_amount: payment.amount,
+04:23:31.165  [2m 71[0m |           payment_status: payment.status,
+04:23:31.165  [2m 72[0m |           loan_id: payment.loan_id,
+04:23:31.165  [2m 73[0m |           timestamp: new Date().toISOString()
+04:23:31.167  [2m 74[0m |         },
+04:23:31.167  [2m 75[0m |         admin_id: authResult.adminId
+04:23:31.167  [2m 76[0m |       });
+04:23:31.167  [2m 77[0m | 
+04:23:31.167  [2m 78[0m |     return res.status(200).json({
+04:23:31.167  [2m 79[0m |       success: true,
+04:23:31.167  [2m 80[0m |       message: 'Payment deleted successfully'
+04:23:31.167  [2m 81[0m |     });
+04:23:31.167  [2m 82[0m |   } catch (error) {
+04:23:31.167  [2m 83[0m |     console.error('Unexpected error:', error);
+04:23:31.168  [2m 84[0m |     return res.status(500).json({
+04:23:31.168  [2m 85[0m |       error: 'Internal server error',
+04:23:31.168  [2m 86[0m |       details: error.message
+04:23:31.168  [2m 87[0m |     });
+04:23:31.168  [2m 88[0m |   }
+04:23:31.168  [2m 89[0m | }
+04:23:31.168  [2m 90[0m | import { createClient } from '@supabase/supabase-js';
+04:23:31.168  [2m 91[0m | 
+04:23:31.168  [2m 92[0m | const supabase = createClient(
+04:23:31.168  [2m 93[0m |   process.env.NEXT_PUBLIC_SUPABASE_URL,
+04:23:31.168  [2m 94[0m |   process.env.SUPABASE_SERVICE_ROLE_KEY
+04:23:31.168  [2m 95[0m | );
+04:23:31.168  [2m 96[0m | 
+04:23:31.168  [2m 97[0m | export default async function handler(req, res) {
+04:23:31.168      : [33;1m                              ^^^|^^^[0m
+04:23:31.168      :                                  [33;1m`-- [33;1m`handler` redefined here[0m[0m
+04:23:31.168  [2m 98[0m |   if (req.method !== 'POST') {
+04:23:31.168  [2m 99[0m |     return res.status(405).json({ error: 'Method not allowed' });
+04:23:31.168  [2m100[0m |   }
+04:23:31.168      `----
+04:23:31.168 
+04:23:31.168   [31mx[0m the name `default` is exported multiple times
+04:23:31.168      ,-[[36;1;4m/vercel/path0/pages/api/admin/delete-loan-payment.js[0m:2:1]
+04:23:31.168  [2m  2[0m |     import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+04:23:31.168  [2m  3[0m |     import { verifyAdminAuth } from '../../../lib/adminAuth';
+04:23:31.168  [2m  4[0m |     
+04:23:31.168  [2m  5[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m export default async function handler(req, res) {
+04:23:31.168  [2m  6[0m | [31;1m|[0m     if (req.method !== 'DELETE' && req.method !== 'POST') {
+04:23:31.168  [2m  7[0m | [31;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+04:23:31.170  [2m  8[0m | [31;1m|[0m     }
+04:23:31.170  [2m  9[0m | [31;1m|[0m   
+04:23:31.170  [2m 10[0m | [31;1m|[0m     const authResult = await verifyAdminAuth(req);
+04:23:31.170  [2m 11[0m | [31;1m|[0m     if (authResult.error) {
+04:23:31.170  [2m 12[0m | [31;1m|[0m       return res.status(authResult.status || 401).json({ error: authResult.error });
+04:23:31.170  [2m 13[0m | [31;1m|[0m     }
+04:23:31.170  [2m 14[0m | [31;1m|[0m   
+04:23:31.170  [2m 15[0m | [31;1m|[0m     try {
+04:23:31.170  [2m 16[0m | [31;1m|[0m       const { paymentId } = req.body;
+04:23:31.170  [2m 17[0m | [31;1m|[0m   
+04:23:31.170  [2m 18[0m | [31;1m|[0m       console.log('Delete loan payment request:', paymentId);
+04:23:31.170  [2m 19[0m | [31;1m|[0m   
+04:23:31.170  [2m 20[0m | [31;1m|[0m       if (!paymentId) {
+04:23:31.170  [2m 21[0m | [31;1m|[0m         return res.status(400).json({ error: 'Payment ID is required' });
+04:23:31.175  [2m 22[0m | [31;1m|[0m       }
+04:23:31.176  [2m 23[0m | [31;1m|[0m   
+04:23:31.176  [2m 24[0m | [31;1m|[0m       // First, fetch the payment to ensure it exists
+04:23:31.176  [2m 25[0m | [31;1m|[0m       const { data: payment, error: fetchError } = await supabaseAdmin
+04:23:31.176  [2m 26[0m | [31;1m|[0m         .from('loan_payments')
+04:23:31.176  [2m 27[0m | [31;1m|[0m         .select('*')
+04:23:31.176  [2m 28[0m | [31;1m|[0m         .eq('id', paymentId)
+04:23:31.176  [2m 29[0m | [31;1m|[0m         .single();
+04:23:31.176  [2m 30[0m | [31;1m|[0m   
+04:23:31.176  [2m 31[0m | [31;1m|[0m       if (fetchError || !payment) {
+04:23:31.176  [2m 32[0m | [31;1m|[0m         console.error('Payment not found:', fetchError);
+04:23:31.176  [2m 33[0m | [31;1m|[0m         return res.status(404).json({ error: 'Payment not found' });
+04:23:31.176  [2m 34[0m | [31;1m|[0m       }
+04:23:31.176  [2m 35[0m | [31;1m|[0m   
+04:23:31.176  [2m 36[0m | [31;1m|[0m       // Prevent deletion of completed payments that have been processed
+04:23:31.176  [2m 37[0m | [31;1m|[0m       if (payment.status === 'completed' && payment.processed_by) {
+04:23:31.176  [2m 38[0m | [31;1m|[0m         return res.status(400).json({
+04:23:31.176  [2m 39[0m | [31;1m|[0m           error: 'Cannot delete completed payments that have been processed. Please reject them first.'
+04:23:31.176  [2m 40[0m | [31;1m|[0m         });
+04:23:31.176  [2m 41[0m | [31;1m|[0m       }
+04:23:31.176  [2m 42[0m | [31;1m|[0m   
+04:23:31.176  [2m 43[0m | [31;1m|[0m       // Delete the payment
+04:23:31.176  [2m 44[0m | [31;1m|[0m       const { error: deleteError } = await supabaseAdmin
+04:23:31.176  [2m 45[0m | [31;1m|[0m         .from('loan_payments')
+04:23:31.176  [2m 46[0m | [31;1m|[0m         .delete()
+04:23:31.176  [2m 47[0m | [31;1m|[0m         .eq('id', paymentId);
+04:23:31.176  [2m 48[0m | [31;1m|[0m   
+04:23:31.176  [2m 49[0m | [31;1m|[0m       if (deleteError) {
+04:23:31.176  [2m 50[0m | [31;1m|[0m         console.error('Error deleting payment:', deleteError);
+04:23:31.176  [2m 51[0m | [31;1m|[0m         return res.status(500).json({
+04:23:31.176  [2m 52[0m | [31;1m|[0m           error: 'Failed to delete payment',
+04:23:31.176  [2m 53[0m | [31;1m|[0m           details: deleteError.message
+04:23:31.176  [2m 54[0m | [31;1m|[0m         });
+04:23:31.176  [2m 55[0m | [31;1m|[0m       }
+04:23:31.176  [2m 56[0m | [31;1m|[0m   
+04:23:31.176  [2m 57[0m | [31;1m|[0m       console.log('Payment deleted successfully:', paymentId);
+04:23:31.176  [2m 58[0m | [31;1m|[0m   
+04:23:31.176  [2m 59[0m | [31;1m|[0m       // Log the deletion
+04:23:31.176  [2m 60[0m | [31;1m|[0m       await supabaseAdmin
+04:23:31.177  [2m 61[0m | [31;1m|[0m         .from('system_logs')
+04:23:31.177  [2m 62[0m | [31;1m|[0m         .insert({
+04:23:31.177  [2m 63[0m | [31;1m|[0m           level: 'warning',
+04:23:31.177  [2m 64[0m | [31;1m|[0m           type: 'transaction',
+04:23:31.177  [2m 65[0m | [31;1m|[0m           message: `Loan payment deleted by admin`,
+04:23:31.177  [2m 66[0m | [31;1m|[0m           details: {
+04:23:31.177  [2m 67[0m | [31;1m|[0m             payment_id: paymentId,
+04:23:31.177  [2m 68[0m | [31;1m|[0m             deleted_by: authResult.adminId,
+04:23:31.177  [2m 69[0m | [31;1m|[0m             deleted_by_email: authResult.user?.email,
+04:23:31.177  [2m 70[0m | [31;1m|[0m             payment_amount: payment.amount,
+04:23:31.177  [2m 71[0m | [31;1m|[0m             payment_status: payment.status,
+04:23:31.177  [2m 72[0m | [31;1m|[0m             loan_id: payment.loan_id,
+04:23:31.177  [2m 73[0m | [31;1m|[0m             timestamp: new Date().toISOString()
+04:23:31.177  [2m 74[0m | [31;1m|[0m           },
+04:23:31.177  [2m 75[0m | [31;1m|[0m           admin_id: authResult.adminId
+04:23:31.177  [2m 76[0m | [31;1m|[0m         });
+04:23:31.177  [2m 77[0m | [31;1m|[0m   
+04:23:31.177  [2m 78[0m | [31;1m|[0m       return res.status(200).json({
+04:23:31.177  [2m 79[0m | [31;1m|[0m         success: true,
+04:23:31.177  [2m 80[0m | [31;1m|[0m         message: 'Payment deleted successfully'
+04:23:31.177  [2m 81[0m | [31;1m|[0m       });
+04:23:31.177  [2m 82[0m | [31;1m|[0m     } catch (error) {
+04:23:31.177  [2m 83[0m | [31;1m|[0m       console.error('Unexpected error:', error);
+04:23:31.177  [2m 84[0m | [31;1m|[0m       return res.status(500).json({
+04:23:31.177  [2m 85[0m | [31;1m|[0m         error: 'Internal server error',
+04:23:31.177  [2m 86[0m | [31;1m|[0m         details: error.message
+04:23:31.177  [2m 87[0m | [31;1m|[0m       });
+04:23:31.177  [2m 88[0m | [31;1m|[0m     }
+04:23:31.177  [2m 89[0m | [31;1m|[0m[31;1m-[0m[31;1m>[0m }
+04:23:31.177      : [31;1m`[0m[31;1m---[0m[31;1m-[0m [31;1mprevious exported here[0m
+04:23:31.177  [2m 90[0m |     import { createClient } from '@supabase/supabase-js';
+04:23:31.177  [2m 91[0m |     
+04:23:31.177  [2m 92[0m |     const supabase = createClient(
+04:23:31.177  [2m 93[0m |       process.env.NEXT_PUBLIC_SUPABASE_URL,
+04:23:31.177  [2m 94[0m |       process.env.SUPABASE_SERVICE_ROLE_KEY
+04:23:31.177  [2m 95[0m |     );
+04:23:31.177  [2m 96[0m |     
+04:23:31.177  [2m 97[0m | [33;1m,[0m[33;1m-[0m[33;1m>[0m export default async function handler(req, res) {
+04:23:31.178  [2m 98[0m | [33;1m|[0m     if (req.method !== 'POST') {
+04:23:31.178  [2m 99[0m | [33;1m|[0m       return res.status(405).json({ error: 'Method not allowed' });
+04:23:31.178  [2m100[0m | [33;1m|[0m     }
+04:23:31.178  [2m101[0m | [33;1m|[0m   
+04:23:31.178  [2m102[0m | [33;1m|[0m     try {
+04:23:31.178  [2m103[0m | [33;1m|[0m       const { paymentId } = req.body;
+04:23:31.178  [2m104[0m | [33;1m|[0m   
+04:23:31.178  [2m105[0m | [33;1m|[0m       if (!paymentId) {
+04:23:31.178  [2m106[0m | [33;1m|[0m         return res.status(400).json({ error: 'Payment ID is required' });
+04:23:31.178  [2m107[0m | [33;1m|[0m       }
+04:23:31.178  [2m108[0m | [33;1m|[0m   
+04:23:31.178  [2m109[0m | [33;1m|[0m       // First, check if payment exists
+04:23:31.178  [2m110[0m | [33;1m|[0m       const { data: payment, error: fetchError } = await supabase
+04:23:31.178  [2m111[0m | [33;1m|[0m         .from('loan_payments')
+04:23:31.178  [2m112[0m | [33;1m|[0m         .select('*')
+04:23:31.178  [2m113[0m | [33;1m|[0m         .eq('id', paymentId)
+04:23:31.178  [2m114[0m | [33;1m|[0m         .single();
+04:23:31.178  [2m115[0m | [33;1m|[0m   
+04:23:31.178  [2m116[0m | [33;1m|[0m       if (fetchError || !payment) {
+04:23:31.178  [2m117[0m | [33;1m|[0m         console.error('Payment fetch error:', fetchError);
+04:23:31.178  [2m118[0m | [33;1m|[0m         return res.status(404).json({ error: 'Payment not found' });
+04:23:31.178  [2m119[0m | [33;1m|[0m       }
+04:23:31.178  [2m120[0m | [33;1m|[0m   
+04:23:31.178  [2m121[0m | [33;1m|[0m       // Delete the payment
+04:23:31.178  [2m122[0m | [33;1m|[0m       const { error: deleteError } = await supabase
+04:23:31.178  [2m123[0m | [33;1m|[0m         .from('loan_payments')
+04:23:31.178  [2m124[0m | [33;1m|[0m         .delete()
+04:23:31.178  [2m125[0m | [33;1m|[0m         .eq('id', paymentId);
+04:23:31.178  [2m126[0m | [33;1m|[0m   
+04:23:31.178  [2m127[0m | [33;1m|[0m       if (deleteError) {
+04:23:31.178  [2m128[0m | [33;1m|[0m         console.error('Payment deletion error:', deleteError);
+04:23:31.178  [2m129[0m | [33;1m|[0m         return res.status(500).json({ error: 'Failed to delete payment', details: deleteError.message });
+04:23:31.178  [2m130[0m | [33;1m|[0m       }
+04:23:31.178  [2m131[0m | [33;1m|[0m   
+04:23:31.178  [2m132[0m | [33;1m|[0m       return res.status(200).json({
+04:23:31.178  [2m133[0m | [33;1m|[0m         success: true,
+04:23:31.178  [2m134[0m | [33;1m|[0m         message: 'Payment deleted successfully'
+04:23:31.179  [2m135[0m | [33;1m|[0m       });
+04:23:31.179  [2m136[0m | [33;1m|[0m   
+04:23:31.179  [2m137[0m | [33;1m|[0m     } catch (error) {
+04:23:31.179  [2m138[0m | [33;1m|[0m       console.error('Error in delete-loan-payment:', error);
+04:23:31.179  [2m139[0m | [33;1m|[0m       return res.status(500).json({ error: 'Internal server error', details: error.message });
+04:23:31.179  [2m140[0m | [33;1m|[0m     }
+04:23:31.179  [2m141[0m | [33;1m|[0m[33;1m-[0m[33;1m>[0m }
+04:23:31.179      : [33;1m`[0m[33;1m---[0m[33;1m-[0m [33;1mexported more than once[0m
+04:23:31.179      `----
+04:23:31.179 
+04:23:31.179 Error: 
+04:23:31.179   [36m>[0m Exported identifiers must be unique
+04:23:31.179 
+04:23:31.179 Import trace for requested module:
+04:23:31.179 ./pages/api/admin/delete-loan-payment.js
+04:23:31.179 
+04:23:31.184 
+04:23:31.184 > Build failed because of webpack errors
+04:23:31.210 Error: Command "npm run build" exited with 1
