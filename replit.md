@@ -108,3 +108,17 @@ Preferred communication style: Simple, everyday language.
 - **Quick Reject Flow:** Opens modal with reject pre-selected, requiring admin to provide rejection reason
 - **Validation:** Reject action requires non-empty rejection reason before submission
 - **Refund Processing:** Rejected payments automatically refund user account with full transaction logging
+
+## Recent Enhancements (Dec 04, 2025)
+
+### Loan Payment Status Dropdown Fix ✓
+- **targetStatus Parameter:** Frontend now passes the admin-selected status to the API
+- **Correct Status Transitions:** Selecting "completed" sets status to "completed", not "approved"
+- **Success Messages:** Distinct confirmation messages for approved vs completed status
+
+### Treasury Fee Crediting with Idempotency ✓
+- **Unique Reference Keys:** Each treasury credit uses `TRSRY-FEE-{paymentId}` as idempotency key
+- **Double-Credit Prevention:** System checks for existing transactions before crediting
+- **Duplicate Handling:** Both pre-check and database constraint (23505 error) handled gracefully
+- **Order of Operations:** Transaction record created before balance update for safety
+- **10% Fee Calculation:** Only applies to deposit payments (`is_deposit === true`)
