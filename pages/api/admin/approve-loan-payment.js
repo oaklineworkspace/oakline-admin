@@ -62,7 +62,7 @@ export default async function handler(req, res) {
           status: 'approved',
           approved_at: new Date().toISOString(),
           approved_by: adminId,
-          processed_at: new Date().toISOString()
+          processed_by: adminId
         };
 
         // Only update loan balance if this is not a deposit payment
