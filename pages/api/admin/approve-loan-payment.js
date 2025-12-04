@@ -86,7 +86,7 @@ async function sendPaymentApprovalEmail(payment, user, status, loanType) {
             ` : ''}
             
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://theoaklinebank.com'}/loans" 
+              <a href="https://www.theoaklinebank.com/loans" 
                  style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; display: inline-block;">
                 View Loan Details
               </a>
