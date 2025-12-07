@@ -148,7 +148,9 @@ export default function AdminLoans() {
     const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
     const paymentAmount = parseFloat(formData.amount);
 
-    if (Math.round(paymentAmount * 10000) > Math.round(remainingBalance * 10000)) {
+    const paymentCents = Math.round(paymentAmount * 1000);
+    const balanceCents = Math.round(remainingBalance * 1000);
+    if (paymentCents > balanceCents) {
       setErrorMessage(`Payment amount ($${paymentAmount.toFixed(3)}) cannot exceed remaining balance ($${remainingBalance.toFixed(3)})`);
       setShowErrorBanner(true);
       setTimeout(() => setShowErrorBanner(false), 3000);
@@ -1232,7 +1234,9 @@ export default function AdminLoans() {
                     const currentLoan = loans.find(l => l.id === formData.loanId);
                     const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
                     const paymentAmount = parseFloat(formData.amount || 0);
-                    const exceedsBalance = Math.round(paymentAmount * 10000) > Math.round(remainingBalance * 10000);
+                    const paymentCents = Math.round(paymentAmount * 1000);
+                    const balanceCents = Math.round(remainingBalance * 1000);
+                    const exceedsBalance = paymentCents > balanceCents;
                     
                     return (
                       <>
