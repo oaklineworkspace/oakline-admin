@@ -304,12 +304,31 @@ export default function LoanPayments() {
     return matchesStatus && matchesSearch;
   });
 
+  // Calculate comprehensive loan payment statistics
   const stats = {
     totalPayments: payments.length,
-    totalAmount: payments.reduce((sum, p) => sum + (parseFloat(p.payment_amount || p.amount || 0)), 0),
+    totalAmountPaid: payments
+      .filter(p => p.status === 'approved' || p.status === 'completed')
+      .reduce((sum, p) => sum + (parseFloat(p.payment_amount || p.amount || 0)), 0),
+    totalAmountPending: payments
+      .filter(p => p.status === 'pending' || p.status === 'processing')
+      .reduce((sum, p) => sum + (parseFloat(p.payment_amount || p.amount || 0)), 0),
+    totalPrincipalPaid: payments
+      .filter(p => p.status === 'approved' || p.status === 'completed')
+      .reduce((sum, p) => sum + (parseFloat(p.principal_amount || 0)), 0),
+    totalInterestPaid: payments
+      .filter(p => p.status === 'approved' || p.status === 'completed')
+      .reduce((sum, p) => sum + (parseFloat(p.interest_amount || 0)), 0),
+    totalLateFeePaid: payments
+      .filter(p => p.status === 'approved' || p.status === 'completed')
+      .reduce((sum, p) => sum + (parseFloat(p.late_fee || 0)), 0),
+    totalOutstanding: payments
+      .reduce((sum, p) => sum + (parseFloat(p.loan_remaining_balance || 0)), 0),
     pendingPayments: payments.filter(p => p.status === 'pending').length,
     approvedPayments: payments.filter(p => p.status === 'approved' || p.status === 'completed').length,
-    rejectedPayments: payments.filter(p => p.status === 'rejected').length
+    rejectedPayments: payments.filter(p => p.status === 'rejected').length,
+    uniqueLoans: [...new Set(payments.map(p => p.loan_id).filter(Boolean))].length,
+    uniqueBorrowers: [...new Set(payments.map(p => p.user_id).filter(Boolean))].length
   };
 
   return (
@@ -350,24 +369,44 @@ export default function LoanPayments() {
         ) : (
           <>
             <div style={styles.statsGrid}>
-              <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
-                <h3 style={styles.statLabel}>Total Payments</h3>
-                <p style={styles.statValue}>{stats.totalPayments}</p>
+              <div style={{...styles.statCard, borderLeft: '4px solid #10b981', background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'}}>
+                <h3 style={styles.statLabel}>💰 Total Paid (Approved)</h3>
+                <p style={{...styles.statValue, color: '#065f46'}}>${stats.totalAmountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#059669', marginTop: '4px'}}>
+                  Principal: ${stats.totalPrincipalPaid.toLocaleString()} | Interest: ${stats.totalInterestPaid.toLocaleString()}
+                </p>
               </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
-                <h3 style={styles.statLabel}>Total Amount</h3>
-                <p style={styles.statValue}>${stats.totalAmount.toFixed(2)}</p>
+              <div style={{...styles.statCard, borderLeft: '4px solid #ef4444', background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'}}>
+                <h3 style={styles.statLabel}>📊 Total Outstanding</h3>
+                <p style={{...styles.statValue, color: '#991b1b'}}>${stats.totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#dc2626', marginTop: '4px'}}>
+                  Remaining loan balances
+                </p>
               </div>
               <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
-                <h3 style={styles.statLabel}>Pending</h3>
+                <h3 style={styles.statLabel}>⏳ Pending Payments</h3>
                 <p style={styles.statValue}>{stats.pendingPayments}</p>
+                <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#92400e', marginTop: '4px'}}>
+                  ${stats.totalAmountPending.toLocaleString()}
+                </p>
               </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
-                <h3 style={styles.statLabel}>Approved</h3>
+              <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+                <h3 style={styles.statLabel}>📋 Total Transactions</h3>
+                <p style={styles.statValue}>{stats.totalPayments}</p>
+                <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#1e40af', marginTop: '4px'}}>
+                  {stats.uniqueLoans} loans | {stats.uniqueBorrowers} borrowers
+                </p>
+              </div>
+              <div style={{...styles.statCard, borderLeft: '4px solid #7c3aed'}}>
+                <h3 style={styles.statLabel}>⚠️ Late Fees Collected</h3>
+                <p style={styles.statValue}>${stats.totalLateFeePaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+              <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
+                <h3 style={styles.statLabel}>✅ Approved Payments</h3>
                 <p style={styles.statValue}>{stats.approvedPayments}</p>
               </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #ef4444'}}>
-                <h3 style={styles.statLabel}>Rejected</h3>
+              <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+                <h3 style={styles.statLabel}>❌ Rejected</h3>
                 <p style={styles.statValue}>{stats.rejectedPayments}</p>
               </div>
             </div>
