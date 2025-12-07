@@ -178,14 +178,24 @@ export default function AdminLoans() {
 
       if (!response.ok) throw new Error(result.error || 'Failed to process payment');
 
-      setSuccessMessage(`✅ Payment of $${paymentAmount.toFixed(2)} processed successfully`);
+      const newBalance = result.newBalance || 0;
+      const isLoanPaidOff = newBalance === 0;
+
+      setSuccessMessage(
+        isLoanPaidOff 
+          ? `🎉 Loan fully paid off! Payment of $${paymentAmount.toFixed(2)} processed successfully.`
+          : `✅ Payment of $${paymentAmount.toFixed(2)} processed successfully. Remaining balance: $${newBalance.toFixed(2)}`
+      );
       setShowSuccessBanner(true);
-      setTimeout(() => setShowSuccessBanner(false), 3000);
+      setTimeout(() => setShowSuccessBanner(false), 5000);
       
       setShowModal(null);
       setFormData({ ...formData, amount: '', note: '' });
       setUserAccount(null);
+      
+      // Refresh loans to get updated data
       await fetchLoans();
+      await fetchRecentPayments();
     } catch (err) {
       setErrorMessage(err.message || 'Failed to process payment');
       setShowErrorBanner(true);
