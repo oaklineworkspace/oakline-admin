@@ -294,7 +294,8 @@ export default function LoanPayments() {
       refund_processing: '#3b82f6',
       refund_completed: '#10b981',
       refund_rejected: '#ef4444',
-      refund_failed: '#ef4444'
+      refund_failed: '#ef4444',
+      active: '#10b981'
     };
     return colors[status] || '#6b7280';
   };
