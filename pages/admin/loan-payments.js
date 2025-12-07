@@ -19,6 +19,8 @@ export default function LoanPayments() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('all');
+  const [users, setUsers] = useState([]);
   const [updateForm, setUpdateForm] = useState({
     paymentAmount: '',
     principalAmount: '',
@@ -34,6 +36,7 @@ export default function LoanPayments() {
 
   useEffect(() => {
     fetchPayments();
+    fetchUsers();
   }, []);
 
   const fetchPayments = async () => {
@@ -64,6 +67,27 @@ export default function LoanPayments() {
       setError('Failed to load payments: ' + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-users-with-loans', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        setUsers(result.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -295,40 +319,55 @@ export default function LoanPayments() {
   };
 
   const filteredPayments = payments.filter(payment => {
+    const matchesUser = selectedUserId === 'all' || payment.user_id === selectedUserId;
     const matchesStatus = filterStatus === 'all' || payment.status === filterStatus;
     const matchesSearch = !searchTerm ||
       payment.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.loan_type?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesUser && matchesStatus && matchesSearch;
   });
 
-  // Calculate comprehensive loan payment statistics
+  // Calculate comprehensive loan payment statistics (filtered by user)
+  const basePayments = selectedUserId === 'all' ? payments : payments.filter(p => p.user_id === selectedUserId);
+  
   const stats = {
-    totalPayments: payments.length,
-    totalAmountPaid: payments
+    totalPayments: basePayments.length,
+    totalAmountPaid: basePayments
       .filter(p => p.status === 'approved' || p.status === 'completed')
       .reduce((sum, p) => sum + (parseFloat(p.payment_amount || p.amount || 0)), 0),
-    totalAmountPending: payments
+    totalAmountPending: basePayments
       .filter(p => p.status === 'pending' || p.status === 'processing')
       .reduce((sum, p) => sum + (parseFloat(p.payment_amount || p.amount || 0)), 0),
-    totalPrincipalPaid: payments
+    totalPrincipalPaid: basePayments
       .filter(p => p.status === 'approved' || p.status === 'completed')
       .reduce((sum, p) => sum + (parseFloat(p.principal_amount || 0)), 0),
-    totalInterestPaid: payments
+    totalInterestPaid: basePayments
       .filter(p => p.status === 'approved' || p.status === 'completed')
       .reduce((sum, p) => sum + (parseFloat(p.interest_amount || 0)), 0),
-    totalLateFeePaid: payments
+    totalLateFeePaid: basePayments
       .filter(p => p.status === 'approved' || p.status === 'completed')
       .reduce((sum, p) => sum + (parseFloat(p.late_fee || 0)), 0),
-    totalOutstanding: payments
-      .reduce((sum, p) => sum + (parseFloat(p.loan_remaining_balance || 0)), 0),
-    pendingPayments: payments.filter(p => p.status === 'pending').length,
-    approvedPayments: payments.filter(p => p.status === 'approved' || p.status === 'completed').length,
-    rejectedPayments: payments.filter(p => p.status === 'rejected').length,
-    uniqueLoans: [...new Set(payments.map(p => p.loan_id).filter(Boolean))].length,
-    uniqueBorrowers: [...new Set(payments.map(p => p.user_id).filter(Boolean))].length
+    totalOutstanding: basePayments.length > 0
+      ? basePayments.reduce((sum, p, idx, arr) => {
+          // Get unique loans for this user/all users
+          const uniqueLoanIds = [...new Set(arr.map(x => x.loan_id).filter(Boolean))];
+          if (idx === 0) {
+            // For the first iteration, sum up unique loan balances
+            return uniqueLoanIds.reduce((loanSum, loanId) => {
+              const loanPayment = arr.find(x => x.loan_id === loanId);
+              return loanSum + (parseFloat(loanPayment?.loan_remaining_balance || 0));
+            }, 0);
+          }
+          return sum;
+        }, 0)
+      : 0,
+    pendingPayments: basePayments.filter(p => p.status === 'pending').length,
+    approvedPayments: basePayments.filter(p => p.status === 'approved' || p.status === 'completed').length,
+    rejectedPayments: basePayments.filter(p => p.status === 'rejected').length,
+    uniqueLoans: [...new Set(basePayments.map(p => p.loan_id).filter(Boolean))].length,
+    uniqueBorrowers: [...new Set(basePayments.map(p => p.user_id).filter(Boolean))].length
   };
 
   return (
@@ -375,13 +414,23 @@ export default function LoanPayments() {
                 <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#059669', marginTop: '4px'}}>
                   Principal: ${stats.totalPrincipalPaid.toLocaleString()} | Interest: ${stats.totalInterestPaid.toLocaleString()}
                 </p>
+                {selectedUserId !== 'all' && (
+                  <p style={{fontSize: 'clamp(0.7rem, 1.6vw, 11px)', color: '#047857', marginTop: '4px', fontWeight: '600'}}>
+                    📌 User-specific total
+                  </p>
+                )}
               </div>
               <div style={{...styles.statCard, borderLeft: '4px solid #ef4444', background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'}}>
                 <h3 style={styles.statLabel}>📊 Total Outstanding</h3>
                 <p style={{...styles.statValue, color: '#991b1b'}}>${stats.totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#dc2626', marginTop: '4px'}}>
-                  Remaining loan balances
+                  {selectedUserId !== 'all' ? 'User remaining balance' : 'All remaining balances'}
                 </p>
+                {selectedUserId !== 'all' && (
+                  <p style={{fontSize: 'clamp(0.7rem, 1.6vw, 11px)', color: '#b91c1c', marginTop: '4px', fontWeight: '600'}}>
+                    📌 User owes this amount
+                  </p>
+                )}
               </div>
               <div style={{...styles.statCard, borderLeft: '4px solid #f59e0b'}}>
                 <h3 style={styles.statLabel}>⏳ Pending Payments</h3>
@@ -412,6 +461,18 @@ export default function LoanPayments() {
             </div>
 
             <div style={styles.filtersContainer}>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                style={{...styles.select, minWidth: '250px'}}
+              >
+                <option value="all">All Users ({users.length})</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email} ({user.loan_count} {user.loan_count === 1 ? 'loan' : 'loans'})
+                  </option>
+                ))}
+              </select>
               <input
                 type="text"
                 placeholder="Search by email, name, reference, or loan type..."
