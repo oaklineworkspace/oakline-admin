@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -108,7 +107,7 @@ export default function LoanPayments() {
 
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate required fields based on status
     if (updateForm.status === 'rejected' && !updateForm.rejectionReason?.trim()) {
       setError('Please provide a rejection reason');
@@ -251,7 +250,7 @@ export default function LoanPayments() {
 
       // Determine if this is a loan deposit or regular payment
       const isLoanDeposit = payment.is_deposit === true;
-      
+
       // Call the admin API to get the signed URL
       const response = await fetch('/api/admin/get-proof-url', {
         method: 'POST',
@@ -331,7 +330,7 @@ export default function LoanPayments() {
 
   // Calculate comprehensive loan payment statistics (filtered by user)
   const basePayments = selectedUserId === 'all' ? payments : payments.filter(p => p.user_id === selectedUserId);
-  
+
   const stats = {
     totalPayments: basePayments.length,
     totalAmountPaid: basePayments
@@ -370,6 +369,38 @@ export default function LoanPayments() {
     uniqueBorrowers: [...new Set(basePayments.map(p => p.user_id).filter(Boolean))].length
   };
 
+  // Calculate loan details for the selected user
+  const selectedUserLoans = selectedUserId === 'all' ? [] : payments.filter(p => p.user_id === selectedUserId);
+  const loanDetails = selectedUserLoans.reduce((acc, payment) => {
+    const loanId = payment.loan_id;
+    if (!loanId) return acc;
+
+    if (!acc[loanId]) {
+      acc[loanId] = {
+        loanId: loanId,
+        loanType: payment.loan_type || 'N/A',
+        loanPrincipal: parseFloat(payment.loan_principal || 0),
+        loanRemainingBalance: parseFloat(payment.loan_remaining_balance || 0),
+        loanMonthlyPayment: parseFloat(payment.loan_monthly_payment || 0),
+        loanStatus: payment.loan_status || 'N/A',
+        totalPaidForLoan: 0,
+        principalPaidForLoan: 0,
+        interestPaidForLoan: 0,
+        lateFeePaidForLoan: 0,
+      };
+    }
+
+    if (payment.status === 'approved' || payment.status === 'completed') {
+      acc[loanId].totalPaidForLoan += parseFloat(payment.payment_amount || payment.amount || 0);
+      acc[loanId].principalPaidForLoan += parseFloat(payment.principal_amount || 0);
+      acc[loanId].interestPaidForLoan += parseFloat(payment.interest_amount || 0);
+      acc[loanId].lateFeePaidForLoan += parseFloat(payment.late_fee || 0);
+    }
+    return acc;
+  }, {});
+
+  const loanDetailsArray = Object.values(loanDetails);
+
   return (
     <AdminAuth>
       <div style={styles.container}>
@@ -407,6 +438,7 @@ export default function LoanPayments() {
           </div>
         ) : (
           <>
+            {/* Overall Statistics */}
             <div style={styles.statsGrid}>
               <div style={{...styles.statCard, borderLeft: '4px solid #10b981', background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'}}>
                 <h3 style={styles.statLabel}>💰 Total Paid (Approved)</h3>
@@ -439,17 +471,6 @@ export default function LoanPayments() {
                   ${stats.totalAmountPending.toLocaleString()}
                 </p>
               </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
-                <h3 style={styles.statLabel}>📋 Total Transactions</h3>
-                <p style={styles.statValue}>{stats.totalPayments}</p>
-                <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#1e40af', marginTop: '4px'}}>
-                  {stats.uniqueLoans} loans | {stats.uniqueBorrowers} borrowers
-                </p>
-              </div>
-              <div style={{...styles.statCard, borderLeft: '4px solid #7c3aed'}}>
-                <h3 style={styles.statLabel}>⚠️ Late Fees Collected</h3>
-                <p style={styles.statValue}>${stats.totalLateFeePaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              </div>
               <div style={{...styles.statCard, borderLeft: '4px solid #059669'}}>
                 <h3 style={styles.statLabel}>✅ Approved Payments</h3>
                 <p style={styles.statValue}>{stats.approvedPayments}</p>
@@ -457,6 +478,13 @@ export default function LoanPayments() {
               <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
                 <h3 style={styles.statLabel}>❌ Rejected</h3>
                 <p style={styles.statValue}>{stats.rejectedPayments}</p>
+              </div>
+              <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+                <h3 style={styles.statLabel}>📋 Total Transactions</h3>
+                <p style={styles.statValue}>{stats.totalPayments}</p>
+                <p style={{fontSize: 'clamp(0.75rem, 1.8vw, 12px)', color: '#1e40af', marginTop: '4px'}}>
+                  {stats.uniqueLoans} loans | {stats.uniqueBorrowers} borrowers
+                </p>
               </div>
             </div>
 
@@ -496,6 +524,90 @@ export default function LoanPayments() {
                 <option value="refund_completed">Refund Completed</option>
               </select>
             </div>
+
+            {/* Loan Details Section for Selected User */}
+            {selectedUserId !== 'all' && loanDetailsArray.length > 0 && (
+              <div style={styles.loanDetailsSection}>
+                <h2 style={styles.loanDetailsSectionTitle}>
+                  Loan Details for {users.find(u => u.id === selectedUserId)?.name || users.find(u => u.id === selectedUserId)?.email || 'Selected User'}
+                </h2>
+                <div style={styles.loanSummaryCards}>
+                  <div style={styles.loanSummaryCard}>
+                    <p style={styles.loanSummaryLabel}>Total Amount Owed</p>
+                    <p style={styles.loanSummaryValue}>${loanDetailsArray.reduce((sum, loan) => sum + loan.loanPrincipal, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p style={styles.loanSummarySubtext}>Original Principal Amount across all loans</p>
+                  </div>
+                  <div style={styles.loanSummaryCard}>
+                    <p style={styles.loanSummaryLabel}>Total Amount Paid</p>
+                    <p style={styles.loanSummaryValue}>${loanDetailsArray.reduce((sum, loan) => sum + loan.totalPaidForLoan, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p style={styles.loanSummarySubtext}>Total of approved/completed payments</p>
+                  </div>
+                  <div style={styles.loanSummaryCard}>
+                    <p style={styles.loanSummaryLabel}>Remaining Balance</p>
+                    <p style={styles.loanSummaryValue}>${loanDetailsArray.reduce((sum, loan) => sum + loan.loanRemainingBalance, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p style={styles.loanSummarySubtext}>Current outstanding balance</p>
+                  </div>
+                  <div style={styles.loanSummaryCard}>
+                    <p style={styles.loanSummaryLabel}>Total Late Fees Paid</p>
+                    <p style={styles.loanSummaryValue}>${loanDetailsArray.reduce((sum, loan) => sum + loan.lateFeePaidForLoan, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p style={styles.loanSummarySubtext}>Collected late fees</p>
+                  </div>
+                </div>
+
+                <div style={styles.individualLoansContainer}>
+                  <h3 style={styles.individualLoansTitle}>Individual Loans</h3>
+                  <div style={styles.individualLoansGrid}>
+                    {loanDetailsArray.map(loan => (
+                      <div key={loan.loanId} style={styles.individualLoanCard}>
+                        <div style={styles.individualLoanHeader}>
+                          <div>
+                            <h4 style={styles.individualLoanType}>{loan.loanType}</h4>
+                            <p style={styles.individualLoanId}>ID: {loan.loanId}</p>
+                          </div>
+                          <span style={{
+                            ...styles.loanStatusBadge,
+                            backgroundColor: getStatusColor(loan.loanStatus) + '20',
+                            color: getStatusColor(loan.loanStatus)
+                          }}>
+                            {loan.loanStatus}
+                          </span>
+                        </div>
+                        <div style={styles.individualLoanBody}>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Principal</span>
+                            <span style={styles.loanDetailValue}>${loan.loanPrincipal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Remaining Balance</span>
+                            <span style={styles.loanDetailValue}>${loan.loanRemainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Monthly Payment</span>
+                            <span style={styles.loanDetailValue}>${loan.loanMonthlyPayment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Total Paid</span>
+                            <span style={styles.loanDetailValue}>${loan.totalPaidForLoan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Principal Paid</span>
+                            <span style={styles.loanDetailValue}>${loan.principalPaidForLoan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Interest Paid</span>
+                            <span style={styles.loanDetailValue}>${loan.interestPaidForLoan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={styles.loanDetailRow}>
+                            <span style={styles.loanDetailLabel}>Late Fees</span>
+                            <span style={styles.loanDetailValue}>${loan.lateFeePaidForLoan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={styles.tableContainer}>
               {filteredPayments.length === 0 ? (
@@ -1351,5 +1463,120 @@ const styles = {
     justifyContent: 'flex-end',
     marginTop: '20px',
     flexWrap: 'wrap'
+  },
+  // New styles for loan details section
+  loanDetailsSection: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(1.5rem, 4vw, 24px)',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  loanDetailsSummary: {
+    marginBottom: '24px'
+  },
+  loanDetailsSectionTitle: {
+    margin: '0 0 20px 0',
+    fontSize: 'clamp(1.25rem, 3.5vw, 22px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  loanSummaryCards: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '16px',
+    marginBottom: '24px'
+  },
+  loanSummaryCard: {
+    background: '#f9fafb',
+    padding: '20px',
+    borderRadius: '8px'
+  },
+  loanSummaryLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    color: '#4a5568',
+    marginBottom: '8px',
+    fontWeight: '600'
+  },
+  loanSummaryValue: {
+    fontSize: 'clamp(1.5rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700',
+    marginBottom: '4px'
+  },
+  loanSummarySubtext: {
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#718096'
+  },
+  individualLoansContainer: {
+    borderTop: '2px solid #e2e8f0',
+    paddingTop: '24px'
+  },
+  individualLoansTitle: {
+    margin: '0 0 16px 0',
+    fontSize: 'clamp(1.1rem, 3vw, 18px)',
+    color: '#1A3E6F',
+    fontWeight: '600'
+  },
+  individualLoansGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))',
+    gap: '16px'
+  },
+  individualLoanCard: {
+    background: '#ffffff',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '16px',
+    transition: 'box-shadow 0.2s'
+  },
+  individualLoanHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '16px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid #f7fafc'
+  },
+  individualLoanType: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1rem, 2.5vw, 16px)',
+    color: '#1A3E6F',
+    fontWeight: '700',
+    textTransform: 'capitalize'
+  },
+  individualLoanId: {
+    margin: 0,
+    fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+    color: '#718096'
+  },
+  loanStatusBadge: {
+    padding: '4px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.7rem, 1.6vw, 11px)',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  individualLoanBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  loanDetailRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    padding: '6px 0'
+  },
+  loanDetailLabel: {
+    color: '#4a5568',
+    fontWeight: '500'
+  },
+  loanDetailValue: {
+    color: '#1A3E6F',
+    fontWeight: '600',
+    textAlign: 'right'
   }
 };
