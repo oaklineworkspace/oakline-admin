@@ -870,6 +870,14 @@ export default function AdminLoans() {
                         ❌ Reject
                       </button>
                     )}
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) > 0 && (
+                      <button onClick={() => {
+                        setFormData({...formData, loanId: loan.id, amount: ''});
+                        setShowModal('payment');
+                      }} style={styles.paymentButton}>
+                        💰 Process Payment
+                      </button>
+                    )}
                     {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) === 0 && (
                       <button
                         onClick={() => handleCloseLoan(loan.id)}
@@ -877,14 +885,6 @@ export default function AdminLoans() {
                         disabled={loading}
                       >
                         ✅ Close Loan
-                      </button>
-                    )}
-                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) > 0 && (
-                      <button onClick={() => {
-                        setFormData({...formData, loanId: loan.id});
-                        setShowModal('payment');
-                      }} style={styles.paymentButton}>
-                        💰 Process Payment
                       </button>
                     )}
                   </div>
@@ -1145,29 +1145,74 @@ export default function AdminLoans() {
                 <button onClick={() => setShowModal(null)} style={styles.closeButton}>×</button>
               </div>
               <div style={styles.modalBody}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Payment Amount</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    style={styles.input}
-                    placeholder="Enter payment amount"
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Note (Optional)</label>
-                  <textarea
-                    value={formData.note}
-                    onChange={(e) => setFormData({...formData, note: e.target.value})}
-                    style={{...styles.input, minHeight: '60px'}}
-                    placeholder="Payment note..."
-                  />
-                </div>
-                <button onClick={handleProcessPayment} style={styles.submitButton}>
-                  Process Payment
-                </button>
+                {(() => {
+                  const currentLoan = loans.find(l => l.id === formData.loanId);
+                  const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
+                  const paymentAmount = parseFloat(formData.amount || 0);
+                  const exceedsBalance = paymentAmount > remainingBalance;
+                  
+                  return (
+                    <>
+                      <div style={{background: '#f0fdf4', border: '2px solid #10b981', borderRadius: '8px', padding: '16px', marginBottom: '20px'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                          <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>Remaining Balance:</span>
+                          <span style={{color: '#065f46', fontWeight: '700', fontSize: 'clamp(1.25rem, 3vw, 24px)'}}>
+                            ${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <span style={{color: '#065f46', fontSize: 'clamp(0.8rem, 2vw, 13px)'}}>Monthly Payment:</span>
+                          <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.9rem, 2.2vw, 16px)'}}>
+                            ${parseFloat(currentLoan?.monthly_payment_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Payment Amount *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.amount}
+                          onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                          style={{
+                            ...styles.input,
+                            borderColor: exceedsBalance && paymentAmount > 0 ? '#dc2626' : '#e2e8f0'
+                          }}
+                          placeholder="Enter payment amount"
+                          max={remainingBalance}
+                        />
+                        {exceedsBalance && paymentAmount > 0 && (
+                          <p style={{color: '#dc2626', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', fontWeight: '600'}}>
+                            ⚠️ Amount cannot exceed remaining balance of ${remainingBalance.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Note (Optional)</label>
+                        <textarea
+                          value={formData.note}
+                          onChange={(e) => setFormData({...formData, note: e.target.value})}
+                          style={{...styles.input, minHeight: '60px'}}
+                          placeholder="Payment note..."
+                        />
+                      </div>
+                      
+                      <button 
+                        onClick={handleProcessPayment} 
+                        style={{
+                          ...styles.submitButton,
+                          opacity: exceedsBalance || paymentAmount <= 0 ? 0.5 : 1,
+                          cursor: exceedsBalance || paymentAmount <= 0 ? 'not-allowed' : 'pointer'
+                        }}
+                        disabled={exceedsBalance || paymentAmount <= 0}
+                      >
+                        Process Payment
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
