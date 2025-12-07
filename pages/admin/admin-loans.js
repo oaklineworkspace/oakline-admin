@@ -33,6 +33,12 @@ export default function AdminLoans() {
     monthlyPayment: '',
     adminPassword: ''
   });
+  const [processing, setProcessing] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [userAccount, setUserAccount] = useState(null);
   const [loanToApprove, setLoanToApprove] = useState(null);
   const [treasuryBalance, setTreasuryBalance] = useState(0);
   const [recentPayments, setRecentPayments] = useState([]);
@@ -132,7 +138,9 @@ export default function AdminLoans() {
 
   const handleProcessPayment = async () => {
     if (!formData.amount || !formData.loanId) {
-      setError('Amount and loan ID are required');
+      setErrorMessage('Amount and loan ID are required');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
       return;
     }
 
@@ -141,14 +149,24 @@ export default function AdminLoans() {
     const paymentAmount = parseFloat(formData.amount);
 
     if (paymentAmount > remainingBalance) {
-      setError(`Payment amount ($${paymentAmount.toFixed(2)}) cannot exceed remaining balance ($${remainingBalance.toFixed(2)})`);
+      setErrorMessage(`Payment amount ($${paymentAmount.toFixed(2)}) cannot exceed remaining balance ($${remainingBalance.toFixed(2)})`);
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
       return;
     }
 
+    setProcessing(true);
+    setError('');
+
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch('/api/admin/process-loan-payment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           loanId: formData.loanId,
           amount: paymentAmount,
@@ -156,14 +174,24 @@ export default function AdminLoans() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to process payment');
+      const result = await response.json();
 
-      setSuccess('Payment processed successfully');
+      if (!response.ok) throw new Error(result.error || 'Failed to process payment');
+
+      setSuccessMessage(`✅ Payment of $${paymentAmount.toFixed(2)} processed successfully`);
+      setShowSuccessBanner(true);
+      setTimeout(() => setShowSuccessBanner(false), 3000);
+      
       setShowModal(null);
       setFormData({ ...formData, amount: '', note: '' });
+      setUserAccount(null);
       await fetchLoans();
     } catch (err) {
-      setError(err.message);
+      setErrorMessage(err.message || 'Failed to process payment');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -871,8 +899,31 @@ export default function AdminLoans() {
                       </button>
                     )}
                     {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) > 0 && (
-                      <button onClick={() => {
-                        setFormData({...formData, loanId: loan.id, amount: ''});
+                      <button onClick={async () => {
+                        // Fetch user's account information
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          const response = await fetch(`/api/admin/get-user-accounts?userId=${loan.user_id}`, {
+                            headers: { 'Authorization': `Bearer ${session.access_token}` }
+                          });
+                          const result = await response.json();
+                          if (result.accounts && result.accounts.length > 0) {
+                            setUserAccount(result.accounts[0]);
+                          }
+                        } catch (err) {
+                          console.error('Error fetching user account:', err);
+                        }
+                        
+                        // Auto-fill with monthly payment amount
+                        const monthlyPayment = parseFloat(loan.monthly_payment_amount || 0);
+                        const remainingBalance = parseFloat(loan.remaining_balance || 0);
+                        const autoFillAmount = Math.min(monthlyPayment, remainingBalance);
+                        
+                        setFormData({
+                          ...formData, 
+                          loanId: loan.id, 
+                          amount: autoFillAmount.toFixed(2)
+                        });
                         setShowModal('payment');
                       }} style={styles.paymentButton}>
                         💰 Process Payment
@@ -1138,81 +1189,125 @@ export default function AdminLoans() {
 
         {/* Payment Modal */}
         {showModal === 'payment' && (
-          <div style={styles.modalOverlay} onClick={() => setShowModal(null)}>
+          <div style={styles.modalOverlay} onClick={() => {
+            if (!processing) {
+              setShowModal(null);
+              setUserAccount(null);
+            }
+          }}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>Process Loan Payment</h2>
-                <button onClick={() => setShowModal(null)} style={styles.closeButton}>×</button>
+                <button 
+                  onClick={() => {
+                    if (!processing) {
+                      setShowModal(null);
+                      setUserAccount(null);
+                    }
+                  }} 
+                  style={styles.closeButton}
+                  disabled={processing}
+                >×</button>
               </div>
               <div style={styles.modalBody}>
-                {(() => {
-                  const currentLoan = loans.find(l => l.id === formData.loanId);
-                  const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
-                  const paymentAmount = parseFloat(formData.amount || 0);
-                  const exceedsBalance = paymentAmount > remainingBalance;
-                  
-                  return (
-                    <>
-                      <div style={{background: '#f0fdf4', border: '2px solid #10b981', borderRadius: '8px', padding: '16px', marginBottom: '20px'}}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                          <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>Remaining Balance:</span>
-                          <span style={{color: '#065f46', fontWeight: '700', fontSize: 'clamp(1.25rem, 3vw, 24px)'}}>
-                            ${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <span style={{color: '#065f46', fontSize: 'clamp(0.8rem, 2vw, 13px)'}}>Monthly Payment:</span>
-                          <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.9rem, 2.2vw, 16px)'}}>
-                            ${parseFloat(currentLoan?.monthly_payment_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div style={styles.formGroup}>
-                        <label style={styles.label}>Payment Amount *</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.amount}
-                          onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                          style={{
-                            ...styles.input,
-                            borderColor: exceedsBalance && paymentAmount > 0 ? '#dc2626' : '#e2e8f0'
-                          }}
-                          placeholder="Enter payment amount"
-                          max={remainingBalance}
-                        />
-                        {exceedsBalance && paymentAmount > 0 && (
-                          <p style={{color: '#dc2626', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', fontWeight: '600'}}>
-                            ⚠️ Amount cannot exceed remaining balance of ${remainingBalance.toFixed(2)}
-                          </p>
+                {processing ? (
+                  <div style={styles.loadingState}>
+                    <div style={styles.spinner}></div>
+                    <p style={{color: '#1e40af', fontWeight: '600', fontSize: 'clamp(0.95rem, 2.5vw, 16px)'}}>
+                      Processing payment...
+                    </p>
+                  </div>
+                ) : (
+                  (() => {
+                    const currentLoan = loans.find(l => l.id === formData.loanId);
+                    const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
+                    const paymentAmount = parseFloat(formData.amount || 0);
+                    const exceedsBalance = paymentAmount > remainingBalance;
+                    
+                    return (
+                      <>
+                        {/* User Account Info */}
+                        {userAccount && (
+                          <div style={{background: '#eff6ff', border: '2px solid #3b82f6', borderRadius: '8px', padding: '16px', marginBottom: '20px'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                              <span style={{color: '#1e40af', fontWeight: '600', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>
+                                Payment From Account:
+                              </span>
+                              <span style={{color: '#1e40af', fontWeight: '700', fontSize: 'clamp(0.95rem, 2.5vw, 16px)', fontFamily: 'monospace'}}>
+                                {userAccount.account_number}
+                              </span>
+                            </div>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                              <span style={{color: '#1e40af', fontSize: 'clamp(0.8rem, 2vw, 13px)'}}>Account Balance:</span>
+                              <span style={{color: '#1e40af', fontWeight: '600', fontSize: 'clamp(0.9rem, 2.2vw, 16px)'}}>
+                                ${parseFloat(userAccount.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
                         )}
-                      </div>
-                      
-                      <div style={styles.formGroup}>
-                        <label style={styles.label}>Note (Optional)</label>
-                        <textarea
-                          value={formData.note}
-                          onChange={(e) => setFormData({...formData, note: e.target.value})}
-                          style={{...styles.input, minHeight: '60px'}}
-                          placeholder="Payment note..."
-                        />
-                      </div>
-                      
-                      <button 
-                        onClick={handleProcessPayment} 
-                        style={{
-                          ...styles.submitButton,
-                          opacity: exceedsBalance || paymentAmount <= 0 ? 0.5 : 1,
-                          cursor: exceedsBalance || paymentAmount <= 0 ? 'not-allowed' : 'pointer'
-                        }}
-                        disabled={exceedsBalance || paymentAmount <= 0}
-                      >
-                        Process Payment
-                      </button>
-                    </>
-                  );
-                })()}
+
+                        {/* Loan Balance Info */}
+                        <div style={{background: '#f0fdf4', border: '2px solid #10b981', borderRadius: '8px', padding: '16px', marginBottom: '20px'}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                            <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>Remaining Balance:</span>
+                            <span style={{color: '#065f46', fontWeight: '700', fontSize: 'clamp(1.25rem, 3vw, 24px)'}}>
+                              ${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <span style={{color: '#065f46', fontSize: 'clamp(0.8rem, 2vw, 13px)'}}>Monthly Payment:</span>
+                            <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.9rem, 2.2vw, 16px)'}}>
+                              ${parseFloat(currentLoan?.monthly_payment_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Payment Amount *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.amount}
+                            onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                            style={{
+                              ...styles.input,
+                              borderColor: exceedsBalance && paymentAmount > 0 ? '#dc2626' : '#e2e8f0'
+                            }}
+                            placeholder="Enter payment amount"
+                            max={remainingBalance}
+                          />
+                          {exceedsBalance && paymentAmount > 0 && (
+                            <p style={{color: '#dc2626', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', fontWeight: '600'}}>
+                              ⚠️ Amount cannot exceed remaining balance of ${remainingBalance.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Note (Optional)</label>
+                          <textarea
+                            value={formData.note}
+                            onChange={(e) => setFormData({...formData, note: e.target.value})}
+                            style={{...styles.input, minHeight: '60px'}}
+                            placeholder="Payment note..."
+                          />
+                        </div>
+                        
+                        <button 
+                          onClick={handleProcessPayment} 
+                          style={{
+                            ...styles.submitButton,
+                            opacity: exceedsBalance || paymentAmount <= 0 || processing ? 0.5 : 1,
+                            cursor: exceedsBalance || paymentAmount <= 0 || processing ? 'not-allowed' : 'pointer'
+                          }}
+                          disabled={exceedsBalance || paymentAmount <= 0 || processing}
+                        >
+                          {processing ? 'Processing...' : 'Process Payment'}
+                        </button>
+                      </>
+                    );
+                  })()
+                )}
               </div>
             </div>
           </div>
@@ -1366,6 +1461,46 @@ export default function AdminLoans() {
                 >
                   Confirm Rejection
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>Success</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerAction}>Payment Processed!</p>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+              <div style={styles.successBannerFooter}>
+                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerOkButton}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {showErrorBanner && (
+          <div style={styles.errorBannerOverlay}>
+            <div style={styles.errorBannerContainer}>
+              <div style={styles.errorBannerHeader}>
+                <span style={styles.errorBannerLogo}>Error</span>
+                <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerClose}>✕</button>
+              </div>
+              <div style={styles.errorBannerContent}>
+                <p style={styles.errorBannerAction}>Oops!</p>
+                <p style={styles.errorBannerMessage}>{errorMessage}</p>
+              </div>
+              <div style={styles.errorBannerFooter}>
+                <span style={styles.errorBannerWarning}>⚠️ An error occurred</span>
+                <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerOkButton}>OK</button>
               </div>
             </div>
           </div>
@@ -2047,5 +2182,201 @@ const styles = {
     padding: '4px 10px',
     background: '#f7fafc',
     borderRadius: '6px'
+  },
+  
+  // Success Banner Styles
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  },
+  
+  // Error Banner Styles
+  errorBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  errorBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  errorBannerHeader: {
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  errorBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  errorBannerContent: {
+    padding: '30px 20px'
+  },
+  errorBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#dc2626',
+    textAlign: 'center'
+  },
+  errorBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  errorBannerFooter: {
+    backgroundColor: '#fef2f2',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerWarning: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  errorBannerOkButton: {
+    padding: '8px 24px',
+    background: '#dc2626',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   }
 };
