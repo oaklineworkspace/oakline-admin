@@ -148,8 +148,8 @@ export default function AdminLoans() {
     const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
     const paymentAmount = parseFloat(formData.amount);
 
-    if (paymentAmount > remainingBalance) {
-      setErrorMessage(`Payment amount ($${paymentAmount.toFixed(2)}) cannot exceed remaining balance ($${remainingBalance.toFixed(2)})`);
+    if (paymentAmount > remainingBalance + 0.0001) {
+      setErrorMessage(`Payment amount ($${paymentAmount.toFixed(3)}) cannot exceed remaining balance ($${remainingBalance.toFixed(3)})`);
       setShowErrorBanner(true);
       setTimeout(() => setShowErrorBanner(false), 3000);
       return;
@@ -760,7 +760,7 @@ export default function AdminLoans() {
                     <div style={styles.loanInfo}>
                       <span style={styles.infoLabel}>Remaining:</span>
                       <span style={{...styles.infoValue, color: '#059669', fontWeight: '600'}}>
-                        ${parseFloat(loan.remaining_balance || 0).toLocaleString()}
+                        ${parseFloat(loan.remaining_balance || 0) < 0.01 && parseFloat(loan.remaining_balance || 0) > 0 ? parseFloat(loan.remaining_balance || 0).toFixed(3) : parseFloat(loan.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div style={styles.loanInfo}>
@@ -1051,7 +1051,7 @@ export default function AdminLoans() {
                   </div>
                   <div style={styles.detailItem}>
                     <span style={styles.detailLabel}>Remaining Balance:</span>
-                    <span style={styles.detailValue}>${parseFloat(selectedLoan.remaining_balance || 0).toLocaleString()}</span>
+                    <span style={styles.detailValue}>${parseFloat(selectedLoan.remaining_balance || 0) < 0.01 && parseFloat(selectedLoan.remaining_balance || 0) > 0 ? parseFloat(selectedLoan.remaining_balance || 0).toFixed(3) : parseFloat(selectedLoan.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div style={styles.detailItem}>
                     <span style={styles.detailLabel}>Interest Rate:</span>
@@ -1232,7 +1232,7 @@ export default function AdminLoans() {
                     const currentLoan = loans.find(l => l.id === formData.loanId);
                     const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
                     const paymentAmount = parseFloat(formData.amount || 0);
-                    const exceedsBalance = paymentAmount > remainingBalance;
+                    const exceedsBalance = paymentAmount > remainingBalance + 0.0001;
                     
                     return (
                       <>
@@ -1261,7 +1261,7 @@ export default function AdminLoans() {
                           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
                             <span style={{color: '#065f46', fontWeight: '600', fontSize: 'clamp(0.85rem, 2vw, 14px)'}}>Remaining Balance:</span>
                             <span style={{color: '#065f46', fontWeight: '700', fontSize: 'clamp(1.25rem, 3vw, 24px)'}}>
-                              ${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${remainingBalance < 0.01 && remainingBalance > 0 ? remainingBalance.toFixed(3) : remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
                           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -1276,7 +1276,7 @@ export default function AdminLoans() {
                           <label style={styles.label}>Payment Amount *</label>
                           <input
                             type="number"
-                            step="0.01"
+                            step="0.001"
                             value={formData.amount}
                             onChange={(e) => setFormData({...formData, amount: e.target.value})}
                             style={{
@@ -1288,7 +1288,7 @@ export default function AdminLoans() {
                           />
                           {exceedsBalance && paymentAmount > 0 && (
                             <p style={{color: '#dc2626', fontSize: 'clamp(0.75rem, 1.8vw, 12px)', marginTop: '4px', fontWeight: '600'}}>
-                              ⚠️ Amount cannot exceed remaining balance of ${remainingBalance.toFixed(2)}
+                              ⚠️ Amount cannot exceed remaining balance of ${remainingBalance < 0.01 && remainingBalance > 0 ? remainingBalance.toFixed(3) : remainingBalance.toFixed(2)}
                             </p>
                           )}
                         </div>
