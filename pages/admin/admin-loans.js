@@ -288,6 +288,57 @@ export default function AdminLoans() {
     }
   };
 
+  const handleCloseLoan = async (loanId) => {
+    const loan = loans.find(l => l.id === loanId);
+
+    if (!loan) {
+      setError('Loan not found');
+      return;
+    }
+
+    if (!confirm(`Close this loan for ${loan.user_name || loan.user_email}? This action confirms all payments have been completed.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Session expired. Please login again.');
+      }
+
+      const response = await fetch('/api/admin/update-loan-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          loanId,
+          status: 'closed',
+          userId: loan.user_id,
+          userEmail: loan.user_email
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to close loan');
+      }
+
+      setSuccess('Loan closed successfully! User has been notified.');
+      await fetchLoans();
+    } catch (error) {
+      console.error('Loan closure error:', error);
+      setError(error.message || 'Failed to close loan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRejectLoan = async (loanId, reason) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -810,7 +861,16 @@ export default function AdminLoans() {
                         ❌ Reject
                       </button>
                     )}
-                    {loan.status === 'active' && (
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) === 0 && (
+                      <button
+                        onClick={() => handleCloseLoan(loan.id)}
+                        style={styles.closeLoanButton}
+                        disabled={loading}
+                      >
+                        ✅ Close Loan
+                      </button>
+                    )}
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) > 0 && (
                       <button onClick={() => {
                         setFormData({...formData, loanId: loan.id});
                         setShowModal('payment');
@@ -1663,6 +1723,17 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     flex: 1
+  },
+  closeLoanButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
   },
   modalOverlay: {
     position: 'fixed',
