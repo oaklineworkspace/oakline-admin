@@ -14,22 +14,37 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Valid loan ID and amount are required' });
     }
 
-    // Fetch the loan with user details
+    // Fetch the loan first
     const { data: loan, error: loanError } = await supabaseAdmin
       .from('loans')
-      .select(`
-        *,
-        profiles!loans_user_id_fkey(email, first_name, last_name)
-      `)
+      .select('*')
       .eq('id', loanId)
       .single();
 
-    if (loanError || !loan) {
-      return res.status(404).json({ error: 'Loan not found' });
+    if (loanError) {
+      console.error('Loan fetch error:', loanError);
+      return res.status(404).json({ error: 'Loan not found', details: loanError.message });
+    }
+    if (!loan) {
+      console.error('Loan not found for ID:', loanId);
+      return res.status(404).json({ error: 'Loan not found', loanId });
     }
 
-    const userEmail = loan.profiles?.email;
-    const userName = `${loan.profiles?.first_name || ''} ${loan.profiles?.last_name || ''}`.trim();
+    // Fetch user profile separately
+    let userEmail = null;
+    let userName = '';
+    if (loan.user_id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, first_name, last_name')
+        .eq('id', loan.user_id)
+        .single();
+      
+      if (profile) {
+        userEmail = profile.email;
+        userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+      }
+    }
 
     // Calculate payment breakdown
     const remainingBalance = parseFloat(loan.remaining_balance) || 0;
