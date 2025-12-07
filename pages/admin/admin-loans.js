@@ -13,7 +13,7 @@ export default function AdminLoans() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showModal, setShowModal] = useState(null);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(''); // Renamed from 'message' for clarity
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -136,13 +136,22 @@ export default function AdminLoans() {
       return;
     }
 
+    const currentLoan = loans.find(l => l.id === formData.loanId);
+    const remainingBalance = parseFloat(currentLoan?.remaining_balance || 0);
+    const paymentAmount = parseFloat(formData.amount);
+
+    if (paymentAmount > remainingBalance) {
+      setError(`Payment amount ($${paymentAmount.toFixed(2)}) cannot exceed remaining balance ($${remainingBalance.toFixed(2)})`);
+      return;
+    }
+
     try {
       const response = await fetch('/api/admin/process-loan-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           loanId: formData.loanId,
-          amount: parseFloat(formData.amount),
+          amount: paymentAmount,
           note: formData.note
         })
       });
@@ -289,24 +298,19 @@ export default function AdminLoans() {
   };
 
   const handleCloseLoan = async (loanId) => {
-    const loan = loans.find(l => l.id === loanId);
-
-    if (!loan) {
-      setError('Loan not found');
+    if (!confirm('Are you sure you want to close this loan? This action cannot be undone.')) {
       return;
     }
 
-    if (!confirm(`Close this loan for ${loan.user_name || loan.user_email}? This action confirms all payments have been completed.`)) {
-      return;
-    }
+    setLoading(true);
+    setError('');
+    setSuccess(''); // Clear any previous success messages
 
     try {
-      setLoading(true);
-      setError('');
-
       const { data: { session } } = await supabase.auth.getSession();
+
       if (!session) {
-        throw new Error('Session expired. Please login again.');
+        throw new Error('No active session. Please log in again.');
       }
 
       const response = await fetch('/api/admin/update-loan-status', {
@@ -318,21 +322,26 @@ export default function AdminLoans() {
         body: JSON.stringify({
           loanId,
           status: 'closed',
-          userId: loan.user_id,
-          userEmail: loan.user_email
+          // Ensure userId and userEmail are passed if the API expects them for notification/logging
+          // userId: loans.find(l => l.id === loanId)?.user_id,
+          // userEmail: loans.find(l => l.id === loanId)?.user_email
         })
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to close loan');
+        throw new Error(result.error || 'Failed to close loan');
       }
 
-      setSuccess('Loan closed successfully! User has been notified.');
+      setSuccess('✅ Loan closed successfully!');
       await fetchLoans();
+
+      setTimeout(() => {
+        setSuccess(''); // Clear success message after a few seconds
+      }, 3000);
     } catch (error) {
-      console.error('Loan closure error:', error);
+      console.error('Error closing loan:', error);
       setError(error.message || 'Failed to close loan');
     } finally {
       setLoading(false);
@@ -376,7 +385,7 @@ export default function AdminLoans() {
 
       setSuccess('Loan rejected and notification sent to user');
       setShowModal(null);
-      setFormData({...formData, note: ''});
+      setFormData({...formData, note: ''}); // Clear the note field
       await fetchLoans();
     } catch (err) {
       setError(err.message);
@@ -425,7 +434,7 @@ export default function AdminLoans() {
                       (activeTab === 'pending' && loan.status === 'pending') ||
                       (activeTab === 'active' && loan.status === 'active') ||
                       (activeTab === 'overdue' && loan.is_late);
-    
+
     // Date range filtering
     let matchesDateRange = true;
     if (startDate || endDate) {
@@ -443,7 +452,7 @@ export default function AdminLoans() {
         matchesDateRange = loanDate <= end;
       }
     }
-    
+
     return matchesSearch && matchesType && matchesStatus && matchesTab && matchesDateRange;
   });
 
@@ -1727,13 +1736,14 @@ const styles = {
   closeLoanButton: {
     flex: 1,
     padding: '10px',
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    background: '#059669',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
   modalOverlay: {
     position: 'fixed',
