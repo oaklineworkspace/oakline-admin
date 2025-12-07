@@ -910,7 +910,7 @@ export default function AdminLoans() {
                         ❌ Reject
                       </button>
                     )}
-                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) > 0 && (
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) >= 0.01 && (
                       <button onClick={async () => {
                         // Fetch user's account information
                         try {
@@ -941,7 +941,7 @@ export default function AdminLoans() {
                         💰 Process Payment
                       </button>
                     )}
-                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) === 0 && (
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) < 0.01 && (
                       <button
                         onClick={() => handleCloseLoan(loan.id)}
                         style={styles.closeLoanButton}
