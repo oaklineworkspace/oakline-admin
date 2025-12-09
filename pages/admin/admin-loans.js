@@ -232,7 +232,7 @@ export default function AdminLoans() {
         return;
       }
 
-      setLoading(true);
+      setProcessing(loan.id);
       setError('');
 
       // Get session
@@ -295,17 +295,22 @@ export default function AdminLoans() {
         console.warn('Failed to send approval email:', emailError);
       }
 
-      setSuccess('Loan approved successfully! Click "Disburse Loan" to transfer funds.');
+      setSuccessMessage('Loan approved successfully! Click "Disburse Loan" to transfer funds.');
+      setShowSuccessBanner(true);
       setShowModal(null);
       setLoanToApprove(null);
       setFormData({...formData, adminPassword: ''});
       await fetchLoans();
       await fetchTreasuryBalance();
+      
+      setTimeout(() => setShowSuccessBanner(false), 5000);
     } catch (error) {
       console.error('Loan approval error:', error);
-      setError(error.message || 'Failed to approve loan');
+      setErrorMessage(error.message || 'Failed to approve loan');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
     } finally {
-      setLoading(false);
+      setProcessing(null);
     }
   };
 
@@ -1373,20 +1378,32 @@ export default function AdminLoans() {
         {/* Approve Loan Confirmation Modal */}
         {showModal === 'approve' && loanToApprove && (
           <div style={styles.modalOverlay} onClick={() => {
-            setShowModal(null);
-            setLoanToApprove(null);
-            setFormData({...formData, adminPassword: ''});
+            if (!processing) {
+              setShowModal(null);
+              setLoanToApprove(null);
+              setFormData({...formData, adminPassword: ''});
+            }
           }}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>✅ Approve Loan</h2>
                 <button onClick={() => {
-                  setShowModal(null);
-                  setLoanToApprove(null);
-                  setFormData({...formData, adminPassword: ''});
-                }} style={styles.closeButton}>×</button>
+                  if (!processing) {
+                    setShowModal(null);
+                    setLoanToApprove(null);
+                    setFormData({...formData, adminPassword: ''});
+                  }
+                }} style={styles.closeButton} disabled={processing}>×</button>
               </div>
-              <div style={styles.modalBody}>
+              <div style={styles.modalBody}>{processing === loanToApprove.id ? (
+                  <div style={styles.loadingState}>
+                    <div style={styles.spinner}></div>
+                    <p style={{color: '#1e40af', fontWeight: '600', fontSize: 'clamp(0.95rem, 2.5vw, 16px)'}}>
+                      Approving loan...
+                    </p>
+                  </div>
+                ) : (
+                  <>
                 <div style={{background: '#f0fdf4', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #10b981'}}>
                   <h3 style={{margin: '0 0 12px 0', color: '#065f46', fontSize: '16px'}}>Loan Summary</h3>
                   <div style={{display: 'grid', gap: '8px'}}>
@@ -1459,6 +1476,12 @@ export default function AdminLoans() {
                   ℹ️ Approval notification will be sent to {loanToApprove.user_email}
                 </p>
 
+                {error && (
+                  <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
+                    {error}
+                  </div>
+                )}
+
                 <button
                   onClick={handleApprove}
                   style={{
@@ -1484,11 +1507,13 @@ export default function AdminLoans() {
                     (loanToApprove.deposit_required > 0 && !loanToApprove.deposit_info?.verified) ||
                     (parseFloat(loanToApprove.principal) > treasuryBalance) ||
                     !formData.adminPassword ||
-                    loading
+                    processing === loanToApprove.id
                   }
                 >
-                  {loading ? '⏳ Processing...' : '✅ Approve Loan'}
+                  {processing === loanToApprove.id ? '⏳ Processing...' : '✅ Approve Loan'}
                 </button>
+                </>
+                )}
               </div>
             </div>
           </div>
@@ -2337,6 +2362,17 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'background 0.2s'
+  },
+  alert: {
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontWeight: '500',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)'
+  },
+  alertError: {
+    background: '#fee2e2',
+    color: '#991b1b',
+    border: '1px solid #fca5a5'
   },
   
   // Error Banner Styles

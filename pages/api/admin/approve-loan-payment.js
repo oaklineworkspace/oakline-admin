@@ -312,16 +312,8 @@ export default async function handler(req, res) {
             console.error('Transaction creation error:', txError);
           }
         } else {
-          loanUpdate = {
-            deposit_paid: true,
-            deposit_amount: payment.payment_amount || payment.amount,
-            deposit_date: new Date().toISOString(),
-            deposit_status: 'completed',
-            deposit_method: payment.actual_payment_method || payment.deposit_method || 'crypto',
-            status: 'approved',
-            updated_at: new Date().toISOString()
-          };
-
+          // For deposit approvals, only update loan_payments table, not loans table
+          // Loan status should be updated separately by admin through the loan approval flow
           const depositAmount = parseFloat(payment.payment_amount || payment.amount || 0);
           const treasuryFee = depositAmount * 0.10;
           treasuryResult = await creditTreasury(treasuryFee, paymentId, payment.reference_number);
