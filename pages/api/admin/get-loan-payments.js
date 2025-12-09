@@ -39,7 +39,7 @@ export default async function handler(req, res) {
           account_type
         )
       `)
-      .order('payment_date', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (paymentsError) {
       console.error('Error fetching loan payments:', paymentsError);

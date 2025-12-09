@@ -684,9 +684,9 @@ export default function LoanPayments() {
                             </div>
                           )}
                           <div style={styles.infoRow}>
-                            <span style={styles.infoLabel}>Payment Date:</span>
+                            <span style={styles.infoLabel}>Submitted:</span>
                             <span style={styles.infoValue}>
-                              {new Date(payment.payment_date || payment.created_at).toLocaleDateString()}
+                              {new Date(payment.created_at).toLocaleString()}
                             </span>
                           </div>
                           {payment.reference_number && (
