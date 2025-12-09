@@ -92,25 +92,34 @@ export default async function handler(req, res) {
     // Create loan payment record - ALL payments now pending admin confirmation
     const referenceNumber = `LP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
+    // Determine the correct payment method
+    let finalPaymentMethod = 'account_balance';
+    if (paymentMethod && paymentMethod !== 'account_balance') {
+      finalPaymentMethod = paymentMethod;
+    } else if (txHash) {
+      // If there's a tx_hash, it's a crypto payment
+      finalPaymentMethod = 'crypto';
+    }
+
     const paymentData = {
       loan_id: loanId,
       amount: paymentAmount,
       principal_amount: principalAmount,
       interest_amount: interestAmount,
       balance_after: newLoanBalance,
-      payment_type: paymentMethod === 'account_balance' ? 'auto_payment' : 'manual',
-      payment_method: paymentMethod || 'account_balance',
+      payment_type: finalPaymentMethod === 'account_balance' ? 'auto_payment' : 'manual',
+      payment_method: finalPaymentMethod,
       status: 'pending',
       payment_date: new Date().toISOString(),
       reference_number: referenceNumber,
-      notes: paymentMethod === 'account_balance' 
+      notes: finalPaymentMethod === 'account_balance' 
         ? `Payment from account ${account?.account_number || accountId} - Pending admin confirmation` 
-        : `${paymentMethod || 'Manual'} payment - Pending admin verification`,
+        : `${finalPaymentMethod} payment - Pending admin verification`,
       metadata: {
         account_id: accountId,
         user_account_balance: account ? parseFloat(account.balance) : null,
-        payment_method: paymentMethod,
-        tx_hash: txHash
+        payment_method: finalPaymentMethod,
+        tx_hash: txHash || null
       }
     };
 

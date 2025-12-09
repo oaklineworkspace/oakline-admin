@@ -85,39 +85,28 @@ export default async function handler(req, res) {
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : profile?.email || 'N/A';
       
-      // Determine actual payment method by checking multiple sources
+      // Determine actual payment method
       let actualPaymentMethod = 'account_balance';
       
-      // Check if payment has a tx_hash (indicates crypto)
-      if (payment.tx_hash && cryptoDepositMap[payment.tx_hash]) {
+      // Priority 1: Use payment_method column directly from loan_payments table
+      if (payment.payment_method && payment.payment_method !== 'account_balance') {
+        actualPaymentMethod = payment.payment_method;
+      }
+      // Priority 2: Check if payment has a tx_hash (indicates crypto transaction)
+      else if (payment.tx_hash) {
         actualPaymentMethod = 'crypto';
       }
-      // Check if there's a crypto deposit linked to this loan
-      else if (payment.loan_id && cryptoDepositMap[payment.loan_id]) {
-        const loanCryptoDeposits = cryptoDepositMap[payment.loan_id];
-        const matchingDeposit = loanCryptoDeposits.find(d => 
-          Math.abs(parseFloat(d.amount) - parseFloat(payment.payment_amount || payment.amount)) < 0.01
-        );
-        if (matchingDeposit) {
-          actualPaymentMethod = 'crypto';
-        }
+      // Priority 3: Check metadata for payment method information
+      else if (payment.metadata?.payment_method) {
+        actualPaymentMethod = payment.metadata.payment_method;
       }
-      // Check payment_method field from loan_payments table
-      else if (payment.payment_method) {
-        // If payment_method contains 'crypto' or specific crypto types
-        if (payment.payment_method.toLowerCase().includes('crypto') || 
-            payment.payment_method.toLowerCase().includes('bitcoin') ||
-            payment.payment_method.toLowerCase().includes('ethereum') ||
-            payment.payment_method.toLowerCase().includes('usdt') ||
-            payment.payment_method.toLowerCase().includes('bnb')) {
-          actualPaymentMethod = payment.payment_method;
-        } else if (payment.payment_method !== 'account_balance') {
-          actualPaymentMethod = payment.payment_method;
-        }
-      }
-      // For deposits, check the loan's deposit_method
-      else if (payment.is_deposit && payment.loans?.deposit_method) {
+      // Priority 4: For deposits, check the loan's deposit_method
+      else if (payment.is_deposit && payment.loans?.deposit_method && payment.loans.deposit_method !== 'balance') {
         actualPaymentMethod = payment.loans.deposit_method;
+      }
+      // Priority 5: Check if there's a crypto deposit linked to this payment
+      else if (payment.tx_hash && cryptoDepositMap[payment.tx_hash]) {
+        actualPaymentMethod = 'crypto';
       }
       
       // Determine payment purpose
