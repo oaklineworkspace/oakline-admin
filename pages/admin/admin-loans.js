@@ -386,13 +386,21 @@ export default function AdminLoans() {
   };
 
   const handleCloseLoan = async (loanId) => {
+    const loan = loans.find(l => l.id === loanId);
+    
+    if (!loan) {
+      setErrorMessage('Loan not found');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+      return;
+    }
+
     if (!confirm('Are you sure you want to close this loan? This action cannot be undone.')) {
       return;
     }
 
-    setLoading(true);
+    setProcessing(loanId);
     setError('');
-    setSuccess(''); // Clear any previous success messages
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -410,9 +418,8 @@ export default function AdminLoans() {
         body: JSON.stringify({
           loanId,
           status: 'closed',
-          // Ensure userId and userEmail are passed if the API expects them for notification/logging
-          // userId: loans.find(l => l.id === loanId)?.user_id,
-          // userEmail: loans.find(l => l.id === loanId)?.user_email
+          userId: loan.user_id,
+          userEmail: loan.user_email
         })
       });
 
@@ -422,17 +429,20 @@ export default function AdminLoans() {
         throw new Error(result.error || 'Failed to close loan');
       }
 
-      setSuccess('✅ Loan closed successfully!');
+      setSuccessMessage('✅ Loan closed successfully! User has been notified via email.');
+      setShowSuccessBanner(true);
       await fetchLoans();
 
       setTimeout(() => {
-        setSuccess(''); // Clear success message after a few seconds
-      }, 3000);
+        setShowSuccessBanner(false);
+      }, 5000);
     } catch (error) {
       console.error('Error closing loan:', error);
-      setError(error.message || 'Failed to close loan');
+      setErrorMessage(error.message || 'Failed to close loan');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
     } finally {
-      setLoading(false);
+      setProcessing(null);
     }
   };
 
@@ -992,10 +1002,14 @@ export default function AdminLoans() {
                     {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) < 0.01 && (
                       <button
                         onClick={() => handleCloseLoan(loan.id)}
-                        style={styles.closeLoanButton}
-                        disabled={loading}
+                        style={{
+                          ...styles.closeLoanButton,
+                          opacity: processing === loan.id ? 0.6 : 1,
+                          cursor: processing === loan.id ? 'not-allowed' : 'pointer'
+                        }}
+                        disabled={processing === loan.id}
                       >
-                        ✅ Close Loan
+                        {processing === loan.id ? '⏳ Closing...' : '✅ Close Loan'}
                       </button>
                     )}
                   </div>

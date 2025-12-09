@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     // Get admin user ID for tracking
     const authHeader = req.headers.authorization;
     let adminUserId = null;
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const { data: { user } } = await supabaseAdmin.auth.getUser(token);
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     try {
       const authHeader = req.headers.authorization;
       let adminUserId = null;
-      
+
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
         const { data: { user } } = await supabaseAdmin.auth.getUser(token);
@@ -289,70 +289,123 @@ export default async function handler(req, res) {
       }
     }
 
-    // Send email for closed loans
+    // Send email notification for loan closure
     if (status === 'closed' && userEmail) {
       try {
+        const { data: bankDetails } = await supabaseAdmin
+          .from('bank_details')
+          .select('*')
+          .limit(1)
+          .single();
+
+        const loansEmail = bankDetails?.email_loans || 'loans@theoaklinebank.com';
+        const supportEmail = bankDetails?.email_support || 'support@theoaklinebank.com';
+        const bankPhone = bankDetails?.phone || '+1 (636) 635-6122';
+
         const closedEmailHtml = `
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Loan Account Closed - Oakline Bank</title>
           </head>
-          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8fafc;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
               <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
-                <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Loan Paid Off!</h1>
-                <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Oakline Bank</p>
+                <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">🎉 Congratulations!</h1>
+                <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">Your Loan Has Been Successfully Closed</p>
               </div>
 
               <div style="padding: 40px 32px;">
                 <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
-                  Congratulations!
+                  Dear ${updatedLoan.profiles?.first_name || 'Valued Customer'},
                 </h2>
 
                 <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Your ${updatedLoan.loan_type} loan has been successfully paid off and closed. Thank you for your commitment to timely payments.
+                  We are delighted to inform you that your ${updatedLoan.loan_type} loan with Oakline Bank has been successfully closed. This achievement represents your commitment to financial responsibility and timely payment fulfillment.
                 </p>
 
-                <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0;">
-                  <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">
-                    Final Loan Summary
+                <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 24px; margin: 24px 0; border-radius: 8px;">
+                  <h3 style="color: #065f46; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+                    📊 Final Loan Summary
                   </h3>
                   <table style="width: 100%; border-collapse: collapse;">
                     <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Original Principal:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        $${parseFloat(updatedLoan.principal).toLocaleString()}
+                      <td style="padding: 10px 0; color: #4a5568; font-weight: 600; border-bottom: 1px solid #d1fae5;">Loan Type:</td>
+                      <td style="padding: 10px 0; text-align: right; color: #065f46; font-weight: 700; border-bottom: 1px solid #d1fae5; text-transform: capitalize;">
+                        ${updatedLoan.loan_type || 'N/A'}
                       </td>
                     </tr>
                     <tr>
-                      <td style="padding: 8px 0; color: #4a5568; font-weight: 600;">Total Payments Made:</td>
-                      <td style="padding: 8px 0; text-align: right; color: #065f46; font-weight: 700;">
-                        ${updatedLoan.payments_made || 0}
+                      <td style="padding: 10px 0; color: #4a5568; font-weight: 600; border-bottom: 1px solid #d1fae5;">Original Principal Amount:</td>
+                      <td style="padding: 10px 0; text-align: right; color: #065f46; font-weight: 700; border-bottom: 1px solid #d1fae5;">
+                        $${parseFloat(updatedLoan.principal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #4a5568; font-weight: 600; border-bottom: 1px solid #d1fae5;">Interest Rate:</td>
+                      <td style="padding: 10px 0; text-align: right; color: #065f46; font-weight: 700; border-bottom: 1px solid #d1fae5;">
+                        ${updatedLoan.interest_rate}%
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #4a5568; font-weight: 600; border-bottom: 1px solid #d1fae5;">Total Payments Made:</td>
+                      <td style="padding: 10px 0; text-align: right; color: #065f46; font-weight: 700; border-bottom: 1px solid #d1fae5;">
+                        ${updatedLoan.payments_made || 0} payment${(updatedLoan.payments_made || 0) !== 1 ? 's' : ''}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #4a5568; font-weight: 600;">Final Status:</td>
+                      <td style="padding: 10px 0; text-align: right; color: #065f46; font-weight: 700;">
+                        ✅ PAID IN FULL
                       </td>
                     </tr>
                   </table>
                 </div>
 
-                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">
-                  Your excellent payment history has been recorded and will positively impact your credit profile with Oakline Bank.
-                </p>
+                <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 8px;">
+                  <h3 style="color: #1e40af; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+                    📌 Important Information
+                  </h3>
+                  <ul style="color: #4a5568; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+                    <li>Your loan account has been permanently closed</li>
+                    <li>No further payments are required</li>
+                    <li>This closure will be reflected in your account history</li>
+                    <li>Your payment history may positively impact your credit profile</li>
+                  </ul>
+                </div>
 
                 <div style="text-align: center; margin: 32px 0;">
-                  <a href="https://www.theoaklinebank.com/login" 
-                     style="display: inline-block; background-color: #10b981; color: #ffffff; 
-                            padding: 14px 32px; text-decoration: none; border-radius: 8px; 
-                            font-weight: 600; font-size: 16px;">
-                    View Account
+                  <a href="https://www.theoaklinebank.com/dashboard" 
+                     style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 6px rgba(30, 64, 175, 0.2);">
+                    View Account Dashboard
                   </a>
                 </div>
+
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 8px;">
+                  <p style="color: #92400e; margin: 0 0 8px 0; font-size: 14px; line-height: 1.6; font-weight: 600;">
+                    💬 Need Assistance?
+                  </p>
+                  <p style="color: #4a5568; margin: 0; font-size: 14px; line-height: 1.6;">
+                    For any questions regarding your loan closure or to explore additional financial services, please contact our Loan Services Department at <a href="mailto:${loansEmail}" style="color: #1e40af; text-decoration: none; font-weight: 600;">${loansEmail}</a> or call us at <strong>${bankPhone}</strong>.
+                  </p>
+                </div>
+
+                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">
+                  Thank you for choosing Oakline Bank as your trusted financial partner. We appreciate your business and look forward to serving your future banking needs.
+                </p>
               </div>
 
-              <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="color: #718096; font-size: 12px; margin: 0;">
-                  © ${new Date().getFullYear()} Oakline Bank. All rights reserved.<br/>
-                  Member FDIC | Routing: 075915826
+              <div style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0;">
+                <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 8px 0; text-align: center;">
+                  <strong>Oakline Bank</strong><br>
+                  12201 N May Avenue, Oklahoma City, OK 73120<br>
+                  Member FDIC | Routing Number: 075915826
+                </p>
+                <p style="color: #94a3b8; font-size: 12px; margin: 8px 0 0 0; text-align: center;">
+                  This is an automated notification from Oakline Bank. Please do not reply to this email.<br>
+                  For assistance, contact us at <a href="mailto:${supportEmail}" style="color: #3b82f6; text-decoration: none;">${supportEmail}</a>
                 </p>
               </div>
             </div>
@@ -362,9 +415,10 @@ export default async function handler(req, res) {
 
         await sendEmail({
           to: userEmail,
-          subject: '🎉 Loan Successfully Paid Off - Oakline Bank',
+          subject: '✅ Loan Account Closed - Oakline Bank',
           html: closedEmailHtml,
-          type: EMAIL_TYPES.NOTIFY
+          type: EMAIL_TYPES.LOANS,
+          from: `Oakline Bank <${loansEmail}>`
         });
 
         console.log('Loan closure email sent to:', userEmail);
