@@ -31,6 +31,8 @@ export default function LoanPayments() {
     refundReason: '',
     refundAmount: ''
   });
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -116,7 +118,6 @@ export default function LoanPayments() {
 
     setProcessing(showUpdateModal.id);
     setError('');
-    setMessage('');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -165,17 +166,19 @@ export default function LoanPayments() {
       }
 
       const successMessage = updateForm.status === 'approved' 
-        ? '✅ Payment approved successfully! Loan balance has been updated.'
+        ? 'Payment approved successfully! Loan balance has been updated.'
         : updateForm.status === 'completed'
-        ? '✅ Payment completed successfully! Loan balance has been updated and user notified.'
-        : `✅ Payment status updated to ${updateForm.status} successfully!`;
+        ? 'Payment completed successfully! Loan balance has been updated and user notified.'
+        : `Payment status updated to ${updateForm.status} successfully!`;
 
-      setMessage(successMessage);
+      // Show success banner
+      setSuccessMessage(successMessage);
+      setShowSuccessBanner(true);
       setShowUpdateModal(null);
       await fetchPayments();
 
       setTimeout(() => {
-        setMessage('');
+        setShowSuccessBanner(false);
       }, 5000);
     } catch (error) {
       console.error('Error updating payment:', error);
@@ -887,24 +890,28 @@ export default function LoanPayments() {
 
         {/* Update Payment Modal */}
         {showUpdateModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowUpdateModal(null)}>
+          <div style={styles.modalOverlay} onClick={() => !processing && setShowUpdateModal(null)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>Update Payment Status</h2>
-                <button onClick={() => setShowUpdateModal(null)} style={styles.closeButton}>×</button>
+                <button onClick={() => !processing && setShowUpdateModal(null)} style={styles.closeButton} disabled={processing}>×</button>
               </div>
               <div style={styles.modalBody}>
-                {error && (
-                  <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
-                    {error}
+                {processing === showUpdateModal.id ? (
+                  <div style={styles.loadingState}>
+                    <div style={styles.spinner}></div>
+                    <p style={{color: '#1e40af', fontWeight: '600', fontSize: 'clamp(0.95rem, 2.5vw, 16px)'}}>
+                      Updating payment status...
+                    </p>
                   </div>
-                )}
-                {message && (
-                  <div style={{...styles.alert, ...styles.alertSuccess, marginBottom: '16px'}}>
-                    {message}
-                  </div>
-                )}
-                <form onSubmit={handleUpdateSubmit}>
+                ) : (
+                  <>
+                    {error && (
+                      <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
+                        {error}
+                      </div>
+                    )}
+                    <form onSubmit={handleUpdateSubmit}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Payment Amount (USD)</label>
                     <input
@@ -1010,22 +1017,44 @@ export default function LoanPayments() {
                   </div>
 
                   <div style={styles.modalActions}>
-                    <button
-                      type="button"
-                      onClick={() => setShowUpdateModal(null)}
-                      style={{...styles.btn, ...styles.btnSecondary}}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      style={{...styles.btn, ...styles.btnPrimary}}
-                      disabled={processing === showUpdateModal.id}
-                    >
-                      {processing === showUpdateModal.id ? 'Updating...' : 'Update Payment'}
-                    </button>
-                  </div>
-                </form>
+                      <button
+                        type="button"
+                        onClick={() => setShowUpdateModal(null)}
+                        style={{...styles.btn, ...styles.btnSecondary}}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        style={{...styles.btn, ...styles.btnPrimary}}
+                        disabled={processing === showUpdateModal.id}
+                      >
+                        Update Payment
+                      </button>
+                    </div>
+                  </form>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>Success</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerAction}>Payment Updated!</p>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+              <div style={styles.successBannerFooter}>
+                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerOkButton}>OK</button>
               </div>
             </div>
           </div>
@@ -1464,6 +1493,103 @@ const styles = {
     justifyContent: 'flex-end',
     marginTop: '20px',
     flexWrap: 'wrap'
+  },
+  // Success Banner Styles
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   },
   // New styles for loan details section
   loanDetailsSection: {

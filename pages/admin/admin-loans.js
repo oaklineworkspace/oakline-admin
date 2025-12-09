@@ -273,6 +273,28 @@ export default function AdminLoans() {
         throw new Error(data.error || 'Failed to approve loan');
       }
 
+      // Send approval email notification
+      try {
+        await fetch('/api/email/send-loan-approval-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            userEmail: loan.user_email,
+            userName: loan.user_name,
+            loanType: loan.loan_type,
+            principal: loan.principal,
+            interestRate: loan.interest_rate,
+            termMonths: loan.term_months,
+            monthlyPayment: loan.monthly_payment_amount
+          })
+        });
+      } catch (emailError) {
+        console.warn('Failed to send approval email:', emailError);
+      }
+
       setSuccess('Loan approved successfully! Click "Disburse Loan" to transfer funds.');
       setShowModal(null);
       setLoanToApprove(null);
@@ -324,6 +346,27 @@ export default function AdminLoans() {
 
       if (!response.ok) {
         throw new Error(data.error || data.details || 'Failed to disburse loan');
+      }
+
+      // Send disbursement email notification
+      try {
+        await fetch('/api/email/send-loan-disbursement-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            userEmail: loan.user_email,
+            userName: loan.user_name,
+            loanType: loan.loan_type,
+            principal: loan.principal,
+            loanReference: data.loanReference,
+            accountNumber: loan.accounts?.account_number
+          })
+        });
+      } catch (emailError) {
+        console.warn('Failed to send disbursement email:', emailError);
       }
 
       setSuccess(`Loan disbursed! $${parseFloat(loan.principal).toLocaleString()} transferred to user account.`);
