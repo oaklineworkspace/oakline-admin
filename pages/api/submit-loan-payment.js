@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid authentication' });
     }
 
-    const { loanId, amount, paymentMethod, accountId } = req.body;
+    const { loanId, amount, paymentMethod, accountId, txHash } = req.body;
 
     if (!loanId || !amount || amount <= 0) {
       return res.status(400).json({ error: 'Valid loan ID and amount are required' });
@@ -27,6 +27,11 @@ export default async function handler(req, res) {
 
     if (paymentMethod === 'account_balance' && !accountId) {
       return res.status(400).json({ error: 'Account ID required for account balance payment' });
+    }
+
+    // Validate crypto payment has tx_hash
+    if (paymentMethod && paymentMethod !== 'account_balance' && !txHash) {
+      console.warn('Crypto payment submitted without tx_hash');
     }
 
     // Fetch the loan with row lock
@@ -87,28 +92,36 @@ export default async function handler(req, res) {
     // Create loan payment record - ALL payments now pending admin confirmation
     const referenceNumber = `LP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
+    const paymentData = {
+      loan_id: loanId,
+      amount: paymentAmount,
+      principal_amount: principalAmount,
+      interest_amount: interestAmount,
+      balance_after: newLoanBalance,
+      payment_type: paymentMethod === 'account_balance' ? 'auto_payment' : 'manual',
+      payment_method: paymentMethod || 'account_balance',
+      status: 'pending',
+      payment_date: new Date().toISOString(),
+      reference_number: referenceNumber,
+      notes: paymentMethod === 'account_balance' 
+        ? `Payment from account ${account?.account_number || accountId} - Pending admin confirmation` 
+        : `${paymentMethod || 'Manual'} payment - Pending admin verification`,
+      metadata: {
+        account_id: accountId,
+        user_account_balance: account ? parseFloat(account.balance) : null,
+        payment_method: paymentMethod,
+        tx_hash: txHash
+      }
+    };
+
+    // Add tx_hash if provided (for crypto payments)
+    if (txHash) {
+      paymentData.tx_hash = txHash;
+    }
+    
     const { data: loanPayment, error: paymentError } = await supabaseAdmin
       .from('loan_payments')
-      .insert({
-        loan_id: loanId,
-        amount: paymentAmount,
-        principal_amount: principalAmount,
-        interest_amount: interestAmount,
-        balance_after: newLoanBalance,
-        payment_type: paymentMethod === 'account_balance' ? 'auto_payment' : 'manual',
-        payment_method: paymentMethod,
-        status: 'pending',
-        payment_date: new Date().toISOString(),
-        reference_number: referenceNumber,
-        notes: paymentMethod === 'account_balance' 
-          ? `Payment from account ${account?.account_number || accountId} - Pending admin confirmation` 
-          : 'Manual payment - Pending admin verification',
-        metadata: {
-          account_id: accountId,
-          user_account_balance: account ? parseFloat(account.balance) : null,
-          payment_method: paymentMethod
-        }
-      })
+      .insert(paymentData)
       .select()
       .single();
 

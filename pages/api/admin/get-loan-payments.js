@@ -59,16 +59,65 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
+    // Fetch crypto deposits to cross-reference payment methods
+    const { data: cryptoDeposits } = await supabaseAdmin
+      .from('crypto_deposits')
+      .select('id, user_id, loan_id, tx_hash, amount, status, created_at')
+      .in('status', ['confirmed', 'completed', 'approved']);
+
+    // Create a map for quick crypto deposit lookups
+    const cryptoDepositMap = {};
+    (cryptoDeposits || []).forEach(deposit => {
+      if (deposit.tx_hash) {
+        cryptoDepositMap[deposit.tx_hash] = deposit;
+      }
+      if (deposit.loan_id) {
+        if (!cryptoDepositMap[deposit.loan_id]) {
+          cryptoDepositMap[deposit.loan_id] = [];
+        }
+        cryptoDepositMap[deposit.loan_id].push(deposit);
+      }
+    });
+
     const enrichedPayments = payments.map(payment => {
       const profile = profileMap[payment.loans?.user_id];
       const fullName = profile && (profile.first_name || profile.last_name)
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : profile?.email || 'N/A';
       
-      // Determine actual payment method (prioritize deposit_method if it's a deposit)
-      let actualPaymentMethod = payment.payment_method || 'account_balance';
-      if (payment.is_deposit && payment.deposit_method) {
-        actualPaymentMethod = payment.deposit_method;
+      // Determine actual payment method by checking multiple sources
+      let actualPaymentMethod = 'account_balance';
+      
+      // Check if payment has a tx_hash (indicates crypto)
+      if (payment.tx_hash && cryptoDepositMap[payment.tx_hash]) {
+        actualPaymentMethod = 'crypto';
+      }
+      // Check if there's a crypto deposit linked to this loan
+      else if (payment.loan_id && cryptoDepositMap[payment.loan_id]) {
+        const loanCryptoDeposits = cryptoDepositMap[payment.loan_id];
+        const matchingDeposit = loanCryptoDeposits.find(d => 
+          Math.abs(parseFloat(d.amount) - parseFloat(payment.payment_amount || payment.amount)) < 0.01
+        );
+        if (matchingDeposit) {
+          actualPaymentMethod = 'crypto';
+        }
+      }
+      // Check payment_method field from loan_payments table
+      else if (payment.payment_method) {
+        // If payment_method contains 'crypto' or specific crypto types
+        if (payment.payment_method.toLowerCase().includes('crypto') || 
+            payment.payment_method.toLowerCase().includes('bitcoin') ||
+            payment.payment_method.toLowerCase().includes('ethereum') ||
+            payment.payment_method.toLowerCase().includes('usdt') ||
+            payment.payment_method.toLowerCase().includes('bnb')) {
+          actualPaymentMethod = payment.payment_method;
+        } else if (payment.payment_method !== 'account_balance') {
+          actualPaymentMethod = payment.payment_method;
+        }
+      }
+      // For deposits, check the loan's deposit_method
+      else if (payment.is_deposit && payment.loans?.deposit_method) {
+        actualPaymentMethod = payment.loans.deposit_method;
       }
       
       // Determine payment purpose
