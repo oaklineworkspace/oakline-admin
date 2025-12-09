@@ -135,7 +135,7 @@ export default async function handler(req, res) {
                 
                 <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; margin: 24px 0; border-radius: 8px;">
                   <p style="color: #4a5568; margin: 0; font-size: 14px; line-height: 1.6;">
-                    <strong>What's Next?</strong> This loan is now closed and no further payments are required. Your account history will continue to reflect this completed loan. Thank you for being a valued customer!
+                    <strong>What's Next?</strong> This specific loan has been paid in full and closed. No further payments are required for this loan. Your banking relationship with Oakline Bank remains active, and your loan history will continue to reflect this completed loan. Thank you for being a valued customer!
                   </p>
                 </div>
                 

@@ -369,9 +369,10 @@ export default async function handler(req, res) {
                     📌 Important Information
                   </h3>
                   <ul style="color: #4a5568; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                    <li>Your loan account has been permanently closed</li>
-                    <li>No further payments are required</li>
-                    <li>This closure will be reflected in your account history</li>
+                    <li>This specific loan has been paid in full and closed</li>
+                    <li>No further payments are required for this loan</li>
+                    <li>Your banking relationship with Oakline Bank remains active</li>
+                    <li>This closure will be reflected in your loan history</li>
                     <li>Your payment history may positively impact your credit profile</li>
                   </ul>
                 </div>
