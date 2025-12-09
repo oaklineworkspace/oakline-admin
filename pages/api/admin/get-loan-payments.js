@@ -88,23 +88,41 @@ export default async function handler(req, res) {
       // Determine actual payment method
       let actualPaymentMethod = 'account_balance';
       
-      // Priority 1: Use payment_method column directly from loan_payments table
-      if (payment.payment_method && payment.payment_method !== 'account_balance') {
+      // Priority 1: Check deposit_method column (most reliable for deposits)
+      if (payment.deposit_method) {
+        actualPaymentMethod = payment.deposit_method;
+      }
+      // Priority 2: Check notes column for payment method keywords
+      else if (payment.notes) {
+        const notesLower = payment.notes.toLowerCase();
+        if (notesLower.includes('bitcoin') || notesLower.includes('btc') || 
+            notesLower.includes('ethereum') || notesLower.includes('eth') ||
+            notesLower.includes('crypto') || notesLower.includes('usdt') ||
+            notesLower.includes('tether') || notesLower.includes('usdc')) {
+          actualPaymentMethod = 'crypto';
+        } else if (notesLower.includes('wire') || notesLower.includes('bank transfer')) {
+          actualPaymentMethod = 'wire_transfer';
+        } else if (notesLower.includes('check')) {
+          actualPaymentMethod = 'check';
+        }
+      }
+      // Priority 3: Use payment_method column directly from loan_payments table
+      else if (payment.payment_method && payment.payment_method !== 'account_balance') {
         actualPaymentMethod = payment.payment_method;
       }
-      // Priority 2: Check if payment has a tx_hash (indicates crypto transaction)
+      // Priority 4: Check if payment has a tx_hash (indicates crypto transaction)
       else if (payment.tx_hash) {
         actualPaymentMethod = 'crypto';
       }
-      // Priority 3: Check metadata for payment method information
+      // Priority 5: Check metadata for payment method information
       else if (payment.metadata?.payment_method) {
         actualPaymentMethod = payment.metadata.payment_method;
       }
-      // Priority 4: For deposits, check the loan's deposit_method
+      // Priority 6: For deposits, check the loan's deposit_method
       else if (payment.is_deposit && payment.loans?.deposit_method && payment.loans.deposit_method !== 'balance') {
         actualPaymentMethod = payment.loans.deposit_method;
       }
-      // Priority 5: Check if there's a crypto deposit linked to this payment
+      // Priority 7: Check if there's a crypto deposit linked to this payment
       else if (payment.tx_hash && cryptoDepositMap[payment.tx_hash]) {
         actualPaymentMethod = 'crypto';
       }
