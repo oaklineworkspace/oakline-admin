@@ -52,24 +52,35 @@ export default function AdminAuth({ children }) {
 
   const setupTokenRefresh = () => {
     clearTokenRefresh();
-    // Refresh token every 4 minutes (tokens typically expire in 60 minutes)
+    // Refresh token every 30 seconds to handle short expiration times
     refreshIntervalRef.current = setInterval(async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error('Token refresh failed:', error);
-          if (error.message.includes('refresh_token_not_found')) {
-            setError('Session expired. Please log in again.');
-            setIsAuthenticated(false);
-            setUser(null);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession) {
+          // Check if token is about to expire (within 60 seconds)
+          const expiresAt = currentSession.expires_at;
+          const now = Math.floor(Date.now() / 1000);
+          const timeUntilExpiry = expiresAt - now;
+          
+          if (timeUntilExpiry < 60) {
+            console.log('Token expiring soon, refreshing...');
+            const { data: { session }, error } = await supabase.auth.refreshSession();
+            if (error) {
+              console.error('Token refresh failed:', error);
+              if (error.message.includes('refresh_token_not_found') || error.message.includes('invalid')) {
+                setError('Session expired. Please log in again.');
+                setIsAuthenticated(false);
+                setUser(null);
+              }
+            } else if (session) {
+              console.log('Token refreshed successfully, new expiry:', session.expires_at);
+            }
           }
-        } else if (session) {
-          console.log('Token refreshed successfully');
         }
       } catch (err) {
         console.error('Error refreshing token:', err);
       }
-    }, 4 * 60 * 1000); // 4 minutes
+    }, 30 * 1000); // Check every 30 seconds
   };
 
   const clearTokenRefresh = () => {
