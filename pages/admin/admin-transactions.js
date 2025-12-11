@@ -28,6 +28,10 @@ export default function AdminTransactions() {
   const [activeTab, setActiveTab] = useState('all');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [loadingBanner, setLoadingBanner] = useState({
     visible: false,
@@ -392,12 +396,14 @@ export default function AdminTransactions() {
         successMessage += `\nChange: ${balanceDiff >= 0 ? '+' : ''}$${Math.abs(balanceDiff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
 
-      setSuccess(successMessage);
+      setSuccessMessage(successMessage);
+      setShowSuccessBanner(true);
       setShowEditModal(false);
       fetchTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
-      setError('❌ Failed to update transaction: ' + error.message);
+      setErrorMessage('Failed to update transaction: ' + error.message);
+      setShowErrorBanner(true);
     } finally {
       setActionLoading(false);
     }
@@ -482,7 +488,8 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to create transaction');
       }
 
-      setSuccess('Transaction created successfully');
+      setSuccessMessage('Transaction created successfully');
+      setShowSuccessBanner(true);
       setShowCreateModal(false);
       setCreateForm({
         account_id: '',
@@ -494,7 +501,8 @@ export default function AdminTransactions() {
       fetchTransactions();
     } catch (error) {
       console.error('Error creating transaction:', error);
-      setError('Failed to create transaction: ' + error.message);
+      setErrorMessage('Failed to create transaction: ' + error.message);
+      setShowErrorBanner(true);
     } finally {
       setActionLoading(false);
     }
@@ -545,16 +553,18 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to delete transaction');
       }
 
-      let successMessage = '✅ Transaction deleted successfully!';
+      let deleteSuccessMessage = 'Transaction deleted successfully!';
       if (result.balanceReverted) {
-        successMessage += `\n\n💰 Account balance reverted by ${formatCurrency(transaction.amount)}`;
+        deleteSuccessMessage += ` Account balance reverted by ${formatCurrency(transaction.amount)}`;
       }
 
-      setSuccess(successMessage);
+      setSuccessMessage(deleteSuccessMessage);
+      setShowSuccessBanner(true);
       fetchTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      setError('❌ Failed to delete transaction: ' + error.message);
+      setErrorMessage('Failed to delete transaction: ' + error.message);
+      setShowErrorBanner(true);
     }
   };
 
@@ -674,15 +684,15 @@ export default function AdminTransactions() {
       // Hide loading banner
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
 
-      let resultMessage = `✅ Bulk Delete Complete!\n\n`;
-      resultMessage += `Successfully deleted: ${successCount} transaction(s)\n`;
+      let resultMessage = `Bulk Delete Complete! Successfully deleted: ${successCount} transaction(s)`;
       
       if (failCount > 0) {
-        resultMessage += `Failed: ${failCount} transaction(s)\n\n`;
-        resultMessage += `Errors:\n${errors.join('\n')}`;
-        setError(resultMessage);
+        resultMessage += ` Failed: ${failCount} transaction(s). Errors: ${errors.join(', ')}`;
+        setErrorMessage(resultMessage);
+        setShowErrorBanner(true);
       } else {
-        setSuccess(resultMessage);
+        setSuccessMessage(resultMessage);
+        setShowSuccessBanner(true);
       }
 
       setSelectedTransactions([]);
@@ -1383,6 +1393,50 @@ export default function AdminTransactions() {
             </div>
           </div>
         )}
+
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>Notification</span>
+                <div style={styles.successBannerActions}>
+                  <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerAction}>Success!</p>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+              <div style={styles.successBannerFooter}>
+                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerOkButton}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {showErrorBanner && (
+          <div style={styles.errorBannerOverlay}>
+            <div style={styles.errorBannerContainer}>
+              <div style={styles.errorBannerHeader}>
+                <span style={styles.errorBannerLogo}>Error</span>
+                <div style={styles.errorBannerActions}>
+                  <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.errorBannerContent}>
+                <p style={styles.errorBannerAction}>Oops!</p>
+                <p style={styles.errorBannerMessage}>{errorMessage}</p>
+              </div>
+              <div style={styles.errorBannerFooter}>
+                <span style={styles.errorBannerWarning}>⚠️ An error occurred</span>
+                <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerOkButton}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <AdminFooter />
     </AdminAuth>
@@ -1894,5 +1948,207 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
+  },
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  },
+  errorBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  errorBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  errorBannerHeader: {
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  errorBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  errorBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  errorBannerContent: {
+    padding: '30px 20px'
+  },
+  errorBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#dc2626',
+    textAlign: 'center'
+  },
+  errorBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  errorBannerFooter: {
+    backgroundColor: '#fef2f2',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerWarning: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  errorBannerOkButton: {
+    padding: '8px 24px',
+    background: '#dc2626',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   }
 };
