@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 
@@ -10,27 +10,85 @@ export default function AdminAuth({ children }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
     checkAdminStatus();
+    setupTokenRefresh();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         await verifyAdminUser(session.user);
+        setupTokenRefresh();
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
         setUser(null);
+        clearTokenRefresh();
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('Token refreshed successfully');
       }
     });
 
+    // Handle visibility change to refresh token when page becomes active
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && isAuthenticated) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setError('Session expired. Please log in again.');
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       authListener?.subscription?.unsubscribe();
+      clearTokenRefresh();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [isAuthenticated]);
+
+  const setupTokenRefresh = () => {
+    clearTokenRefresh();
+    // Refresh token every 4 minutes (tokens typically expire in 60 minutes)
+    refreshIntervalRef.current = setInterval(async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.error('Token refresh failed:', error);
+          if (error.message.includes('refresh_token_not_found')) {
+            setError('Session expired. Please log in again.');
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        } else if (session) {
+          console.log('Token refreshed successfully');
+        }
+      } catch (err) {
+        console.error('Error refreshing token:', err);
+      }
+    }, 4 * 60 * 1000); // 4 minutes
+  };
+
+  const clearTokenRefresh = () => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+  };
 
   const checkAdminStatus = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
+      }
       
       if (session?.user) {
         await verifyAdminUser(session.user);
