@@ -1083,8 +1083,8 @@ export default function AdminTransactions() {
                       <label style={styles.formLabel}>Amount *</label>
                       <input
                         type="number"
-                        step="0.01"
-                        min="0.01"
+                        step="any"
+                        min="0"
                         value={editForm.amount}
                         onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
                         style={styles.formInput}
@@ -1243,8 +1243,8 @@ export default function AdminTransactions() {
                       <label style={styles.formLabel}>Amount *</label>
                       <input
                         type="number"
-                        step="0.01"
-                        min="0.01"
+                        step="any"
+                        min="0"
                         value={createForm.amount}
                         onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
                         style={styles.formInput}
