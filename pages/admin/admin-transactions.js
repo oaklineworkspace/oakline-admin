@@ -1167,7 +1167,12 @@ export default function AdminTransactions() {
                     style={styles.saveButton}
                     disabled={actionLoading}
                   >
-                    {actionLoading ? 'Saving...' : 'Save Changes'}
+                    {actionLoading ? (
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <span style={styles.buttonSpinner}></span>
+                        Saving...
+                      </span>
+                    ) : 'Save Changes'}
                   </button>
                 </div>
               </form>
@@ -1721,6 +1726,15 @@ const styles = {
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     margin: '0 auto 20px'
+  },
+  buttonSpinner: {
+    width: '16px',
+    height: '16px',
+    border: '2px solid rgba(255, 255, 255, 0.3)',
+    borderTop: '2px solid #ffffff',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    display: 'inline-block'
   },
   emptyState: {
     textAlign: 'center',
