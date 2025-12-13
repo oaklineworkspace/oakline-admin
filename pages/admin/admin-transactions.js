@@ -680,7 +680,8 @@ export default function AdminTransactions() {
           accountId: transaction.account_id,
           transactionType: transaction.type,
           amount: transaction.amount,
-          status: transaction.status
+          status: transaction.status,
+          source: transaction.source || 'transaction'
         })
       });
 
@@ -801,7 +802,8 @@ export default function AdminTransactions() {
               accountId: transaction.account_id,
               transactionType: transaction.type,
               amount: transaction.amount,
-              status: transaction.status
+              status: transaction.status,
+              source: transaction.source || 'transaction'
             })
           });
 

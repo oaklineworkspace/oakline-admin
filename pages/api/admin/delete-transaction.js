@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(authResult.status || 401).json({ error: authResult.error });
   }
 
-  const { transactionId, accountId, transactionType, amount, status } = req.body;
+  const { transactionId, accountId, transactionType, amount, status, source } = req.body;
 
   if (!transactionId) {
     return res.status(400).json({ error: 'Transaction ID is required' });
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         let newBalance;
 
         // Reverse the transaction effect
-        if (transactionType === 'credit') {
+        if (transactionType === 'credit' || transactionType === 'account_opening_deposit' || transactionType === 'loan_collateral_deposit') {
           // Reverting a credit means subtracting from balance
           newBalance = currentBalance - parseFloat(amount);
         } else {
@@ -59,11 +59,31 @@ export default async function handler(req, res) {
       }
     }
 
-    // Delete the transaction
-    const { error: deleteError } = await supabaseAdmin
-      .from('transactions')
-      .delete()
-      .eq('id', transactionId);
+    // Delete from the appropriate table based on source
+    let deleteError;
+    
+    if (source === 'loan_payment') {
+      // Delete from loan_payments table
+      const { error } = await supabaseAdmin
+        .from('loan_payments')
+        .delete()
+        .eq('id', transactionId);
+      deleteError = error;
+    } else if (source === 'account_opening_deposit') {
+      // Delete from account_opening_crypto_deposits table
+      const { error } = await supabaseAdmin
+        .from('account_opening_crypto_deposits')
+        .delete()
+        .eq('id', transactionId);
+      deleteError = error;
+    } else {
+      // Delete from transactions table (default)
+      const { error } = await supabaseAdmin
+        .from('transactions')
+        .delete()
+        .eq('id', transactionId);
+      deleteError = error;
+    }
 
     if (deleteError) {
       console.error('Error deleting transaction:', deleteError);
@@ -80,6 +100,7 @@ export default async function handler(req, res) {
         type: transactionType,
         amount: amount,
         status: status,
+        source: source || 'transaction',
         balance_reverted: balanceReverted
       }
     });
