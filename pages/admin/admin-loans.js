@@ -17,8 +17,11 @@ export default function AdminLoans() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
+  const [users, setUsers] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [actionLoading, setActionLoading] = useState(null);
   const [formData, setFormData] = useState({
     amount: '',
     note: '',
@@ -50,7 +53,23 @@ export default function AdminLoans() {
     fetchLoans();
     fetchTreasuryBalance();
     fetchRecentPayments();
+    fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data: appsData } = await supabase
+        .from('applications')
+        .select('id, first_name, last_name, email, user_id')
+        .order('first_name');
+      
+      if (appsData) {
+        setUsers(appsData);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   const fetchTreasuryBalance = async () => {
     try {
@@ -587,6 +606,7 @@ export default function AdminLoans() {
                          loan.id?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || loan.loan_type === filterType;
     const matchesStatus = filterStatus === 'all' || loan.status === filterStatus;
+    const matchesUser = userFilter === 'all' || loan.user_id === userFilter;
     const matchesTab = activeTab === 'all' ||
                       (activeTab === 'pending' && loan.status === 'pending') ||
                       (activeTab === 'active' && loan.status === 'active') ||
@@ -610,7 +630,7 @@ export default function AdminLoans() {
       }
     }
 
-    return matchesSearch && matchesType && matchesStatus && matchesTab && matchesDateRange;
+    return matchesSearch && matchesType && matchesStatus && matchesUser && matchesTab && matchesDateRange;
   });
 
   const stats = {
@@ -722,6 +742,14 @@ export default function AdminLoans() {
             <option value="active">Active</option>
             <option value="rejected">Rejected</option>
             <option value="closed">Closed</option>
+          </select>
+          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={styles.filterSelect}>
+            <option value="all">All Users</option>
+            {users.map(user => (
+              <option key={user.user_id} value={user.user_id}>
+                {user.first_name} {user.last_name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -1010,13 +1038,13 @@ export default function AdminLoans() {
                         onClick={() => handleDisburse(loan.id)}
                         style={{
                           ...styles.disburseButton,
-                          opacity: parseFloat(loan.principal) > treasuryBalance ? 0.6 : 1,
-                          cursor: parseFloat(loan.principal) > treasuryBalance ? 'not-allowed' : 'pointer'
+                          opacity: parseFloat(loan.principal) > treasuryBalance || loading ? 0.6 : 1,
+                          cursor: parseFloat(loan.principal) > treasuryBalance || loading ? 'not-allowed' : 'pointer'
                         }}
                         title={parseFloat(loan.principal) > treasuryBalance ? 'Insufficient treasury balance' : 'Disburse loan'}
-                        disabled={parseFloat(loan.principal) > treasuryBalance}
+                        disabled={parseFloat(loan.principal) > treasuryBalance || loading}
                       >
-                        💰 Disburse Loan
+                        {loading ? '⏳ Disbursing...' : '💰 Disburse Loan'}
                       </button>
                     )}
                     {loan.status === 'pending' && (
