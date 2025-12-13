@@ -161,8 +161,23 @@ export default function AdminTransactions() {
         applications = appsData || [];
       }
 
+      // Fetch user info for transactions without accounts
+      const userIds = txData
+        .filter(tx => !tx.accounts && tx.user_id)
+        .map(tx => tx.user_id);
+      
+      let userApplications = [];
+      if (userIds.length > 0) {
+        const { data: userAppsData } = await supabase
+          .from('applications')
+          .select('user_id, first_name, last_name, email')
+          .in('user_id', [...new Set(userIds)]);
+        userApplications = userAppsData || [];
+      }
+
       const enrichedData = txData.map(tx => {
         const application = applications?.find(a => a.id === tx.accounts?.application_id);
+        const userApp = userApplications?.find(ua => ua.user_id === tx.user_id);
 
         return {
           ...tx,
@@ -175,13 +190,13 @@ export default function AdminTransactions() {
               email: 'N/A'
             }
           } : {
-            account_number: 'N/A',
+            account_number: tx.account_id ? 'N/A' : 'No Account',
             user_id: tx.user_id || null,
             application_id: null,
-            applications: {
-              first_name: 'Unknown',
-              last_name: 'User',
-              email: 'N/A'
+            applications: userApp || {
+              first_name: tx.user_id ? 'System' : 'Unknown',
+              last_name: tx.user_id ? 'Transaction' : 'User',
+              email: tx.user_id ? 'Internal' : 'N/A'
             }
           }
         };
