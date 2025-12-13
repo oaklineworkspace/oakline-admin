@@ -207,6 +207,20 @@ export default function AdminTransactions() {
         userApplications = userAppsData || [];
       }
 
+      // Fetch profiles for loan payment users (loan payments get user info from loans.user_id)
+      const loanPaymentUserIds = (loanPaymentsData || [])
+        .map(lp => lp.loans?.user_id)
+        .filter(Boolean);
+
+      let loanPaymentProfiles = [];
+      if (loanPaymentUserIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', [...new Set(loanPaymentUserIds)]);
+        loanPaymentProfiles = profilesData || [];
+      }
+
       const enrichedData = txData.map(tx => {
         const application = applications?.find(a => a.id === tx.accounts?.application_id);
         const userApp = userApplications?.find(ua => ua.user_id === tx.user_id);
@@ -273,6 +287,7 @@ export default function AdminTransactions() {
       // Enrich loan payments
       const enrichedLoanPaymentsData = (loanPaymentsData || []).map(payment => {
         const application = applications?.find(a => a.id === payment.accounts?.application_id);
+        const profile = loanPaymentProfiles?.find(p => p.id === payment.loans?.user_id);
         const loanType = payment.loans?.loan_type || 'Loan';
         
         // Determine display type based on payment characteristics
@@ -315,7 +330,7 @@ export default function AdminTransactions() {
           reference_number: payment.reference_number,
           accounts: payment.accounts ? {
             ...payment.accounts,
-            applications: application || {
+            applications: profile || application || {
               first_name: 'Unknown',
               last_name: 'User',
               email: 'N/A'
@@ -324,7 +339,7 @@ export default function AdminTransactions() {
             account_number: 'N/A',
             user_id: payment.loans?.user_id || null,
             application_id: null,
-            applications: {
+            applications: profile || {
               first_name: 'Unknown',
               last_name: 'User',
               email: 'N/A'
