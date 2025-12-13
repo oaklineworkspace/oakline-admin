@@ -7,7 +7,7 @@ import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
 const VALID_STATUSES = ['pending', 'completed', 'failed', 'hold', 'cancelled', 'reversed'];
-const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit', 'wire_transfer', 'check_deposit', 'atm_withdrawal', 'debit_card', 'transfer_in', 'transfer_out', 'ach_transfer', 'check_payment', 'service_fee', 'refund', 'interest', 'bonus', 'other'];
+const VALID_TYPES = ['credit', 'debit', 'deposit', 'withdrawal', 'transfer', 'crypto_deposit', 'loan_disbursement', 'treasury_credit', 'treasury_debit', 'wire_transfer', 'check_deposit', 'atm_withdrawal', 'debit_card', 'transfer_in', 'transfer_out', 'ach_transfer', 'check_payment', 'service_fee', 'refund', 'interest', 'bonus', 'other', 'account_opening_deposit', 'loan_payment', 'loan_collateral_deposit', 'loan_early_payoff'];
 
 export default function AdminTransactions() {
   const router = useRouter();
@@ -150,7 +150,39 @@ export default function AdminTransactions() {
       console.log('Fetched account opening deposits:', accountOpeningData?.length || 0);
       console.log('Sample account opening deposit:', accountOpeningData?.[0]);
 
-      const appIds = [...new Set(txData.map(tx => tx.accounts?.application_id).filter(Boolean))];
+      // Fetch loan payments
+      const { data: loanPaymentsData, error: loanPaymentsError } = await supabase
+        .from('loan_payments')
+        .select(`
+          *,
+          loans (
+            id,
+            loan_type,
+            principal,
+            user_id,
+            account_id
+          ),
+          accounts (
+            account_number,
+            user_id,
+            application_id
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .range(0, 9999);
+
+      if (loanPaymentsError) {
+        console.warn('Error fetching loan payments:', loanPaymentsError);
+      }
+
+      console.log('Fetched loan payments:', loanPaymentsData?.length || 0);
+      console.log('Sample loan payment:', loanPaymentsData?.[0]);
+
+      const appIds = [...new Set([
+        ...txData.map(tx => tx.accounts?.application_id).filter(Boolean),
+        ...(accountOpeningData || []).map(d => d.accounts?.application_id).filter(Boolean),
+        ...(loanPaymentsData || []).map(lp => lp.accounts?.application_id).filter(Boolean)
+      ])];
       let applications = [];
 
       if (appIds.length > 0) {
@@ -238,14 +270,78 @@ export default function AdminTransactions() {
         };
       });
 
-      // Merge both data sources and sort by created_at
-      const mergedData = [...enrichedData, ...enrichedAccountOpeningData].sort((a, b) => 
+      // Enrich loan payments
+      const enrichedLoanPaymentsData = (loanPaymentsData || []).map(payment => {
+        const application = applications?.find(a => a.id === payment.accounts?.application_id);
+        const loanType = payment.loans?.loan_type || 'Loan';
+        
+        // Determine display type based on payment characteristics
+        let displayType = 'loan_payment';
+        let displayDescription = '';
+        
+        if (payment.is_deposit || payment.payment_type === 'deposit') {
+          displayType = 'loan_collateral_deposit';
+          displayDescription = `10% loan collateral deposit via ${payment.deposit_method || payment.payment_method || 'crypto'}`;
+        } else if (payment.payment_type === 'early_payoff') {
+          displayType = 'loan_early_payoff';
+          displayDescription = `Loan Early Payoff - ${loanType}`;
+        } else {
+          displayDescription = payment.notes || `Loan Payment - ${loanType}`;
+        }
+
+        // Map loan payment statuses to standard transaction statuses
+        let mappedStatus = payment.status;
+        if (payment.status === 'approved') mappedStatus = 'completed';
+        if (payment.status === 'rejected') mappedStatus = 'failed';
+        if (payment.status === 'processing') mappedStatus = 'pending';
+
+        return {
+          id: payment.id,
+          user_id: payment.loans?.user_id || null,
+          account_id: payment.account_id || payment.loans?.account_id,
+          type: displayType,
+          amount: payment.amount || payment.payment_amount || payment.gross_amount,
+          description: displayDescription,
+          status: mappedStatus,
+          created_at: payment.created_at,
+          updated_at: payment.updated_at,
+          source: 'loan_payment',
+          original_data: payment,
+          loan_id: payment.loan_id,
+          loan_type: loanType,
+          payment_type: payment.payment_type,
+          is_deposit: payment.is_deposit,
+          deposit_method: payment.deposit_method,
+          reference_number: payment.reference_number,
+          accounts: payment.accounts ? {
+            ...payment.accounts,
+            applications: application || {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'N/A'
+            }
+          } : {
+            account_number: 'N/A',
+            user_id: payment.loans?.user_id || null,
+            application_id: null,
+            applications: {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'N/A'
+            }
+          }
+        };
+      });
+
+      // Merge all data sources and sort by created_at
+      const mergedData = [...enrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
 
       console.log('Total merged transactions:', mergedData.length);
       console.log('Transactions from transactions table:', enrichedData.length);
       console.log('Transactions from account_opening_crypto_deposits:', enrichedAccountOpeningData.length);
+      console.log('Transactions from loan_payments:', enrichedLoanPaymentsData.length);
 
       setTransactions(mergedData || []);
     } catch (error) {
