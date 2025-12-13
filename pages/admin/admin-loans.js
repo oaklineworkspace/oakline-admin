@@ -385,6 +385,65 @@ export default function AdminLoans() {
     }
   };
 
+  const handleDeleteLoan = async (loanId) => {
+    const loan = loans.find(l => l.id === loanId);
+    
+    if (!loan) {
+      setErrorMessage('Loan not found');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+      return;
+    }
+
+    if (!confirm('Are you sure you want to permanently DELETE this loan? This action cannot be undone and will remove all associated loan payments.')) {
+      return;
+    }
+
+    setProcessing(loanId);
+    setError('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
+      const response = await fetch('/api/admin/delete-loan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          loanId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete loan');
+      }
+
+      setSuccessMessage('🗑️ Loan deleted successfully!');
+      setShowSuccessBanner(true);
+      await fetchLoans();
+      await fetchTreasuryBalance();
+
+      setTimeout(() => {
+        setShowSuccessBanner(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error deleting loan:', error);
+      setErrorMessage(error.message || 'Failed to delete loan');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 3000);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const handleCloseLoan = async (loanId) => {
     const loan = loans.find(l => l.id === loanId);
     
@@ -1012,6 +1071,18 @@ export default function AdminLoans() {
                         {processing === loan.id ? '⏳ Closing...' : '✅ Close Loan'}
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDeleteLoan(loan.id)}
+                      style={{
+                        ...styles.deleteButton,
+                        opacity: processing === loan.id ? 0.6 : 1,
+                        cursor: processing === loan.id ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={processing === loan.id}
+                      title="Permanently delete this loan"
+                    >
+                      {processing === loan.id ? '⏳ Deleting...' : '🗑️ Delete'}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -2013,6 +2084,18 @@ const styles = {
     flex: 1,
     padding: '10px',
     background: '#059669',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  deleteButton: {
+    flex: 1,
+    padding: '10px',
+    background: 'linear-gradient(135deg, #991b1b 0%, #dc2626 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
