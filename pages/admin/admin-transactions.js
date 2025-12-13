@@ -348,13 +348,24 @@ export default function AdminTransactions() {
         };
       });
 
+      // Filter out loan-related transactions from transactions table to avoid duplicates
+      // since we're now getting authoritative loan payment data from loan_payments table
+      const loanRelatedPatterns = ['loan repayment', 'loan payment', 'loan disbursement'];
+      const filteredEnrichedData = enrichedData.filter(tx => {
+        const description = (tx.description || '').toLowerCase();
+        const isLoanRelated = loanRelatedPatterns.some(pattern => description.includes(pattern));
+        return !isLoanRelated;
+      });
+
+      console.log('Filtered out loan-related transactions:', enrichedData.length - filteredEnrichedData.length);
+
       // Merge all data sources and sort by created_at
-      const mergedData = [...enrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData].sort((a, b) => 
+      const mergedData = [...filteredEnrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
 
       console.log('Total merged transactions:', mergedData.length);
-      console.log('Transactions from transactions table:', enrichedData.length);
+      console.log('Transactions from transactions table (after filtering):', filteredEnrichedData.length);
       console.log('Transactions from account_opening_crypto_deposits:', enrichedAccountOpeningData.length);
       console.log('Transactions from loan_payments:', enrichedLoanPaymentsData.length);
 
