@@ -478,9 +478,8 @@ export default async function handler(req, res) {
     let emailError = null;
     
     try {
-      const protocol = req.headers['x-forwarded-proto'] || 'https';
-      const host = req.headers['x-forwarded-host'] || req.headers.host || 'theoaklinebank.com';
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+      // Always use production domain for email links
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com';
 
       // Send ALL account numbers in welcome email (both active and pending funding)
       const accountNumbers = createdAccounts.map(acc => acc.account_number);

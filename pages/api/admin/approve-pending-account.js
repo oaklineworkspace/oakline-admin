@@ -146,9 +146,8 @@ export default async function handler(req, res) {
 
     // 5. Send appropriate email based on enrollment status
     try {
-      const protocol = req.headers['x-forwarded-proto'] || 'https';
-      const host = req.headers['x-forwarded-host'] || req.headers.host;
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+      // Always use production domain for email links
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com';
 
       console.log('Sending approval notification to:', application.email);
       console.log('User needs enrollment:', needsEnrollment);
