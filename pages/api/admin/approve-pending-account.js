@@ -147,7 +147,7 @@ export default async function handler(req, res) {
     // 5. Send appropriate email based on enrollment status
     try {
       // Always use production domain for email links
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com';
+      const siteUrl = 'https://www.theoaklinebank.com';
 
       console.log('Sending approval notification to:', application.email);
       console.log('User needs enrollment:', needsEnrollment);
