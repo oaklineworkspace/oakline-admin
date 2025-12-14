@@ -27,12 +27,20 @@ export default function ApproveApplications() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [viewingDocuments, setViewingDocuments] = useState(null);
   const [documentUrls, setDocumentUrls] = useState({ front: null, back: null });
-  
+
   // New state for filtering and tabs
   const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // State for banners and processing indicators
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('');
+
 
   useEffect(() => {
     fetchApplications();
@@ -50,7 +58,7 @@ export default function ApproveApplications() {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error Response:', errorText);
@@ -73,7 +81,7 @@ export default function ApproveApplications() {
                 method: 'GET',
                 credentials: 'include'
               });
-              
+
               if (accountsResponse.ok) {
                 const accountsData = await accountsResponse.json();
                 return {
@@ -159,6 +167,9 @@ export default function ApproveApplications() {
     setError('');
     setSuccessMessage('');
     setApprovalResult(null);
+    setIsProcessing(true);
+    setProcessingMessage('Approving application...');
+
 
     try {
       const response = await fetch('/api/admin/approve-application', {
@@ -192,15 +203,23 @@ export default function ApproveApplications() {
       setSuccessMessage(
         `✅ Application approved! Created ${result.data.accountsCreated} accounts and ${result.data.cardsCreated} cards.`
       );
+      setBannerMessage(
+        `✅ Application approved! Created ${result.data.accountsCreated} accounts and ${result.data.cardsCreated} cards.`
+      );
+      setShowSuccessBanner(true);
 
       // Refresh applications list
       await fetchApplications();
     } catch (error) {
       console.error('Error approving application:', error);
       setError('Failed to approve application: ' + error.message);
+      setBannerMessage('❌ Failed to approve application: ' + error.message);
+      setShowErrorBanner(true);
       setShowApprovalModal(null);
     } finally {
       setProcessing(null);
+      setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -214,6 +233,9 @@ export default function ApproveApplications() {
 
     setProcessing(applicationToReject.id);
     setError('');
+    setIsProcessing(true);
+    setProcessingMessage('Rejecting application...');
+
 
     try {
       const response = await fetch('/api/admin/reject-application', {
@@ -228,11 +250,17 @@ export default function ApproveApplications() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to reject application');
+        console.error('Rejection failed:', result);
+        const errorMessage = result.details 
+          ? `${result.error}: ${result.details}` 
+          : result.error || 'Failed to reject application';
+        throw new Error(errorMessage);
       }
 
       setSuccessMessage('❌ Application rejected successfully');
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setBannerMessage('❌ Application rejected successfully');
+      setShowSuccessBanner(true);
+      // setTimeout(() => setSuccessMessage(''), 5000); // Removed to use banner
 
       setShowRejectModal(false);
       setApplicationToReject(null);
@@ -242,9 +270,13 @@ export default function ApproveApplications() {
     } catch (error) {
       console.error('Error rejecting application:', error);
       setError(error.message);
-      setTimeout(() => setError(''), 5000);
+      setBannerMessage('❌ Failed to reject application: ' + error.message);
+      setShowErrorBanner(true);
+      // setTimeout(() => setError(''), 5000); // Removed to use banner
     } finally {
       setProcessing(null);
+      setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -252,6 +284,8 @@ export default function ApproveApplications() {
     setViewingDocuments(app);
     setDocumentUrls({ front: null, back: null });
     setError('');
+    setIsProcessing(true);
+    setProcessingMessage(`Loading documents for ${app.email}...`);
 
     try {
       // Get auth token
@@ -276,14 +310,20 @@ export default function ApproveApplications() {
       const result = await response.json();
 
       if (!response.ok) {
-        setError(result.error || 'Failed to load documents');
-        return;
+        throw new Error(result.error || 'Failed to load documents');
       }
 
       setDocumentUrls(result.documents);
+      setBannerMessage('Documents loaded successfully.');
+      setShowSuccessBanner(true);
     } catch (error) {
       console.error('Error loading documents:', error);
       setError('Failed to load documents: ' + error.message);
+      setBannerMessage('❌ Failed to load documents: ' + error.message);
+      setShowErrorBanner(true);
+    } finally {
+      setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -321,12 +361,12 @@ export default function ApproveApplications() {
   const filteredApplications = applications.filter(app => {
     // Tab filtering
     const matchesTab = activeTab === 'all' || app.application_status === activeTab;
-    
+
     const matchesSearch = app.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.id?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     // Date range filtering
     let matchesDateRange = true;
     if (startDate || endDate) {
@@ -344,7 +384,7 @@ export default function ApproveApplications() {
         matchesDateRange = appDate <= end;
       }
     }
-    
+
     return matchesTab && matchesSearch && matchesDateRange;
   });
 
@@ -369,6 +409,12 @@ export default function ApproveApplications() {
     return statusStyles[status] || statusStyles.pending;
   };
 
+  const closeBanner = () => {
+    setShowSuccessBanner(false);
+    setShowErrorBanner(false);
+    setBannerMessage('');
+  };
+
   return (
     <AdminAuth>
       <div style={styles.container}>
@@ -389,6 +435,22 @@ export default function ApproveApplications() {
 
         {error && <div style={styles.errorBanner}>{error}</div>}
         {successMessage && <div style={styles.successBanner}>{successMessage}</div>}
+
+        {/* Dynamic Banner */}
+        {(showSuccessBanner || showErrorBanner) && (
+          <div style={showSuccessBanner ? styles.successBanner : styles.errorBanner}>
+            {bannerMessage}
+            <button onClick={closeBanner} style={styles.closeBannerButton}>✕</button>
+          </div>
+        )}
+
+        {/* Loading Spinner */}
+        {isProcessing && (
+          <div style={styles.processingOverlay}>
+            <div style={styles.spinner}></div>
+            <p style={styles.processingMessage}>{processingMessage}</p>
+          </div>
+        )}
 
         {/* Statistics Cards */}
         <div style={styles.statsGrid}>
@@ -889,7 +951,7 @@ export default function ApproveApplications() {
                 <h2 style={styles.documentsTitle}>📄 ID Documents</h2>
                 <button onClick={() => setViewingDocuments(null)} style={styles.closeButton}>✕</button>
               </div>
-              
+
               <div style={styles.documentsContent}>
                 <p style={styles.documentsSubtitle}>
                   {viewingDocuments.first_name} {viewingDocuments.last_name} - {viewingDocuments.email}
@@ -1000,6 +1062,10 @@ const styles = {
     marginBottom: '20px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '500',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '10px'
   },
   successBanner: {
     background: '#c6f6d5',
@@ -1009,6 +1075,18 @@ const styles = {
     marginBottom: '20px',
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '500',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  closeBannerButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '20px',
+    cursor: 'pointer',
+    color: 'inherit',
+    padding: '0 5px'
   },
   resultModal: {
     background: 'white',
@@ -1843,5 +1921,24 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     color: '#718096',
     margin: 0
+  },
+  processingOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(255, 255, 255, 0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10002,
+  },
+  processingMessage: {
+    marginTop: '15px',
+    fontSize: '18px',
+    fontWeight: '500',
+    color: '#333',
   }
 };
