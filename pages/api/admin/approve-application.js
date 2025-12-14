@@ -478,8 +478,13 @@ export default async function handler(req, res) {
     let emailError = null;
     
     try {
-      // Always use production domain for email links
-      const siteUrl = 'https://www.theoaklinebank.com';
+      // Use Replit URL for API calls (server-to-server communication)
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+      
+      // Use custom domain for user-facing links in emails
+      const userSiteUrl = 'https://www.theoaklinebank.com';
 
       // Send ALL account numbers in welcome email (both active and pending funding)
       const accountNumbers = createdAccounts.map(acc => acc.account_number);
@@ -502,10 +507,11 @@ export default async function handler(req, res) {
       console.log('Is New User:', isNewUser);
       console.log('Active Accounts:', accountNumbers);
       console.log('Pending Funding Accounts:', pendingFundingInfo);
-      console.log('Site URL:', siteUrl);
+      console.log('API Base URL (for fetch):', apiBaseUrl);
+      console.log('User Site URL (for email links):', userSiteUrl);
       console.log('==========================================');
 
-      const welcomeResponse = await fetch(`${siteUrl}/api/send-welcome-email-with-credentials`, {
+      const welcomeResponse = await fetch(`${apiBaseUrl}/api/send-welcome-email-with-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -520,7 +526,7 @@ export default async function handler(req, res) {
           pending_funding_accounts: pendingFundingInfo,
           application_id: applicationId,
           country: application.country || 'US',
-          site_url: siteUrl,
+          site_url: userSiteUrl,
           bank_details: bankDetails
         })
       });

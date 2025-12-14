@@ -115,8 +115,10 @@ export default async function handler(req, res) {
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const detectedSiteUrl = site_url || process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`;
+    const userFacingSiteUrl = site_url || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.theoaklinebank.com'; // Use this for user-facing links
 
     console.log('Using site URL for login:', detectedSiteUrl);
+    console.log('Using user-facing site URL for links:', userFacingSiteUrl);
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -297,14 +299,17 @@ export default async function handler(req, res) {
                       <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0;">
                         ⚠️ <strong>Important Security Notice:</strong> Please use the button below to securely log in and set your permanent password. This temporary password will expire in 24 hours.
                       </p>
+                      <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 16px 0;">
+                        Please visit <a href="${userFacingSiteUrl}" style="color: #1e40af;">www.theoaklinebank.com</a> to access your account.
+                      </p>
                     </div>
 
                     <!-- Action Buttons -->
                     <div style="text-align: center; margin: 30px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                      <a href="https://www.theoaklinebank.com/login?redirect=/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                      <a href="${userFacingSiteUrl}/login?redirect=/security" style="display: inline-block; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4); text-transform: uppercase; letter-spacing: 1px;">
                         🔑 LOGIN TO ACCOUNT
                       </a>
-                      <a href="https://www.theoaklinebank.com/reset-password?redirect=/dashboard" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                      <a href="${userFacingSiteUrl}/reset-password?redirect=/dashboard" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4); text-transform: uppercase; letter-spacing: 1px;">
                         🔐 SET NEW PASSWORD
                       </a>
                     </div>
@@ -369,7 +374,7 @@ export default async function handler(req, res) {
     console.log('==========================================');
 
     const info = await transporter.sendMail(mailOptions);
-    
+
     console.log('==========================================');
     console.log('✅ WELCOME EMAIL SENT SUCCESSFULLY');
     console.log('==========================================');
@@ -391,7 +396,7 @@ export default async function handler(req, res) {
     console.error('Error:', error.message);
     console.error('Stack:', error.stack);
     console.error('==========================================');
-    
+
     return res.status(500).json({
       success: false,
       error: 'Failed to send welcome email',
