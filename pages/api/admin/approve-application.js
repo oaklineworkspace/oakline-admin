@@ -525,23 +525,38 @@ export default async function handler(req, res) {
         })
       });
 
+      console.log('Email API response status:', welcomeResponse.status);
+      
+      // Get response text first to handle potential JSON parsing errors
+      const responseText = await welcomeResponse.text();
+      console.log('Email API response text:', responseText);
+
       if (welcomeResponse.ok) {
-        const emailResult = await welcomeResponse.json();
-        emailSent = true;
-        console.log('==========================================');
-        console.log('✅ WELCOME EMAIL SENT SUCCESSFULLY');
-        console.log('==========================================');
-        console.log('Email result:', emailResult);
-        console.log('Message ID:', emailResult.messageId);
-        console.log('==========================================');
+        try {
+          const emailResult = responseText ? JSON.parse(responseText) : { success: true };
+          emailSent = true;
+          console.log('==========================================');
+          console.log('✅ WELCOME EMAIL SENT SUCCESSFULLY');
+          console.log('==========================================');
+          console.log('Email result:', emailResult);
+          console.log('Message ID:', emailResult.messageId);
+          console.log('==========================================');
+        } catch (parseError) {
+          console.warn('Could not parse email response, but status was OK');
+          emailSent = true;
+        }
       } else {
-        const errorData = await welcomeResponse.json();
-        emailError = `Email API returned status ${welcomeResponse.status}: ${JSON.stringify(errorData)}`;
+        try {
+          const errorData = responseText ? JSON.parse(responseText) : { error: 'Unknown error' };
+          emailError = `Email API returned status ${welcomeResponse.status}: ${JSON.stringify(errorData)}`;
+        } catch (parseError) {
+          emailError = `Email API returned status ${welcomeResponse.status}: ${responseText}`;
+        }
         console.error('==========================================');
         console.error('❌ FAILED TO SEND WELCOME EMAIL');
         console.error('==========================================');
         console.error('Status:', welcomeResponse.status);
-        console.error('Error Data:', errorData);
+        console.error('Response:', responseText);
         console.error('==========================================');
       }
     } catch (error) {

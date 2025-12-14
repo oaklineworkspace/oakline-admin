@@ -364,23 +364,37 @@ export default async function handler(req, res) {
       html: emailHtml
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Welcome email sent successfully:', info.messageId);
+    console.log('==========================================');
+    console.log('📧 SENDING EMAIL VIA SMTP...');
+    console.log('==========================================');
 
-    // Note: Debit card generation and specific user notification logic beyond this email
-    // are not included as there were no corresponding code changes provided in the snippet.
-    // This would typically involve additional API calls or service integrations.
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log('==========================================');
+    console.log('✅ WELCOME EMAIL SENT SUCCESSFULLY');
+    console.log('==========================================');
+    console.log('Message ID:', info.messageId);
+    console.log('Response:', info.response);
+    console.log('==========================================');
 
     return res.status(200).json({
       success: true,
       message: 'Welcome email sent successfully',
-      messageId: info.messageId
+      messageId: info.messageId,
+      response: info.response
     });
 
   } catch (error) {
-    console.error('Error processing account approval:', error);
+    console.error('==========================================');
+    console.error('❌ ERROR SENDING WELCOME EMAIL');
+    console.error('==========================================');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('==========================================');
+    
     return res.status(500).json({
-      error: 'Failed to process account approval',
+      success: false,
+      error: 'Failed to send welcome email',
       details: error.message
     });
   }
