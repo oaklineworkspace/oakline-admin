@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function ManageAccountTypes() {
   const [accountTypes, setAccountTypes] = useState([]);
@@ -29,7 +29,16 @@ export default function ManageAccountTypes() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/get-account-types');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
+      const response = await fetch('/api/admin/get-account-types', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const result = await response.json();
 
       if (!response.ok) {
@@ -78,6 +87,11 @@ export default function ManageAccountTypes() {
     setSuccess('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
       const payload = {
         ...formData,
         id: editingType?.id
@@ -85,7 +99,10 @@ export default function ManageAccountTypes() {
 
       const response = await fetch('/api/admin/save-account-type', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(payload)
       });
 
@@ -115,9 +132,17 @@ export default function ManageAccountTypes() {
     setError('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
       const response = await fetch('/api/admin/delete-account-type', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ id })
       });
 

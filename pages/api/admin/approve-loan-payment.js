@@ -312,8 +312,8 @@ export default async function handler(req, res) {
             console.error('Transaction creation error:', txError);
           }
         } else {
-          // For deposit approvals, only update loan_payments table, not loans table
-          // Loan status should be updated separately by admin through the loan approval flow
+          // For deposit approvals, update both loan_payments table AND loans table
+          // to mark the deposit as verified so admin-loans page can detect it
           const depositAmount = parseFloat(payment.payment_amount || payment.amount || 0);
           const treasuryFee = depositAmount * 0.10;
           treasuryResult = await creditTreasury(treasuryFee, paymentId, payment.reference_number);
@@ -322,6 +322,63 @@ export default async function handler(req, res) {
             console.log(`Treasury credited with 10% fee: $${treasuryFee.toFixed(2)}`);
           } else {
             console.error('Failed to credit treasury:', treasuryResult.error);
+          }
+          
+          // Parse metadata if it's a string (handles stringified JSON from Supabase)
+          // Also handles double-stringified metadata
+          let parsedMetadata = payment.metadata;
+          if (typeof parsedMetadata === 'string') {
+            try {
+              parsedMetadata = JSON.parse(parsedMetadata);
+              // Handle double-stringified case
+              if (typeof parsedMetadata === 'string') {
+                parsedMetadata = JSON.parse(parsedMetadata);
+              }
+            } catch (e) {
+              parsedMetadata = {};
+            }
+          }
+          parsedMetadata = parsedMetadata || {};
+          
+          // Resolve loan ID from multiple possible sources including nested structures
+          const loanId = payment.loan_id 
+            || payment.loans?.id 
+            || parsedMetadata.loan_id 
+            || parsedMetadata.loanId
+            || parsedMetadata.loan?.id;
+          
+          // Update loan deposit status so admin-loans page can detect the completed deposit
+          if (loanId) {
+            // Fetch the current loan to preserve existing deposit_method if payment doesn't specify one
+            const { data: existingLoan } = await supabaseAdmin
+              .from('loans')
+              .select('deposit_method')
+              .eq('id', loanId)
+              .single();
+            
+            // Only update deposit_method if payment provides one, otherwise preserve existing
+            const paymentMethod = payment.deposit_method || payment.payment_method || parsedMetadata.deposit_method;
+            const depositMethod = paymentMethod || existingLoan?.deposit_method || 'balance';
+            
+            const { error: depositUpdateError } = await supabaseAdmin
+              .from('loans')
+              .update({
+                deposit_status: 'completed',
+                deposit_paid: true,
+                deposit_amount: depositAmount,
+                deposit_date: new Date().toISOString(),
+                deposit_method: depositMethod,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', loanId);
+            
+            if (depositUpdateError) {
+              console.error('Failed to update loan deposit status:', depositUpdateError);
+            } else {
+              console.log(`Loan ${loanId} deposit status updated to completed with method: ${depositMethod}`);
+            }
+          } else {
+            console.warn('Could not find loan ID for deposit payment, skipping loan status update. Payment ID:', paymentId);
           }
         }
 
