@@ -122,3 +122,25 @@ Preferred communication style: Simple, everyday language.
 - **Duplicate Handling:** Both pre-check and database constraint (23505 error) handled gracefully
 - **Order of Operations:** Transaction record created before balance update for safety
 - **10% Fee Calculation:** Only applies to deposit payments (`is_deposit === true`)
+
+## Recent Enhancements (Dec 15, 2025)
+
+### Loan Deposit Status Sync Fix ✓
+- **Issue:** Admin-loans page was not detecting when 10% loan deposit status changed to "completed" in loan-payments
+- **Fix:** When approving a deposit payment, the system now updates the `loans` table with:
+  - `deposit_status: 'completed'`
+  - `deposit_paid: true`
+  - `deposit_amount` (amount paid)
+  - `deposit_date` (timestamp)
+  - `deposit_method` (preserved from payment or existing loan)
+- **Metadata Handling:** Supports plain JSON, stringified JSON, and double-stringified JSON metadata
+- **Loan ID Resolution:** Checks multiple sources: `payment.loan_id`, `payment.loans.id`, `metadata.loan_id`, `metadata.loanId`, `metadata.loan.id`
+- **Method Preservation:** Fetches existing loan to preserve deposit_method if payment doesn't specify one
+
+### Account Types Authorization Fix ✓
+- **Issue:** Manage Account Types page was showing "no authorization" error
+- **Fix:** Added proper Authorization headers with session access token to all API calls:
+  - `fetchAccountTypes()` - GET request to list account types
+  - `handleSubmit()` - POST request to save/update account types
+  - `handleDelete()` - POST request to delete account types
+- **Pattern:** Now matches other authenticated admin pages using `supabase.auth.getSession()`
