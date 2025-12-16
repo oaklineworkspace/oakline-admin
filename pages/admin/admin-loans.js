@@ -912,8 +912,8 @@ export default function AdminLoans() {
                     </div>
                     <div style={styles.loanInfo}>
                       <span style={styles.infoLabel}>Remaining:</span>
-                      <span style={{...styles.infoValue, color: '#059669', fontWeight: '600'}}>
-                        ${parseFloat(loan.remaining_balance || 0) < 0.01 && parseFloat(loan.remaining_balance || 0) > 0 ? parseFloat(loan.remaining_balance || 0).toFixed(3) : parseFloat(loan.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <span style={{...styles.infoValue, color: parseFloat(loan.remaining_balance || 0) < 0.10 ? '#059669' : '#dc2626', fontWeight: '600'}}>
+                        ${parseFloat(loan.remaining_balance || 0) < 0.10 ? '0.00' : parseFloat(loan.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div style={styles.loanInfo}>
@@ -1133,7 +1133,7 @@ export default function AdminLoans() {
                         ❌ Reject
                       </button>
                     )}
-                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) >= 0.01 && (
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) >= 0.10 && (
                       <button onClick={async () => {
                         // Fetch user's account information
                         try {
@@ -1164,7 +1164,7 @@ export default function AdminLoans() {
                         💰 Process Payment
                       </button>
                     )}
-                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) < 0.01 && (
+                    {loan.status === 'active' && parseFloat(loan.remaining_balance || 0) < 0.10 && (
                       <button
                         onClick={() => handleCloseLoan(loan.id)}
                         style={{
@@ -1292,7 +1292,7 @@ export default function AdminLoans() {
                   </div>
                   <div style={styles.detailItem}>
                     <span style={styles.detailLabel}>Remaining Balance:</span>
-                    <span style={styles.detailValue}>${parseFloat(selectedLoan.remaining_balance || 0) < 0.01 && parseFloat(selectedLoan.remaining_balance || 0) > 0 ? parseFloat(selectedLoan.remaining_balance || 0).toFixed(3) : parseFloat(selectedLoan.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span style={styles.detailValue}>${parseFloat(selectedLoan.remaining_balance || 0) < 0.10 ? '0.00' : parseFloat(selectedLoan.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div style={styles.detailItem}>
                     <span style={styles.detailLabel}>Interest Rate:</span>
