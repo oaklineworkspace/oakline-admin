@@ -95,6 +95,72 @@ export default async function handler(req, res) {
           };
         }
 
+        // Check for completed deposit payments in loan_payments table
+        const { data: loanPaymentDeposits } = await supabaseAdmin
+          .from('loan_payments')
+          .select('*')
+          .eq('loan_id', loan.id)
+          .eq('is_deposit', true)
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (loanPaymentDeposits && loanPaymentDeposits.length > 0) {
+          const depositPayment = loanPaymentDeposits[0];
+          const depositAmount = parseFloat(depositPayment.amount || 0);
+          return {
+            ...loan,
+            // Set loan-level deposit fields for frontend compatibility
+            deposit_status: 'completed',
+            deposit_paid: true,
+            deposit_amount: depositAmount,
+            deposit_method: depositPayment.payment_method || 'payment',
+            deposit_date: depositPayment.created_at,
+            deposit_info: {
+              verified: true,
+              amount: depositAmount,
+              type: depositPayment.payment_method || 'payment',
+              method: depositPayment.payment_method || 'payment',
+              date: depositPayment.created_at,
+              payment_id: depositPayment.id,
+              status: 'completed'
+            }
+          };
+        }
+
+        // Also check for pending deposit payments that have been submitted
+        const { data: pendingLoanPaymentDeposits } = await supabaseAdmin
+          .from('loan_payments')
+          .select('*')
+          .eq('loan_id', loan.id)
+          .eq('is_deposit', true)
+          .in('status', ['pending', 'submitted', 'pending_approval'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (pendingLoanPaymentDeposits && pendingLoanPaymentDeposits.length > 0) {
+          const pendingPayment = pendingLoanPaymentDeposits[0];
+          const pendingAmount = parseFloat(pendingPayment.amount || 0);
+          return {
+            ...loan,
+            // Set loan-level deposit fields for pending submissions
+            deposit_status: 'pending',
+            deposit_paid: false,
+            deposit_amount: pendingAmount,
+            deposit_method: pendingPayment.payment_method || 'payment',
+            deposit_info: {
+              verified: false,
+              has_pending: true,
+              amount: pendingAmount,
+              type: pendingPayment.payment_method || 'payment',
+              method: pendingPayment.payment_method || 'payment',
+              date: pendingPayment.created_at,
+              payment_id: pendingPayment.id,
+              status: 'pending'
+            }
+          };
+        }
+
         // Check for loan-specific crypto deposits
         const { data: loanDeposits } = await supabaseAdmin
           .from('crypto_deposits')
@@ -248,7 +314,7 @@ export default async function handler(req, res) {
         };
       }));
 
-      // Reconstruct the transformedLoans array to include the updated deposit_info
+      // Reconstruct the transformedLoans array to include the updated deposit_info AND loan-level deposit fields
       const transformedLoans = loansData.map(loan => {
         const updatedLoan = loansWithDeposits.find(l => l.id === loan.id);
         const hasDepositRequirement = loan.deposit_required && loan.deposit_required > 0;
@@ -263,14 +329,21 @@ export default async function handler(req, res) {
             deposit_info = { verified: false, amount: 0, type: 'none', status: 'pending', has_pending: false };
         }
 
-
         const profile = profileMap[loan.user_id];
         const fullName = profile 
           ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
           : 'N/A';
 
+        // Merge updatedLoan fields (deposit_status, deposit_paid, etc.) with original loan
+        // This ensures loan-level deposit fields from loan_payments checks are preserved
         return {
           ...loan,
+          // Apply updated deposit fields from updatedLoan if they exist
+          ...(updatedLoan?.deposit_status && { deposit_status: updatedLoan.deposit_status }),
+          ...(updatedLoan?.deposit_paid !== undefined && { deposit_paid: updatedLoan.deposit_paid }),
+          ...(updatedLoan?.deposit_amount !== undefined && { deposit_amount: updatedLoan.deposit_amount }),
+          ...(updatedLoan?.deposit_method && { deposit_method: updatedLoan.deposit_method }),
+          ...(updatedLoan?.deposit_date && { deposit_date: updatedLoan.deposit_date }),
           user_email: profile?.email || 'N/A',
           user_name: fullName,
           account_number: accountMap[loan.account_id]?.account_number || 'N/A',
