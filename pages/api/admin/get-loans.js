@@ -108,19 +108,21 @@ export default async function handler(req, res) {
         if (loanPaymentDeposits && loanPaymentDeposits.length > 0) {
           const depositPayment = loanPaymentDeposits[0];
           const depositAmount = parseFloat(depositPayment.amount || 0);
+          // Use deposit_method field from loan_payments table (not payment_method)
+          const paymentMethod = depositPayment.deposit_method || depositPayment.payment_method || 'payment';
           return {
             ...loan,
             // Set loan-level deposit fields for frontend compatibility
             deposit_status: 'completed',
             deposit_paid: true,
             deposit_amount: depositAmount,
-            deposit_method: depositPayment.payment_method || 'payment',
+            deposit_method: paymentMethod,
             deposit_date: depositPayment.created_at,
             deposit_info: {
               verified: true,
               amount: depositAmount,
-              type: depositPayment.payment_method || 'payment',
-              method: depositPayment.payment_method || 'payment',
+              type: paymentMethod,
+              method: paymentMethod,
               date: depositPayment.created_at,
               payment_id: depositPayment.id,
               status: 'completed'
@@ -141,19 +143,21 @@ export default async function handler(req, res) {
         if (pendingLoanPaymentDeposits && pendingLoanPaymentDeposits.length > 0) {
           const pendingPayment = pendingLoanPaymentDeposits[0];
           const pendingAmount = parseFloat(pendingPayment.amount || 0);
+          // Use deposit_method field from loan_payments table (not payment_method)
+          const pendingMethod = pendingPayment.deposit_method || pendingPayment.payment_method || 'payment';
           return {
             ...loan,
             // Set loan-level deposit fields for pending submissions
             deposit_status: 'pending',
             deposit_paid: false,
             deposit_amount: pendingAmount,
-            deposit_method: pendingPayment.payment_method || 'payment',
+            deposit_method: pendingMethod,
             deposit_info: {
               verified: false,
               has_pending: true,
               amount: pendingAmount,
-              type: pendingPayment.payment_method || 'payment',
-              method: pendingPayment.payment_method || 'payment',
+              type: pendingMethod,
+              method: pendingMethod,
               date: pendingPayment.created_at,
               payment_id: pendingPayment.id,
               status: 'pending'
