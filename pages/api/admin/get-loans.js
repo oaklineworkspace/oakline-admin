@@ -81,31 +81,21 @@ export default async function handler(req, res) {
 
         const requiredAmount = parseFloat(loan.deposit_required);
 
-        // Check deposit_status field from loans table
-        if (loan.deposit_status === 'completed' && loan.deposit_paid) {
-          return {
-            ...loan,
-            deposit_info: {
-              verified: true,
-              amount: parseFloat(loan.deposit_amount || 0),
-              type: loan.deposit_method || 'balance',
-              date: loan.deposit_date,
-              status: 'completed'
-            }
-          };
-        }
-
-        // Check for ALL completed deposit payments in loan_payments table (aggregate for partial payments)
+        // ALWAYS check loan_payments table to get accurate aggregated deposit total
+        // (Skip checking loan.deposit_status/deposit_paid as these may be outdated after partial payments)
         const { data: allCompletedDeposits } = await supabaseAdmin
           .from('loan_payments')
           .select('*')
           .eq('loan_id', loan.id)
           .eq('is_deposit', true)
-          .eq('status', 'completed')
+          .in('status', ['completed', 'approved'])
           .order('created_at', { ascending: false });
 
-        // Sum all completed deposit payments
-        const totalPaidAmount = (allCompletedDeposits || []).reduce((sum, dep) => sum + parseFloat(dep.amount || 0), 0);
+        // Sum all completed deposit payments (check both amount and payment_amount fields)
+        const totalPaidAmount = (allCompletedDeposits || []).reduce((sum, dep) => {
+          const paymentAmt = parseFloat(dep.amount || dep.payment_amount || 0);
+          return sum + paymentAmt;
+        }, 0);
         const isFullyPaid = totalPaidAmount >= requiredAmount;
         const latestDeposit = allCompletedDeposits && allCompletedDeposits.length > 0 ? allCompletedDeposits[0] : null;
         const depositMethod = latestDeposit ? (latestDeposit.deposit_method || latestDeposit.payment_method || 'payment') : null;
