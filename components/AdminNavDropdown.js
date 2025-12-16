@@ -154,6 +154,28 @@ const adminPages = [
     links: [
       { name: 'User Messages', path: '/admin/messages', icon: '💬' },
       { name: 'Broadcast Messages', path: '/admin/broadcast-messages', icon: '📢' },
+      { name: 'Notifications', path: '/admin/admin-notifications', icon: '🔔' },
+    ]
+  },
+  {
+    category: '💸 Wire & Withdrawals',
+    links: [
+      { name: 'Wire Transfers', path: '/admin/admin-wire-transfers', icon: '🏦' },
+      { name: 'Withdrawals', path: '/admin/admin-withdrawals', icon: '💵' },
+      { name: 'Linked Bank Accounts', path: '/admin/admin-linked-bank-accounts', icon: '🔗' },
+    ]
+  },
+  {
+    category: '📱 Digital Services',
+    links: [
+      { name: 'Oakline Pay Management', path: '/admin/oakline-pay-management', icon: '📱' },
+      { name: 'Verifications', path: '/admin/verifications', icon: '✅' },
+    ]
+  },
+  {
+    category: '👨‍💼 Admin Roles',
+    links: [
+      { name: 'Admin Roles', path: '/admin/admin-roles', icon: '👔' },
     ]
   },
   {

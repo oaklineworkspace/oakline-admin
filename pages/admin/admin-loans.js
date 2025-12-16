@@ -138,9 +138,15 @@ export default function AdminLoans() {
       // Use the deposit_info from the main loans response
       const loansWithDeposits = (data.loans || []).map(loan => {
         if (loan.deposit_required && loan.deposit_required > 0 && loan.deposit_info) {
+          // Sync deposit_status from deposit_info to fix display issues
+          const depositStatus = loan.deposit_info.status || loan.deposit_status;
+          const isCompleted = depositStatus === 'completed' || loan.deposit_info.verified === true;
           return {
             ...loan,
-            deposit_paid: loan.deposit_info.verified === true
+            deposit_paid: isCompleted,
+            deposit_status: isCompleted ? 'completed' : depositStatus,
+            deposit_amount: loan.deposit_info.amount || loan.deposit_amount,
+            deposit_method: loan.deposit_info.method || loan.deposit_method
           };
         }
         return loan;
