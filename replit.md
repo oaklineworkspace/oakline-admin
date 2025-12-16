@@ -144,3 +144,22 @@ Preferred communication style: Simple, everyday language.
   - `handleSubmit()` - POST request to save/update account types
   - `handleDelete()` - POST request to delete account types
 - **Pattern:** Now matches other authenticated admin pages using `supabase.auth.getSession()`
+
+## Recent Enhancements (Dec 16, 2025)
+
+### Loan Deposit Status Frontend Sync Fix ✓
+- **Issue:** Admin-loans page was showing "PENDING VERIFICATION" even when deposit status was "completed" in database
+- **Fix:** Updated `fetchLoans` normalization to sync `deposit_status` and `deposit_paid` from `deposit_info`:
+  - Checks both `deposit_info.status === 'completed'` and `deposit_info.verified === true`
+  - Correctly updates `deposit_status` to 'completed' when deposit is verified
+  - Syncs `deposit_amount` and `deposit_method` from `deposit_info`
+- **Result:** Verified deposits now correctly show green "✓ Verified" badge instead of yellow "Pending Verification"
+
+### Admin Navigation Dropdown Enhancement ✓
+- **Issue:** Many admin pages were missing from the tools dropdown search
+- **Added Pages:**
+  - Wire & Withdrawals: Wire Transfers, Withdrawals, Linked Bank Accounts
+  - Digital Services: Oakline Pay Management, Verifications
+  - Admin Roles: Admin Roles management
+  - Communications: Notifications
+- **Result:** All admin pages are now searchable and accessible from the bottom navigation dropdown
