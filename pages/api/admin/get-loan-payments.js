@@ -181,12 +181,14 @@ export default async function handler(req, res) {
       
       // Get deposit tracking info for this loan
       const depositTracking = payment.loan_id ? loanDepositTotals[payment.loan_id] : null;
-      const depositRequired = payment.loans?.deposit_required || 0;
-      const completedAmount = depositTracking?.completedAmount || 0;
-      const pendingAmount = depositTracking?.pendingAmount || 0;
-      const totalCommitted = depositTracking?.totalCommitted || 0;
-      const depositRemaining = Math.max(0, depositRequired - completedAmount);
-      const isDepositFullyPaid = depositRequired > 0 ? completedAmount >= depositRequired : true;
+      const depositRequired = Math.round((payment.loans?.deposit_required || 0) * 100) / 100;
+      const completedAmount = Math.round((depositTracking?.completedAmount || 0) * 100) / 100;
+      const pendingAmount = Math.round((depositTracking?.pendingAmount || 0) * 100) / 100;
+      const totalCommitted = Math.round((depositTracking?.totalCommitted || 0) * 100) / 100;
+      // Use tolerance of $0.01 for floating point comparison
+      const rawRemaining = depositRequired - completedAmount;
+      const depositRemaining = rawRemaining <= 0.01 ? 0 : Math.round(rawRemaining * 100) / 100;
+      const isDepositFullyPaid = depositRequired > 0 ? (completedAmount >= depositRequired - 0.01) : true;
       const completedProgressPercent = depositRequired > 0 ? Math.min((completedAmount / depositRequired) * 100, 100) : 100;
       const pendingProgressPercent = depositRequired > 0 ? Math.min((pendingAmount / depositRequired) * 100, 100 - completedProgressPercent) : 0;
 

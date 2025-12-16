@@ -135,14 +135,18 @@ export default async function handler(req, res) {
           });
         });
         
-        const totalCommitted = completedAmount + pendingAmount;
-        const isFullyPaid = completedAmount >= requiredAmount;
-        const hasPendingContributions = pendingAmount > 0;
+        // Round to 2 decimal places to avoid floating point precision issues
+        const roundedCompleted = Math.round(completedAmount * 100) / 100;
+        const roundedPending = Math.round(pendingAmount * 100) / 100;
+        const totalCommitted = Math.round((completedAmount + pendingAmount) * 100) / 100;
+        // Use tolerance of $0.01 for floating point comparison
+        const isFullyPaid = roundedCompleted >= requiredAmount - 0.01;
+        const hasPendingContributions = roundedPending > 0;
         const latestDeposit = allCompletedDeposits && allCompletedDeposits.length > 0 ? allCompletedDeposits[0] : null;
         const allMethods = Array.from(uniqueMethods);
         const depositMethodDisplay = allMethods.length > 1 ? 'Multiple' : (allMethods[0] || 'payment');
-        const completedProgressPercent = requiredAmount > 0 ? Math.min((completedAmount / requiredAmount) * 100, 100) : 100;
-        const pendingProgressPercent = requiredAmount > 0 ? Math.min((pendingAmount / requiredAmount) * 100, 100 - completedProgressPercent) : 0;
+        const completedProgressPercent = requiredAmount > 0 ? Math.min((roundedCompleted / requiredAmount) * 100, 100) : 100;
+        const pendingProgressPercent = requiredAmount > 0 ? Math.min((roundedPending / requiredAmount) * 100, 100 - completedProgressPercent) : 0;
 
         if (totalCommitted > 0) {
           return {
@@ -150,14 +154,14 @@ export default async function handler(req, res) {
             // Set loan-level deposit fields for frontend compatibility
             deposit_status: isFullyPaid ? 'completed' : 'partial',
             deposit_paid: isFullyPaid,
-            deposit_amount: completedAmount,
+            deposit_amount: roundedCompleted,
             deposit_method: depositMethodDisplay,
             deposit_date: latestDeposit?.created_at,
             deposit_info: {
               verified: isFullyPaid,
-              amount: completedAmount,
-              completed_amount: completedAmount,
-              pending_amount: pendingAmount,
+              amount: roundedCompleted,
+              completed_amount: roundedCompleted,
+              pending_amount: roundedPending,
               total_committed: totalCommitted,
               type: depositMethodDisplay,
               method: depositMethodDisplay,
