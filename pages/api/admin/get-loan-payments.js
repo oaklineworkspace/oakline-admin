@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       }
     });
 
-    // Calculate total deposits paid per loan for partial deposit detection
+    // Calculate total deposits paid per loan for partial deposit detection with payment details
     const loanDepositTotals = {};
     payments.forEach(payment => {
       if (payment.is_deposit && payment.loan_id && (payment.status === 'completed' || payment.status === 'approved')) {
@@ -87,11 +87,20 @@ export default async function handler(req, res) {
           loanDepositTotals[payment.loan_id] = {
             totalPaid: 0,
             required: payment.loans?.deposit_required || 0,
-            count: 0
+            count: 0,
+            payment_details: []
           };
         }
-        loanDepositTotals[payment.loan_id].totalPaid += parseFloat(payment.amount || payment.payment_amount || 0);
+        const paymentAmt = parseFloat(payment.amount || payment.payment_amount || 0);
+        const method = payment.deposit_method || payment.payment_method || 'account_balance';
+        loanDepositTotals[payment.loan_id].totalPaid += paymentAmt;
         loanDepositTotals[payment.loan_id].count += 1;
+        loanDepositTotals[payment.loan_id].payment_details.push({
+          id: payment.id,
+          amount: paymentAmt,
+          method: method,
+          date: payment.created_at
+        });
       }
     });
 
@@ -181,7 +190,8 @@ export default async function handler(req, res) {
         deposit_remaining: depositRemaining,
         is_deposit_fully_paid: isDepositFullyPaid,
         deposit_progress_percent: depositProgressPercent,
-        deposit_payments_count: depositTracking?.count || 0
+        deposit_payments_count: depositTracking?.count || 0,
+        deposit_payment_details: depositTracking?.payment_details || []
       };
     });
 

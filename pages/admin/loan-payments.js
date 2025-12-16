@@ -742,10 +742,19 @@ export default function LoanPayments() {
                                   </span>
                                 )}
                               </div>
-                              {payment.deposit_payments_count > 1 && (
-                                <p style={{fontSize: '11px', color: '#6b7280', marginTop: '6px', fontStyle: 'italic'}}>
-                                  📊 {payment.deposit_payments_count} deposit payment(s) made for this loan
-                                </p>
+                              {/* Show payment breakdown when there are deposit payments */}
+                              {payment.deposit_payment_details && payment.deposit_payment_details.length > 0 && (
+                                <div style={{marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #d97706'}}>
+                                  <p style={{fontSize: '11px', color: '#92400e', fontWeight: '600', marginBottom: '4px'}}>
+                                    Payment Breakdown ({payment.deposit_payments_count || payment.deposit_payment_details.length} payment{(payment.deposit_payments_count || payment.deposit_payment_details.length) > 1 ? 's' : ''}):
+                                  </p>
+                                  {payment.deposit_payment_details.map((detail, idx) => (
+                                    <div key={idx} style={{fontSize: '11px', color: '#78350f', display: 'flex', justifyContent: 'space-between', marginBottom: '2px'}}>
+                                      <span>{(detail.method || 'Unknown').replace(/_/g, ' ').toUpperCase()}</span>
+                                      <span style={{fontWeight: '600'}}>${detail.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               )}
                             </div>
                           )}
