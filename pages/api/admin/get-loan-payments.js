@@ -80,27 +80,44 @@ export default async function handler(req, res) {
     });
 
     // Calculate total deposits paid per loan for partial deposit detection with payment details
+    // Track both completed and pending deposits
     const loanDepositTotals = {};
     payments.forEach(payment => {
-      if (payment.is_deposit && payment.loan_id && (payment.status === 'completed' || payment.status === 'approved')) {
+      if (payment.is_deposit && payment.loan_id) {
         if (!loanDepositTotals[payment.loan_id]) {
           loanDepositTotals[payment.loan_id] = {
-            totalPaid: 0,
+            completedAmount: 0,
+            pendingAmount: 0,
+            totalCommitted: 0,
             required: payment.loans?.deposit_required || 0,
-            count: 0,
+            completedCount: 0,
+            pendingCount: 0,
             payment_details: []
           };
         }
         const paymentAmt = parseFloat(payment.amount || payment.payment_amount || 0);
         const method = payment.deposit_method || payment.payment_method || 'account_balance';
-        loanDepositTotals[payment.loan_id].totalPaid += paymentAmt;
-        loanDepositTotals[payment.loan_id].count += 1;
-        loanDepositTotals[payment.loan_id].payment_details.push({
-          id: payment.id,
-          amount: paymentAmt,
-          method: method,
-          date: payment.created_at
-        });
+        const isCompleted = payment.status === 'completed' || payment.status === 'approved';
+        const isPending = ['pending', 'submitted', 'pending_approval', 'processing'].includes(payment.status);
+        
+        if (isCompleted) {
+          loanDepositTotals[payment.loan_id].completedAmount += paymentAmt;
+          loanDepositTotals[payment.loan_id].completedCount += 1;
+        } else if (isPending) {
+          loanDepositTotals[payment.loan_id].pendingAmount += paymentAmt;
+          loanDepositTotals[payment.loan_id].pendingCount += 1;
+        }
+        
+        if (isCompleted || isPending) {
+          loanDepositTotals[payment.loan_id].totalCommitted += paymentAmt;
+          loanDepositTotals[payment.loan_id].payment_details.push({
+            id: payment.id,
+            amount: paymentAmt,
+            method: method,
+            date: payment.created_at,
+            status: isCompleted ? 'completed' : 'pending'
+          });
+        }
       }
     });
 
@@ -165,10 +182,13 @@ export default async function handler(req, res) {
       // Get deposit tracking info for this loan
       const depositTracking = payment.loan_id ? loanDepositTotals[payment.loan_id] : null;
       const depositRequired = payment.loans?.deposit_required || 0;
-      const totalDepositPaid = depositTracking?.totalPaid || 0;
-      const depositRemaining = Math.max(0, depositRequired - totalDepositPaid);
-      const isDepositFullyPaid = depositRequired > 0 ? totalDepositPaid >= depositRequired : true;
-      const depositProgressPercent = depositRequired > 0 ? Math.min((totalDepositPaid / depositRequired) * 100, 100) : 100;
+      const completedAmount = depositTracking?.completedAmount || 0;
+      const pendingAmount = depositTracking?.pendingAmount || 0;
+      const totalCommitted = depositTracking?.totalCommitted || 0;
+      const depositRemaining = Math.max(0, depositRequired - completedAmount);
+      const isDepositFullyPaid = depositRequired > 0 ? completedAmount >= depositRequired : true;
+      const completedProgressPercent = depositRequired > 0 ? Math.min((completedAmount / depositRequired) * 100, 100) : 100;
+      const pendingProgressPercent = depositRequired > 0 ? Math.min((pendingAmount / depositRequired) * 100, 100 - completedProgressPercent) : 0;
 
       return {
         ...payment,
@@ -186,11 +206,17 @@ export default async function handler(req, res) {
         payment_purpose: paymentPurpose,
         loan_status: payment.loans?.status || 'N/A',
         deposit_required: depositRequired,
-        total_deposit_paid: totalDepositPaid,
+        total_deposit_paid: completedAmount,
+        deposit_pending_amount: pendingAmount,
+        deposit_total_committed: totalCommitted,
         deposit_remaining: depositRemaining,
         is_deposit_fully_paid: isDepositFullyPaid,
-        deposit_progress_percent: depositProgressPercent,
-        deposit_payments_count: depositTracking?.count || 0,
+        has_pending_contributions: pendingAmount > 0,
+        deposit_progress_percent: completedProgressPercent,
+        deposit_pending_progress_percent: pendingProgressPercent,
+        deposit_payments_count: (depositTracking?.completedCount || 0) + (depositTracking?.pendingCount || 0),
+        deposit_completed_count: depositTracking?.completedCount || 0,
+        deposit_pending_count: depositTracking?.pendingCount || 0,
         deposit_payment_details: depositTracking?.payment_details || []
       };
     });

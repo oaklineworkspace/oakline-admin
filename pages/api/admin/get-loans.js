@@ -91,41 +91,74 @@ export default async function handler(req, res) {
           .in('status', ['completed', 'approved'])
           .order('created_at', { ascending: false });
 
-        // Sum all completed deposit payments and collect payment details
-        let totalPaidAmount = 0;
+        // Also fetch pending deposit payments
+        const { data: allPendingDeposits } = await supabaseAdmin
+          .from('loan_payments')
+          .select('*')
+          .eq('loan_id', loan.id)
+          .eq('is_deposit', true)
+          .in('status', ['pending', 'submitted', 'pending_approval', 'processing'])
+          .order('created_at', { ascending: false });
+
+        // Sum completed deposit payments and collect payment details
+        let completedAmount = 0;
+        let pendingAmount = 0;
         const paymentDetails = [];
         const uniqueMethods = new Set();
         
         (allCompletedDeposits || []).forEach(dep => {
           const paymentAmt = parseFloat(dep.amount || dep.payment_amount || 0);
           const method = dep.deposit_method || dep.payment_method || 'account_balance';
-          totalPaidAmount += paymentAmt;
+          completedAmount += paymentAmt;
           uniqueMethods.add(method);
           paymentDetails.push({
             id: dep.id,
             amount: paymentAmt,
             method: method,
-            date: dep.created_at
+            date: dep.created_at,
+            status: 'completed'
+          });
+        });
+
+        // Add pending deposits to payment details
+        (allPendingDeposits || []).forEach(dep => {
+          const paymentAmt = parseFloat(dep.amount || dep.payment_amount || 0);
+          const method = dep.deposit_method || dep.payment_method || 'account_balance';
+          pendingAmount += paymentAmt;
+          uniqueMethods.add(method);
+          paymentDetails.push({
+            id: dep.id,
+            amount: paymentAmt,
+            method: method,
+            date: dep.created_at,
+            status: 'pending'
           });
         });
         
-        const isFullyPaid = totalPaidAmount >= requiredAmount;
+        const totalCommitted = completedAmount + pendingAmount;
+        const isFullyPaid = completedAmount >= requiredAmount;
+        const hasPendingContributions = pendingAmount > 0;
         const latestDeposit = allCompletedDeposits && allCompletedDeposits.length > 0 ? allCompletedDeposits[0] : null;
         const allMethods = Array.from(uniqueMethods);
         const depositMethodDisplay = allMethods.length > 1 ? 'Multiple' : (allMethods[0] || 'payment');
+        const completedProgressPercent = requiredAmount > 0 ? Math.min((completedAmount / requiredAmount) * 100, 100) : 100;
+        const pendingProgressPercent = requiredAmount > 0 ? Math.min((pendingAmount / requiredAmount) * 100, 100 - completedProgressPercent) : 0;
 
-        if (totalPaidAmount > 0) {
+        if (totalCommitted > 0) {
           return {
             ...loan,
             // Set loan-level deposit fields for frontend compatibility
             deposit_status: isFullyPaid ? 'completed' : 'partial',
             deposit_paid: isFullyPaid,
-            deposit_amount: totalPaidAmount,
+            deposit_amount: completedAmount,
             deposit_method: depositMethodDisplay,
             deposit_date: latestDeposit?.created_at,
             deposit_info: {
               verified: isFullyPaid,
-              amount: totalPaidAmount,
+              amount: completedAmount,
+              completed_amount: completedAmount,
+              pending_amount: pendingAmount,
+              total_committed: totalCommitted,
               type: depositMethodDisplay,
               method: depositMethodDisplay,
               methods: allMethods,
@@ -133,7 +166,12 @@ export default async function handler(req, res) {
               date: latestDeposit?.created_at,
               payment_id: latestDeposit?.id,
               status: isFullyPaid ? 'completed' : 'partial',
-              payments_count: allCompletedDeposits.length
+              has_pending_contributions: hasPendingContributions,
+              payments_count: (allCompletedDeposits?.length || 0) + (allPendingDeposits?.length || 0),
+              completed_payments_count: allCompletedDeposits?.length || 0,
+              pending_payments_count: allPendingDeposits?.length || 0,
+              completed_progress_percent: completedProgressPercent,
+              pending_progress_percent: pendingProgressPercent
             }
           };
         }

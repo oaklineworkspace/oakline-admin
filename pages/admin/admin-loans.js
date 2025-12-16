@@ -956,19 +956,39 @@ export default function AdminLoans() {
                             <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', padding: '8px 12px', width: '100%', textAlign: 'center'}}>
                               ✓ FULLY PAID via {(loan.deposit_method || 'Unknown').toUpperCase()} (${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                             </span>
-                          ) : paidAmount > 0 ? (
+                          ) : paidAmount > 0 || (loan.deposit_info?.pending_amount > 0) ? (() => {
+                            const completedAmt = parseFloat(loan.deposit_info?.completed_amount || paidAmount || 0);
+                            const pendingAmt = parseFloat(loan.deposit_info?.pending_amount || 0);
+                            const totalCommitted = completedAmt + pendingAmt;
+                            const completedPercent = requiredAmount > 0 ? Math.min((completedAmt / requiredAmount) * 100, 100) : 0;
+                            const pendingPercent = requiredAmount > 0 ? Math.min((pendingAmt / requiredAmount) * 100, 100 - completedPercent) : 0;
+                            const actualRemaining = Math.max(0, requiredAmount - completedAmt);
+                            
+                            return (
                             <div style={{width: '100%'}}>
                               <div style={{background: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '8px', padding: '10px', marginBottom: '6px'}}>
                                 <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '6px'}}>
                                   <span style={{fontWeight: '600', color: '#92400e'}}>⚠️ PARTIAL PAYMENT</span>
-                                  <span style={{fontWeight: '700', color: '#b45309'}}>{progressPercent.toFixed(0)}% Complete</span>
+                                  <span style={{fontWeight: '700', color: '#b45309'}}>{completedPercent.toFixed(0)}% Complete</span>
                                 </div>
-                                <div style={{background: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden', marginBottom: '8px'}}>
-                                  <div style={{background: '#f59e0b', height: '100%', width: `${progressPercent}%`, transition: 'width 0.3s'}}></div>
+                                {/* Dual progress bar - completed (solid) + pending (striped) */}
+                                <div style={{background: '#e5e7eb', borderRadius: '4px', height: '10px', overflow: 'hidden', marginBottom: '8px', display: 'flex'}}>
+                                  <div style={{background: '#10b981', height: '100%', width: `${completedPercent}%`, transition: 'width 0.3s'}}></div>
+                                  {pendingAmt > 0 && (
+                                    <div style={{
+                                      background: 'repeating-linear-gradient(45deg, #fbbf24, #fbbf24 5px, #fcd34d 5px, #fcd34d 10px)',
+                                      height: '100%', 
+                                      width: `${pendingPercent}%`, 
+                                      transition: 'width 0.3s'
+                                    }}></div>
+                                  )}
                                 </div>
                                 <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', flexWrap: 'wrap', gap: '4px'}}>
-                                  <span style={{color: '#065f46'}}>Paid: <strong>${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-                                  <span style={{color: '#dc2626'}}>Remaining: <strong>${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                  <span style={{color: '#065f46'}}>Confirmed: <strong>${completedAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                  {pendingAmt > 0 && (
+                                    <span style={{color: '#b45309'}}>Pending: <strong>${pendingAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                  )}
+                                  <span style={{color: '#dc2626'}}>Remaining: <strong>${actualRemaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                                 </div>
                                 {/* Show payment breakdown when multiple methods used */}
                                 {loan.deposit_info?.payment_details && loan.deposit_info.payment_details.length > 0 && (
@@ -977,8 +997,11 @@ export default function AdminLoans() {
                                       Payment Breakdown ({loan.deposit_info.payments_count || loan.deposit_info.payment_details.length} payment{(loan.deposit_info.payments_count || loan.deposit_info.payment_details.length) > 1 ? 's' : ''}):
                                     </p>
                                     {loan.deposit_info.payment_details.map((payment, idx) => (
-                                      <div key={idx} style={{fontSize: '11px', color: '#78350f', display: 'flex', justifyContent: 'space-between', marginBottom: '2px'}}>
-                                        <span>{(payment.method || 'Unknown').replace(/_/g, ' ').toUpperCase()}</span>
+                                      <div key={idx} style={{fontSize: '11px', color: payment.status === 'pending' ? '#b45309' : '#78350f', display: 'flex', justifyContent: 'space-between', marginBottom: '2px'}}>
+                                        <span>
+                                          {(payment.method || 'Unknown').replace(/_/g, ' ').toUpperCase()}
+                                          {payment.status === 'pending' && <span style={{marginLeft: '4px', fontSize: '10px', background: '#fef3c7', padding: '1px 4px', borderRadius: '3px'}}>PENDING</span>}
+                                        </span>
                                         <span style={{fontWeight: '600'}}>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                       </div>
                                     ))}
@@ -989,7 +1012,8 @@ export default function AdminLoans() {
                                 🚫 Cannot approve until full deposit is received
                               </span>
                             </div>
-                          ) : (
+                            );
+                          })() : (
                             <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', padding: '8px 12px', width: '100%', textAlign: 'center'}}>
                               ⏱ AWAITING DEPOSIT - User has not submitted any payment
                             </span>

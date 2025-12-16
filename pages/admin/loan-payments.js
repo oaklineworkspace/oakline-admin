@@ -705,7 +705,15 @@ export default function LoanPayments() {
                           )}
                           
                           {/* Partial Deposit Detection for 10% Collateral */}
-                          {payment.is_deposit && payment.deposit_required > 0 && (
+                          {payment.is_deposit && payment.deposit_required > 0 && (() => {
+                            const completedAmt = parseFloat(payment.total_deposit_paid || 0);
+                            const pendingAmt = parseFloat(payment.deposit_pending_amount || 0);
+                            const requiredAmt = parseFloat(payment.deposit_required);
+                            const completedPercent = requiredAmt > 0 ? Math.min((completedAmt / requiredAmt) * 100, 100) : 0;
+                            const pendingPercent = requiredAmt > 0 ? Math.min((pendingAmt / requiredAmt) * 100, 100 - completedPercent) : 0;
+                            const actualRemaining = Math.max(0, requiredAmt - completedAmt);
+                            
+                            return (
                             <div style={{
                               marginTop: '12px',
                               padding: '12px',
@@ -718,27 +726,41 @@ export default function LoanPayments() {
                                   {payment.is_deposit_fully_paid ? '✅ DEPOSIT COMPLETE' : '⚠️ PARTIAL DEPOSIT'}
                                 </span>
                                 <span style={{fontWeight: '700', color: payment.is_deposit_fully_paid ? '#059669' : '#b45309', fontSize: '14px'}}>
-                                  {payment.deposit_progress_percent?.toFixed(0) || 0}%
+                                  {completedPercent.toFixed(0)}%
                                 </span>
                               </div>
-                              <div style={{background: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden', marginBottom: '10px'}}>
+                              {/* Dual progress bar - completed (solid green) + pending (striped yellow) */}
+                              <div style={{background: '#e5e7eb', borderRadius: '4px', height: '10px', overflow: 'hidden', marginBottom: '10px', display: 'flex'}}>
                                 <div style={{
-                                  background: payment.is_deposit_fully_paid ? '#10b981' : '#f59e0b',
+                                  background: '#10b981',
                                   height: '100%',
-                                  width: `${payment.deposit_progress_percent || 0}%`,
+                                  width: `${completedPercent}%`,
                                   transition: 'width 0.3s'
                                 }}></div>
+                                {pendingAmt > 0 && (
+                                  <div style={{
+                                    background: 'repeating-linear-gradient(45deg, #fbbf24, #fbbf24 5px, #fcd34d 5px, #fcd34d 10px)',
+                                    height: '100%',
+                                    width: `${pendingPercent}%`,
+                                    transition: 'width 0.3s'
+                                  }}></div>
+                                )}
                               </div>
                               <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', flexWrap: 'wrap', gap: '4px'}}>
                                 <span style={{color: '#374151'}}>
-                                  Required: <strong>${parseFloat(payment.deposit_required).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                  Required: <strong>${requiredAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
                                 </span>
                                 <span style={{color: '#059669'}}>
-                                  Paid: <strong>${parseFloat(payment.total_deposit_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                  Confirmed: <strong>${completedAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
                                 </span>
+                                {pendingAmt > 0 && (
+                                  <span style={{color: '#b45309'}}>
+                                    Pending: <strong>${pendingAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                  </span>
+                                )}
                                 {!payment.is_deposit_fully_paid && (
                                   <span style={{color: '#dc2626'}}>
-                                    Remaining: <strong>${parseFloat(payment.deposit_remaining || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                    Remaining: <strong>${actualRemaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
                                   </span>
                                 )}
                               </div>
@@ -749,15 +771,19 @@ export default function LoanPayments() {
                                     Payment Breakdown ({payment.deposit_payments_count || payment.deposit_payment_details.length} payment{(payment.deposit_payments_count || payment.deposit_payment_details.length) > 1 ? 's' : ''}):
                                   </p>
                                   {payment.deposit_payment_details.map((detail, idx) => (
-                                    <div key={idx} style={{fontSize: '11px', color: '#78350f', display: 'flex', justifyContent: 'space-between', marginBottom: '2px'}}>
-                                      <span>{(detail.method || 'Unknown').replace(/_/g, ' ').toUpperCase()}</span>
+                                    <div key={idx} style={{fontSize: '11px', color: detail.status === 'pending' ? '#b45309' : '#78350f', display: 'flex', justifyContent: 'space-between', marginBottom: '2px'}}>
+                                      <span>
+                                        {(detail.method || 'Unknown').replace(/_/g, ' ').toUpperCase()}
+                                        {detail.status === 'pending' && <span style={{marginLeft: '4px', fontSize: '10px', background: '#fef3c7', padding: '1px 4px', borderRadius: '3px'}}>PENDING</span>}
+                                      </span>
                                       <span style={{fontWeight: '600'}}>${detail.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                   ))}
                                 </div>
                               )}
                             </div>
-                          )}
+                            );
+                          })()}
                         </div>
 
                         <div style={styles.cardFooter}>
