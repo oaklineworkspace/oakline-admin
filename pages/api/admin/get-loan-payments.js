@@ -79,6 +79,22 @@ export default async function handler(req, res) {
       }
     });
 
+    // Calculate total deposits paid per loan for partial deposit detection
+    const loanDepositTotals = {};
+    payments.forEach(payment => {
+      if (payment.is_deposit && payment.loan_id && (payment.status === 'completed' || payment.status === 'approved')) {
+        if (!loanDepositTotals[payment.loan_id]) {
+          loanDepositTotals[payment.loan_id] = {
+            totalPaid: 0,
+            required: payment.loans?.deposit_required || 0,
+            count: 0
+          };
+        }
+        loanDepositTotals[payment.loan_id].totalPaid += parseFloat(payment.amount || payment.payment_amount || 0);
+        loanDepositTotals[payment.loan_id].count += 1;
+      }
+    });
+
     const enrichedPayments = payments.map(payment => {
       const profile = profileMap[payment.loans?.user_id];
       const fullName = profile && (profile.first_name || profile.last_name)
@@ -137,6 +153,14 @@ export default async function handler(req, res) {
         paymentPurpose = 'Final Loan Payment';
       }
       
+      // Get deposit tracking info for this loan
+      const depositTracking = payment.loan_id ? loanDepositTotals[payment.loan_id] : null;
+      const depositRequired = payment.loans?.deposit_required || 0;
+      const totalDepositPaid = depositTracking?.totalPaid || 0;
+      const depositRemaining = Math.max(0, depositRequired - totalDepositPaid);
+      const isDepositFullyPaid = depositRequired > 0 ? totalDepositPaid >= depositRequired : true;
+      const depositProgressPercent = depositRequired > 0 ? Math.min((totalDepositPaid / depositRequired) * 100, 100) : 100;
+
       return {
         ...payment,
         user_id: payment.loans?.user_id,
@@ -151,7 +175,13 @@ export default async function handler(req, res) {
         loan_monthly_payment: payment.loans?.monthly_payment_amount || 0,
         actual_payment_method: actualPaymentMethod,
         payment_purpose: paymentPurpose,
-        loan_status: payment.loans?.status || 'N/A'
+        loan_status: payment.loans?.status || 'N/A',
+        deposit_required: depositRequired,
+        total_deposit_paid: totalDepositPaid,
+        deposit_remaining: depositRemaining,
+        is_deposit_fully_paid: isDepositFullyPaid,
+        deposit_progress_percent: depositProgressPercent,
+        deposit_payments_count: depositTracking?.count || 0
       };
     });
 

@@ -703,6 +703,52 @@ export default function LoanPayments() {
                               </span>
                             </div>
                           )}
+                          
+                          {/* Partial Deposit Detection for 10% Collateral */}
+                          {payment.is_deposit && payment.deposit_required > 0 && (
+                            <div style={{
+                              marginTop: '12px',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              background: payment.is_deposit_fully_paid ? '#d1fae5' : '#fef3c7',
+                              border: payment.is_deposit_fully_paid ? '2px solid #10b981' : '2px solid #f59e0b'
+                            }}>
+                              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                                <span style={{fontWeight: '700', color: payment.is_deposit_fully_paid ? '#065f46' : '#92400e', fontSize: '14px'}}>
+                                  {payment.is_deposit_fully_paid ? '✅ DEPOSIT COMPLETE' : '⚠️ PARTIAL DEPOSIT'}
+                                </span>
+                                <span style={{fontWeight: '700', color: payment.is_deposit_fully_paid ? '#059669' : '#b45309', fontSize: '14px'}}>
+                                  {payment.deposit_progress_percent?.toFixed(0) || 0}%
+                                </span>
+                              </div>
+                              <div style={{background: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden', marginBottom: '10px'}}>
+                                <div style={{
+                                  background: payment.is_deposit_fully_paid ? '#10b981' : '#f59e0b',
+                                  height: '100%',
+                                  width: `${payment.deposit_progress_percent || 0}%`,
+                                  transition: 'width 0.3s'
+                                }}></div>
+                              </div>
+                              <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', flexWrap: 'wrap', gap: '4px'}}>
+                                <span style={{color: '#374151'}}>
+                                  Required: <strong>${parseFloat(payment.deposit_required).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                </span>
+                                <span style={{color: '#059669'}}>
+                                  Paid: <strong>${parseFloat(payment.total_deposit_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                </span>
+                                {!payment.is_deposit_fully_paid && (
+                                  <span style={{color: '#dc2626'}}>
+                                    Remaining: <strong>${parseFloat(payment.deposit_remaining || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                                  </span>
+                                )}
+                              </div>
+                              {payment.deposit_payments_count > 1 && (
+                                <p style={{fontSize: '11px', color: '#6b7280', marginTop: '6px', fontStyle: 'italic'}}>
+                                  📊 {payment.deposit_payments_count} deposit payment(s) made for this loan
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div style={styles.cardFooter}>
