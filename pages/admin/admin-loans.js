@@ -966,10 +966,24 @@ export default function AdminLoans() {
                                 <div style={{background: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden', marginBottom: '8px'}}>
                                   <div style={{background: '#f59e0b', height: '100%', width: `${progressPercent}%`, transition: 'width 0.3s'}}></div>
                                 </div>
-                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px'}}>
-                                  <span style={{color: '#065f46'}}>Paid: <strong>${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> via {(loan.deposit_method || 'Unknown').toUpperCase()}</span>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', flexWrap: 'wrap', gap: '4px'}}>
+                                  <span style={{color: '#065f46'}}>Paid: <strong>${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                                   <span style={{color: '#dc2626'}}>Remaining: <strong>${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                                 </div>
+                                {/* Show payment breakdown when multiple methods used */}
+                                {loan.deposit_info?.payment_details && loan.deposit_info.payment_details.length > 0 && (
+                                  <div style={{marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #d97706'}}>
+                                    <p style={{fontSize: '11px', color: '#92400e', fontWeight: '600', marginBottom: '4px'}}>
+                                      Payment Breakdown ({loan.deposit_info.payments_count || loan.deposit_info.payment_details.length} payment{(loan.deposit_info.payments_count || loan.deposit_info.payment_details.length) > 1 ? 's' : ''}):
+                                    </p>
+                                    {loan.deposit_info.payment_details.map((payment, idx) => (
+                                      <div key={idx} style={{fontSize: '11px', color: '#78350f', display: 'flex', justifyContent: 'space-between', marginBottom: '2px'}}>
+                                        <span>{(payment.method || 'Unknown').replace(/_/g, ' ').toUpperCase()}</span>
+                                        <span style={{fontWeight: '600'}}>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <span style={{fontSize: '12px', color: '#6b7280', fontStyle: 'italic'}}>
                                 🚫 Cannot approve until full deposit is received

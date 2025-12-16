@@ -91,14 +91,28 @@ export default async function handler(req, res) {
           .in('status', ['completed', 'approved'])
           .order('created_at', { ascending: false });
 
-        // Sum all completed deposit payments (check both amount and payment_amount fields)
-        const totalPaidAmount = (allCompletedDeposits || []).reduce((sum, dep) => {
+        // Sum all completed deposit payments and collect payment details
+        let totalPaidAmount = 0;
+        const paymentDetails = [];
+        const uniqueMethods = new Set();
+        
+        (allCompletedDeposits || []).forEach(dep => {
           const paymentAmt = parseFloat(dep.amount || dep.payment_amount || 0);
-          return sum + paymentAmt;
-        }, 0);
+          const method = dep.deposit_method || dep.payment_method || 'account_balance';
+          totalPaidAmount += paymentAmt;
+          uniqueMethods.add(method);
+          paymentDetails.push({
+            id: dep.id,
+            amount: paymentAmt,
+            method: method,
+            date: dep.created_at
+          });
+        });
+        
         const isFullyPaid = totalPaidAmount >= requiredAmount;
         const latestDeposit = allCompletedDeposits && allCompletedDeposits.length > 0 ? allCompletedDeposits[0] : null;
-        const depositMethod = latestDeposit ? (latestDeposit.deposit_method || latestDeposit.payment_method || 'payment') : null;
+        const allMethods = Array.from(uniqueMethods);
+        const depositMethodDisplay = allMethods.length > 1 ? 'Multiple' : (allMethods[0] || 'payment');
 
         if (totalPaidAmount > 0) {
           return {
@@ -107,13 +121,15 @@ export default async function handler(req, res) {
             deposit_status: isFullyPaid ? 'completed' : 'partial',
             deposit_paid: isFullyPaid,
             deposit_amount: totalPaidAmount,
-            deposit_method: depositMethod,
+            deposit_method: depositMethodDisplay,
             deposit_date: latestDeposit?.created_at,
             deposit_info: {
               verified: isFullyPaid,
               amount: totalPaidAmount,
-              type: depositMethod,
-              method: depositMethod,
+              type: depositMethodDisplay,
+              method: depositMethodDisplay,
+              methods: allMethods,
+              payment_details: paymentDetails,
               date: latestDeposit?.created_at,
               payment_id: latestDeposit?.id,
               status: isFullyPaid ? 'completed' : 'partial',
