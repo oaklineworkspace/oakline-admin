@@ -95,37 +95,39 @@ export default async function handler(req, res) {
           };
         }
 
-        // Check for completed deposit payments in loan_payments table
-        const { data: loanPaymentDeposits } = await supabaseAdmin
+        // Check for ALL completed deposit payments in loan_payments table (aggregate for partial payments)
+        const { data: allCompletedDeposits } = await supabaseAdmin
           .from('loan_payments')
           .select('*')
           .eq('loan_id', loan.id)
           .eq('is_deposit', true)
           .eq('status', 'completed')
-          .order('created_at', { ascending: false })
-          .limit(1);
+          .order('created_at', { ascending: false });
 
-        if (loanPaymentDeposits && loanPaymentDeposits.length > 0) {
-          const depositPayment = loanPaymentDeposits[0];
-          const depositAmount = parseFloat(depositPayment.amount || 0);
-          // Use deposit_method field from loan_payments table (not payment_method)
-          const paymentMethod = depositPayment.deposit_method || depositPayment.payment_method || 'payment';
+        // Sum all completed deposit payments
+        const totalPaidAmount = (allCompletedDeposits || []).reduce((sum, dep) => sum + parseFloat(dep.amount || 0), 0);
+        const isFullyPaid = totalPaidAmount >= requiredAmount;
+        const latestDeposit = allCompletedDeposits && allCompletedDeposits.length > 0 ? allCompletedDeposits[0] : null;
+        const depositMethod = latestDeposit ? (latestDeposit.deposit_method || latestDeposit.payment_method || 'payment') : null;
+
+        if (totalPaidAmount > 0) {
           return {
             ...loan,
             // Set loan-level deposit fields for frontend compatibility
-            deposit_status: 'completed',
-            deposit_paid: true,
-            deposit_amount: depositAmount,
-            deposit_method: paymentMethod,
-            deposit_date: depositPayment.created_at,
+            deposit_status: isFullyPaid ? 'completed' : 'partial',
+            deposit_paid: isFullyPaid,
+            deposit_amount: totalPaidAmount,
+            deposit_method: depositMethod,
+            deposit_date: latestDeposit?.created_at,
             deposit_info: {
-              verified: true,
-              amount: depositAmount,
-              type: paymentMethod,
-              method: paymentMethod,
-              date: depositPayment.created_at,
-              payment_id: depositPayment.id,
-              status: 'completed'
+              verified: isFullyPaid,
+              amount: totalPaidAmount,
+              type: depositMethod,
+              method: depositMethod,
+              date: latestDeposit?.created_at,
+              payment_id: latestDeposit?.id,
+              status: isFullyPaid ? 'completed' : 'partial',
+              payments_count: allCompletedDeposits.length
             }
           };
         }
@@ -137,30 +139,29 @@ export default async function handler(req, res) {
           .eq('loan_id', loan.id)
           .eq('is_deposit', true)
           .in('status', ['pending', 'submitted', 'pending_approval'])
-          .order('created_at', { ascending: false })
-          .limit(1);
+          .order('created_at', { ascending: false });
 
         if (pendingLoanPaymentDeposits && pendingLoanPaymentDeposits.length > 0) {
-          const pendingPayment = pendingLoanPaymentDeposits[0];
-          const pendingAmount = parseFloat(pendingPayment.amount || 0);
-          // Use deposit_method field from loan_payments table (not payment_method)
-          const pendingMethod = pendingPayment.deposit_method || pendingPayment.payment_method || 'payment';
+          const totalPendingAmount = pendingLoanPaymentDeposits.reduce((sum, dep) => sum + parseFloat(dep.amount || 0), 0);
+          const latestPending = pendingLoanPaymentDeposits[0];
+          const pendingMethod = latestPending.deposit_method || latestPending.payment_method || 'payment';
           return {
             ...loan,
             // Set loan-level deposit fields for pending submissions
             deposit_status: 'pending',
             deposit_paid: false,
-            deposit_amount: pendingAmount,
+            deposit_amount: totalPendingAmount,
             deposit_method: pendingMethod,
             deposit_info: {
               verified: false,
               has_pending: true,
-              amount: pendingAmount,
+              amount: totalPendingAmount,
               type: pendingMethod,
               method: pendingMethod,
-              date: pendingPayment.created_at,
-              payment_id: pendingPayment.id,
-              status: 'pending'
+              date: latestPending.created_at,
+              payment_id: latestPending.id,
+              status: 'pending',
+              payments_count: pendingLoanPaymentDeposits.length
             }
           };
         }

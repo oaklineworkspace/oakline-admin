@@ -936,27 +936,53 @@ export default function AdminLoans() {
                         </span>
                       </div>
                     )}
-                    {loan.deposit_required && parseFloat(loan.deposit_required) > 0 && (
-                      <div style={styles.loanInfo}>
-                        <span style={styles.infoLabel}>Deposit Required:</span>
-                        <span style={styles.infoValue}>
-                          ${parseFloat(loan.deposit_required).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          {loan.deposit_status === 'completed' && loan.deposit_paid ? (
-                            <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', marginLeft: '8px'}}>
-                              ✓ Verified - Paid via {loan.deposit_method || 'Unknown'} (${parseFloat(loan.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                    {loan.deposit_required && parseFloat(loan.deposit_required) > 0 && (() => {
+                      const requiredAmount = parseFloat(loan.deposit_required);
+                      const paidAmount = parseFloat(loan.deposit_amount || 0);
+                      const isFullyPaid = paidAmount >= requiredAmount;
+                      const remainingAmount = requiredAmount - paidAmount;
+                      const progressPercent = Math.min((paidAmount / requiredAmount) * 100, 100);
+                      
+                      return (
+                        <div style={{...styles.loanInfo, flexDirection: 'column', alignItems: 'flex-start', gap: '8px'}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', width: '100%'}}>
+                            <span style={styles.infoLabel}>Deposit Required:</span>
+                            <span style={styles.infoValue}>
+                              ${requiredAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
-                          ) : loan.deposit_status === 'pending' && loan.deposit_amount ? (
-                            <span style={{...styles.depositBadge, background: '#fef3c7', color: '#92400e', marginLeft: '8px'}}>
-                              ⏳ Pending Verification (Submitted: ${parseFloat(loan.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                          </div>
+                          
+                          {isFullyPaid && loan.deposit_status === 'completed' && loan.deposit_paid ? (
+                            <span style={{...styles.depositBadge, background: '#d1fae5', color: '#065f46', padding: '8px 12px', width: '100%', textAlign: 'center'}}>
+                              ✓ FULLY PAID via {(loan.deposit_method || 'Unknown').toUpperCase()} (${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                             </span>
+                          ) : paidAmount > 0 ? (
+                            <div style={{width: '100%'}}>
+                              <div style={{background: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '8px', padding: '10px', marginBottom: '6px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '6px'}}>
+                                  <span style={{fontWeight: '600', color: '#92400e'}}>⚠️ PARTIAL PAYMENT</span>
+                                  <span style={{fontWeight: '700', color: '#b45309'}}>{progressPercent.toFixed(0)}% Complete</span>
+                                </div>
+                                <div style={{background: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden', marginBottom: '8px'}}>
+                                  <div style={{background: '#f59e0b', height: '100%', width: `${progressPercent}%`, transition: 'width 0.3s'}}></div>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px'}}>
+                                  <span style={{color: '#065f46'}}>Paid: <strong>${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> via {(loan.deposit_method || 'Unknown').toUpperCase()}</span>
+                                  <span style={{color: '#dc2626'}}>Remaining: <strong>${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                </div>
+                              </div>
+                              <span style={{fontSize: '12px', color: '#6b7280', fontStyle: 'italic'}}>
+                                🚫 Cannot approve until full deposit is received
+                              </span>
+                            </div>
                           ) : (
-                            <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', marginLeft: '8px'}}>
-                              ⏱ Awaiting Deposit - User has not submitted
+                            <span style={{...styles.depositBadge, background: '#fee2e2', color: '#991b1b', padding: '8px 12px', width: '100%', textAlign: 'center'}}>
+                              ⏱ AWAITING DEPOSIT - User has not submitted any payment
                             </span>
                           )}
-                        </span>
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })()}
                     {loan.disbursed_at && (
                       <div style={styles.loanInfo}>
                         <span style={styles.infoLabel}>Disbursed:</span>
@@ -1014,31 +1040,39 @@ export default function AdminLoans() {
                     >
                       📄 Documents
                     </button>
-                    {loan.status === 'pending' && (
-                      <button
-                        onClick={() => {
-                          console.log('Approve button clicked for loan:', loan.id);
-                          setLoanToApprove(loan);
-                          setShowModal('approve');
-                        }}
-                        style={{
-                          ...styles.approveButton,
-                          opacity: (loan.deposit_required > 0 && !loan.deposit_info?.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 0.6 : 1,
-                          cursor: (loan.deposit_required > 0 && !loan.deposit_info?.verified) || (parseFloat(loan.principal) > treasuryBalance) ? 'not-allowed' : 'pointer'
-                        }}
-                        title={
-                          loan.deposit_required > 0 && !loan.deposit_info?.verified
-                            ? loan.deposit_info?.has_pending
-                              ? 'Deposit pending - check Manage Crypto Deposits'
-                              : `Required deposit: $${parseFloat(loan.deposit_required).toLocaleString()}`
-                            : parseFloat(loan.principal) > treasuryBalance
+                    {loan.status === 'pending' && (() => {
+                      const depositRequired = parseFloat(loan.deposit_required || 0);
+                      const depositPaid = parseFloat(loan.deposit_amount || 0);
+                      const isDepositFullyPaid = depositRequired <= 0 || depositPaid >= depositRequired;
+                      const canApprove = isDepositFullyPaid && parseFloat(loan.principal) <= treasuryBalance;
+                      
+                      if (!isDepositFullyPaid) {
+                        return null;
+                      }
+                      
+                      return (
+                        <button
+                          onClick={() => {
+                            console.log('Approve button clicked for loan:', loan.id);
+                            setLoanToApprove(loan);
+                            setShowModal('approve');
+                          }}
+                          style={{
+                            ...styles.approveButton,
+                            opacity: canApprove ? 1 : 0.6,
+                            cursor: canApprove ? 'pointer' : 'not-allowed'
+                          }}
+                          title={
+                            parseFloat(loan.principal) > treasuryBalance
                               ? 'Insufficient treasury balance'
                               : 'Approve this loan'
-                        }
-                      >
-                        ✅ Approve
-                      </button>
-                    )}
+                          }
+                          disabled={!canApprove}
+                        >
+                          ✅ Approve
+                        </button>
+                      );
+                    })()}
                     {loan.status === 'approved' && !loan.disbursed_at && (
                       <button
                         onClick={() => handleDisburse(loan.id)}
