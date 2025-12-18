@@ -84,10 +84,12 @@ export default async function handler(req, res) {
       
       if (recipientEmail) {
         const transporter = nodemailer.createTransport({
-          service: 'gmail',
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_PORT === '465',
           auth: {
-            user: process.env.ADMIN_EMAIL,
-            pass: process.env.ADMIN_EMAIL_PASSWORD
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
           }
         });
 
@@ -186,8 +188,9 @@ export default async function handler(req, res) {
         }
 
         if (emailSubject && emailBody) {
+          const fromEmail = process.env.SMTP_FROM_PAYMENTS || process.env.SMTP_FROM || transferEmail;
           await transporter.sendMail({
-            from: transferEmail,
+            from: fromEmail,
             to: recipientEmail,
             subject: emailSubject,
             html: emailBody
