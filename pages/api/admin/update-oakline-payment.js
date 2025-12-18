@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyAdminAuth } from '../../../lib/adminAuth';
+import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -67,6 +68,136 @@ export default async function handler(req, res) {
       .eq('id', paymentId);
 
     if (updateError) throw updateError;
+
+    // Send email notification for status changes
+    try {
+      // Get bank details for email sender
+      const { data: bankDetails } = await supabaseAdmin
+        .from('bank_details')
+        .select('custom_emails')
+        .single();
+      
+      const transferEmail = bankDetails?.custom_emails?.transfer || 'transfer@theoaklinebank.com';
+      
+      // Get recipient email from the payment
+      const recipientEmail = payment.sender_email || payment.recipient_email;
+      
+      if (recipientEmail) {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.ADMIN_EMAIL,
+            pass: process.env.ADMIN_EMAIL_PASSWORD
+          }
+        });
+
+        let emailSubject, emailBody;
+        
+        if (status === 'cancelled') {
+          emailSubject = 'Your Oakline Pay Transaction Has Been Cancelled';
+          emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #1A3E6F; padding: 20px; text-align: center;">
+                <h1 style="color: white; margin: 0;">🏦 Oakline Bank</h1>
+              </div>
+              <div style="padding: 30px; background: #f9fafb;">
+                <h2 style="color: #991b1b;">Transaction Cancelled</h2>
+                <p>Dear Valued Customer,</p>
+                <p>Your Oakline Pay transaction for <strong>$${parseFloat(payment.amount || 0).toFixed(2)}</strong> has been cancelled.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">Transaction Details:</h3>
+                  <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong> $${parseFloat(payment.amount || 0).toFixed(2)}</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Recipient:</strong> ${payment.recipient_email || 'N/A'}</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Status:</strong> Cancelled</li>
+                    <li style="padding: 8px 0;"><strong>Date:</strong> ${new Date().toLocaleString()}</li>
+                  </ul>
+                </div>
+                <p><strong>We recommend trying one of these alternatives:</strong></p>
+                <ul>
+                  <li>Use a different payment method</li>
+                  <li>Contact our support team for assistance</li>
+                  <li>Try again with updated payment information</li>
+                </ul>
+                <p>If you have any questions, please contact us at <a href="mailto:support@theoaklinebank.com">support@theoaklinebank.com</a> or call +1 (636) 635-6122.</p>
+                <p>Best regards,<br/>Oakline Bank Payment Services</p>
+              </div>
+              <div style="background: #374151; padding: 15px; text-align: center; color: #9ca3af; font-size: 12px;">
+                © ${new Date().getFullYear()} Oakline Bank. All rights reserved.
+              </div>
+            </div>
+          `;
+        } else if (status === 'completed') {
+          emailSubject = 'Your Oakline Pay Transaction Has Been Completed';
+          emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #1A3E6F; padding: 20px; text-align: center;">
+                <h1 style="color: white; margin: 0;">🏦 Oakline Bank</h1>
+              </div>
+              <div style="padding: 30px; background: #f9fafb;">
+                <h2 style="color: #065f46;">Transaction Completed Successfully</h2>
+                <p>Dear Valued Customer,</p>
+                <p>Your Oakline Pay transaction for <strong>$${parseFloat(payment.amount || 0).toFixed(2)}</strong> has been successfully completed.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">Transaction Details:</h3>
+                  <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong> $${parseFloat(payment.amount || 0).toFixed(2)}</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Recipient:</strong> ${payment.recipient_email || 'N/A'}</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Status:</strong> ✅ Completed</li>
+                    <li style="padding: 8px 0;"><strong>Date:</strong> ${new Date().toLocaleString()}</li>
+                  </ul>
+                </div>
+                <p>The funds have been credited to the recipient's account. Thank you for using Oakline Pay!</p>
+                <p>Best regards,<br/>Oakline Bank Payment Services</p>
+              </div>
+              <div style="background: #374151; padding: 15px; text-align: center; color: #9ca3af; font-size: 12px;">
+                © ${new Date().getFullYear()} Oakline Bank. All rights reserved.
+              </div>
+            </div>
+          `;
+        } else if (status === 'expired') {
+          emailSubject = 'Your Oakline Pay Transaction Has Expired';
+          emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #1A3E6F; padding: 20px; text-align: center;">
+                <h1 style="color: white; margin: 0;">🏦 Oakline Bank</h1>
+              </div>
+              <div style="padding: 30px; background: #f9fafb;">
+                <h2 style="color: #92400e;">Transaction Expired</h2>
+                <p>Dear Valued Customer,</p>
+                <p>Your Oakline Pay transaction for <strong>$${parseFloat(payment.amount || 0).toFixed(2)}</strong> has expired.</p>
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">Transaction Details:</h3>
+                  <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong> $${parseFloat(payment.amount || 0).toFixed(2)}</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Recipient:</strong> ${payment.recipient_email || 'N/A'}</li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Status:</strong> Expired</li>
+                    <li style="padding: 8px 0;"><strong>Date:</strong> ${new Date().toLocaleString()}</li>
+                  </ul>
+                </div>
+                <p>If you would like to initiate a new transaction, please visit our platform.</p>
+                <p>Best regards,<br/>Oakline Bank Payment Services</p>
+              </div>
+              <div style="background: #374151; padding: 15px; text-align: center; color: #9ca3af; font-size: 12px;">
+                © ${new Date().getFullYear()} Oakline Bank. All rights reserved.
+              </div>
+            </div>
+          `;
+        }
+
+        if (emailSubject && emailBody) {
+          await transporter.sendMail({
+            from: transferEmail,
+            to: recipientEmail,
+            subject: emailSubject,
+            html: emailBody
+          });
+        }
+      }
+    } catch (emailError) {
+      console.error('Email notification error:', emailError);
+      // Don't fail the request if email fails
+    }
 
     return res.status(200).json({
       success: true,
