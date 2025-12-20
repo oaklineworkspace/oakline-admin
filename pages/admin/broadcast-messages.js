@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
 import AdminBackButton from '../../components/AdminBackButton';
+import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
@@ -25,7 +26,15 @@ export default function BroadcastMessages() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [sentCount, setSentCount] = useState(0);
+  const [loadingBanner, setLoadingBanner] = useState({
+    visible: false,
+    current: 0,
+    total: 0,
+    action: 'Sending Messages',
+    message: ''
+  });
   const [sentMessages, setSentMessages] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
@@ -151,10 +160,18 @@ export default function BroadcastMessages() {
     }
 
     setSending(true);
+    const recipients = allUsers.filter(u => selectedUsers.includes(u.id));
+    
+    setLoadingBanner({
+      visible: true,
+      current: 0,
+      total: recipients.length,
+      action: 'Sending Messages',
+      message: `Preparing to send to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}...`
+    });
 
     try {
       console.log('Starting to send broadcast message...');
-      const recipients = allUsers.filter(u => selectedUsers.includes(u.id));
       console.log('Recipients:', recipients.length);
       
       // Get the current session token
@@ -162,9 +179,19 @@ export default function BroadcastMessages() {
       
       if (!session) {
         alert('You must be logged in to send messages');
+        setLoadingBanner({ ...loadingBanner, visible: false });
         setSending(false);
         return;
       }
+      
+      // Update loading banner
+      setLoadingBanner({
+        visible: true,
+        current: Math.floor(recipients.length * 0.5),
+        total: recipients.length,
+        action: 'Sending Messages',
+        message: 'Processing email delivery...'
+      });
       
       console.log('Sending request to API...');
       const response = await fetch('/api/admin/send-broadcast-message', {
@@ -189,17 +216,32 @@ export default function BroadcastMessages() {
         throw new Error(result.error || result.message || 'Failed to send messages');
       }
 
-      setSentCount(selectedUsers.length);
-      setShowSuccess(true);
-      
-      // Reset form
-      setSubject('');
-      setMessage('');
-      setSelectedUsers([]);
-      setSelectAll(false);
+      // Complete loading
+      setLoadingBanner({
+        visible: true,
+        current: recipients.length,
+        total: recipients.length,
+        action: 'Messages Sent',
+        message: 'All messages delivered successfully!'
+      });
+
+      // Wait a moment before showing success
+      setTimeout(() => {
+        setLoadingBanner({ ...loadingBanner, visible: false });
+        setSentCount(selectedUsers.length);
+        setSuccessMessage(`Your message has been sent to ${selectedUsers.length} user${selectedUsers.length !== 1 ? 's' : ''}.`);
+        setShowSuccess(true);
+        
+        // Reset form
+        setSubject('');
+        setMessage('');
+        setSelectedUsers([]);
+        setSelectAll(false);
+      }, 1000);
 
     } catch (err) {
       console.error('Error sending messages:', err);
+      setLoadingBanner({ ...loadingBanner, visible: false });
       alert('Failed to send messages. Please check:\n' +
             '1. SMTP credentials are configured in Secrets\n' + 
             '2. Internet connection is stable\n' +
@@ -229,6 +271,14 @@ export default function BroadcastMessages() {
 
   return (
     <AdminAuth>
+      <AdminLoadingBanner
+        isVisible={loadingBanner.visible}
+        current={loadingBanner.current}
+        total={loadingBanner.total}
+        action={loadingBanner.action}
+        message={loadingBanner.message}
+      />
+      
       <div style={styles.container}>
         <div style={styles.header}>
           <div style={styles.headerContent}>
@@ -421,18 +471,24 @@ export default function BroadcastMessages() {
           </div>
         )}
 
-        {/* Success Modal */}
+        {/* Success Banner */}
         {showSuccess && (
-          <div style={styles.modalOverlay} onClick={() => setShowSuccess(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalIcon}>✅</div>
-              <h2 style={styles.modalTitle}>Message Sent Successfully!</h2>
-              <p style={styles.modalText}>
-                Your message has been sent to <strong>{sentCount}</strong> user{sentCount !== 1 ? 's' : ''}.
-              </p>
-              <button onClick={() => setShowSuccess(false)} style={styles.modalButton}>
-                Close
-              </button>
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>Notification</span>
+                <div style={styles.successBannerActions}>
+                  <button onClick={() => setShowSuccess(false)} style={styles.successBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerAction}>Success!</p>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+              <div style={styles.successBannerFooter}>
+                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
+                <button onClick={() => setShowSuccess(false)} style={styles.successBannerOkButton}>OK</button>
+              </div>
             </div>
           </div>
         )}
@@ -721,6 +777,107 @@ const styles = {
     fontSize: '1.25rem',
     color: '#9ca3af'
   },
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  },
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -733,43 +890,6 @@ const styles = {
     justifyContent: 'center',
     zIndex: 1000,
     padding: '1rem'
-  },
-  modal: {
-    background: 'white',
-    padding: '2.5rem',
-    borderRadius: '16px',
-    maxWidth: '500px',
-    width: '100%',
-    textAlign: 'center',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-    border: '3px solid #d4af37'
-  },
-  modalIcon: {
-    fontSize: '4rem',
-    marginBottom: '1rem'
-  },
-  modalTitle: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: '1rem'
-  },
-  modalText: {
-    fontSize: '16px',
-    color: '#4b5563',
-    marginBottom: '2rem',
-    lineHeight: '1.6'
-  },
-  modalButton: {
-    padding: '12px 32px',
-    background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background 0.3s ease'
   },
   messageModal: {
     background: 'white',
