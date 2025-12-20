@@ -199,7 +199,14 @@ export default function BroadcastMessages() {
     }
 
     setSending(true);
-    const recipients = allUsers.filter(u => selectedUsers.includes(u.id));
+    // Build recipients array with proper structure
+    const recipients = allUsers.filter(u => selectedUsers.includes(u.id)).map(u => ({
+      id: u.id,
+      email: u.email,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      isCustom: u.isCustom || false // Ensure registered users have isCustom=false
+    }));
     
     setLoadingBanner({
       visible: true,

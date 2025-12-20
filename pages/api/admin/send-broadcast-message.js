@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
@@ -11,7 +10,7 @@ export default async function handler(req, res) {
 
   // Check if at least one email provider is configured
   const hasProvider = process.env.SMTP_HOST || process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY || process.env.BREVO_API_KEY;
-  
+
   if (!hasProvider) {
     console.error('❌ No email provider configured');
     return res.status(500).json({
@@ -88,7 +87,7 @@ export default async function handler(req, res) {
     // Send emails to all recipients with multi-provider fallback
     const emailPromises = recipients.map(async (recipient, index) => {
       console.log(`📧 Sending to ${index + 1}/${recipients.length}: ${recipient.email}`);
-      
+
       const emailHtml = `
             <!DOCTYPE html>
         <html>
@@ -103,7 +102,7 @@ export default async function handler(req, res) {
               <td align="center" style="padding: 40px 20px;">
                 <!-- Main Container -->
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 650px; border-collapse: collapse; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);">
-                  
+
                   <!-- Header -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 45px 40px; text-align: center; position: relative;">
@@ -124,7 +123,7 @@ export default async function handler(req, res) {
                       </div>
                     </td>
                   </tr>
-                  
+
                   <!-- Subject Banner -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 25px 40px; border-bottom: 3px solid #d4af37;">
@@ -133,14 +132,14 @@ export default async function handler(req, res) {
                       </h2>
                     </td>
                   </tr>
-                  
+
                   <!-- Main Content -->
                   <tr>
                     <td style="padding: 45px 40px;">
                       <div style="color: #1f2937; font-size: 17px; line-height: 1.8; letter-spacing: 0.2px;">
                         ${message}
                       </div>
-                      
+
                       <!-- Call to Action (if needed) -->
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-top: 35px;">
                         <tr>
@@ -155,14 +154,14 @@ export default async function handler(req, res) {
                       </table>
                     </td>
                   </tr>
-                  
+
                   <!-- Divider -->
                   <tr>
                     <td style="padding: 0 40px;">
                       <div style="height: 2px; background: linear-gradient(to right, transparent, #d4af37, transparent);"></div>
                     </td>
                   </tr>
-                  
+
                   <!-- Footer -->
                   <tr>
                     <td style="background: linear-gradient(to bottom, #f8fafc, #f1f5f9); padding: 40px;">
@@ -172,22 +171,15 @@ export default async function handler(req, res) {
                             <p style="margin: 0 0 15px 0; color: #0a1a2f; font-size: 18px; font-weight: 700;">
                               ${bankInfo.name || 'Oakline Bank'}
                             </p>
-                            <p style="margin: 0 0 8px 0; color: #475569; font-size: 14px; line-height: 1.6;">
-                              📍 ${bankInfo.address || '12201 N May Avenue, Oklahoma City, OK 73120'}
-                            </p>
                             <p style="margin: 0 0 8px 0; color: #475569; font-size: 14px;">
                               📞 ${bankInfo.phone || '+1 (636) 635-6122'}
                             </p>
-                            <p style="margin: 0 0 20px 0; color: #475569; font-size: 14px;">
-                              ✉️ <a href="mailto:${bankInfo.email_contact || 'support@theoaklinebank.com'}" style="color: #0066cc; text-decoration: none;">${bankInfo.email_contact || 'support@theoaklinebank.com'}</a>
+                            <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px;">
+                              ✉️ <a href="mailto:${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}" style="color: #0066cc; text-decoration: none;">${bankInfo.email_contact || 'contact-us@theoaklinebank.com'}</a>
                             </p>
-                            
-                            <div style="margin: 20px 0; padding-top: 20px; border-top: 2px solid #e2e8f0;">
-                              <p style="margin: 0 0 8px 0; color: #64748b; font-size: 12px; line-height: 1.6;">
-                                <strong>Member FDIC</strong> | Routing Number: ${bankInfo.routing_number || '075915826'}<br>
-                                SWIFT: ${bankInfo.swift_code || 'OAKLUS33'} | NMLS ID: ${bankInfo.nmls_id || '574160'}
-                              </p>
-                              <p style="margin: 15px 0 0 0; color: #94a3b8; font-size: 11px;">
+
+                            <div style="padding-top: 20px; border-top: 2px solid #e2e8f0;">
+                              <p style="margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.6;">
                                 © ${new Date().getFullYear()} ${bankInfo.name || 'Oakline Bank'}. All rights reserved.<br>
                                 This is an automated message from a secure system. Please do not reply to this email.
                               </p>
@@ -197,9 +189,9 @@ export default async function handler(req, res) {
                       </table>
                     </td>
                   </tr>
-                  
+
                 </table>
-                
+
                 <!-- Security Notice -->
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 650px; margin-top: 20px;">
                   <tr>
@@ -210,7 +202,7 @@ export default async function handler(req, res) {
                     </td>
                   </tr>
                 </table>
-                
+
               </td>
             </tr>
           </table>
@@ -235,7 +227,7 @@ export default async function handler(req, res) {
     // Store notification in database for registered users only
     const registeredRecipients = recipients.filter(r => !r.isCustom);
     console.log(`💾 Storing notifications for ${registeredRecipients.length} registered users`);
-    
+
     if (registeredRecipients.length > 0) {
       const notificationInserts = registeredRecipients.map(recipient => ({
         user_id: recipient.id,
