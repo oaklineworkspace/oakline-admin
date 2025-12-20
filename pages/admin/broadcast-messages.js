@@ -145,6 +145,45 @@ export default function BroadcastMessages() {
     setSelectAll(false);
   };
 
+  const handleAddCustomEmails = (emailString) => {
+    if (!emailString.trim()) {
+      alert('Please enter at least one email address');
+      return;
+    }
+
+    const emails = emailString.split(',').map(email => email.trim()).filter(email => email);
+    const validEmails = emails.filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+    const invalidEmails = emails.filter(email => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+    if (invalidEmails.length > 0) {
+      alert(`Invalid email addresses found:\n${invalidEmails.join('\n')}\n\nOnly valid emails will be added.`);
+    }
+
+    if (validEmails.length > 0) {
+      // Check for duplicates
+      const existingEmails = allUsers.map(u => u.email.toLowerCase());
+      const newEmails = validEmails.filter(email => !existingEmails.includes(email.toLowerCase()));
+      
+      if (newEmails.length === 0) {
+        alert('All entered emails are already in the recipient list');
+        return;
+      }
+
+      const customRecipients = newEmails.map(email => ({
+        id: `custom_${Date.now()}_${Math.random()}`,
+        email: email,
+        first_name: email.split('@')[0],
+        last_name: '(Guest)',
+        isCustom: true
+      }));
+
+      setAllUsers([...allUsers, ...customRecipients]);
+      setSelectedUsers([...selectedUsers, ...customRecipients.map(r => r.id)]);
+      
+      alert(`Added ${newEmails.length} custom email address${newEmails.length !== 1 ? 'es' : ''}`);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!subject.trim()) {
       alert('Please enter a subject');
@@ -194,6 +233,8 @@ export default function BroadcastMessages() {
       });
       
       console.log('Sending request to API...');
+      console.log('Request payload:', { subject, recipientCount: recipients.length });
+      
       const response = await fetch('/api/admin/send-broadcast-message', {
         method: 'POST',
         headers: { 
@@ -209,11 +250,19 @@ export default function BroadcastMessages() {
       });
 
       console.log('Response status:', response.status);
-      const result = await response.json();
-      console.log('Response data:', result);
+      
+      let result;
+      try {
+        result = await response.json();
+        console.log('Response data:', result);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Invalid response from server');
+      }
 
       if (!response.ok) {
-        throw new Error(result.error || result.message || 'Failed to send messages');
+        console.error('API Error:', result);
+        throw new Error(result.error || result.message || `Failed to send messages (${response.status})`);
       }
 
       // Complete loading
@@ -344,32 +393,56 @@ export default function BroadcastMessages() {
             <div style={styles.formGroup}>
               <label style={styles.label}>Custom Email Recipients (Optional)</label>
               <div style={styles.customEmailSection}>
-                <input
-                  type="text"
-                  placeholder="Enter email addresses separated by commas (e.g., john@example.com, jane@example.com)"
-                  style={styles.customEmailInput}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      const emails = e.target.value.split(',').map(email => email.trim()).filter(email => email);
-                      const validEmails = emails.filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-                      if (validEmails.length > 0) {
-                        const customRecipients = validEmails.map(email => ({
-                          id: `custom_${Date.now()}_${Math.random()}`,
-                          email: email,
-                          first_name: email.split('@')[0],
-                          last_name: '(Guest)',
-                          isCustom: true
-                        }));
-                        setAllUsers([...allUsers, ...customRecipients]);
-                        setSelectedUsers([...selectedUsers, ...customRecipients.map(r => r.id)]);
+                <div style={styles.customEmailInputContainer}>
+                  <input
+                    type="text"
+                    placeholder="Enter email addresses separated by commas (e.g., john@example.com, jane@example.com)"
+                    style={styles.customEmailInput}
+                    id="customEmailInput"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomEmails(e.target.value);
                         e.target.value = '';
-                      } else {
-                        alert('Please enter valid email addresses');
                       }
-                    }
-                  }}
-                />
-                <p style={styles.helperText}>Press Enter to add custom email addresses (for non-registered recipients)</p>
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById('customEmailInput');
+                      handleAddCustomEmails(input.value);
+                      input.value = '';
+                    }}
+                    style={styles.addEmailButton}
+                  >
+                    ➕ Add Emails
+                  </button>
+                </div>
+                <p style={styles.helperText}>Enter email addresses separated by commas, then click "Add Emails" or press Enter</p>
+                
+                {/* Display custom emails */}
+                {allUsers.filter(u => u.isCustom).length > 0 && (
+                  <div style={styles.customEmailsList}>
+                    <p style={styles.customEmailsLabel}>Custom Recipients ({allUsers.filter(u => u.isCustom).length}):</p>
+                    <div style={styles.customEmailTags}>
+                      {allUsers.filter(u => u.isCustom).map(user => (
+                        <div key={user.id} style={styles.emailTag}>
+                          <span>{user.email}</span>
+                          <button
+                            onClick={() => {
+                              setAllUsers(allUsers.filter(u => u.id !== user.id));
+                              setSelectedUsers(selectedUsers.filter(id => id !== user.id));
+                            }}
+                            style={styles.removeEmailButton}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -610,14 +683,76 @@ const styles = {
   customEmailSection: {
     marginBottom: '1rem'
   },
+  customEmailInputContainer: {
+    display: 'flex',
+    gap: '1rem',
+    marginBottom: '0.5rem',
+    flexWrap: 'wrap'
+  },
   customEmailInput: {
-    width: '100%',
+    flex: 1,
+    minWidth: '300px',
     padding: '12px 16px',
     fontSize: '16px',
     border: '2px solid #e5e7eb',
     borderRadius: '8px',
-    outline: 'none',
-    marginBottom: '0.5rem'
+    outline: 'none'
+  },
+  addEmailButton: {
+    padding: '12px 24px',
+    background: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.3s ease',
+    whiteSpace: 'nowrap'
+  },
+  customEmailsList: {
+    marginTop: '1rem',
+    padding: '1rem',
+    background: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  customEmailsLabel: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '0.75rem'
+  },
+  customEmailTags: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.5rem'
+  },
+  emailTag: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '6px 12px',
+    background: '#ffffff',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#374151'
+  },
+  removeEmailButton: {
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    width: '20px',
+    height: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '12px',
+    padding: 0,
+    lineHeight: 1
   },
   helperText: {
     fontSize: '14px',

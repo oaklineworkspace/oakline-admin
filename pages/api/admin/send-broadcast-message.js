@@ -7,22 +7,39 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  console.log('📧 Broadcast message request received');
+
   // Check if at least one email provider is configured
-  const hasProvider = process.env.SMTP_HOST || process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY;
+  const hasProvider = process.env.SMTP_HOST || process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY || process.env.BREVO_API_KEY;
   
   if (!hasProvider) {
-    console.error('No email provider configured');
+    console.error('❌ No email provider configured');
     return res.status(500).json({
       error: 'Email service not configured',
-      message: 'Please configure at least one email provider: SMTP, RESEND_API_KEY, or SENDGRID_API_KEY'
+      message: 'Please configure at least one email provider in Secrets'
     });
   }
 
   try {
     const { subject, message, recipients, bank_details } = req.body;
 
+    console.log('📝 Request details:', {
+      subject: subject?.substring(0, 50),
+      messageLength: message?.length,
+      recipientCount: recipients?.length
+    });
+
     if (!subject || !message || !recipients || recipients.length === 0) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      console.error('❌ Missing required fields');
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        details: {
+          subject: !!subject,
+          message: !!message,
+          recipients: !!recipients,
+          recipientCount: recipients?.length || 0
+        }
+      });
     }
 
     // Get current admin user
@@ -66,8 +83,12 @@ export default async function handler(req, res) {
       bankInfo = data;
     }
 
+    console.log('📤 Starting to send emails...');
+
     // Send emails to all recipients with multi-provider fallback
-    const emailPromises = recipients.map(async (recipient) => {
+    const emailPromises = recipients.map(async (recipient, index) => {
+      console.log(`📧 Sending to ${index + 1}/${recipients.length}: ${recipient.email}`);
+      
       const emailHtml = `
             <!DOCTYPE html>
         <html>
@@ -207,10 +228,13 @@ export default async function handler(req, res) {
     });
 
     // Wait for all emails to be sent
-    await Promise.all(emailPromises);
+    console.log('⏳ Waiting for all emails to send...');
+    const results = await Promise.all(emailPromises);
+    console.log('✅ All emails sent successfully:', results.length);
 
     // Store notification in database for registered users only
     const registeredRecipients = recipients.filter(r => !r.isCustom);
+    console.log(`💾 Storing notifications for ${registeredRecipients.length} registered users`);
     
     if (registeredRecipients.length > 0) {
       const notificationInserts = registeredRecipients.map(recipient => ({
@@ -231,6 +255,7 @@ export default async function handler(req, res) {
       }
     }
 
+    console.log('✅ Broadcast complete');
     return res.status(200).json({
       success: true,
       message: `Successfully sent ${recipients.length} messages`,
@@ -238,10 +263,12 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Error sending broadcast message:', error);
+    console.error('❌ Error sending broadcast message:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
       error: 'Failed to send broadcast message',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
