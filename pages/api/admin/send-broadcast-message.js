@@ -229,22 +229,37 @@ export default async function handler(req, res) {
     console.log(`💾 Storing notifications for ${registeredRecipients.length} registered users`);
 
     if (registeredRecipients.length > 0) {
-      const notificationInserts = registeredRecipients.map(recipient => ({
-        user_id: recipient.id,
-        type: 'broadcast',
-        title: subject,
-        message: message,
-        read: false
-      }));
+      // Insert notifications one by one to better handle errors
+      let successCount = 0;
+      let failCount = 0;
 
-      const { error: dbError } = await supabaseAdmin
-        .from('notifications')
-        .insert(notificationInserts);
+      for (const recipient of registeredRecipients) {
+        // Skip if recipient.id starts with 'custom_'
+        if (typeof recipient.id === 'string' && recipient.id.startsWith('custom_')) {
+          console.log(`⏭️ Skipping custom recipient: ${recipient.email}`);
+          continue;
+        }
 
-      if (dbError) {
-        console.error('Failed to store notification:', dbError);
-        // Don't fail the request if emails were sent successfully
+        const { error: dbError } = await supabaseAdmin
+          .from('notifications')
+          .insert({
+            user_id: recipient.id,
+            type: 'broadcast',
+            title: subject,
+            message: message,
+            read: false
+          });
+
+        if (dbError) {
+          console.error(`Failed to store notification for user ${recipient.id}:`, dbError);
+          failCount++;
+        } else {
+          console.log(`✅ Notification stored for user ${recipient.id} (${recipient.email})`);
+          successCount++;
+        }
       }
+
+      console.log(`📊 Notification storage complete: ${successCount} success, ${failCount} failed`);
     }
 
     console.log('✅ Broadcast complete');

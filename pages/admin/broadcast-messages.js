@@ -219,6 +219,8 @@ export default function BroadcastMessages() {
     try {
       console.log('Starting to send broadcast message...');
       console.log('Recipients:', recipients.length);
+      console.log('Registered users:', recipients.filter(r => !r.isCustom).length);
+      console.log('Custom emails:', recipients.filter(r => r.isCustom).length);
       
       // Get the current session token
       const { data: { session } } = await supabase.auth.getSession();
@@ -240,7 +242,11 @@ export default function BroadcastMessages() {
       });
       
       console.log('Sending request to API...');
-      console.log('Request payload:', { subject, recipientCount: recipients.length });
+      console.log('Request payload:', { 
+        subject, 
+        recipientCount: recipients.length,
+        registeredCount: recipients.filter(r => !r.isCustom).length
+      });
       
       const response = await fetch('/api/admin/send-broadcast-message', {
         method: 'POST',
