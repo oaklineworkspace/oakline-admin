@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminAuth from '../../components/AdminAuth';
 import AdminFooter from '../../components/AdminFooter';
+import AdminLoadingBanner from '../../components/AdminLoadingBanner';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function BroadcastMessages() {
@@ -20,6 +21,15 @@ export default function BroadcastMessages() {
   const [manualEmail, setManualEmail] = useState('');
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loadingBanner, setLoadingBanner] = useState({
+    visible: false,
+    current: 0,
+    total: 0,
+    action: '',
+    message: ''
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -89,31 +99,58 @@ export default function BroadcastMessages() {
 
   const handleSend = async () => {
     if (!subject.trim()) {
-      setError('Please enter a subject');
+      setErrorMessage('Please enter a subject');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 5000);
       return;
     }
     if (!message.trim()) {
-      setError('Please enter a message');
+      setErrorMessage('Please enter a message');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 5000);
       return;
     }
     if (selectedUsers.length === 0) {
-      setError('Please select at least one recipient');
+      setErrorMessage('Please select at least one recipient');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 5000);
       return;
     }
 
     setSending(true);
     setError('');
     setSuccess(false);
+    
+    // Show professional loading banner
+    setLoadingBanner({
+      visible: true,
+      current: 0,
+      total: selectedUsers.length,
+      action: 'Sending Broadcast Messages',
+      message: `Sending to ${selectedUsers.length} recipient(s)...`
+    });
 
     try {
       // Get fresh session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
-        setError('Your session has expired. Please refresh the page and try again.');
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        setErrorMessage('Your session has expired. Please refresh the page and try again.');
+        setShowErrorBanner(true);
+        setTimeout(() => setShowErrorBanner(false), 5000);
         setSending(false);
         return;
       }
+
+      // Update loading banner to show processing
+      setLoadingBanner({
+        visible: true,
+        current: 1,
+        total: selectedUsers.length,
+        action: 'Sending Broadcast Messages',
+        message: `Processing ${selectedUsers.length} emails...`
+      });
 
       // Send request to API
       const response = await fetch('/api/admin/send-broadcast-message', {
@@ -131,6 +168,9 @@ export default function BroadcastMessages() {
 
       const data = await response.json();
 
+      // Hide loading banner
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send messages');
       }
@@ -145,7 +185,10 @@ export default function BroadcastMessages() {
       setTimeout(() => setShowSuccessBanner(false), 5000);
     } catch (err) {
       console.error('Error sending broadcast:', err);
-      setError(err.message);
+      setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+      setErrorMessage(err.message || 'Failed to send messages');
+      setShowErrorBanner(true);
+      setTimeout(() => setShowErrorBanner(false), 5000);
     } finally {
       setSending(false);
     }
@@ -375,12 +418,33 @@ export default function BroadcastMessages() {
           </button>
         </div>
 
-        {/* Loading Spinner */}
-        {sending && (
-          <div style={styles.loadingOverlay}>
-            <div style={styles.loadingContainer}>
-              <div style={styles.spinner}></div>
-              <p style={styles.loadingText}>Sending messages to {selectedUsers.length} recipient(s)...</p>
+        {/* Professional Loading Banner */}
+        <AdminLoadingBanner
+          isVisible={loadingBanner.visible}
+          current={loadingBanner.current}
+          total={loadingBanner.total}
+          action={loadingBanner.action}
+          message={loadingBanner.message}
+        />
+
+        {/* Error Banner */}
+        {showErrorBanner && (
+          <div style={styles.errorBannerOverlay}>
+            <div style={styles.errorBannerContainer}>
+              <div style={styles.errorBannerHeader}>
+                <span style={styles.errorBannerLogo}>Notification</span>
+                <div style={styles.errorBannerActions}>
+                  <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.errorBannerContent}>
+                <p style={styles.errorBannerAction}>Error</p>
+                <p style={styles.errorBannerMessage}>{errorMessage}</p>
+              </div>
+              <div style={styles.errorBannerFooter}>
+                <span style={styles.errorBannerWarning}>⚠️ Please try again</span>
+                <button onClick={() => setShowErrorBanner(false)} style={styles.errorBannerOkButton}>OK</button>
+              </div>
             </div>
           </div>
         )}
@@ -716,7 +780,7 @@ const styles = {
     lineHeight: 1,
     fontWeight: 'bold'
   },
-  loadingOverlay: {
+  errorBannerOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
@@ -727,16 +791,95 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 99999,
-    backdropFilter: 'blur(4px)'
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
   },
-  loadingContainer: {
-    textAlign: 'center',
-    color: 'white'
+  errorBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
   },
-  loadingText: {
-    marginTop: '16px',
+  errorBannerHeader: {
+    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerLogo: {
+    color: '#ffffff',
     fontSize: '16px',
-    fontWeight: '600'
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  errorBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  errorBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  errorBannerContent: {
+    padding: '30px 20px'
+  },
+  errorBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#dc2626',
+    textAlign: 'center'
+  },
+  errorBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  errorBannerFooter: {
+    backgroundColor: '#fef2f2',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  errorBannerWarning: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  errorBannerOkButton: {
+    padding: '8px 24px',
+    background: '#dc2626',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   },
   successBannerOverlay: {
     position: 'fixed',

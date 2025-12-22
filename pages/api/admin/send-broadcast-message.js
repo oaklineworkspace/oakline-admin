@@ -150,17 +150,37 @@ export default async function handler(req, res) {
     console.log(`Failed: ${failedCount}/${emails.length}`);
     console.log('==========================================');
 
-    return res.status(200).json({
-      success: true,
-      message: `Successfully sent ${successCount} out of ${emails.length} messages`,
-      results
-    });
+    // Return appropriate status based on results
+    if (successCount === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send any messages',
+        message: `0 out of ${emails.length} messages sent`,
+        results
+      });
+    } else if (successCount < emails.length) {
+      return res.status(207).json({
+        success: true,
+        partial: true,
+        message: `Partial success: ${successCount} out of ${emails.length} messages sent`,
+        results
+      });
+    } else {
+      return res.status(200).json({
+        success: true,
+        message: `Successfully sent ${successCount} out of ${emails.length} messages`,
+        results
+      });
+    }
 
   } catch (error) {
     console.error('❌ Error sending broadcast:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
+      success: false,
       error: 'Failed to send broadcast message',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
