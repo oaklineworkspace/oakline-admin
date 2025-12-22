@@ -221,8 +221,19 @@ export default async function handler(req, res) {
 
     // Wait for all emails to be sent
     console.log('⏳ Waiting for all emails to send...');
-    const results = await Promise.all(emailPromises);
-    console.log('✅ All emails sent successfully:', results.length);
+    let emailResults;
+    try {
+      emailResults = await Promise.all(emailPromises);
+      console.log('✅ All emails sent successfully:', emailResults.length);
+      console.log('📧 Email results:', JSON.stringify(emailResults, null, 2));
+    } catch (emailError) {
+      console.error('❌ Email sending failed:', emailError.message);
+      console.error('❌ Error stack:', emailError.stack);
+      return res.status(500).json({
+        error: 'Failed to send emails',
+        details: emailError.message
+      });
+    }
 
     // Store notification in database for registered users only
     // Registered users are those without isCustom flag OR where isCustom is explicitly false
