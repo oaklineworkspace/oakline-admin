@@ -63,7 +63,7 @@ export default async function handler(req, res) {
     }
 
     // Get bank details
-    const { data: bankInfo } = await supabaseAdmin
+    const { data: bankDetails } = await supabaseAdmin
       .from('bank_details')
       .select('*')
       .limit(1)
@@ -85,13 +85,13 @@ export default async function handler(req, res) {
           <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
               <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px; text-align: center;">
-                ${bankInfo?.logo_url ? `
+                ${bankDetails?.logo_url ? `
                   <div style="background-color: #ffffff; display: inline-block; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                    <img src="${bankInfo.logo_url}" alt="${bankInfo.name}" style="height: 50px; width: auto;">
+                    <img src="${bankDetails.logo_url}" alt="${bankDetails.name}" style="height: 50px; width: auto;">
                   </div>
                 ` : ''}
                 <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                  ${bankInfo?.name || 'Oakline Bank'}
+                  ${bankDetails?.name || 'Oakline Bank'}
                 </h1>
               </div>
 
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
 
               <div style="background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                 <p style="margin: 0; color: #718096; font-size: 12px;">
-                  © ${new Date().getFullYear()} ${bankInfo?.name || 'Oakline Bank'}. All rights reserved.
+                  © ${new Date().getFullYear()} ${bankDetails?.name || 'Oakline Bank'}. All rights reserved.
                 </p>
               </div>
             </div>
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
           to: email,
           subject: subject,
           html: emailHtml,
-          from: `"${bankInfo?.name || 'Oakline Bank'}" <${bankInfo?.email_notify || 'notify@theoaklinebank.com'}>`,
+          from: `"${bankDetails?.name || 'Oakline Bank'}" <${bankDetails?.email_notify || 'notify@theoaklinebank.com'}>`,
           type: EMAIL_TYPES.NOTIFY
         });
 

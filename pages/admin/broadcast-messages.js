@@ -17,6 +17,9 @@ export default function BroadcastMessages() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectAll, setSelectAll] = useState(false);
+  const [manualEmail, setManualEmail] = useState('');
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -58,6 +61,30 @@ export default function BroadcastMessages() {
         return [...prev, email];
       }
     });
+  };
+
+  const handleAddManualEmail = () => {
+    const email = manualEmail.trim().toLowerCase();
+    if (!email) {
+      setError('Please enter an email address');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
+    if (selectedUsers.includes(email)) {
+      setError('This email is already added');
+      return;
+    }
+    
+    setSelectedUsers([...selectedUsers, email]);
+    setManualEmail('');
+    setError('');
   };
 
   const handleSend = async () => {
@@ -108,13 +135,14 @@ export default function BroadcastMessages() {
         throw new Error(data.error || 'Failed to send messages');
       }
 
-      setSuccess(true);
+      setSuccessMessage(`Messages sent successfully to ${selectedUsers.length} recipient(s)`);
+      setShowSuccessBanner(true);
       setSubject('');
       setMessage('');
       setSelectedUsers([]);
       setSelectAll(false);
 
-      setTimeout(() => setSuccess(false), 5000);
+      setTimeout(() => setShowSuccessBanner(false), 5000);
     } catch (err) {
       console.error('Error sending broadcast:', err);
       setError(err.message);
@@ -203,23 +231,55 @@ export default function BroadcastMessages() {
               <div style={styles.manualEmailInputGroup}>
                 <input
                   type="email"
-                  placeholder="Enter email address and press Enter"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  placeholder="Enter email address"
                   style={styles.manualEmailInput}
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      const email = e.target.value.trim().toLowerCase();
-                      if (!selectedUsers.includes(email)) {
-                        setSelectedUsers([...selectedUsers, email]);
-                      }
-                      e.target.value = '';
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddManualEmail();
                     }
                   }}
                   disabled={sending}
                 />
+                <button
+                  onClick={handleAddManualEmail}
+                  disabled={sending || !manualEmail.trim()}
+                  style={{
+                    ...styles.addEmailButton,
+                    ...(sending || !manualEmail.trim() ? styles.addEmailButtonDisabled : {})
+                  }}
+                >
+                  ➕ Add
+                </button>
               </div>
               <p style={styles.helpText}>
-                Press Enter to add each email address. You can add any email, not just registered users.
+                Enter an email address and click "Add" or press Enter. You can add any email, not just registered users.
               </p>
+              
+              {/* Display manually added emails that aren't in the users list */}
+              {selectedUsers.filter(email => !users.some(u => u.email === email)).length > 0 && (
+                <div style={styles.manualEmailsList}>
+                  <p style={styles.manualEmailsTitle}>Manually Added Emails:</p>
+                  <div style={styles.manualEmailsTags}>
+                    {selectedUsers
+                      .filter(email => !users.some(u => u.email === email))
+                      .map((email) => (
+                        <div key={email} style={styles.emailTag}>
+                          <span>{email}</span>
+                          <button
+                            onClick={() => setSelectedUsers(prev => prev.filter(e => e !== email))}
+                            style={styles.emailTagRemove}
+                            disabled={sending}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={styles.searchContainer}>
@@ -308,6 +368,38 @@ export default function BroadcastMessages() {
             }
           </button>
         </div>
+
+        {/* Loading Spinner */}
+        {sending && (
+          <div style={styles.loadingOverlay}>
+            <div style={styles.loadingContainer}>
+              <div style={styles.spinner}></div>
+              <p style={styles.loadingText}>Sending messages to {selectedUsers.length} recipient(s)...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div style={styles.successBannerOverlay}>
+            <div style={styles.successBannerContainer}>
+              <div style={styles.successBannerHeader}>
+                <span style={styles.successBannerLogo}>Notification</span>
+                <div style={styles.successBannerActions}>
+                  <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerClose}>✕</button>
+                </div>
+              </div>
+              <div style={styles.successBannerContent}>
+                <p style={styles.successBannerAction}>Success!</p>
+                <p style={styles.successBannerMessage}>{successMessage}</p>
+              </div>
+              <div style={styles.successBannerFooter}>
+                <span style={styles.successBannerCheckmark}>✓ Action completed</span>
+                <button onClick={() => setShowSuccessBanner(false)} style={styles.successBannerOkButton}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <AdminFooter />
       </div>
@@ -527,7 +619,7 @@ const styles = {
     marginTop: '8px'
   },
   manualEmailInput: {
-    width: '100%',
+    flex: 1,
     padding: '12px 16px',
     fontSize: '15px',
     border: '2px solid #e5e7eb',
@@ -536,11 +628,189 @@ const styles = {
     transition: 'border-color 0.2s',
     fontFamily: 'inherit'
   },
+  addEmailButton: {
+    padding: '12px 24px',
+    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s'
+  },
+  addEmailButtonDisabled: {
+    background: '#9ca3af',
+    cursor: 'not-allowed'
+  },
   helpText: {
     margin: '8px 0 0 0',
     fontSize: '13px',
     color: '#6b7280',
     fontStyle: 'italic'
+  },
+  manualEmailsList: {
+    marginTop: '16px',
+    padding: '12px',
+    background: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  manualEmailsTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151'
+  },
+  manualEmailsTags: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  emailTag: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '6px 12px',
+    background: '#eff6ff',
+    border: '1px solid #3b82f6',
+    borderRadius: '6px',
+    fontSize: '13px',
+    color: '#1e40af'
+  },
+  emailTagRemove: {
+    background: 'none',
+    border: 'none',
+    color: '#1e40af',
+    fontSize: '14px',
+    cursor: 'pointer',
+    padding: '0',
+    lineHeight: 1,
+    fontWeight: 'bold'
+  },
+  loadingOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)'
+  },
+  loadingContainer: {
+    textAlign: 'center',
+    color: 'white'
+  },
+  loadingText: {
+    marginTop: '16px',
+    fontSize: '16px',
+    fontWeight: '600'
+  },
+  successBannerOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)',
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  successBannerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    minWidth: '400px',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  successBannerHeader: {
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    padding: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerLogo: {
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: '700',
+    letterSpacing: '2px',
+    textTransform: 'uppercase'
+  },
+  successBannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  successBannerClose: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: '#ffffff',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    lineHeight: 1,
+    padding: 0
+  },
+  successBannerContent: {
+    padding: '30px 20px'
+  },
+  successBannerAction: {
+    margin: '0 0 15px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#10b981',
+    textAlign: 'center'
+  },
+  successBannerMessage: {
+    margin: '0',
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  successBannerFooter: {
+    backgroundColor: '#f0fdf4',
+    padding: '15px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  successBannerCheckmark: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  successBannerOkButton: {
+    padding: '8px 24px',
+    background: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
   },
   sendButton: {
     width: '100%',
