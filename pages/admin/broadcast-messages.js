@@ -98,6 +98,14 @@ export default function BroadcastMessages() {
   };
 
   const handleSend = async () => {
+    console.log('🚀 handleSend triggered');
+    console.log('Current state:', {
+      subject: subject.trim(),
+      messageLength: message.trim().length,
+      selectedUsersCount: selectedUsers.length,
+      selectedUsers
+    });
+
     if (!subject.trim()) {
       setErrorMessage('Please enter a subject');
       setShowErrorBanner(true);
@@ -117,6 +125,7 @@ export default function BroadcastMessages() {
       return;
     }
 
+    console.log('✅ Validation passed, starting send process');
     setSending(true);
     setError('');
     setSuccess(false);
@@ -153,6 +162,13 @@ export default function BroadcastMessages() {
       });
 
       // Send request to API
+      console.log('📤 Sending broadcast request:', {
+        subject,
+        messageLength: message.length,
+        emailCount: selectedUsers.length,
+        emails: selectedUsers
+      });
+
       const response = await fetch('/api/admin/send-broadcast-message', {
         method: 'POST',
         headers: {
@@ -166,14 +182,27 @@ export default function BroadcastMessages() {
         })
       });
 
-      const data = await response.json();
+      console.log('📥 Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('📥 Response data:', data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse response:', parseError);
+        setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
+        throw new Error('Invalid response from server');
+      }
 
       // Hide loading banner
       setLoadingBanner({ visible: false, current: 0, total: 0, action: '', message: '' });
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send messages');
+        console.error('❌ Request failed:', data);
+        throw new Error(data.error || data.details || 'Failed to send messages');
       }
+
+      console.log('✅ Broadcast successful:', data);
 
       setSuccessMessage(`Messages sent successfully to ${selectedUsers.length} recipient(s)`);
       setShowSuccessBanner(true);

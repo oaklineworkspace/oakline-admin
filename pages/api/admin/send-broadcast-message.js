@@ -50,7 +50,19 @@ export default async function handler(req, res) {
 
     const { subject, message, emails } = req.body;
 
+    console.log('📥 Received request body:', { 
+      hasSubject: !!subject, 
+      hasMessage: !!message, 
+      emailCount: emails?.length 
+    });
+
     if (!subject || !message || !emails || emails.length === 0) {
+      console.error('❌ Validation failed:', {
+        subject: !!subject,
+        message: !!message,
+        emails: !!emails,
+        emailCount: emails?.length || 0
+      });
       return res.status(400).json({ 
         error: 'Missing required fields',
         details: {
@@ -63,11 +75,15 @@ export default async function handler(req, res) {
     }
 
     // Get bank details
-    const { data: bankDetails } = await supabaseAdmin
+    const { data: bankDetails, error: bankError } = await supabaseAdmin
       .from('bank_details')
       .select('*')
       .limit(1)
       .single();
+
+    if (bankError) {
+      console.error('⚠️ Could not fetch bank details:', bankError);
+    }
 
     console.log('==========================================');
     console.log(`📧 STARTING BROADCAST TO ${emails.length} RECIPIENTS`);
