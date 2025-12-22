@@ -232,27 +232,48 @@ export default function BroadcastMessages() {
         isCustom: r.isCustom
       })));
       
-      // Get the current session token with timeout
+      // Get the current session token with retry logic
       console.log('Getting session...');
       let session;
-      try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 10000)
-        );
-        const { data } = await Promise.race([sessionPromise, timeoutPromise]);
-        session = data?.session;
-        console.log('Session retrieved:', !!session);
-      } catch (sessionError) {
-        console.error('Session error:', sessionError);
-        alert('Failed to get session. Please refresh the page and try again.');
-        setLoadingBanner(prev => ({ ...prev, visible: false }));
-        setSending(false);
-        return;
+      let retries = 3;
+      
+      while (retries > 0 && !session) {
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('Session error:', error);
+            throw error;
+          }
+          
+          session = data?.session;
+          console.log('Session retrieved:', !!session);
+          
+          if (!session && retries > 1) {
+            console.log(`No session found, retrying... (${retries - 1} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            retries--;
+          } else {
+            break;
+          }
+        } catch (sessionError) {
+          console.error('Session retrieval error:', sessionError);
+          retries--;
+          
+          if (retries > 0) {
+            console.log(`Retrying session retrieval... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            alert('Unable to verify your login session. Please:\n1. Refresh the page\n2. Log out and log back in\n3. Clear your browser cache if the issue persists');
+            setLoadingBanner(prev => ({ ...prev, visible: false }));
+            setSending(false);
+            return;
+          }
+        }
       }
       
       if (!session) {
-        alert('You must be logged in to send messages');
+        alert('You must be logged in to send messages. Please refresh the page and log in again.');
         setLoadingBanner(prev => ({ ...prev, visible: false }));
         setSending(false);
         return;
