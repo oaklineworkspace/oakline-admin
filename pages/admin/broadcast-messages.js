@@ -232,52 +232,20 @@ export default function BroadcastMessages() {
         isCustom: r.isCustom
       })));
       
-      // Get the current session token with retry logic
+      // Get the current session
       console.log('Getting session...');
-      let session;
-      let retries = 3;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      while (retries > 0 && !session) {
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.error('Session error:', error);
-            throw error;
-          }
-          
-          session = data?.session;
-          console.log('Session retrieved:', !!session);
-          
-          if (!session && retries > 1) {
-            console.log(`No session found, retrying... (${retries - 1} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            retries--;
-          } else {
-            break;
-          }
-        } catch (sessionError) {
-          console.error('Session retrieval error:', sessionError);
-          retries--;
-          
-          if (retries > 0) {
-            console.log(`Retrying session retrieval... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            alert('Unable to verify your login session. Please:\n1. Refresh the page\n2. Log out and log back in\n3. Clear your browser cache if the issue persists');
-            setLoadingBanner(prev => ({ ...prev, visible: false }));
-            setSending(false);
-            return;
-          }
-        }
-      }
-      
-      if (!session) {
-        alert('You must be logged in to send messages. Please refresh the page and log in again.');
+      if (sessionError || !sessionData?.session) {
+        console.error('Session error:', sessionError);
         setLoadingBanner(prev => ({ ...prev, visible: false }));
         setSending(false);
+        alert('Session error. Please refresh the page and try again.');
         return;
       }
+      
+      const session = sessionData.session;
+      console.log('Session retrieved successfully');
       
       // Update loading banner - show progress
       setLoadingBanner(prev => ({
@@ -302,20 +270,35 @@ export default function BroadcastMessages() {
         registeredCount: recipients.filter(r => !r.isCustom).length
       });
       
-      const response = await fetch('/api/admin/send-broadcast-message', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          subject,
-          message,
-          recipients,
-          bank_details: bankDetails
-        })
-      });
-
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
+      let response;
+      try {
+        response = await fetch('/api/admin/send-broadcast-message', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            subject,
+            message,
+            recipients,
+            bank_details: bankDetails
+          }),
+          signal: controller.signal
+        });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again.');
+        }
+        throw fetchError;
+      }
+      
+      clearTimeout(timeoutId);
       console.log('Response status:', response.status);
       
       // Update progress while waiting for response
@@ -327,7 +310,9 @@ export default function BroadcastMessages() {
       
       let result;
       try {
-        result = await response.json();
+        const responseText = await response.text();
+        console.log('Response text:', responseText.substring(0, 200));
+        result = JSON.parse(responseText);
         console.log('Response data:', result);
       } catch (parseError) {
         console.error('Failed to parse response:', parseError);

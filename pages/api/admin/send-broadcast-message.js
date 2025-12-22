@@ -3,10 +3,12 @@ import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
+    console.log('❌ Invalid method:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   console.log('📧 Broadcast message request received');
+  console.log('📧 Headers:', Object.keys(req.headers));
 
   // Check if at least one email provider is configured
   const hasProvider = process.env.SMTP_HOST || process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY || process.env.BREVO_API_KEY;
@@ -25,7 +27,9 @@ export default async function handler(req, res) {
     console.log('📝 Request details:', {
       subject: subject?.substring(0, 50),
       messageLength: message?.length,
-      recipientCount: recipients?.length
+      recipientCount: recipients?.length,
+      hasRecipients: !!recipients,
+      recipientsIsArray: Array.isArray(recipients)
     });
 
     if (!subject || !message || !recipients || recipients.length === 0) {
@@ -38,6 +42,7 @@ export default async function handler(req, res) {
           recipients: !!recipients,
           recipientCount: recipients?.length || 0
         }
+      });
       });
     }
 
