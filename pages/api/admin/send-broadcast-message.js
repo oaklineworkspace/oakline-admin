@@ -9,16 +9,30 @@ export default async function handler(req, res) {
   try {
     // Check authentication
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('❌ Missing or invalid authorization header');
+      return res.status(401).json({ error: 'Unauthorized - Invalid authorization header' });
     }
 
     const token = authHeader.replace('Bearer ', '');
+    if (!token) {
+      console.error('❌ Empty token');
+      return res.status(401).json({ error: 'Unauthorized - No token provided' });
+    }
+
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
-    if (userError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (userError) {
+      console.error('❌ Auth error:', userError);
+      return res.status(401).json({ error: 'Unauthorized - Invalid token', details: userError.message });
     }
+
+    if (!user) {
+      console.error('❌ No user found');
+      return res.status(401).json({ error: 'Unauthorized - User not found' });
+    }
+
+    console.log('✅ User authenticated:', user.email);
 
     // Verify admin role
     const { data: adminProfile, error: adminError } = await supabaseAdmin
@@ -28,8 +42,11 @@ export default async function handler(req, res) {
       .single();
 
     if (adminError || !adminProfile) {
+      console.error('❌ Not an admin:', adminError);
       return res.status(403).json({ error: 'Admin access required' });
     }
+
+    console.log('✅ Admin verified:', adminProfile.role);
 
     const { subject, message, emails } = req.body;
 
