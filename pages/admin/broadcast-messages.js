@@ -205,7 +205,7 @@ export default function BroadcastMessages() {
       email: u.email,
       first_name: u.first_name,
       last_name: u.last_name,
-      isCustom: u.isCustom || false // Ensure registered users have isCustom=false
+      isCustom: !!u.isCustom // Explicitly convert to boolean - false for registered users, true for custom
     }));
     
     setLoadingBanner({

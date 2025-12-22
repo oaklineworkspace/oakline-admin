@@ -225,8 +225,18 @@ export default async function handler(req, res) {
     console.log('✅ All emails sent successfully:', results.length);
 
     // Store notification in database for registered users only
-    const registeredRecipients = recipients.filter(r => !r.isCustom);
-    console.log(`💾 Storing notifications for ${registeredRecipients.length} registered users`);
+    // Registered users are those without isCustom flag OR where isCustom is explicitly false
+    const registeredRecipients = recipients.filter(r => {
+      // Check if it's a custom email (starts with 'custom_')
+      const isCustomId = typeof r.id === 'string' && r.id.startsWith('custom_');
+      // Check the isCustom flag
+      const hasCustomFlag = r.isCustom === true;
+      // Only include if it's NOT a custom recipient
+      return !isCustomId && !hasCustomFlag;
+    });
+    
+    console.log(`💾 Storing notifications for ${registeredRecipients.length} registered users out of ${recipients.length} total recipients`);
+    console.log('Registered recipients:', registeredRecipients.map(r => ({ id: r.id, email: r.email, isCustom: r.isCustom })));
 
     if (registeredRecipients.length > 0) {
       // Insert notifications one by one to better handle errors
@@ -234,11 +244,7 @@ export default async function handler(req, res) {
       let failCount = 0;
 
       for (const recipient of registeredRecipients) {
-        // Skip if recipient.id starts with 'custom_'
-        if (typeof recipient.id === 'string' && recipient.id.startsWith('custom_')) {
-          console.log(`⏭️ Skipping custom recipient: ${recipient.email}`);
-          continue;
-        }
+        console.log(`💾 Attempting to store notification for user ${recipient.id} (${recipient.email})`);
 
         const { error: dbError } = await supabaseAdmin
           .from('notifications')
@@ -251,7 +257,7 @@ export default async function handler(req, res) {
           });
 
         if (dbError) {
-          console.error(`Failed to store notification for user ${recipient.id}:`, dbError);
+          console.error(`❌ Failed to store notification for user ${recipient.id} (${recipient.email}):`, dbError);
           failCount++;
         } else {
           console.log(`✅ Notification stored for user ${recipient.id} (${recipient.email})`);
@@ -259,7 +265,9 @@ export default async function handler(req, res) {
         }
       }
 
-      console.log(`📊 Notification storage complete: ${successCount} success, ${failCount} failed`);
+      console.log(`📊 Notification storage complete: ${successCount} success, ${failCount} failed out of ${registeredRecipients.length} total`);
+    } else {
+      console.log('⚠️ No registered users to store notifications for');
     }
 
     console.log('✅ Broadcast complete');
