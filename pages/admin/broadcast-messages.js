@@ -281,6 +281,13 @@ export default function BroadcastMessages() {
 
       console.log('Response status:', response.status);
       
+      // Update progress while waiting for response
+      setLoadingBanner(prev => ({
+        ...prev,
+        current: Math.floor(recipients.length * 0.8),
+        message: 'Processing response...'
+      }));
+      
       let result;
       try {
         result = await response.json();
@@ -296,27 +303,28 @@ export default function BroadcastMessages() {
       }
 
       // Complete loading
-      setLoadingBanner({
+      setLoadingBanner(prev => ({
+        ...prev,
         visible: true,
         current: recipients.length,
         total: recipients.length,
         action: 'Messages Sent',
         message: 'All messages delivered successfully!'
-      });
+      }));
 
       // Wait a moment before showing success
-      setTimeout(() => {
-        setLoadingBanner({ ...loadingBanner, visible: false });
-        setSentCount(selectedUsers.length);
-        setSuccessMessage(`Your message has been sent to ${selectedUsers.length} user${selectedUsers.length !== 1 ? 's' : ''}.`);
-        setShowSuccess(true);
-        
-        // Reset form
-        setSubject('');
-        setMessage('');
-        setSelectedUsers([]);
-        setSelectAll(false);
-      }, 1000);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setLoadingBanner(prev => ({ ...prev, visible: false }));
+      setSentCount(selectedUsers.length);
+      setSuccessMessage(`Your message has been sent to ${selectedUsers.length} user${selectedUsers.length !== 1 ? 's' : ''}.`);
+      setShowSuccess(true);
+      
+      // Reset form
+      setSubject('');
+      setMessage('');
+      setSelectedUsers([]);
+      setSelectAll(false);
 
     } catch (err) {
       console.error('Error sending messages:', err);
