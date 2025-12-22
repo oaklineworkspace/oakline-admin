@@ -232,8 +232,24 @@ export default function BroadcastMessages() {
         isCustom: r.isCustom
       })));
       
-      // Get the current session token
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get the current session token with timeout
+      console.log('Getting session...');
+      let session;
+      try {
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 10000)
+        );
+        const { data } = await Promise.race([sessionPromise, timeoutPromise]);
+        session = data?.session;
+        console.log('Session retrieved:', !!session);
+      } catch (sessionError) {
+        console.error('Session error:', sessionError);
+        alert('Failed to get session. Please refresh the page and try again.');
+        setLoadingBanner(prev => ({ ...prev, visible: false }));
+        setSending(false);
+        return;
+      }
       
       if (!session) {
         alert('You must be logged in to send messages');
