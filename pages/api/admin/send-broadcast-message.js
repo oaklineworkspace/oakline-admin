@@ -121,7 +121,7 @@ export default async function handler(req, res) {
           to: email,
           subject: subject,
           html: emailHtml,
-          from: `"${bankInfo?.name || 'Oakline Bank'}" <${bankInfo?.email_contact || 'info@theoaklinebank.com'}>`,
+          from: `"${bankInfo?.name || 'Oakline Bank'}" <${bankInfo?.email_notify || 'notify@theoaklinebank.com'}>`,
           type: EMAIL_TYPES.NOTIFY
         });
 

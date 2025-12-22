@@ -197,6 +197,31 @@ export default function BroadcastMessages() {
               </div>
             </div>
 
+            {/* Manual Email Input */}
+            <div style={styles.manualEmailContainer}>
+              <label style={styles.label}>📧 Add Email Manually</label>
+              <div style={styles.manualEmailInputGroup}>
+                <input
+                  type="email"
+                  placeholder="Enter email address and press Enter"
+                  style={styles.manualEmailInput}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      const email = e.target.value.trim().toLowerCase();
+                      if (!selectedUsers.includes(email)) {
+                        setSelectedUsers([...selectedUsers, email]);
+                      }
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={sending}
+                />
+              </div>
+              <p style={styles.helpText}>
+                Press Enter to add each email address. You can add any email, not just registered users.
+              </p>
+            </div>
+
             <div style={styles.searchContainer}>
               <input
                 type="text"
@@ -490,6 +515,32 @@ const styles = {
     textAlign: 'center',
     padding: '40px',
     color: '#6b7280'
+  },
+  manualEmailContainer: {
+    marginBottom: '20px',
+    padding: '16px',
+    background: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  manualEmailInputGroup: {
+    marginTop: '8px'
+  },
+  manualEmailInput: {
+    width: '100%',
+    padding: '12px 16px',
+    fontSize: '15px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    fontFamily: 'inherit'
+  },
+  helpText: {
+    margin: '8px 0 0 0',
+    fontSize: '13px',
+    color: '#6b7280',
+    fontStyle: 'italic'
   },
   sendButton: {
     width: '100%',
