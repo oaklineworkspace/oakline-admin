@@ -200,13 +200,18 @@ export default function BroadcastMessages() {
 
     setSending(true);
     // Build recipients array with proper structure
-    const recipients = allUsers.filter(u => selectedUsers.includes(u.id)).map(u => ({
-      id: u.id,
-      email: u.email,
-      first_name: u.first_name,
-      last_name: u.last_name,
-      isCustom: !!u.isCustom // Explicitly convert to boolean - false for registered users, true for custom
-    }));
+    const recipients = allUsers.filter(u => selectedUsers.includes(u.id)).map(u => {
+      // A user is custom if their ID starts with 'custom_' OR if they have isCustom flag set
+      const isCustomEmail = (typeof u.id === 'string' && u.id.startsWith('custom_')) || u.isCustom === true;
+      
+      return {
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        isCustom: isCustomEmail // Only true for manually added email addresses
+      };
+    });
     
     setLoadingBanner({
       visible: true,
@@ -221,6 +226,11 @@ export default function BroadcastMessages() {
       console.log('Recipients:', recipients.length);
       console.log('Registered users:', recipients.filter(r => !r.isCustom).length);
       console.log('Custom emails:', recipients.filter(r => r.isCustom).length);
+      console.log('Recipient details:', recipients.map(r => ({
+        email: r.email,
+        id: r.id,
+        isCustom: r.isCustom
+      })));
       
       // Get the current session token
       const { data: { session } } = await supabase.auth.getSession();
