@@ -227,19 +227,26 @@ export default function BroadcastMessages() {
       
       if (!session) {
         alert('You must be logged in to send messages');
-        setLoadingBanner({ ...loadingBanner, visible: false });
+        setLoadingBanner(prev => ({ ...prev, visible: false }));
         setSending(false);
         return;
       }
       
-      // Update loading banner
-      setLoadingBanner({
-        visible: true,
+      // Update loading banner - show progress
+      setLoadingBanner(prev => ({
+        ...prev,
+        current: Math.floor(recipients.length * 0.3),
+        message: 'Connecting to email service...'
+      }));
+      
+      // Small delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setLoadingBanner(prev => ({
+        ...prev,
         current: Math.floor(recipients.length * 0.5),
-        total: recipients.length,
-        action: 'Sending Messages',
-        message: 'Processing email delivery...'
-      });
+        message: 'Sending messages...'
+      }));
       
       console.log('Sending request to API...');
       console.log('Request payload:', { 
@@ -303,9 +310,9 @@ export default function BroadcastMessages() {
 
     } catch (err) {
       console.error('Error sending messages:', err);
-      setLoadingBanner({ ...loadingBanner, visible: false });
+      setLoadingBanner(prev => ({ ...prev, visible: false }));
       alert('Failed to send messages. Please check:\n' +
-            '1. SMTP credentials are configured in Secrets\n' + 
+            '1. Email provider credentials are configured in Secrets\n' + 
             '2. Internet connection is stable\n' +
             '3. Recipients list is valid\n\n' +
             'Error: ' + err.message);
