@@ -48,6 +48,25 @@ export default async function handler(req, res) {
 
     console.log('✅ Admin verified:', adminProfile.role);
 
+    // Check if email providers are configured
+    const hasBrevo = !!process.env.BREVO_API_KEY;
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSMTP = !!process.env.SMTP_HOST && !!process.env.SMTP_USER && !!process.env.SMTP_PASS;
+    
+    console.log('📧 Email provider status:', {
+      Brevo: hasBrevo,
+      Resend: hasResend,
+      SMTP: hasSMTP
+    });
+
+    if (!hasBrevo && !hasResend && !hasSMTP) {
+      console.error('❌ No email providers configured!');
+      return res.status(500).json({
+        error: 'Email service not configured',
+        details: 'No email providers (Brevo, Resend, or SMTP) are configured. Please check environment variables.'
+      });
+    }
+
     const { subject, message, emails } = req.body;
 
     console.log('📥 Received request body:', { 
@@ -94,8 +113,9 @@ export default async function handler(req, res) {
 
     // Send emails
     const results = [];
-    for (const email of emails) {
-      console.log(`\n📤 Attempting to send to: ${email}`);
+    for (let i = 0; i < emails.length; i++) {
+      const email = emails[i];
+      console.log(`\n📤 [${i + 1}/${emails.length}] Attempting to send to: ${email}`);
       try {
         const emailHtml = `
           <!DOCTYPE html>
@@ -139,7 +159,8 @@ export default async function handler(req, res) {
           </html>
         `;
 
-        await sendEmail({
+        console.log(`🔄 Calling sendEmail for ${email}...`);
+        const emailResult = await sendEmail({
           to: email,
           subject: subject,
           html: emailHtml,
@@ -147,13 +168,14 @@ export default async function handler(req, res) {
           type: EMAIL_TYPES.NOTIFY
         });
 
-        console.log(`✅ Successfully sent to ${email}`);
-        results.push({ email, success: true });
+        console.log(`✅ Successfully sent to ${email}`, emailResult);
+        results.push({ email, success: true, messageId: emailResult?.messageId });
       } catch (error) {
         console.error(`❌ Failed to send to ${email}`);
+        console.error('Error type:', error.constructor.name);
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
-        results.push({ email, success: false, error: error.message });
+        results.push({ email, success: false, error: error.message, errorType: error.constructor.name });
       }
     }
 
