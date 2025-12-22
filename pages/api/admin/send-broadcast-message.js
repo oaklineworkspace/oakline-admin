@@ -69,11 +69,17 @@ export default async function handler(req, res) {
       .limit(1)
       .single();
 
-    console.log(`📧 Sending broadcast to ${emails.length} recipients...`);
+    console.log('==========================================');
+    console.log(`📧 STARTING BROADCAST TO ${emails.length} RECIPIENTS`);
+    console.log('==========================================');
+    console.log('Subject:', subject);
+    console.log('Recipients:', emails);
+    console.log('==========================================');
 
     // Send emails
     const results = [];
     for (const email of emails) {
+      console.log(`\n📤 Attempting to send to: ${email}`);
       try {
         const emailHtml = `
           <!DOCTYPE html>
@@ -125,16 +131,24 @@ export default async function handler(req, res) {
           type: EMAIL_TYPES.NOTIFY
         });
 
-        console.log(`✅ Sent to ${email}`);
+        console.log(`✅ Successfully sent to ${email}`);
         results.push({ email, success: true });
       } catch (error) {
-        console.error(`❌ Failed to send to ${email}:`, error.message);
+        console.error(`❌ Failed to send to ${email}`);
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
         results.push({ email, success: false, error: error.message });
       }
     }
 
     const successCount = results.filter(r => r.success).length;
-    console.log(`✅ Broadcast complete: ${successCount}/${emails.length} sent`);
+    const failedCount = results.filter(r => !r.success).length;
+    
+    console.log('==========================================');
+    console.log(`✅ BROADCAST COMPLETE`);
+    console.log(`Successful: ${successCount}/${emails.length}`);
+    console.log(`Failed: ${failedCount}/${emails.length}`);
+    console.log('==========================================');
 
     return res.status(200).json({
       success: true,

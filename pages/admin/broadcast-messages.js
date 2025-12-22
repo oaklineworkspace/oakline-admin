@@ -282,6 +282,12 @@ export default function BroadcastMessages() {
               )}
             </div>
 
+            {/* Sent Messages Section */}
+            <div style={styles.sentMessagesHeader}>
+              <h3 style={styles.sentMessagesTitle}>📨 Sent Messages</h3>
+              <p style={styles.sentMessagesSubtitle}>View your broadcast history</p>
+            </div>
+
             <div style={styles.searchContainer}>
               <input
                 type="text"
@@ -616,7 +622,10 @@ const styles = {
     border: '1px solid #e5e7eb'
   },
   manualEmailInputGroup: {
-    marginTop: '8px'
+    marginTop: '8px',
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'stretch'
   },
   manualEmailInput: {
     flex: 1,
@@ -653,9 +662,27 @@ const styles = {
   manualEmailsList: {
     marginTop: '16px',
     padding: '12px',
-    background: '#f9fafb',
+    background: '#ffffff',
     borderRadius: '8px',
     border: '1px solid #e5e7eb'
+  },
+  sentMessagesHeader: {
+    marginTop: '24px',
+    padding: '16px',
+    background: '#f0f9ff',
+    borderRadius: '8px',
+    border: '1px solid #bfdbfe'
+  },
+  sentMessagesTitle: {
+    margin: '0 0 4px 0',
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#1e40af'
+  },
+  sentMessagesSubtitle: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#6b7280'
   },
   manualEmailsTitle: {
     margin: '0 0 8px 0',
