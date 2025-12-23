@@ -49,7 +49,11 @@ export default async function handler(req, res) {
       updated_at,
       recurring,
       startMonth,
-      endMonth
+      endMonth,
+      startYear,
+      endYear,
+      twiceMonthlyDay1,
+      twiceMonthlyDay2
     } = req.body;
 
     if (!account_id || !type || !amount) {
@@ -76,6 +80,93 @@ export default async function handler(req, res) {
 
     if (accountError || !account) {
       return res.status(404).json({ error: 'Account not found' });
+    }
+
+    // Handle twice-monthly recurring transactions
+    if (recurring === 'twice-monthly' && startYear && endYear && twiceMonthlyDay1 && twiceMonthlyDay2) {
+      const transactions = [];
+      
+      const startYearNum = parseInt(startYear);
+      const endYearNum = parseInt(endYear);
+      const day1 = parseInt(twiceMonthlyDay1);
+      const day2 = parseInt(twiceMonthlyDay2);
+      
+      // Create transactions for each month in the year range
+      for (let year = startYearNum; year <= endYearNum; year++) {
+        for (let month = 1; month <= 12; month++) {
+          // Create first transaction (day1)
+          const transactionDate1 = new Date(year, month - 1, day1, 12, 0, 0, 0);
+          
+          const transactionData1 = {
+            user_id: user_id || account.user_id,
+            account_id,
+            type,
+            amount: parseFloat(amount),
+            description: description || null,
+            status: status || 'pending',
+            created_at: transactionDate1.toISOString(),
+            updated_at: (updated_at || transactionDate1.toISOString())
+          };
+          
+          transactions.push(transactionData1);
+          
+          // Create second transaction (day2)
+          const transactionDate2 = new Date(year, month - 1, day2, 12, 0, 0, 0);
+          
+          const transactionData2 = {
+            user_id: user_id || account.user_id,
+            account_id,
+            type,
+            amount: parseFloat(amount),
+            description: description || null,
+            status: status || 'pending',
+            created_at: transactionDate2.toISOString(),
+            updated_at: (updated_at || transactionDate2.toISOString())
+          };
+          
+          transactions.push(transactionData2);
+        }
+      }
+      
+      // Insert all transactions
+      const { data: newTransactions, error: insertError } = await supabaseAdmin
+        .from('transactions')
+        .insert(transactions)
+        .select();
+
+      if (insertError) {
+        console.error('Error creating twice-monthly transactions:', insertError);
+        return res.status(500).json({ error: insertError.message });
+      }
+
+      // Log audit entry
+      const { error: auditError } = await supabaseAdmin
+        .from('audit_logs')
+        .insert({
+          user_id: user.id,
+          action: 'create_twice_monthly_recurring_transactions',
+          table_name: 'transactions',
+          old_data: null,
+          new_data: { 
+            count: newTransactions.length, 
+            startYear, 
+            endYear, 
+            day1: twiceMonthlyDay1, 
+            day2: twiceMonthlyDay2, 
+            recurring: 'twice-monthly' 
+          }
+        });
+
+      if (auditError) {
+        console.error('Error creating audit log:', auditError);
+      }
+
+      return res.status(201).json({ 
+        success: true, 
+        transactions: newTransactions,
+        count: newTransactions.length,
+        recurring: 'twice-monthly'
+      });
     }
 
     // Handle monthly recurring transactions
