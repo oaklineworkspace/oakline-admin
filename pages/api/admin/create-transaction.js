@@ -83,17 +83,23 @@ export default async function handler(req, res) {
     }
 
     // Handle twice-monthly recurring transactions
-    if (recurring === 'twice-monthly' && startYear && endYear && twiceMonthlyDay1 && twiceMonthlyDay2) {
+    if (recurring === 'twice-monthly' && startYear && endYear && startMonth && endMonth && twiceMonthlyDay1 && twiceMonthlyDay2) {
       const transactions = [];
       
       const startYearNum = parseInt(startYear);
       const endYearNum = parseInt(endYear);
+      const startMonthNum = parseInt(startMonth);
+      const endMonthNum = parseInt(endMonth);
       const day1 = parseInt(twiceMonthlyDay1);
       const day2 = parseInt(twiceMonthlyDay2);
       
-      // Create transactions for each month in the year range
+      // Create transactions for each month in the year and month range
       for (let year = startYearNum; year <= endYearNum; year++) {
         for (let month = 1; month <= 12; month++) {
+          // Skip if month is before start month (in start year) or after end month (in end year)
+          if (year === startYearNum && month < startMonthNum) continue;
+          if (year === endYearNum && month > endMonthNum) continue;
+          
           // Create first transaction (day1)
           const transactionDate1 = new Date(year, month - 1, day1, 12, 0, 0, 0);
           

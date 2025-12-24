@@ -65,7 +65,9 @@ export default function AdminTransactions() {
     startYear: new Date().getFullYear(),
     endYear: new Date().getFullYear(),
     twiceMonthlyDay1: '1',
-    twiceMonthlyDay2: '15'
+    twiceMonthlyDay2: '15',
+    twiceMonthlyStartMonth: '01',
+    twiceMonthlyEndMonth: '12'
   });
   const [createFormAccounts, setCreateFormAccounts] = useState([]);
 
@@ -618,8 +620,8 @@ export default function AdminTransactions() {
           created_at: createForm.created_at ? new Date(createForm.created_at).toISOString() : new Date().toISOString(),
           updated_at: createForm.updated_at ? new Date(createForm.updated_at).toISOString() : new Date().toISOString(),
           recurring: createForm.recurring,
-          startMonth: createForm.recurring === 'monthly' ? parseInt(createForm.startMonth) : null,
-          endMonth: createForm.recurring === 'monthly' ? parseInt(createForm.endMonth) : null,
+          startMonth: createForm.recurring === 'monthly' ? parseInt(createForm.startMonth) : (createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyStartMonth) : null),
+          endMonth: createForm.recurring === 'monthly' ? parseInt(createForm.endMonth) : (createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyEndMonth) : null),
           startYear: createForm.recurring === 'twice-monthly' ? parseInt(createForm.startYear) : null,
           endYear: createForm.recurring === 'twice-monthly' ? parseInt(createForm.endYear) : null,
           twiceMonthlyDay1: createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyDay1) : null,
@@ -633,15 +635,37 @@ export default function AdminTransactions() {
         throw new Error(result.error || 'Failed to create transaction');
       }
 
-      setSuccessMessage('Transaction created successfully');
+      let message = 'Transaction created successfully';
+      if (result.count) {
+        message = `✅ Successfully created ${result.count} transaction(s)!`;
+        if (result.recurring === 'twice-monthly') {
+          message += `\n\nCreated twice-monthly transactions on days ${createForm.twiceMonthlyDay1} and ${createForm.twiceMonthlyDay2} of each month from ${createForm.twiceMonthlyStartMonth}/${createForm.startYear} to ${createForm.twiceMonthlyEndMonth}/${createForm.endYear}`;
+        } else if (result.recurring === 'monthly') {
+          message += `\n\nCreated monthly transactions from ${createForm.startMonth}/2024 to ${createForm.endMonth}/2025`;
+        }
+      }
+
+      setSuccessMessage(message);
       setShowSuccessBanner(true);
       setShowCreateModal(false);
       setCreateForm({
+        user_id: '',
         account_id: '',
         type: 'debit',
         amount: '',
         description: '',
-        status: 'pending'
+        status: 'pending',
+        created_at: '',
+        updated_at: '',
+        recurring: 'one-time',
+        startMonth: '01',
+        endMonth: '12',
+        startYear: new Date().getFullYear(),
+        endYear: new Date().getFullYear(),
+        twiceMonthlyDay1: '1',
+        twiceMonthlyDay2: '15',
+        twiceMonthlyStartMonth: '01',
+        twiceMonthlyEndMonth: '12'
       });
       fetchTransactions();
     } catch (error) {
@@ -1529,6 +1553,29 @@ export default function AdminTransactions() {
                         </div>
 
                         <div style={styles.formGroup}>
+                          <label style={styles.formLabel}>Starting Month *</label>
+                          <select
+                            value={createForm.twiceMonthlyStartMonth}
+                            onChange={(e) => setCreateForm({ ...createForm, twiceMonthlyStartMonth: e.target.value })}
+                            style={styles.formInput}
+                            required
+                          >
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                          </select>
+                        </div>
+
+                        <div style={styles.formGroup}>
                           <label style={styles.formLabel}>Starting Year *</label>
                           <select
                             value={createForm.startYear}
@@ -1539,6 +1586,29 @@ export default function AdminTransactions() {
                             {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                               <option key={year} value={year}>{year}</option>
                             ))}
+                          </select>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                          <label style={styles.formLabel}>Ending Month *</label>
+                          <select
+                            value={createForm.twiceMonthlyEndMonth}
+                            onChange={(e) => setCreateForm({ ...createForm, twiceMonthlyEndMonth: e.target.value })}
+                            style={styles.formInput}
+                            required
+                          >
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
                           </select>
                         </div>
 
@@ -1557,7 +1627,7 @@ export default function AdminTransactions() {
                         </div>
 
                         <div style={{...styles.infoBox, backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6'}}>
-                          📅 Will create transactions on the {createForm.twiceMonthlyDay1}{['st','nd','rd'][createForm.twiceMonthlyDay1-1] || 'th'} and {createForm.twiceMonthlyDay2}{['st','nd','rd'][createForm.twiceMonthlyDay2-1] || 'th'} of each month from {createForm.startYear} to {createForm.endYear} (max {(parseInt(createForm.endYear) - parseInt(createForm.startYear) + 1) * 24} transactions)
+                          📅 Will create transactions on the {createForm.twiceMonthlyDay1}{['st','nd','rd'][createForm.twiceMonthlyDay1-1] || 'th'} and {createForm.twiceMonthlyDay2}{['st','nd','rd'][createForm.twiceMonthlyDay2-1] || 'th'} of each month from {createForm.twiceMonthlyStartMonth}/{createForm.startYear} to {createForm.twiceMonthlyEndMonth}/{createForm.endYear}
                         </div>
                       </>
                     )}
