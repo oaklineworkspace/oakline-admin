@@ -94,9 +94,7 @@ export default async function handler(req, res) {
                     <!-- Message Content -->
                     <tr>
                       <td style="padding: 40px 30px;">
-                        <div style="color: #374151; font-size: 15px; line-height: 1.8; white-space: pre-wrap;">
-                          ${message}
-                        </div>
+                        <div style="color: #374151; font-size: 15px; line-height: 1.8; white-space: pre-wrap;">${message.trim()}</div>
                       </td>
                     </tr>
 
