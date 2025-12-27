@@ -45,6 +45,11 @@ export default async function handler(req, res) {
     const bankPhone = bankDetails?.phone || '+1 (636) 635-6122';
     const bankEmail = bankDetails?.email_contact || 'contact-us@theoaklinebank.com';
     const bankWebsite = bankDetails?.website || 'www.theoaklinebank.com';
+    
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 'https://theoaklinebank.com');
+    const logoUrl = bankDetails?.logo_url || `${baseUrl}/images/Oakline_Bank_logo_design_c1b04ae0.png`;
 
     let sent = 0;
     let failed = 0;
@@ -68,13 +73,9 @@ export default async function handler(req, res) {
                     <!-- Header with Logo -->
                     <tr>
                       <td style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 40px 30px; text-align: center;">
-                        ${bankDetails?.logo_url ? `
-                          <div style="display: inline-block; background-color: #ffffff; padding: 15px 20px; border-radius: 12px; margin-bottom: 16px;">
-                            <img src="${bankDetails.logo_url}" alt="${bankName}" style="height: 50px; width: auto; display: block;">
-                          </div>
-                        ` : `
-                          <div style="font-size: 48px; margin-bottom: 12px;">🏦</div>
-                        `}
+                        <div style="display: inline-block; background-color: #ffffff; padding: 15px 20px; border-radius: 12px; margin-bottom: 16px;">
+                          <img src="${logoUrl}" alt="${bankName}" style="height: 50px; width: auto; display: block;">
+                        </div>
                         <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">
                           ${bankName}
                         </h1>
