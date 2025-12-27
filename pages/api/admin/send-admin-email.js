@@ -42,7 +42,6 @@ export default async function handler(req, res) {
       .single();
 
     const bankName = bankDetails?.name || 'Oakline Bank';
-    const bankAddress = bankDetails?.address || '12201 N May Avenue, Oklahoma City, OK 73120, United States';
     const bankPhone = bankDetails?.phone || '+1 (636) 635-6122';
     const bankEmail = bankDetails?.email_contact || 'contact-us@theoaklinebank.com';
     const bankWebsite = bankDetails?.website || 'www.theoaklinebank.com';
@@ -110,11 +109,6 @@ export default async function handler(req, res) {
                                 Need assistance? Contact us:
                               </p>
                               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                                <tr>
-                                  <td style="padding: 6px 0; color: #475569; font-size: 13px;">
-                                    📍 ${bankAddress}
-                                  </td>
-                                </tr>
                                 <tr>
                                   <td style="padding: 6px 0; color: #475569; font-size: 13px;">
                                     📞 ${bankPhone}
