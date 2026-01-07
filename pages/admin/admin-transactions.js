@@ -64,6 +64,9 @@ export default function AdminTransactions() {
     endMonth: '12',
     startYear: new Date().getFullYear(),
     endYear: new Date().getFullYear(),
+    monthlyDay: '15',
+    monthlyHour: '12',
+    monthlyMinute: '00',
     twiceMonthlyDay1: '1',
     twiceMonthlyDay2: '15',
     twiceMonthlyStartMonth: '01',
@@ -622,8 +625,11 @@ export default function AdminTransactions() {
           recurring: createForm.recurring,
           startMonth: createForm.recurring === 'monthly' ? parseInt(createForm.startMonth) : (createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyStartMonth) : null),
           endMonth: createForm.recurring === 'monthly' ? parseInt(createForm.endMonth) : (createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyEndMonth) : null),
-          startYear: createForm.recurring === 'twice-monthly' ? parseInt(createForm.startYear) : null,
-          endYear: createForm.recurring === 'twice-monthly' ? parseInt(createForm.endYear) : null,
+          startYear: (createForm.recurring === 'monthly' || createForm.recurring === 'twice-monthly') ? parseInt(createForm.startYear) : null,
+          endYear: (createForm.recurring === 'monthly' || createForm.recurring === 'twice-monthly') ? parseInt(createForm.endYear) : null,
+          monthlyDay: createForm.recurring === 'monthly' ? parseInt(createForm.monthlyDay) : null,
+          monthlyHour: createForm.recurring === 'monthly' ? parseInt(createForm.monthlyHour) : null,
+          monthlyMinute: createForm.recurring === 'monthly' ? parseInt(createForm.monthlyMinute) : null,
           twiceMonthlyDay1: createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyDay1) : null,
           twiceMonthlyDay2: createForm.recurring === 'twice-monthly' ? parseInt(createForm.twiceMonthlyDay2) : null
         })
@@ -641,7 +647,7 @@ export default function AdminTransactions() {
         if (result.recurring === 'twice-monthly') {
           message += `\n\nCreated twice-monthly transactions on days ${createForm.twiceMonthlyDay1} and ${createForm.twiceMonthlyDay2} of each month from ${createForm.twiceMonthlyStartMonth}/${createForm.startYear} to ${createForm.twiceMonthlyEndMonth}/${createForm.endYear}`;
         } else if (result.recurring === 'monthly') {
-          message += `\n\nCreated monthly transactions from ${createForm.startMonth}/2024 to ${createForm.endMonth}/2025`;
+          message += `\n\nCreated monthly transactions on day ${createForm.monthlyDay} at ${createForm.monthlyHour}:${createForm.monthlyMinute} from ${createForm.startMonth}/${createForm.startYear} to ${createForm.endMonth}/${createForm.endYear}`;
         }
       }
 
@@ -1470,54 +1476,130 @@ export default function AdminTransactions() {
 
                     {createForm.recurring === 'monthly' && (
                       <>
-                        <div style={styles.formGroup}>
-                          <label style={styles.formLabel}>Starting Month *</label>
-                          <select
-                            value={createForm.startMonth}
-                            onChange={(e) => setCreateForm({ ...createForm, startMonth: e.target.value })}
-                            style={styles.formInput}
-                            required
-                          >
-                            <option value="01">January</option>
-                            <option value="02">February</option>
-                            <option value="03">March</option>
-                            <option value="04">April</option>
-                            <option value="05">May</option>
-                            <option value="06">June</option>
-                            <option value="07">July</option>
-                            <option value="08">August</option>
-                            <option value="09">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                          </select>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Starting Month *</label>
+                            <select
+                              value={createForm.startMonth}
+                              onChange={(e) => setCreateForm({ ...createForm, startMonth: e.target.value })}
+                              style={styles.formInput}
+                              required
+                            >
+                              <option value="01">January</option>
+                              <option value="02">February</option>
+                              <option value="03">March</option>
+                              <option value="04">April</option>
+                              <option value="05">May</option>
+                              <option value="06">June</option>
+                              <option value="07">July</option>
+                              <option value="08">August</option>
+                              <option value="09">September</option>
+                              <option value="10">October</option>
+                              <option value="11">November</option>
+                              <option value="12">December</option>
+                            </select>
+                          </div>
+
+                          <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Starting Year *</label>
+                            <select
+                              value={createForm.startYear}
+                              onChange={(e) => setCreateForm({ ...createForm, startYear: e.target.value })}
+                              style={styles.formInput}
+                              required
+                            >
+                              {Array.from({ length: 10 }, (_, i) => 2020 + i).map(year => (
+                                <option key={year} value={year}>{year}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Ending Month *</label>
+                            <select
+                              value={createForm.endMonth}
+                              onChange={(e) => setCreateForm({ ...createForm, endMonth: e.target.value })}
+                              style={styles.formInput}
+                              required
+                            >
+                              <option value="01">January</option>
+                              <option value="02">February</option>
+                              <option value="03">March</option>
+                              <option value="04">April</option>
+                              <option value="05">May</option>
+                              <option value="06">June</option>
+                              <option value="07">July</option>
+                              <option value="08">August</option>
+                              <option value="09">September</option>
+                              <option value="10">October</option>
+                              <option value="11">November</option>
+                              <option value="12">December</option>
+                            </select>
+                          </div>
+
+                          <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Ending Year *</label>
+                            <select
+                              value={createForm.endYear}
+                              onChange={(e) => setCreateForm({ ...createForm, endYear: e.target.value })}
+                              style={styles.formInput}
+                              required
+                            >
+                              {Array.from({ length: 10 }, (_, i) => 2020 + i).map(year => (
+                                <option key={year} value={year}>{year}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
                         <div style={styles.formGroup}>
-                          <label style={styles.formLabel}>Ending Month *</label>
+                          <label style={styles.formLabel}>Day of Month *</label>
                           <select
-                            value={createForm.endMonth}
-                            onChange={(e) => setCreateForm({ ...createForm, endMonth: e.target.value })}
+                            value={createForm.monthlyDay}
+                            onChange={(e) => setCreateForm({ ...createForm, monthlyDay: e.target.value })}
                             style={styles.formInput}
                             required
                           >
-                            <option value="01">January</option>
-                            <option value="02">February</option>
-                            <option value="03">March</option>
-                            <option value="04">April</option>
-                            <option value="05">May</option>
-                            <option value="06">June</option>
-                            <option value="07">July</option>
-                            <option value="08">August</option>
-                            <option value="09">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
+                            {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                              <option key={day} value={day}>{day}</option>
+                            ))}
                           </select>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Hour (0-23) *</label>
+                            <select
+                              value={createForm.monthlyHour}
+                              onChange={(e) => setCreateForm({ ...createForm, monthlyHour: e.target.value })}
+                              style={styles.formInput}
+                              required
+                            >
+                              {Array.from({ length: 24 }, (_, i) => i).map(hour => (
+                                <option key={hour} value={hour}>{hour.toString().padStart(2, '0')}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Minute *</label>
+                            <select
+                              value={createForm.monthlyMinute}
+                              onChange={(e) => setCreateForm({ ...createForm, monthlyMinute: e.target.value })}
+                              style={styles.formInput}
+                              required
+                            >
+                              {Array.from({ length: 60 }, (_, i) => i).map(min => (
+                                <option key={min} value={min}>{min.toString().padStart(2, '0')}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
                         <div style={{...styles.infoBox, backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6'}}>
-                          📅 Will create transactions for each month from {createForm.startMonth === createForm.endMonth ? 'that month' : `month ${createForm.startMonth} through ${createForm.endMonth}`} across 2024-2025 (max 24 transactions)
+                          📅 Will create transactions on day {createForm.monthlyDay} at {createForm.monthlyHour.toString().padStart(2, '0')}:{createForm.monthlyMinute.toString().padStart(2, '0')} for each month from {createForm.startMonth}/{createForm.startYear} to {createForm.endMonth}/{createForm.endYear}
                         </div>
                       </>
                     )}

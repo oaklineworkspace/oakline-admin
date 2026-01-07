@@ -52,6 +52,9 @@ export default async function handler(req, res) {
       endMonth,
       startYear,
       endYear,
+      monthlyDay,
+      monthlyHour,
+      monthlyMinute,
       twiceMonthlyDay1,
       twiceMonthlyDay2
     } = req.body;
@@ -176,21 +179,25 @@ export default async function handler(req, res) {
     }
 
     // Handle monthly recurring transactions
-    if (recurring === 'monthly' && startMonth && endMonth) {
-      const baseDate = created_at ? new Date(created_at) : new Date();
+    if (recurring === 'monthly' && startMonth && endMonth && startYear && endYear) {
       const transactions = [];
       
       const startMonthNum = parseInt(startMonth);
       const endMonthNum = parseInt(endMonth);
+      const startYearNum = parseInt(startYear);
+      const endYearNum = parseInt(endYear);
+      const dayOfMonth = parseInt(monthlyDay) || 15;
+      const hour = parseInt(monthlyHour) || 12;
+      const minute = parseInt(monthlyMinute) || 0;
       
-      // Create transactions for each month in 2024 and 2025
-      for (let year = 2024; year <= 2025; year++) {
+      // Create transactions for each month in the specified year range
+      for (let year = startYearNum; year <= endYearNum; year++) {
         for (let month = 1; month <= 12; month++) {
-          // Skip if month is before start month (in year 2024) or after end month (in year 2025)
-          if (year === 2024 && month < startMonthNum) continue;
-          if (year === 2025 && month > endMonthNum) continue;
+          // Skip if month is before start month (in start year) or after end month (in end year)
+          if (year === startYearNum && month < startMonthNum) continue;
+          if (year === endYearNum && month > endMonthNum) continue;
           
-          const transactionDate = new Date(year, month - 1, 15, 12, 0, 0, 0);
+          const transactionDate = new Date(year, month - 1, dayOfMonth, hour, minute, 0, 0);
           
           const transactionData = {
             user_id: user_id || account.user_id,
@@ -226,7 +233,7 @@ export default async function handler(req, res) {
           action: 'create_monthly_recurring_transactions',
           table_name: 'transactions',
           old_data: null,
-          new_data: { count: newTransactions.length, startMonth, endMonth, recurring: 'monthly' }
+          new_data: { count: newTransactions.length, startMonth, endMonth, startYear, endYear, dayOfMonth, hour, minute, recurring: 'monthly' }
         });
 
       if (auditError) {
