@@ -668,6 +668,9 @@ export default function AdminTransactions() {
         endMonth: '12',
         startYear: new Date().getFullYear(),
         endYear: new Date().getFullYear(),
+        monthlyDay: '15',
+        monthlyHour: '12',
+        monthlyMinute: '00',
         twiceMonthlyDay1: '1',
         twiceMonthlyDay2: '15',
         twiceMonthlyStartMonth: '01',
@@ -1562,7 +1565,7 @@ export default function AdminTransactions() {
                             style={styles.formInput}
                             required
                           >
-                            {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                               <option key={day} value={day}>{day}</option>
                             ))}
                           </select>
@@ -1599,7 +1602,7 @@ export default function AdminTransactions() {
                         </div>
 
                         <div style={{...styles.infoBox, backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6'}}>
-                          📅 Will create transactions on day {createForm.monthlyDay} at {createForm.monthlyHour.toString().padStart(2, '0')}:{createForm.monthlyMinute.toString().padStart(2, '0')} for each month from {createForm.startMonth}/{createForm.startYear} to {createForm.endMonth}/{createForm.endYear}
+                          📅 Will create transactions on day {createForm.monthlyDay || '15'} at {String(createForm.monthlyHour || '12').padStart(2, '0')}:{String(createForm.monthlyMinute || '00').padStart(2, '0')} for each month from {createForm.startMonth}/{createForm.startYear} to {createForm.endMonth}/{createForm.endYear}
                         </div>
                       </>
                     )}
@@ -1614,7 +1617,7 @@ export default function AdminTransactions() {
                             style={styles.formInput}
                             required
                           >
-                            {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                               <option key={day} value={day}>{day}</option>
                             ))}
                           </select>
@@ -1628,7 +1631,7 @@ export default function AdminTransactions() {
                             style={styles.formInput}
                             required
                           >
-                            {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                               <option key={day} value={day}>{day}</option>
                             ))}
                           </select>
