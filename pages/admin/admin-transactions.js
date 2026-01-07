@@ -187,6 +187,20 @@ export default function AdminTransactions() {
       console.log('Fetched loan payments:', loanPaymentsData?.length || 0);
       console.log('Sample loan payment:', loanPaymentsData?.[0]);
 
+      // Fetch Oakline Pay transactions
+      const { data: oaklinePayData, error: oaklinePayError } = await supabase
+        .from('oakline_pay_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(0, 9999);
+
+      if (oaklinePayError) {
+        console.warn('Error fetching Oakline Pay transactions:', oaklinePayError);
+      }
+
+      console.log('Fetched Oakline Pay transactions:', oaklinePayData?.length || 0);
+      console.log('Sample Oakline Pay transaction:', oaklinePayData?.[0]);
+
       const appIds = [...new Set([
         ...txData.map(tx => tx.accounts?.application_id).filter(Boolean),
         ...(accountOpeningData || []).map(d => d.accounts?.application_id).filter(Boolean),
@@ -357,6 +371,42 @@ export default function AdminTransactions() {
         };
       });
 
+      // Enrich Oakline Pay transactions
+      const enrichedOaklinePayData = (oaklinePayData || []).map(tx => {
+        // Map Oakline Pay transaction status to standard statuses
+        let mappedStatus = tx.status;
+        if (tx.status === 'sent') mappedStatus = 'pending';
+        if (tx.status === 'claimed') mappedStatus = 'completed';
+        if (tx.status === 'expired' || tx.status === 'cancelled') mappedStatus = 'failed';
+
+        return {
+          id: tx.id,
+          user_id: tx.sender_id,
+          account_id: tx.sender_account_id,
+          type: 'oakline_pay',
+          amount: tx.amount,
+          description: `Oakline Pay to ${tx.recipient_tag || tx.recipient_email || 'Unknown'}`,
+          status: mappedStatus,
+          created_at: tx.created_at,
+          updated_at: tx.updated_at,
+          source: 'oakline_pay',
+          original_data: tx,
+          recipient_tag: tx.recipient_tag,
+          recipient_email: tx.recipient_email,
+          sender_tag: tx.sender_tag,
+          accounts: {
+            account_number: tx.sender_account_id ? 'Oakline Pay' : 'N/A',
+            user_id: tx.sender_id || null,
+            application_id: null,
+            applications: {
+              first_name: tx.sender_name?.split(' ')[0] || 'Oakline',
+              last_name: tx.sender_name?.split(' ').slice(1).join(' ') || 'Pay User',
+              email: tx.sender_email || 'N/A'
+            }
+          }
+        };
+      });
+
       // Filter out loan-related transactions from transactions table to avoid duplicates
       // since we're now getting authoritative loan payment data from loan_payments table
       const loanRelatedPatterns = ['loan repayment', 'loan payment', 'loan disbursement'];
@@ -369,7 +419,7 @@ export default function AdminTransactions() {
       console.log('Filtered out loan-related transactions:', enrichedData.length - filteredEnrichedData.length);
 
       // Merge all data sources and sort by created_at
-      const mergedData = [...filteredEnrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData].sort((a, b) => 
+      const mergedData = [...filteredEnrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData, ...enrichedOaklinePayData].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
 
@@ -377,6 +427,7 @@ export default function AdminTransactions() {
       console.log('Transactions from transactions table (after filtering):', filteredEnrichedData.length);
       console.log('Transactions from account_opening_crypto_deposits:', enrichedAccountOpeningData.length);
       console.log('Transactions from loan_payments:', enrichedLoanPaymentsData.length);
+      console.log('Transactions from oakline_pay_transactions:', enrichedOaklinePayData.length);
 
       setTransactions(mergedData || []);
     } catch (error) {

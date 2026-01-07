@@ -234,6 +234,50 @@ export default function OaklinePayManagement() {
     setShowModal(true);
   };
 
+  const handleDeleteClaim = async (claim) => {
+    if (!confirm(`Are you sure you want to permanently delete this claim?\n\nAmount: $${parseFloat(claim.amount).toFixed(2)}\nRecipient: ${claim.recipient_email || 'N/A'}\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('You must be logged in');
+        setActionLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/handle-oakline-claims', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          claimIds: [claim.id],
+          action: 'delete'
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to delete claim');
+        setActionLoading(false);
+        return;
+      }
+
+      setSuccess('Claim deleted successfully!');
+      setTimeout(() => fetchAllData(), 500);
+    } catch (error) {
+      console.error('Error deleting claim:', error);
+      setError('Error deleting claim: ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleViewClaimDetails = (claim) => {
     setSelectedItem(claim);
     setShowDetailsModal(true);
@@ -1140,6 +1184,13 @@ export default function OaklinePayManagement() {
                                 </button>
                               </>
                             )}
+                            <button 
+                              onClick={() => handleDeleteClaim(claim)}
+                              style={{ ...styles.actionButton, backgroundColor: '#7f1d1d', color: 'white' }}
+                              title="Permanently delete this claim"
+                            >
+                              🗑️ Delete
+                            </button>
                           </div>
                         </td>
                       </tr>

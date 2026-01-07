@@ -13,7 +13,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Claim IDs are required' });
     }
 
-    if (!['approve', 'reject', 'complete', 'cancel'].includes(action)) {
+    if (!['approve', 'reject', 'complete', 'cancel', 'delete'].includes(action)) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
@@ -40,6 +40,21 @@ export default async function handler(req, res) {
       .single();
 
     const transferEmail = bankDetails?.custom_emails?.transfer || 'transfer@theoaklinebank.com';
+
+    // Handle delete action separately
+    if (action === 'delete') {
+      const { error: deleteError } = await supabaseAdmin
+        .from('oakline_pay_pending_claims')
+        .delete()
+        .in('id', claimIds);
+
+      if (deleteError) throw deleteError;
+
+      return res.status(200).json({ 
+        success: true, 
+        message: `${claimIds.length} claim(s) deleted successfully` 
+      });
+    }
 
     // Update all claims based on action
     let updateData = { updated_at: new Date().toISOString() };
