@@ -30,14 +30,28 @@ export default function AdminAuth({ children }) {
       }
     });
 
-    // Handle visibility change to refresh token when page becomes active
+    // Handle visibility change to proactively refresh token when page becomes active
     const handleVisibilityChange = async () => {
       if (!document.hidden && isAuthenticated) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setError('Session expired. Please log in again.');
-          setIsAuthenticated(false);
-          setUser(null);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            // Check if token expires within 5 minutes and refresh proactively
+            const expiresAt = session.expires_at;
+            const now = Math.floor(Date.now() / 1000);
+            const timeUntilExpiry = expiresAt - now;
+            
+            if (timeUntilExpiry < 300) {
+              console.log('Proactively refreshing token on focus...');
+              await supabase.auth.refreshSession();
+            }
+          } else {
+            setError('Session expired. Please log in again.');
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        } catch (err) {
+          console.error('Error checking session on visibility change:', err);
         }
       }
     };
@@ -53,35 +67,42 @@ export default function AdminAuth({ children }) {
 
   const setupTokenRefresh = () => {
     clearTokenRefresh();
-    // Refresh token every 30 seconds to handle short expiration times
+    // Check token every 2 minutes and refresh if expiring within 5 minutes
+    // This is less aggressive than 30 seconds but still keeps the session alive
     refreshIntervalRef.current = setInterval(async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession) {
-          // Check if token is about to expire (within 60 seconds)
           const expiresAt = currentSession.expires_at;
           const now = Math.floor(Date.now() / 1000);
           const timeUntilExpiry = expiresAt - now;
           
-          if (timeUntilExpiry < 60) {
+          // Refresh if token expires within 5 minutes (300 seconds)
+          if (timeUntilExpiry < 300) {
             console.log('Token expiring soon, refreshing...');
             const { data: { session }, error } = await supabase.auth.refreshSession();
             if (error) {
               console.error('Token refresh failed:', error);
-              if (error.message.includes('refresh_token_not_found') || error.message.includes('invalid')) {
+              // Only logout on specific refresh token errors
+              if (error.message.includes('refresh_token_not_found') || 
+                  error.message.includes('invalid_grant') ||
+                  error.message.includes('Token expired')) {
                 setError('Session expired. Please log in again.');
                 setIsAuthenticated(false);
                 setUser(null);
               }
             } else if (session) {
-              console.log('Token refreshed successfully, new expiry:', session.expires_at);
+              console.log('Token refreshed successfully, new expiry:', new Date(session.expires_at * 1000).toISOString());
             }
           }
+        } else {
+          // No session found during refresh check
+          console.log('No session found during refresh check');
         }
       } catch (err) {
         console.error('Error refreshing token:', err);
       }
-    }, 30 * 1000); // Check every 30 seconds
+    }, 2 * 60 * 1000); // Check every 2 minutes instead of 30 seconds
   };
 
   const clearTokenRefresh = () => {
