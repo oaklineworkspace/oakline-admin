@@ -140,7 +140,9 @@ export default function WireTransferManagement() {
       (statusFilter === 'suspended' && user.wire_transfer_suspended) ||
       (statusFilter === 'active' && !user.wire_transfer_suspended);
 
-    return matchesSearch && matchesStatus;
+    const matchesUser = userFilter === 'all' || user.id === userFilter;
+
+    return matchesSearch && matchesStatus && matchesUser;
   });
 
   const suspendedCount = users.filter(u => u.wire_transfer_suspended).length;
@@ -393,6 +395,20 @@ export default function WireTransferManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
           />
+          <select
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            style={styles.select}
+          >
+            <option value="all">All Users</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.first_name && user.last_name
+                  ? `${user.first_name} ${user.last_name}`
+                  : user.email}
+              </option>
+            ))}
+          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
