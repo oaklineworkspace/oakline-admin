@@ -163,3 +163,25 @@ Preferred communication style: Simple, everyday language.
   - Admin Roles: Admin Roles management
   - Communications: Notifications
 - **Result:** All admin pages are now searchable and accessible from the bottom navigation dropdown
+
+## Recent Enhancements (Jan 07, 2026)
+
+### AdminNavBar Component with Global Navigation ✓
+- **New Component:** `components/AdminNavBar.js` - Professional navigation bar visible on all admin pages
+- **Features:**
+  - Dropdown menu with all admin pages (22+ pages)
+  - Global search to quickly find admin pages by name
+  - Shows current page with active indicator
+  - Integrated into AdminAuth wrapper for consistent presence
+- **Pages Included:** Dashboard, Users, Accounts, Applications, Transactions, Loans, Cards, Verifications, Wire Transfer Management, Oakline Pay, Crypto, Email, Notifications, Settings, Audit Logs, Security Dashboard
+
+### Wire Transfer Management Page Enhancements ✓
+- **User Dropdown Filter:** Added user selection dropdown like the verifications page
+- **Filter Combination:** Search, user filter, and status filter work together
+- **Location:** `/admin/wire-transfer-management`
+
+### Session Handling Improvements ✓
+- **Less Aggressive Polling:** Token refresh interval changed from 30 seconds to 2 minutes
+- **Proactive Refresh:** When page regains focus, token is refreshed if expiring within 5 minutes
+- **Better Error Handling:** Only logs out on specific refresh token errors (not_found, invalid_grant, expired)
+- **Result:** Reduced session expiration issues while maintaining security
