@@ -542,10 +542,30 @@ export default function AdminTransactions() {
         successMessage += `\nChange: ${balanceDiff >= 0 ? '+' : ''}$${Math.abs(balanceDiff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
 
+      // Update the transaction in-place without refreshing the page
+      const updatedTransaction = {
+        ...selectedTransaction,
+        type: editForm.type,
+        amount: parseFloat(editForm.amount),
+        description: editForm.description,
+        status: editForm.status,
+        created_at: new Date(editForm.created_at).toISOString(),
+        updated_at: new Date(editForm.updated_at).toISOString()
+      };
+
+      // Update in transactions array
+      setTransactions(prev => prev.map(tx => 
+        tx.id === selectedTransaction.id ? updatedTransaction : tx
+      ));
+
+      // Update in filtered transactions array
+      setFilteredTransactions(prev => prev.map(tx => 
+        tx.id === selectedTransaction.id ? updatedTransaction : tx
+      ));
+
       setSuccessMessage(successMessage);
       setShowSuccessBanner(true);
       setShowEditModal(false);
-      fetchTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
       setErrorMessage('Failed to update transaction: ' + error.message);
@@ -1766,6 +1786,14 @@ export default function AdminTransactions() {
           </div>
         )}
 
+        {/* Full-screen Loading Overlay */}
+        {actionLoading && (
+          <div style={styles.fullScreenLoadingOverlay}>
+            <div style={styles.fullScreenSpinner}></div>
+            <span style={styles.fullScreenLoadingText}>Processing...</span>
+          </div>
+        )}
+
         {/* Success Banner */}
         {showSuccessBanner && (
           <div style={styles.successBannerOverlay}>
@@ -2102,6 +2130,34 @@ const styles = {
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     display: 'inline-block'
+  },
+  fullScreenLoadingOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    backdropFilter: 'blur(4px)'
+  },
+  fullScreenSpinner: {
+    width: '60px',
+    height: '60px',
+    border: '5px solid rgba(255, 255, 255, 0.3)',
+    borderTop: '5px solid #ffffff',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '20px'
+  },
+  fullScreenLoadingText: {
+    color: '#ffffff',
+    fontSize: '18px',
+    fontWeight: '600'
   },
   emptyState: {
     textAlign: 'center',
