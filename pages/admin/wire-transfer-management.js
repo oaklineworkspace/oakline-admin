@@ -15,6 +15,7 @@ export default function WireTransferManagement() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
 
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);

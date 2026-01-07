@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import AdminNavBar from './AdminNavBar';
 
 export default function AdminAuth({ children }) {
   const router = useRouter();
@@ -257,29 +258,60 @@ export default function AdminAuth({ children }) {
   }
 
   return (
-    <div>
-      <div style={{ backgroundColor: '#0070f3', color: 'white', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ margin: 0 }}>Admin Panel</h1>
-          {user && <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.9 }}>
-            Logged in as: {user.email} ({user.role})
-          </p>}
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <div style={{ padding: '16px 20px 0 20px' }}>
+        <AdminNavBar />
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '16px',
+          padding: '12px 16px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {user && (
+              <span style={{ fontSize: '14px', color: '#64748b' }}>
+                Logged in as: <strong style={{ color: '#1e293b' }}>{user.email}</strong> 
+                <span style={{ 
+                  marginLeft: '8px', 
+                  padding: '2px 8px', 
+                  backgroundColor: '#dbeafe', 
+                  color: '#1d4ed8',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}>
+                  {user.role}
+                </span>
+              </span>
+            )}
+          </div>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#ef4444', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            🚪 Logout
+          </button>
         </div>
-        <button 
-          onClick={handleLogout}
-          style={{ 
-            padding: '0.5rem 1rem', 
-            backgroundColor: 'white', 
-            color: '#0070f3', 
-            border: 'none', 
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Logout
-        </button>
       </div>
-      {children}
+      <div style={{ padding: '0 20px 20px 20px' }}>
+        {children}
+      </div>
     </div>
   );
 }
