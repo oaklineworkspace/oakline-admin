@@ -148,207 +148,36 @@ export default function WireTransferManagement() {
   const suspendedCount = users.filter(u => u.wire_transfer_suspended).length;
   const activeCount = users.filter(u => !u.wire_transfer_suspended).length;
 
-  const styles = {
-    container: {
-      minHeight: '100vh',
-      backgroundColor: '#f8fafc',
-      padding: '20px'
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '24px',
-      flexWrap: 'wrap',
-      gap: '16px'
-    },
-    title: {
-      fontSize: '28px',
-      fontWeight: '700',
-      color: '#1e293b',
-      margin: 0
-    },
-    backLink: {
-      color: '#3b82f6',
-      textDecoration: 'none',
-      fontSize: '14px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px'
-    },
-    statsRow: {
-      display: 'flex',
-      gap: '16px',
-      marginBottom: '24px',
-      flexWrap: 'wrap'
-    },
-    statCard: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      minWidth: '180px',
-      flex: 1
-    },
-    statLabel: {
-      fontSize: '14px',
-      color: '#64748b',
-      marginBottom: '8px'
-    },
-    statValue: {
-      fontSize: '32px',
-      fontWeight: '700',
-      color: '#1e293b'
-    },
-    filtersRow: {
-      display: 'flex',
-      gap: '16px',
-      marginBottom: '20px',
-      flexWrap: 'wrap',
-      alignItems: 'center'
-    },
-    searchInput: {
-      padding: '10px 16px',
-      borderRadius: '8px',
-      border: '1px solid #e2e8f0',
-      fontSize: '14px',
-      minWidth: '250px'
-    },
-    select: {
-      padding: '10px 16px',
-      borderRadius: '8px',
-      border: '1px solid #e2e8f0',
-      fontSize: '14px',
-      backgroundColor: 'white',
-      cursor: 'pointer'
-    },
-    card: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      overflow: 'hidden'
-    },
-    table: {
-      width: '100%',
-      borderCollapse: 'collapse'
-    },
-    th: {
-      padding: '14px 16px',
-      textAlign: 'left',
-      borderBottom: '1px solid #e2e8f0',
-      backgroundColor: '#f8fafc',
-      fontWeight: '600',
-      color: '#475569',
-      fontSize: '13px',
-      textTransform: 'uppercase'
-    },
-    td: {
-      padding: '16px',
-      borderBottom: '1px solid #f1f5f9',
-      color: '#334155',
-      fontSize: '14px'
-    },
-    statusBadge: (suspended) => ({
-      display: 'inline-block',
-      padding: '4px 12px',
-      borderRadius: '20px',
-      fontSize: '12px',
-      fontWeight: '600',
-      backgroundColor: suspended ? '#fef2f2' : '#f0fdf4',
-      color: suspended ? '#dc2626' : '#16a34a'
-    }),
-    actionButton: {
-      padding: '8px 16px',
-      borderRadius: '6px',
-      border: 'none',
-      fontSize: '13px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'all 0.2s'
-    },
-    suspendButton: {
-      backgroundColor: '#fef2f2',
-      color: '#dc2626'
-    },
-    enableButton: {
-      backgroundColor: '#f0fdf4',
-      color: '#16a34a'
-    },
-    modalOverlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    },
-    modal: {
-      backgroundColor: 'white',
-      borderRadius: '16px',
-      padding: '24px',
-      maxWidth: '500px',
-      width: '90%',
-      maxHeight: '90vh',
-      overflow: 'auto'
-    },
-    modalTitle: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#1e293b',
-      marginBottom: '16px'
-    },
-    textarea: {
-      width: '100%',
-      padding: '12px',
-      borderRadius: '8px',
-      border: '1px solid #e2e8f0',
-      fontSize: '14px',
-      minHeight: '100px',
-      resize: 'vertical',
-      marginBottom: '16px'
-    },
-    modalButtons: {
-      display: 'flex',
-      gap: '12px',
-      justifyContent: 'flex-end'
-    },
-    cancelButton: {
-      padding: '10px 20px',
-      borderRadius: '8px',
-      border: '1px solid #e2e8f0',
-      backgroundColor: 'white',
-      color: '#64748b',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer'
-    },
-    confirmButton: (action) => ({
-      padding: '10px 20px',
-      borderRadius: '8px',
-      border: 'none',
-      backgroundColor: action === 'suspend' ? '#dc2626' : '#16a34a',
-      color: 'white',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer'
-    }),
-    alert: (type) => ({
-      padding: '12px 16px',
-      borderRadius: '8px',
-      marginBottom: '16px',
-      backgroundColor: type === 'error' ? '#fef2f2' : '#f0fdf4',
-      color: type === 'error' ? '#dc2626' : '#16a34a',
-      border: `1px solid ${type === 'error' ? '#fecaca' : '#bbf7d0'}`
-    }),
-    emptyState: {
-      textAlign: 'center',
-      padding: '60px 20px',
-      color: '#64748b'
-    }
+  const getStatusBadge = (suspended) => {
+    const style = suspended 
+      ? { bg: '#fee2e2', color: '#991b1b' }
+      : { bg: '#d1fae5', color: '#065f46' };
+
+    return (
+      <span style={{
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: 'clamp(0.75rem, 1.8vw, 12px)',
+        fontWeight: '700',
+        backgroundColor: style.bg,
+        color: style.color,
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap'
+      }}>
+        {suspended ? 'Suspended' : 'Active'}
+      </span>
+    );
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -356,38 +185,38 @@ export default function WireTransferManagement() {
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
-            <Link href="/admin" style={styles.backLink}>
-              ← Back to Dashboard
-            </Link>
             <h1 style={styles.title}>Wire Transfer Management</h1>
+            <p style={styles.subtitle}>Manage user wire transfer permissions</p>
           </div>
-          <button
-            onClick={fetchUsers}
-            style={{ ...styles.actionButton, backgroundColor: '#3b82f6', color: 'white' }}
-          >
-            🔄 Refresh
-          </button>
-        </div>
-
-        {error && <div style={styles.alert('error')}>{error}</div>}
-        {success && <div style={styles.alert('success')}>{success}</div>}
-
-        <div style={styles.statsRow}>
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>Total Users</div>
-            <div style={styles.statValue}>{users.length}</div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>Wire Transfers Active</div>
-            <div style={{ ...styles.statValue, color: '#16a34a' }}>{activeCount}</div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>Wire Transfers Suspended</div>
-            <div style={{ ...styles.statValue, color: '#dc2626' }}>{suspendedCount}</div>
+          <div style={styles.headerActions}>
+            <button onClick={fetchUsers} style={styles.refreshButton} disabled={loading}>
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+            <Link href="/admin/admin-dashboard" style={styles.backButton}>
+              Dashboard
+            </Link>
           </div>
         </div>
 
-        <div style={styles.filtersRow}>
+        {error && <div style={styles.errorBanner}>{error}</div>}
+        {success && <div style={styles.successBanner}>{success}</div>}
+
+        <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
+            <h3 style={styles.statLabel}>Total Users</h3>
+            <p style={styles.statValue}>{users.length}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
+            <h3 style={styles.statLabel}>Wire Active</h3>
+            <p style={styles.statValue}>{activeCount}</p>
+          </div>
+          <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
+            <h3 style={styles.statLabel}>Wire Suspended</h3>
+            <p style={styles.statValue}>{suspendedCount}</p>
+          </div>
+        </div>
+
+        <div style={styles.filtersSection}>
           <input
             type="text"
             placeholder="Search by name or email..."
@@ -398,7 +227,7 @@ export default function WireTransferManagement() {
           <select
             value={userFilter}
             onChange={(e) => setUserFilter(e.target.value)}
-            style={styles.select}
+            style={styles.filterSelect}
           >
             <option value="all">All Users</option>
             {users.map(user => (
@@ -412,7 +241,7 @@ export default function WireTransferManagement() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={styles.select}
+            style={styles.filterSelect}
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
@@ -420,102 +249,117 @@ export default function WireTransferManagement() {
           </select>
         </div>
 
-        <div style={styles.card}>
+        <div style={styles.tableContainer}>
           {loading ? (
-            <div style={styles.emptyState}>Loading users...</div>
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
+              <p>Loading users...</p>
+            </div>
           ) : filteredUsers.length === 0 ? (
-            <div style={styles.emptyState}>No users found</div>
+            <div style={styles.emptyState}>
+              <p style={styles.emptyIcon}>👥</p>
+              <p style={styles.emptyText}>No users found</p>
+            </div>
           ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>User</th>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Wire Transfer Status</th>
-                  <th style={styles.th}>Reason</th>
-                  <th style={styles.th}>Suspended At</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map(user => (
-                  <tr key={user.id}>
-                    <td style={styles.td}>
-                      <strong>{user.first_name} {user.last_name}</strong>
-                    </td>
-                    <td style={styles.td}>{user.email}</td>
-                    <td style={styles.td}>
-                      <span style={styles.statusBadge(user.wire_transfer_suspended)}>
-                        {user.wire_transfer_suspended ? '🚫 Suspended' : '✓ Active'}
+            <div style={styles.usersGrid}>
+              {filteredUsers.map((user) => (
+                <div key={user.id} style={styles.userCard}>
+                  <div style={styles.userHeader}>
+                    <div style={styles.userInfoContainer}>
+                      <h3 style={styles.userName}>
+                        {user.first_name} {user.last_name}
+                      </h3>
+                      <p style={styles.userEmail}>{user.email}</p>
+                    </div>
+                    {getStatusBadge(user.wire_transfer_suspended)}
+                  </div>
+
+                  <div style={styles.userBody}>
+                    <div style={styles.userInfo}>
+                      <span style={styles.infoLabel}>Wire Status:</span>
+                      <span style={{
+                        ...styles.infoValue, 
+                        color: user.wire_transfer_suspended ? '#dc2626' : '#059669',
+                        fontWeight: '700'
+                      }}>
+                        {user.wire_transfer_suspended ? 'Suspended' : 'Active'}
                       </span>
-                    </td>
-                    <td style={styles.td}>
-                      {user.wire_transfer_suspension_reason || '-'}
-                    </td>
-                    <td style={styles.td}>
-                      {user.wire_transfer_suspended_at 
-                        ? new Date(user.wire_transfer_suspended_at).toLocaleString()
-                        : '-'
-                      }
-                    </td>
-                    <td style={styles.td}>
-                      {user.wire_transfer_suspended ? (
-                        <button
-                          onClick={() => openUnsuspendModal(user)}
-                          style={{ ...styles.actionButton, ...styles.enableButton }}
-                        >
-                          ✓ Enable
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => openSuspendModal(user)}
-                          style={{ ...styles.actionButton, ...styles.suspendButton }}
-                        >
-                          🚫 Suspend
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    {user.wire_transfer_suspension_reason && (
+                      <div style={styles.userInfo}>
+                        <span style={styles.infoLabel}>Reason:</span>
+                        <span style={styles.infoValue}>{user.wire_transfer_suspension_reason}</span>
+                      </div>
+                    )}
+                    <div style={styles.userInfo}>
+                      <span style={styles.infoLabel}>Suspended At:</span>
+                      <span style={styles.infoValue}>
+                        {formatDateTime(user.wire_transfer_suspended_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={styles.userFooter}>
+                    {user.wire_transfer_suspended ? (
+                      <button
+                        onClick={() => openUnsuspendModal(user)}
+                        style={styles.liftSuspensionButton}
+                      >
+                        Lift Suspension
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => openSuspendModal(user)}
+                        style={styles.suspendButton}
+                      >
+                        Suspend Wire Transfer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
         {showModal && selectedUser && (
           <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <h2 style={styles.modalTitle}>
-                {modalAction === 'suspend' 
-                  ? '🚫 Suspend Wire Transfers' 
-                  : '✓ Enable Wire Transfers'
-                }
-              </h2>
-              <p style={{ marginBottom: '16px', color: '#64748b' }}>
-                User: <strong>{selectedUser.first_name} {selectedUser.last_name}</strong> ({selectedUser.email})
-              </p>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>
+                  {modalAction === 'suspend' 
+                    ? 'Suspend Wire Transfers' 
+                    : 'Lift Wire Transfer Suspension'
+                  }
+                </h2>
+                <button onClick={() => setShowModal(false)} style={styles.closeBtn}>×</button>
+              </div>
+              <div style={styles.modalBody}>
+                <div style={styles.infoBox}>
+                  <strong>User:</strong> {selectedUser.first_name} {selectedUser.last_name}<br />
+                  <strong>Email:</strong> {selectedUser.email}
+                </div>
 
-              {modalAction === 'suspend' && (
-                <>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                    Suspension Reason *
-                  </label>
-                  <textarea
-                    value={suspensionReason}
-                    onChange={(e) => setSuspensionReason(e.target.value)}
-                    placeholder="Enter reason for suspending wire transfers..."
-                    style={styles.textarea}
-                  />
-                </>
-              )}
+                {modalAction === 'suspend' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Suspension Reason *</label>
+                    <textarea
+                      value={suspensionReason}
+                      onChange={(e) => setSuspensionReason(e.target.value)}
+                      placeholder="Enter reason for suspending wire transfers..."
+                      style={styles.formTextarea}
+                      rows={4}
+                    />
+                  </div>
+                )}
 
-              {modalAction === 'unsuspend' && (
-                <p style={{ marginBottom: '16px', color: '#475569' }}>
-                  This will enable wire transfer access for this user. They will be able to initiate wire transfers again.
-                </p>
-              )}
-
-              <div style={styles.modalButtons}>
+                {modalAction === 'unsuspend' && (
+                  <p style={{ marginTop: '16px', color: '#475569', fontSize: 'clamp(0.85rem, 2vw, 14px)' }}>
+                    This will enable wire transfer access for this user. They will be able to initiate wire transfers again.
+                  </p>
+                )}
+              </div>
+              <div style={styles.modalFooter}>
                 <button
                   onClick={() => setShowModal(false)}
                   style={styles.cancelButton}
@@ -525,10 +369,10 @@ export default function WireTransferManagement() {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  style={styles.confirmButton(modalAction)}
+                  style={modalAction === 'suspend' ? styles.confirmSuspendButton : styles.confirmLiftButton}
                   disabled={actionLoading}
                 >
-                  {actionLoading ? 'Processing...' : (modalAction === 'suspend' ? 'Suspend' : 'Enable')}
+                  {actionLoading ? 'Processing...' : (modalAction === 'suspend' ? 'Suspend' : 'Lift Suspension')}
                 </button>
               </div>
             </div>
@@ -540,3 +384,369 @@ export default function WireTransferManagement() {
     </AdminAuth>
   );
 }
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    backgroundImage: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    padding: 'clamp(1rem, 3vw, 20px)',
+    paddingBottom: '100px'
+  },
+  header: {
+    backgroundColor: 'white',
+    padding: 'clamp(1rem, 3vw, 24px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '16px'
+  },
+  title: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(1.25rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  subtitle: {
+    margin: 0,
+    color: '#718096',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    alignItems: 'center'
+  },
+  refreshButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(0.75rem, 2vw, 16px)',
+    backgroundColor: '#4299e1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  backButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(0.75rem, 2vw, 16px)',
+    backgroundColor: '#718096',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
+  },
+  errorBanner: {
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    fontWeight: '500'
+  },
+  successBanner: {
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    fontWeight: '500'
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 'clamp(8px, 2vw, 16px)',
+    marginBottom: '20px'
+  },
+  statCard: {
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  statLabel: {
+    margin: '0 0 4px 0',
+    fontSize: 'clamp(0.7rem, 1.8vw, 14px)',
+    color: '#718096',
+    fontWeight: '500'
+  },
+  statValue: {
+    margin: 0,
+    fontSize: 'clamp(1.25rem, 4vw, 28px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  filtersSection: {
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: '150px',
+    padding: '10px 12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    outline: 'none'
+  },
+  filterSelect: {
+    padding: '10px 12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    cursor: 'pointer',
+    outline: 'none',
+    minWidth: '100px'
+  },
+  tableContainer: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: 'clamp(12px, 3vw, 24px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  loadingState: {
+    textAlign: 'center',
+    padding: '40px 20px',
+    color: '#718096'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #1e40af',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 20px'
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px 20px'
+  },
+  emptyIcon: {
+    fontSize: 'clamp(2rem, 5vw, 48px)',
+    marginBottom: '12px'
+  },
+  emptyText: {
+    fontSize: 'clamp(0.9rem, 2.5vw, 16px)',
+    color: '#718096',
+    fontWeight: '600'
+  },
+  usersGrid: {
+    display: 'grid',
+    gap: 'clamp(12px, 3vw, 20px)',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))'
+  },
+  userCard: {
+    backgroundColor: 'white',
+    padding: 'clamp(12px, 3vw, 20px)',
+    borderRadius: 'clamp(8px, 2vw, 12px)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+    transition: 'all 0.2s ease'
+  },
+  userHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px',
+    gap: '8px'
+  },
+  userInfoContainer: {
+    flex: 1,
+    minWidth: 0
+  },
+  userName: {
+    margin: '0 0 2px 0',
+    fontSize: 'clamp(0.95rem, 2.5vw, 18px)',
+    color: '#1A3E6F',
+    fontWeight: '600',
+    wordBreak: 'break-word'
+  },
+  userEmail: {
+    margin: 0,
+    fontSize: 'clamp(0.75rem, 1.8vw, 13px)',
+    color: '#718096',
+    wordBreak: 'break-all'
+  },
+  userBody: {
+    marginBottom: '12px'
+  },
+  userInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '6px 0',
+    borderBottom: '1px solid #f7fafc',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    gap: '8px'
+  },
+  infoLabel: {
+    color: '#4a5568',
+    fontWeight: '600',
+    flexShrink: 0
+  },
+  infoValue: {
+    color: '#2d3748',
+    textAlign: 'right',
+    wordBreak: 'break-word'
+  },
+  userFooter: {
+    display: 'flex',
+    gap: '8px',
+    flexDirection: 'column'
+  },
+  suspendButton: {
+    width: '100%',
+    padding: 'clamp(10px, 2.5vw, 14px)',
+    backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.3)'
+  },
+  liftSuspensionButton: {
+    width: '100%',
+    padding: 'clamp(10px, 2.5vw, 14px)',
+    backgroundImage: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000,
+    padding: '16px'
+  },
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    maxWidth: '500px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    zIndex: 10001
+  },
+  modalHeader: {
+    padding: '16px 20px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: 'clamp(1.1rem, 3vw, 20px)',
+    color: '#1A3E6F',
+    fontWeight: '700'
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '28px',
+    cursor: 'pointer',
+    color: '#718096',
+    lineHeight: 1
+  },
+  modalBody: {
+    padding: '20px'
+  },
+  infoBox: {
+    padding: '14px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    lineHeight: '1.6',
+    color: '#475569'
+  },
+  formGroup: {
+    marginTop: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  formLabel: {
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  formTextarea: {
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    resize: 'vertical',
+    minHeight: '100px'
+  },
+  modalFooter: {
+    padding: '16px 20px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '10px',
+    flexWrap: 'wrap'
+  },
+  cancelButton: {
+    padding: '10px 20px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    color: '#475569',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  confirmSuspendButton: {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '8px',
+    backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+    color: 'white',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  confirmLiftButton: {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '8px',
+    backgroundImage: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+    color: 'white',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer'
+  }
+};
