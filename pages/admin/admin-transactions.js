@@ -201,6 +201,20 @@ export default function AdminTransactions() {
       console.log('Fetched Oakline Pay transactions:', oaklinePayData?.length || 0);
       console.log('Sample Oakline Pay transaction:', oaklinePayData?.[0]);
 
+      // Fetch Oakline Pay pending claims
+      const { data: oaklinePayClaimsData, error: oaklinePayClaimsError } = await supabase
+        .from('oakline_pay_pending_claims')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(0, 9999);
+
+      if (oaklinePayClaimsError) {
+        console.warn('Error fetching Oakline Pay pending claims:', oaklinePayClaimsError);
+      }
+
+      console.log('Fetched Oakline Pay pending claims:', oaklinePayClaimsData?.length || 0);
+      console.log('Sample Oakline Pay pending claim:', oaklinePayClaimsData?.[0]);
+
       const appIds = [...new Set([
         ...txData.map(tx => tx.accounts?.application_id).filter(Boolean),
         ...(accountOpeningData || []).map(d => d.accounts?.application_id).filter(Boolean),
@@ -407,6 +421,44 @@ export default function AdminTransactions() {
         };
       });
 
+      // Enrich Oakline Pay pending claims (exclude claimed ones to avoid duplicates)
+      const enrichedOaklinePayClaimsData = (oaklinePayClaimsData || [])
+        .filter(claim => claim.status !== 'claimed' && !claim.transaction_id)
+        .map(claim => {
+          // Map claim status to standard statuses
+          let mappedStatus = claim.status;
+          if (claim.status === 'pending' || claim.status === 'sent') mappedStatus = 'pending';
+          if (claim.status === 'expired' || claim.status === 'cancelled') mappedStatus = 'failed';
+
+          return {
+            id: claim.id,
+            user_id: claim.sender_id,
+            account_id: claim.sender_account_id,
+            type: 'oakline_pay_claim',
+            amount: claim.amount,
+            description: `Oakline Pay Claim to ${claim.recipient_email || 'Unknown'}`,
+            status: mappedStatus,
+            created_at: claim.created_at,
+            updated_at: claim.updated_at,
+            source: 'oakline_pay_claim',
+            original_data: claim,
+            recipient_email: claim.recipient_email,
+            sender_name: claim.sender_name,
+            claim_status: claim.status,
+            approval_status: claim.approval_status,
+            accounts: {
+              account_number: 'Oakline Pay Claim',
+              user_id: claim.sender_id || null,
+              application_id: null,
+              applications: {
+                first_name: claim.sender_name?.split(' ')[0] || 'Oakline',
+                last_name: claim.sender_name?.split(' ').slice(1).join(' ') || 'Pay User',
+                email: claim.sender_email || 'N/A'
+              }
+            }
+          };
+        });
+
       // Filter out loan-related transactions from transactions table to avoid duplicates
       // since we're now getting authoritative loan payment data from loan_payments table
       const loanRelatedPatterns = ['loan repayment', 'loan payment', 'loan disbursement'];
@@ -419,7 +471,7 @@ export default function AdminTransactions() {
       console.log('Filtered out loan-related transactions:', enrichedData.length - filteredEnrichedData.length);
 
       // Merge all data sources and sort by created_at
-      const mergedData = [...filteredEnrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData, ...enrichedOaklinePayData].sort((a, b) => 
+      const mergedData = [...filteredEnrichedData, ...enrichedAccountOpeningData, ...enrichedLoanPaymentsData, ...enrichedOaklinePayData, ...enrichedOaklinePayClaimsData].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
 
@@ -428,6 +480,7 @@ export default function AdminTransactions() {
       console.log('Transactions from account_opening_crypto_deposits:', enrichedAccountOpeningData.length);
       console.log('Transactions from loan_payments:', enrichedLoanPaymentsData.length);
       console.log('Transactions from oakline_pay_transactions:', enrichedOaklinePayData.length);
+      console.log('Transactions from oakline_pay_pending_claims:', enrichedOaklinePayClaimsData.length);
 
       setTransactions(mergedData || []);
     } catch (error) {
