@@ -21,9 +21,16 @@ export default function WireTransferManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [modalAction, setModalAction] = useState('');
   const [suspensionReason, setSuspensionReason] = useState('');
+  const [selectedReasonId, setSelectedReasonId] = useState('');
+  const [restrictionReasons, setRestrictionReasons] = useState([]);
+  const [reasonsLoading, setReasonsLoading] = useState(false);
+
+  const [showSelfieModal, setShowSelfieModal] = useState(false);
+  const [selfieUser, setSelfieUser] = useState(null);
 
   useEffect(() => {
     fetchUsers();
+    fetchRestrictionReasons();
   }, []);
 
   const fetchUsers = async () => {
@@ -59,11 +66,77 @@ export default function WireTransferManagement() {
     }
   };
 
+  const fetchRestrictionReasons = async () => {
+    try {
+      setReasonsLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-all-restriction-reasons', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+      if (response.ok && result.reasons) {
+        const reasons = result.reasons;
+        if (Array.isArray(reasons)) {
+          setRestrictionReasons(reasons);
+        } else {
+          const flattenedReasons = [];
+          Object.keys(reasons).forEach(actionType => {
+            if (typeof reasons[actionType] === 'object') {
+              Object.keys(reasons[actionType]).forEach(category => {
+                const categoryReasons = reasons[actionType][category];
+                if (Array.isArray(categoryReasons)) {
+                  categoryReasons.forEach(reason => {
+                    flattenedReasons.push({
+                      id: reason.id,
+                      category: category,
+                      action_type: actionType,
+                      reason_text: reason.text || reason.reason_text,
+                      severity_level: reason.severity || reason.severity_level
+                    });
+                  });
+                }
+              });
+            }
+          });
+          setRestrictionReasons(flattenedReasons);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching restriction reasons:', err);
+    } finally {
+      setReasonsLoading(false);
+    }
+  };
+
+  const openSelfieModal = (user) => {
+    setSelfieUser(user);
+    setShowSelfieModal(true);
+  };
+
   const openSuspendModal = (user) => {
     setSelectedUser(user);
     setModalAction('suspend');
     setSuspensionReason('');
+    setSelectedReasonId('');
     setShowModal(true);
+  };
+
+  const handleReasonSelect = (e) => {
+    const reasonId = e.target.value;
+    setSelectedReasonId(reasonId);
+    if (reasonId) {
+      const reason = restrictionReasons.find(r => r.id === reasonId);
+      if (reason) {
+        setSuspensionReason(reason.reason_text);
+      }
+    } else {
+      setSuspensionReason('');
+    }
   };
 
   const openUnsuspendModal = (user) => {
@@ -300,6 +373,14 @@ export default function WireTransferManagement() {
                   </div>
 
                   <div style={styles.userFooter}>
+                    {user.selfie?.image_path && (
+                      <button
+                        onClick={() => openSelfieModal(user)}
+                        style={styles.viewSelfieButton}
+                      >
+                        View Selfie
+                      </button>
+                    )}
                     {user.wire_transfer_suspended ? (
                       <button
                         onClick={() => openUnsuspendModal(user)}
@@ -342,13 +423,43 @@ export default function WireTransferManagement() {
 
                 {modalAction === 'suspend' && (
                   <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Suspension Reason *</label>
+                    <label style={styles.formLabel}>Select Reason *</label>
+                    <select
+                      value={selectedReasonId}
+                      onChange={handleReasonSelect}
+                      style={styles.reasonSelect}
+                      disabled={reasonsLoading}
+                    >
+                      <option value="">
+                        {reasonsLoading ? 'Loading reasons...' : '-- Select a reason --'}
+                      </option>
+                      {restrictionReasons.map(reason => (
+                        <option key={reason.id} value={reason.id}>
+                          {reason.category}: {reason.reason_text.substring(0, 60)}
+                          {reason.reason_text.length > 60 ? '...' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {selectedReasonId && (
+                      <div style={styles.selectedReasonPreview}>
+                        <strong>Selected Reason:</strong>
+                        <p style={{ margin: '8px 0 0', fontSize: 'clamp(0.8rem, 2vw, 13px)' }}>
+                          {suspensionReason}
+                        </p>
+                      </div>
+                    )}
+
+                    <label style={{...styles.formLabel, marginTop: '16px'}}>Or enter custom reason:</label>
                     <textarea
                       value={suspensionReason}
-                      onChange={(e) => setSuspensionReason(e.target.value)}
-                      placeholder="Enter reason for suspending wire transfers..."
+                      onChange={(e) => {
+                        setSuspensionReason(e.target.value);
+                        setSelectedReasonId('');
+                      }}
+                      placeholder="Enter custom reason for suspending wire transfers..."
                       style={styles.formTextarea}
-                      rows={4}
+                      rows={3}
                     />
                   </div>
                 )}
@@ -373,6 +484,58 @@ export default function WireTransferManagement() {
                   disabled={actionLoading}
                 >
                   {actionLoading ? 'Processing...' : (modalAction === 'suspend' ? 'Suspend' : 'Lift Suspension')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSelfieModal && selfieUser && (
+          <div style={styles.modalOverlay} onClick={() => setShowSelfieModal(false)}>
+            <div style={styles.selfieModal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>User Selfie</h2>
+                <button onClick={() => setShowSelfieModal(false)} style={styles.closeBtn}>×</button>
+              </div>
+              <div style={styles.selfieModalBody}>
+                <div style={styles.infoBox}>
+                  <strong>User:</strong> {selfieUser.first_name} {selfieUser.last_name}<br />
+                  <strong>Email:</strong> {selfieUser.email}
+                </div>
+                {selfieUser.selfie?.image_path ? (
+                  <div style={styles.selfieImageContainer}>
+                    <img
+                      src={selfieUser.selfie.image_path}
+                      alt={`Selfie for ${selfieUser.first_name} ${selfieUser.last_name}`}
+                      style={styles.selfieImage}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none', textAlign: 'center', padding: '40px', color: '#718096' }}>
+                      <p style={{ fontSize: '48px', marginBottom: '12px' }}>🖼️</p>
+                      <p>Unable to load selfie image</p>
+                    </div>
+                    <div style={styles.selfieInfo}>
+                      <p><strong>Type:</strong> {selfieUser.selfie.verification_type || 'Selfie'}</p>
+                      <p><strong>Status:</strong> {selfieUser.selfie.status || 'Submitted'}</p>
+                      <p><strong>Submitted:</strong> {selfieUser.selfie.created_at ? new Date(selfieUser.selfie.created_at).toLocaleString() : '-'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={styles.noSelfie}>
+                    <p style={{ fontSize: '48px', marginBottom: '12px' }}>📷</p>
+                    <p>No selfie available for this user</p>
+                  </div>
+                )}
+              </div>
+              <div style={styles.modalFooter}>
+                <button
+                  onClick={() => setShowSelfieModal(false)}
+                  style={styles.cancelButton}
+                >
+                  Close
                 </button>
               </div>
             </div>
@@ -748,5 +911,73 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2vw, 14px)',
     fontWeight: '600',
     cursor: 'pointer'
+  },
+  viewSelfieButton: {
+    width: '100%',
+    padding: 'clamp(10px, 2.5vw, 14px)',
+    backgroundImage: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+  },
+  reasonSelect: {
+    padding: '12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    outline: 'none',
+    cursor: 'pointer',
+    backgroundColor: 'white'
+  },
+  selectedReasonPreview: {
+    marginTop: '12px',
+    padding: '12px',
+    backgroundColor: '#fef3c7',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    color: '#92400e',
+    border: '1px solid #fcd34d'
+  },
+  selfieModal: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    maxWidth: '600px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    zIndex: 10001
+  },
+  selfieModalBody: {
+    padding: '20px'
+  },
+  selfieImageContainer: {
+    marginTop: '16px',
+    textAlign: 'center'
+  },
+  selfieImage: {
+    maxWidth: '100%',
+    maxHeight: '400px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    objectFit: 'contain'
+  },
+  selfieInfo: {
+    marginTop: '16px',
+    padding: '12px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 13px)',
+    color: '#475569',
+    textAlign: 'left'
+  },
+  noSelfie: {
+    textAlign: 'center',
+    padding: '40px 20px',
+    color: '#718096'
   }
 };

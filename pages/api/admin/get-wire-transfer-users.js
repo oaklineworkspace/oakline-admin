@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, first_name, last_name, wire_transfer_suspended, wire_transfer_suspension_reason, wire_transfer_suspended_at')
+      .select('id, email, first_name, last_name, wire_transfer_suspended, wire_transfer_suspension_reason, wire_transfer_suspended_at, wire_transfer_selfie_submitted, wire_transfer_selfie_submitted_at')
       .order('last_name', { ascending: true });
 
     if (profilesError) {
@@ -22,9 +22,34 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch users' });
     }
 
+    const userIds = profiles.map(p => p.id);
+    const { data: selfies, error: selfiesError } = await supabaseAdmin
+      .from('selfie_verifications')
+      .select('user_id, image_path, verification_type, status, created_at')
+      .in('user_id', userIds)
+      .order('created_at', { ascending: false });
+
+    if (selfiesError) {
+      console.error('Error fetching selfies:', selfiesError);
+    }
+
+    const selfieMap = {};
+    if (selfies) {
+      selfies.forEach(selfie => {
+        if (!selfieMap[selfie.user_id]) {
+          selfieMap[selfie.user_id] = selfie;
+        }
+      });
+    }
+
+    const usersWithSelfies = profiles.map(profile => ({
+      ...profile,
+      selfie: selfieMap[profile.id] || null
+    }));
+
     return res.status(200).json({
       success: true,
-      users: profiles || []
+      users: usersWithSelfies || []
     });
   } catch (error) {
     console.error('Error in get-wire-transfer-users:', error);
