@@ -7,7 +7,9 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function WireTransferManagement() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('wire');
   const [users, setUsers] = useState([]);
+  const [withdrawalUsers, setWithdrawalUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -30,6 +32,7 @@ export default function WireTransferManagement() {
 
   useEffect(() => {
     fetchUsers();
+    fetchWithdrawalUsers();
     fetchRestrictionReasons();
   }, []);
 
@@ -63,6 +66,26 @@ export default function WireTransferManagement() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWithdrawalUsers = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/get-withdrawal-users', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        setWithdrawalUsers(result.users || []);
+      }
+    } catch (err) {
+      console.error('Error fetching withdrawal users:', err);
     }
   };
 
@@ -165,7 +188,11 @@ export default function WireTransferManagement() {
         return;
       }
 
-      const response = await fetch('/api/admin/update-user-wire-transfer-status', {
+      const apiEndpoint = activeTab === 'wire' 
+        ? '/api/admin/update-user-wire-transfer-status'
+        : '/api/admin/update-user-withdrawal-status';
+
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -181,17 +208,23 @@ export default function WireTransferManagement() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update wire transfer status');
+        throw new Error(result.error || `Failed to update ${activeTab === 'wire' ? 'wire transfer' : 'withdrawal'} status`);
       }
 
+      const featureName = activeTab === 'wire' ? 'Wire transfers' : 'Withdrawals';
       setSuccess(modalAction === 'suspend' 
-        ? `Wire transfers suspended for ${selectedUser.email}` 
-        : `Wire transfers enabled for ${selectedUser.email}`
+        ? `${featureName} suspended for ${selectedUser.email}` 
+        : `${featureName} enabled for ${selectedUser.email}`
       );
       setShowModal(false);
       setSelectedUser(null);
       setSuspensionReason('');
-      fetchUsers();
+      
+      if (activeTab === 'wire') {
+        fetchUsers();
+      } else {
+        fetchWithdrawalUsers();
+      }
 
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
@@ -218,8 +251,34 @@ export default function WireTransferManagement() {
     return matchesSearch && matchesStatus && matchesUser;
   });
 
+  const filteredWithdrawalUsers = withdrawalUsers.filter(user => {
+    const matchesSearch = 
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = 
+      statusFilter === 'all' ||
+      (statusFilter === 'suspended' && user.withdrawal_suspended) ||
+      (statusFilter === 'active' && !user.withdrawal_suspended);
+
+    const matchesUser = userFilter === 'all' || user.id === userFilter;
+
+    return matchesSearch && matchesStatus && matchesUser;
+  });
+
   const suspendedCount = users.filter(u => u.wire_transfer_suspended).length;
   const activeCount = users.filter(u => !u.wire_transfer_suspended).length;
+  const withdrawalSuspendedCount = withdrawalUsers.filter(u => u.withdrawal_suspended).length;
+  const withdrawalActiveCount = withdrawalUsers.filter(u => !u.withdrawal_suspended).length;
+
+  const currentUsers = activeTab === 'wire' ? filteredUsers : filteredWithdrawalUsers;
+  const currentSuspendedCount = activeTab === 'wire' ? suspendedCount : withdrawalSuspendedCount;
+  const currentActiveCount = activeTab === 'wire' ? activeCount : withdrawalActiveCount;
+  const currentTotalUsers = activeTab === 'wire' ? users : withdrawalUsers;
+  const isSuspended = (user) => activeTab === 'wire' ? user.wire_transfer_suspended : user.withdrawal_suspended;
+  const getSuspensionReason = (user) => activeTab === 'wire' ? user.wire_transfer_suspension_reason : user.withdrawal_suspension_reason;
+  const getSuspendedAt = (user) => activeTab === 'wire' ? user.wire_transfer_suspended_at : user.withdrawal_suspended_at;
 
   const getStatusBadge = (suspended) => {
     const style = suspended 
@@ -258,11 +317,14 @@ export default function WireTransferManagement() {
       <div style={styles.container}>
         <div style={styles.header}>
           <div>
-            <h1 style={styles.title}>Wire Transfer Management</h1>
-            <p style={styles.subtitle}>Manage user wire transfer permissions</p>
+            <h1 style={styles.title}>Transfer & Withdrawal Management</h1>
+            <p style={styles.subtitle}>Manage user transfer and withdrawal permissions</p>
           </div>
           <div style={styles.headerActions}>
-            <button onClick={fetchUsers} style={styles.refreshButton} disabled={loading}>
+            <Link href="/admin/verifications" style={styles.navLinkButton}>
+              Verifications
+            </Link>
+            <button onClick={() => { fetchUsers(); fetchWithdrawalUsers(); }} style={styles.refreshButton} disabled={loading}>
               {loading ? 'Loading...' : 'Refresh'}
             </button>
             <Link href="/admin/admin-dashboard" style={styles.backButton}>
@@ -271,21 +333,36 @@ export default function WireTransferManagement() {
           </div>
         </div>
 
+        <div style={styles.tabsContainer}>
+          <button
+            onClick={() => setActiveTab('wire')}
+            style={activeTab === 'wire' ? styles.activeTab : styles.inactiveTab}
+          >
+            Wire Transfers
+          </button>
+          <button
+            onClick={() => setActiveTab('withdrawal')}
+            style={activeTab === 'withdrawal' ? styles.activeTab : styles.inactiveTab}
+          >
+            Withdrawals
+          </button>
+        </div>
+
         {error && <div style={styles.errorBanner}>{error}</div>}
         {success && <div style={styles.successBanner}>{success}</div>}
 
         <div style={styles.statsGrid}>
           <div style={{...styles.statCard, borderLeft: '4px solid #1e40af'}}>
             <h3 style={styles.statLabel}>Total Users</h3>
-            <p style={styles.statValue}>{users.length}</p>
+            <p style={styles.statValue}>{currentTotalUsers.length}</p>
           </div>
           <div style={{...styles.statCard, borderLeft: '4px solid #10b981'}}>
-            <h3 style={styles.statLabel}>Wire Active</h3>
-            <p style={styles.statValue}>{activeCount}</p>
+            <h3 style={styles.statLabel}>{activeTab === 'wire' ? 'Wire' : 'Withdrawal'} Active</h3>
+            <p style={styles.statValue}>{currentActiveCount}</p>
           </div>
           <div style={{...styles.statCard, borderLeft: '4px solid #dc2626'}}>
-            <h3 style={styles.statLabel}>Wire Suspended</h3>
-            <p style={styles.statValue}>{suspendedCount}</p>
+            <h3 style={styles.statLabel}>{activeTab === 'wire' ? 'Wire' : 'Withdrawal'} Suspended</h3>
+            <p style={styles.statValue}>{currentSuspendedCount}</p>
           </div>
         </div>
 
@@ -303,7 +380,7 @@ export default function WireTransferManagement() {
             style={styles.filterSelect}
           >
             <option value="all">All Users</option>
-            {users.map(user => (
+            {currentTotalUsers.map(user => (
               <option key={user.id} value={user.id}>
                 {user.first_name && user.last_name
                   ? `${user.first_name} ${user.last_name}`
@@ -328,14 +405,14 @@ export default function WireTransferManagement() {
               <div style={styles.spinner}></div>
               <p>Loading users...</p>
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : currentUsers.length === 0 ? (
             <div style={styles.emptyState}>
               <p style={styles.emptyIcon}>👥</p>
               <p style={styles.emptyText}>No users found</p>
             </div>
           ) : (
             <div style={styles.usersGrid}>
-              {filteredUsers.map((user) => (
+              {currentUsers.map((user) => (
                 <div key={user.id} style={styles.userCard}>
                   <div style={styles.userHeader}>
                     <div style={styles.userInfoContainer}>
@@ -344,30 +421,30 @@ export default function WireTransferManagement() {
                       </h3>
                       <p style={styles.userEmail}>{user.email}</p>
                     </div>
-                    {getStatusBadge(user.wire_transfer_suspended)}
+                    {getStatusBadge(isSuspended(user))}
                   </div>
 
                   <div style={styles.userBody}>
                     <div style={styles.userInfo}>
-                      <span style={styles.infoLabel}>Wire Status:</span>
+                      <span style={styles.infoLabel}>{activeTab === 'wire' ? 'Wire' : 'Withdrawal'} Status:</span>
                       <span style={{
                         ...styles.infoValue, 
-                        color: user.wire_transfer_suspended ? '#dc2626' : '#059669',
+                        color: isSuspended(user) ? '#dc2626' : '#059669',
                         fontWeight: '700'
                       }}>
-                        {user.wire_transfer_suspended ? 'Suspended' : 'Active'}
+                        {isSuspended(user) ? 'Suspended' : 'Active'}
                       </span>
                     </div>
-                    {user.wire_transfer_suspension_reason && (
+                    {getSuspensionReason(user) && (
                       <div style={styles.userInfo}>
                         <span style={styles.infoLabel}>Reason:</span>
-                        <span style={styles.infoValue}>{user.wire_transfer_suspension_reason}</span>
+                        <span style={styles.infoValue}>{getSuspensionReason(user)}</span>
                       </div>
                     )}
                     <div style={styles.userInfo}>
                       <span style={styles.infoLabel}>Suspended At:</span>
                       <span style={styles.infoValue}>
-                        {formatDateTime(user.wire_transfer_suspended_at)}
+                        {formatDateTime(getSuspendedAt(user))}
                       </span>
                     </div>
                   </div>
@@ -381,7 +458,7 @@ export default function WireTransferManagement() {
                         View Selfie
                       </button>
                     )}
-                    {user.wire_transfer_suspended ? (
+                    {isSuspended(user) ? (
                       <button
                         onClick={() => openUnsuspendModal(user)}
                         style={styles.liftSuspensionButton}
@@ -393,7 +470,7 @@ export default function WireTransferManagement() {
                         onClick={() => openSuspendModal(user)}
                         style={styles.suspendButton}
                       >
-                        Suspend Wire Transfer
+                        Suspend {activeTab === 'wire' ? 'Wire Transfer' : 'Withdrawal'}
                       </button>
                     )}
                   </div>
@@ -409,8 +486,8 @@ export default function WireTransferManagement() {
               <div style={styles.modalHeader}>
                 <h2 style={styles.modalTitle}>
                   {modalAction === 'suspend' 
-                    ? 'Suspend Wire Transfers' 
-                    : 'Lift Wire Transfer Suspension'
+                    ? `Suspend ${activeTab === 'wire' ? 'Wire Transfers' : 'Withdrawals'}` 
+                    : `Lift ${activeTab === 'wire' ? 'Wire Transfer' : 'Withdrawal'} Suspension`
                   }
                 </h2>
                 <button onClick={() => setShowModal(false)} style={styles.closeBtn}>×</button>
@@ -457,7 +534,7 @@ export default function WireTransferManagement() {
                         setSuspensionReason(e.target.value);
                         setSelectedReasonId('');
                       }}
-                      placeholder="Enter custom reason for suspending wire transfers..."
+                      placeholder={`Enter custom reason for suspending ${activeTab === 'wire' ? 'wire transfers' : 'withdrawals'}...`}
                       style={styles.formTextarea}
                       rows={3}
                     />
@@ -466,7 +543,7 @@ export default function WireTransferManagement() {
 
                 {modalAction === 'unsuspend' && (
                   <p style={{ marginTop: '16px', color: '#475569', fontSize: 'clamp(0.85rem, 2vw, 14px)' }}>
-                    This will enable wire transfer access for this user. They will be able to initiate wire transfers again.
+                    This will enable {activeTab === 'wire' ? 'wire transfer' : 'withdrawal'} access for this user. They will be able to initiate {activeTab === 'wire' ? 'wire transfers' : 'withdrawals'} again.
                   </p>
                 )}
               </div>
@@ -979,5 +1056,50 @@ const styles = {
     textAlign: 'center',
     padding: '40px 20px',
     color: '#718096'
+  },
+  tabsContainer: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '16px',
+    backgroundColor: 'white',
+    padding: '8px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  activeTab: {
+    flex: 1,
+    padding: 'clamp(10px, 2.5vw, 14px)',
+    backgroundColor: '#1e40af',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  inactiveTab: {
+    flex: 1,
+    padding: 'clamp(10px, 2.5vw, 14px)',
+    backgroundColor: '#f1f5f9',
+    color: '#475569',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.85rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  navLinkButton: {
+    padding: 'clamp(0.5rem, 2vw, 10px) clamp(0.75rem, 2vw, 16px)',
+    backgroundImage: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: 'clamp(0.8rem, 2vw, 14px)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
   }
 };

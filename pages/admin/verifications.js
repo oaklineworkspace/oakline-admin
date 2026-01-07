@@ -402,6 +402,9 @@ export default function VerificationsPage() {
             <p style={styles.subtitle}>Manage selfie and video verification requests</p>
           </div>
           <div style={styles.headerActions}>
+            <Link href="/admin/wire-transfer-management" style={styles.wireTransferButton}>
+              Wire Transfers
+            </Link>
             <button onClick={fetchVerifications} style={styles.refreshButton} disabled={loading}>
               {loading ? '⏳' : '🔄'} Refresh
             </button>
@@ -1057,6 +1060,18 @@ const styles = {
   analyticsButton: {
     padding: '10px 20px',
     backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block'
+  },
+  wireTransferButton: {
+    padding: '10px 20px',
+    backgroundImage: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',

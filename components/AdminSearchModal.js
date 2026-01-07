@@ -57,6 +57,7 @@ const adminPages = [
       { name: 'All Transactions', path: '/admin/admin-transactions', icon: '💸' },
       { name: 'User Transfers', path: '/admin/admin-transfers', icon: '🔄' },
       { name: 'Wire Transfer Management', path: '/admin/wire-transfer-management', icon: '🔒' },
+      { name: 'Withdrawal Management', path: '/admin/wire-transfer-management', icon: '💰' },
       { name: 'Wire Transfers', path: '/admin/admin-wire-transfers', icon: '💵' },
       { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
       { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
