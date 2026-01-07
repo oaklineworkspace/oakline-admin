@@ -76,6 +76,20 @@ export default async function handler(req, res) {
         .delete()
         .eq('id', transactionId);
       deleteError = error;
+    } else if (source === 'oakline_pay') {
+      // Delete from oakline_pay_transactions table
+      const { error } = await supabaseAdmin
+        .from('oakline_pay_transactions')
+        .delete()
+        .eq('id', transactionId);
+      deleteError = error;
+    } else if (source === 'oakline_pay_claim') {
+      // Delete from oakline_pay_pending_claims table
+      const { error } = await supabaseAdmin
+        .from('oakline_pay_pending_claims')
+        .delete()
+        .eq('id', transactionId);
+      deleteError = error;
     } else {
       // Delete from transactions table (default)
       const { error } = await supabaseAdmin
