@@ -104,7 +104,7 @@ export default async function handler(req, res) {
           if (year === endYearNum && month > endMonthNum) continue;
           
           // Create first transaction (day1)
-          const transactionDate1 = new Date(year, month - 1, day1, 12, 0, 0, 0);
+          const transactionDate1 = new Date(Date.UTC(year, month - 1, day1, 12, 0, 0, 0));
           
           const transactionData1 = {
             user_id: user_id || account.user_id,
@@ -120,7 +120,7 @@ export default async function handler(req, res) {
           transactions.push(transactionData1);
           
           // Create second transaction (day2)
-          const transactionDate2 = new Date(year, month - 1, day2, 12, 0, 0, 0);
+          const transactionDate2 = new Date(Date.UTC(year, month - 1, day2, 12, 0, 0, 0));
           
           const transactionData2 = {
             user_id: user_id || account.user_id,
@@ -197,7 +197,7 @@ export default async function handler(req, res) {
           if (year === startYearNum && month < startMonthNum) continue;
           if (year === endYearNum && month > endMonthNum) continue;
           
-          const transactionDate = new Date(year, month - 1, dayOfMonth, hour, minute, 0, 0);
+          const transactionDate = new Date(Date.UTC(year, month - 1, dayOfMonth, hour, minute, 0, 0));
           
           const transactionData = {
             user_id: user_id || account.user_id,
