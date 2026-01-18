@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 16. **Investment Management:** Comprehensive product and investment management, including editing current values and statuses, activating/closing investments, and managing products (create, edit, activate/deactivate, delete). Includes analytics for performance summary.
 17. **Admin Navigation:** A global `AdminNavBar` component provides a dropdown menu with all admin pages and global search functionality.
 18. **Session Handling:** Token refresh interval changed to 2 minutes with proactive refresh on focus and improved error handling for specific refresh token errors.
+19. **Account Mode Management:** Freeze/unfreeze user accounts and set/remove unlimited mode. Includes filtering by status, reason tracking, admin audit fields, and confirmation modals. Located at `/admin/manage-account-modes`.
 
 ## External Dependencies
 *   **Supabase:** Database (PostgreSQL), Authentication, and Row Level Security.
