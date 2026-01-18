@@ -150,6 +150,7 @@ export default function ManageAccountModesPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchFreezeReasons();
   }, []);
 
   useEffect(() => {
