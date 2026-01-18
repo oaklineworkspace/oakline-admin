@@ -7,6 +7,7 @@ const adminPages = [
   { name: 'Users', path: '/admin/admin-users', icon: '👥' },
   { name: 'Manage All Users', path: '/admin/manage-all-users', icon: '👤' },
   { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦' },
+  { name: 'Account Modes', path: '/admin/manage-account-modes', icon: '🔒' },
   { name: 'Approve Applications', path: '/admin/approve-applications', icon: '📋' },
   { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✓' },
   { name: 'Transactions', path: '/admin/admin-transactions', icon: '💸' },

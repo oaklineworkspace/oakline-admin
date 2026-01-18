@@ -31,6 +31,7 @@ const adminPages = [
       { name: 'Manage Accounts', path: '/admin/manage-accounts', icon: '🏦' },
       { name: 'Approve Accounts', path: '/admin/approve-accounts', icon: '✔️' },
       { name: 'Account Balance', path: '/admin/admin-balance', icon: '💰' },
+      { name: 'Account Modes', path: '/admin/manage-account-modes', icon: '🔒' },
     ]
   },
   {
