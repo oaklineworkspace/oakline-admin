@@ -7,9 +7,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const adminAuth = await verifyAdminAuth(req);
-    if (!adminAuth.success) {
-      return res.status(401).json({ error: adminAuth.error });
+    const authResult = await verifyAdminAuth(req);
+    if (authResult.error) {
+      return res.status(authResult.status || 401).json({ error: authResult.error });
     }
 
     const { data: freezeReasons, error } = await supabaseAdmin
