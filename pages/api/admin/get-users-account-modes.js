@@ -1,9 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { verifyAdminAuth } from '../../../lib/adminAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -11,6 +7,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    const authResult = await verifyAdminAuth(req);
+    if (authResult.error) {
+      return res.status(authResult.status || 401).json({ error: authResult.error });
+    }
+
     const { filter } = req.query;
 
     let query = supabaseAdmin
