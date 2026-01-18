@@ -11,7 +11,11 @@ export default function ManageAccountModesPage() {
   const [filter, setFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState({});
   const [reasonModal, setReasonModal] = useState({ open: false, userId: null, action: null, userName: '' });
-  const [reason, setReason] = useState('');
+  const [selectedReasonId, setSelectedReasonId] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [freezeReasons, setFreezeReasons] = useState([]);
+  const [unlimitedReasons, setUnlimitedReasons] = useState([]);
+  const [reasonsLoading, setReasonsLoading] = useState(false);
 
   const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -47,16 +51,35 @@ export default function ManageAccountModesPage() {
     }
   };
 
+  const fetchReasons = async () => {
+    setReasonsLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/admin/get-account-mode-reasons', { headers });
+      const data = await response.json();
+      if (response.ok) {
+        setFreezeReasons(data.freezeReasons || []);
+        setUnlimitedReasons(data.unlimitedReasons || []);
+      }
+    } catch (err) {
+      console.error('Error fetching reasons:', err);
+    } finally {
+      setReasonsLoading(false);
+    }
+  };
+
   const handleAction = async (userId, action, userName) => {
     if (action === 'freeze' || action === 'set_unlimited') {
+      setSelectedReasonId('');
+      setCustomReason('');
       setReasonModal({ open: true, userId, action, userName });
       return;
     }
 
-    executeAction(userId, action, '');
+    executeAction(userId, action, '', null);
   };
 
-  const executeAction = async (userId, action, reasonText) => {
+  const executeAction = async (userId, action, reasonText, amountRequired) => {
     setActionLoading({ ...actionLoading, [`${action}_${userId}`]: true });
     setError('');
     setSuccess('');
@@ -69,7 +92,8 @@ export default function ManageAccountModesPage() {
         body: JSON.stringify({
           userId,
           action,
-          reason: reasonText
+          reason: reasonText,
+          amountRequired: amountRequired
         })
       });
 
@@ -94,15 +118,43 @@ export default function ManageAccountModesPage() {
     } finally {
       setActionLoading({ ...actionLoading, [`${action}_${userId}`]: false });
       setReasonModal({ open: false, userId: null, action: null, userName: '' });
-      setReason('');
+      setSelectedReasonId('');
+      setCustomReason('');
     }
   };
 
   const handleReasonSubmit = () => {
     if (reasonModal.userId && reasonModal.action) {
-      executeAction(reasonModal.userId, reasonModal.action, reason);
+      let reasonText = '';
+      let amountRequired = null;
+
+      if (selectedReasonId === 'custom') {
+        reasonText = customReason;
+      } else if (selectedReasonId) {
+        const reasons = reasonModal.action === 'freeze' ? freezeReasons : unlimitedReasons;
+        const selectedReason = reasons.find(r => r.id === selectedReasonId);
+        if (selectedReason) {
+          reasonText = selectedReason.reason_text;
+          amountRequired = selectedReason.amount_required || null;
+        }
+      }
+
+      executeAction(reasonModal.userId, reasonModal.action, reasonText, amountRequired);
     }
   };
+
+  const getSelectedReasonAmount = () => {
+    if (selectedReasonId && selectedReasonId !== 'custom' && reasonModal.action === 'freeze') {
+      const selectedReason = freezeReasons.find(r => r.id === selectedReasonId);
+      return selectedReason?.amount_required || 0;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchReasons();
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -200,6 +252,11 @@ export default function ManageAccountModesPage() {
                           {user.frozen_reason && (
                             <div style={styles.modeReason}>{user.frozen_reason}</div>
                           )}
+                          {user.freeze_amount_required > 0 && (
+                            <div style={styles.unfreezeAmount}>
+                              Unfreeze: ${parseFloat(user.freeze_amount_required).toLocaleString()}
+                            </div>
+                          )}
                           <div style={styles.modeDate}>{formatDate(user.frozen_at)}</div>
                         </div>
                       ) : (
@@ -274,23 +331,66 @@ export default function ManageAccountModesPage() {
               <p style={styles.modalSubtitle}>
                 User: <strong>{reasonModal.userName}</strong>
               </p>
+              
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Reason (optional):</label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={reasonModal.action === 'freeze' 
-                    ? 'Enter reason for freezing account...' 
-                    : 'Enter reason for unlimited access...'}
-                  style={styles.textarea}
-                  rows={3}
-                />
+                <label style={styles.label}>Select Reason:</label>
+                <select
+                  value={selectedReasonId}
+                  onChange={(e) => setSelectedReasonId(e.target.value)}
+                  style={styles.reasonSelect}
+                >
+                  <option value="">-- Select a reason --</option>
+                  {reasonModal.action === 'freeze' ? (
+                    <>
+                      {freezeReasons.map((reason) => (
+                        <option key={reason.id} value={reason.id}>
+                          {reason.reason_text} {reason.amount_required > 0 ? `($${reason.amount_required.toLocaleString()})` : '(Free)'}
+                        </option>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {unlimitedReasons.map((reason) => (
+                        <option key={reason.id} value={reason.id}>
+                          {reason.reason_text}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                  <option value="custom">-- Custom Reason --</option>
+                </select>
               </div>
+
+              {selectedReasonId === 'custom' && (
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Custom Reason:</label>
+                  <textarea
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    placeholder={reasonModal.action === 'freeze' 
+                      ? 'Enter custom reason for freezing...' 
+                      : 'Enter custom reason for unlimited access...'}
+                    style={styles.textarea}
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              {reasonModal.action === 'freeze' && getSelectedReasonAmount() !== null && (
+                <div style={styles.amountDisplay}>
+                  <span style={styles.amountLabel}>Amount Required to Unfreeze:</span>
+                  <span style={styles.amountValue}>
+                    ${getSelectedReasonAmount().toLocaleString()}
+                  </span>
+                </div>
+              )}
+
               <div style={styles.modalActions}>
                 <button
                   onClick={() => {
                     setReasonModal({ open: false, userId: null, action: null, userName: '' });
-                    setReason('');
+                    setSelectedReasonId('');
+                    setCustomReason('');
                   }}
                   style={styles.cancelButton}
                 >
@@ -298,7 +398,11 @@ export default function ManageAccountModesPage() {
                 </button>
                 <button
                   onClick={handleReasonSubmit}
-                  style={reasonModal.action === 'freeze' ? styles.freezeButton : styles.setUnlimitedButton}
+                  disabled={!selectedReasonId || (selectedReasonId === 'custom' && !customReason.trim())}
+                  style={{
+                    ...(reasonModal.action === 'freeze' ? styles.freezeButton : styles.setUnlimitedButton),
+                    opacity: (!selectedReasonId || (selectedReasonId === 'custom' && !customReason.trim())) ? 0.5 : 1
+                  }}
                 >
                   Confirm
                 </button>
@@ -669,5 +773,45 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '600'
+  },
+  reasonSelect: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '2px solid #e5e7eb',
+    fontSize: '14px',
+    background: 'white',
+    cursor: 'pointer',
+    boxSizing: 'border-box'
+  },
+  amountDisplay: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '15px',
+    background: '#fef3c7',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #f59e0b'
+  },
+  amountLabel: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#92400e'
+  },
+  amountValue: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#b45309'
+  },
+  unfreezeAmount: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#f59e0b',
+    background: 'rgba(245, 158, 11, 0.15)',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    marginTop: '4px',
+    display: 'inline-block'
   }
 };

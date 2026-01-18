@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     }
 
     const adminId = authResult.user?.id;
-    const { userId, action, reason } = req.body;
+    const { userId, action, reason, amountRequired } = req.body;
 
     if (!userId || !action) {
       return res.status(400).json({ error: 'Missing required fields: userId, action' });
@@ -33,7 +33,8 @@ export default async function handler(req, res) {
           is_frozen: true,
           frozen_at: now,
           frozen_by: adminId,
-          frozen_reason: reason || 'Account frozen by admin'
+          frozen_reason: reason || 'Account frozen by admin',
+          freeze_amount_required: amountRequired || 0
         };
         break;
       case 'unfreeze':
@@ -41,7 +42,8 @@ export default async function handler(req, res) {
           is_frozen: false,
           frozen_at: null,
           frozen_by: null,
-          frozen_reason: null
+          frozen_reason: null,
+          freeze_amount_required: 0
         };
         break;
       case 'set_unlimited':
