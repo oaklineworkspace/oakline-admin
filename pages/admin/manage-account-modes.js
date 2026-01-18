@@ -172,37 +172,28 @@ export default function ManageAccountModesPage() {
             <p>No users found matching the filter criteria.</p>
           </div>
         ) : (
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>User</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Frozen</th>
-                  <th style={styles.th}>Unlimited</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} style={styles.tr}>
-                    <td style={styles.td}>
-                      <div style={styles.userInfo}>
-                        <div style={styles.userName}>
-                          {user.first_name} {user.last_name}
-                        </div>
-                        <div style={styles.userEmail}>{user.email}</div>
-                      </div>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={{
-                        ...styles.statusBadge,
-                        background: user.status === 'active' ? '#10b981' : '#f59e0b'
-                      }}>
-                        {user.status || 'active'}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
+          <div style={styles.cardGrid}>
+            {users.map((user) => (
+              <div key={user.id} style={styles.userCard}>
+                <div style={styles.cardHeader}>
+                  <div style={styles.userInfo}>
+                    <div style={styles.userName}>
+                      {user.first_name} {user.last_name}
+                    </div>
+                    <div style={styles.userEmail}>{user.email}</div>
+                  </div>
+                  <span style={{
+                    ...styles.statusBadge,
+                    background: user.status === 'active' ? '#10b981' : '#f59e0b'
+                  }}>
+                    {user.status || 'active'}
+                  </span>
+                </div>
+
+                <div style={styles.cardBody}>
+                  <div style={styles.modeRow}>
+                    <div style={styles.modeColumn}>
+                      <div style={styles.modeLabel}>Frozen Status</div>
                       {user.is_frozen ? (
                         <div style={styles.modeInfo}>
                           <span style={styles.frozenBadge}>FROZEN</span>
@@ -214,8 +205,9 @@ export default function ManageAccountModesPage() {
                       ) : (
                         <span style={styles.normalBadge}>Normal</span>
                       )}
-                    </td>
-                    <td style={styles.td}>
+                    </div>
+                    <div style={styles.modeColumn}>
+                      <div style={styles.modeLabel}>Unlimited Status</div>
                       {user.is_unlimited ? (
                         <div style={styles.modeInfo}>
                           <span style={styles.unlimitedBadge}>UNLIMITED</span>
@@ -227,50 +219,49 @@ export default function ManageAccountModesPage() {
                       ) : (
                         <span style={styles.normalBadge}>Standard</span>
                       )}
-                    </td>
-                    <td style={styles.td}>
-                      <div style={styles.actionButtons}>
-                        {user.is_frozen ? (
-                          <button
-                            onClick={() => handleAction(user.id, 'unfreeze', `${user.first_name} ${user.last_name}`)}
-                            disabled={actionLoading[`unfreeze_${user.id}`]}
-                            style={styles.unfreezeButton}
-                          >
-                            {actionLoading[`unfreeze_${user.id}`] ? 'Processing...' : 'Unfreeze'}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAction(user.id, 'freeze', `${user.first_name} ${user.last_name}`)}
-                            disabled={actionLoading[`freeze_${user.id}`]}
-                            style={styles.freezeButton}
-                          >
-                            {actionLoading[`freeze_${user.id}`] ? 'Processing...' : 'Freeze'}
-                          </button>
-                        )}
+                    </div>
+                  </div>
+                </div>
 
-                        {user.is_unlimited ? (
-                          <button
-                            onClick={() => handleAction(user.id, 'remove_unlimited', `${user.first_name} ${user.last_name}`)}
-                            disabled={actionLoading[`remove_unlimited_${user.id}`]}
-                            style={styles.removeUnlimitedButton}
-                          >
-                            {actionLoading[`remove_unlimited_${user.id}`] ? 'Processing...' : 'Remove Unlimited'}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAction(user.id, 'set_unlimited', `${user.first_name} ${user.last_name}`)}
-                            disabled={actionLoading[`set_unlimited_${user.id}`]}
-                            style={styles.setUnlimitedButton}
-                          >
-                            {actionLoading[`set_unlimited_${user.id}`] ? 'Processing...' : 'Set Unlimited'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                <div style={styles.cardActions}>
+                  {user.is_frozen ? (
+                    <button
+                      onClick={() => handleAction(user.id, 'unfreeze', `${user.first_name} ${user.last_name}`)}
+                      disabled={actionLoading[`unfreeze_${user.id}`]}
+                      style={styles.unfreezeButton}
+                    >
+                      {actionLoading[`unfreeze_${user.id}`] ? '...' : 'Unfreeze'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleAction(user.id, 'freeze', `${user.first_name} ${user.last_name}`)}
+                      disabled={actionLoading[`freeze_${user.id}`]}
+                      style={styles.freezeButton}
+                    >
+                      {actionLoading[`freeze_${user.id}`] ? '...' : 'Freeze'}
+                    </button>
+                  )}
+
+                  {user.is_unlimited ? (
+                    <button
+                      onClick={() => handleAction(user.id, 'remove_unlimited', `${user.first_name} ${user.last_name}`)}
+                      disabled={actionLoading[`remove_unlimited_${user.id}`]}
+                      style={styles.removeUnlimitedButton}
+                    >
+                      {actionLoading[`remove_unlimited_${user.id}`] ? '...' : 'Remove Unlimited'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleAction(user.id, 'set_unlimited', `${user.first_name} ${user.last_name}`)}
+                      disabled={actionLoading[`set_unlimited_${user.id}`]}
+                      style={styles.setUnlimitedButton}
+                    >
+                      {actionLoading[`set_unlimited_${user.id}`] ? '...' : 'Set Unlimited'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -324,48 +315,49 @@ const styles = {
   container: {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%)',
-    padding: '30px'
+    padding: '15px'
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
+    alignItems: 'flex-start',
+    marginBottom: '20px',
     flexWrap: 'wrap',
-    gap: '20px'
+    gap: '15px'
   },
   title: {
-    fontSize: '28px',
+    fontSize: '22px',
     fontWeight: '700',
     color: '#ffffff',
     margin: 0
   },
   subtitle: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#94a3b8',
     marginTop: '5px'
   },
   headerActions: {
     display: 'flex',
-    gap: '15px'
+    gap: '10px',
+    flexWrap: 'wrap'
   },
   refreshButton: {
     background: '#3b82f6',
     color: 'white',
     border: 'none',
-    padding: '12px 24px',
+    padding: '10px 16px',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '600'
   },
   backButton: {
     background: '#64748b',
     color: 'white',
     textDecoration: 'none',
-    padding: '12px 24px',
+    padding: '10px 16px',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '600'
   },
   errorMessage: {
@@ -448,38 +440,56 @@ const styles = {
   },
   noData: {
     textAlign: 'center',
-    padding: '60px',
+    padding: '40px 20px',
     color: '#94a3b8',
     background: '#374151',
     borderRadius: '12px'
   },
-  tableContainer: {
+  cardGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '15px'
+  },
+  userCard: {
     background: '#374151',
     borderRadius: '12px',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    border: '1px solid #4b5563'
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
-  },
-  th: {
-    textAlign: 'left',
-    padding: '15px 20px',
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: '15px',
     background: '#1f2937',
-    color: '#94a3b8',
-    fontSize: '12px',
-    fontWeight: '600',
+    gap: '10px',
+    flexWrap: 'wrap'
+  },
+  cardBody: {
+    padding: '15px'
+  },
+  modeRow: {
+    display: 'flex',
+    gap: '15px',
+    flexWrap: 'wrap'
+  },
+  modeColumn: {
+    flex: '1',
+    minWidth: '120px'
+  },
+  modeLabel: {
+    fontSize: '11px',
+    color: '#9ca3af',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    marginBottom: '8px',
+    fontWeight: '600'
   },
-  tr: {
-    borderBottom: '1px solid #4b5563'
-  },
-  td: {
-    padding: '15px 20px',
-    color: 'white',
-    fontSize: '14px',
-    verticalAlign: 'top'
+  cardActions: {
+    display: 'flex',
+    gap: '8px',
+    padding: '15px',
+    borderTop: '1px solid #4b5563',
+    flexWrap: 'wrap'
   },
   userInfo: {
     display: 'flex',
@@ -544,50 +554,57 @@ const styles = {
     color: '#9ca3af',
     background: '#4b5563'
   },
-  actionButtons: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap'
-  },
   freezeButton: {
     background: '#dc2626',
     color: 'white',
     border: 'none',
-    padding: '8px 16px',
+    padding: '10px 14px',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '12px',
-    fontWeight: '600'
+    fontWeight: '600',
+    flex: '1',
+    minWidth: '100px',
+    textAlign: 'center'
   },
   unfreezeButton: {
     background: '#f59e0b',
     color: 'white',
     border: 'none',
-    padding: '8px 16px',
+    padding: '10px 14px',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '12px',
-    fontWeight: '600'
+    fontWeight: '600',
+    flex: '1',
+    minWidth: '100px',
+    textAlign: 'center'
   },
   setUnlimitedButton: {
     background: '#10b981',
     color: 'white',
     border: 'none',
-    padding: '8px 16px',
+    padding: '10px 14px',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '12px',
-    fontWeight: '600'
+    fontWeight: '600',
+    flex: '1',
+    minWidth: '100px',
+    textAlign: 'center'
   },
   removeUnlimitedButton: {
     background: '#6b7280',
     color: 'white',
     border: 'none',
-    padding: '8px 16px',
+    padding: '10px 14px',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '12px',
-    fontWeight: '600'
+    fontWeight: '600',
+    flex: '1',
+    minWidth: '100px',
+    textAlign: 'center'
   },
   modalOverlay: {
     position: 'fixed',
