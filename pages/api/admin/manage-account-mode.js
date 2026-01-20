@@ -170,7 +170,7 @@ export default async function handler(req, res) {
           to: data.email,
           subject: `⚠️ Important: Your ${bankName} Account Has Been Frozen`,
           html: emailHtml,
-          type: EMAIL_TYPES.SECURITY
+          type: EMAIL_TYPES.NOTIFY
         });
 
         console.log(`Freeze notification email sent to ${data.email}`);
