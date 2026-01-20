@@ -19,6 +19,7 @@ const adminPages = [
   { name: 'Verifications', path: '/admin/verifications', icon: '✅' },
   { name: 'Wire Transfer Management', path: '/admin/wire-transfer-management', icon: '🔌' },
   { name: 'Wire Transfers', path: '/admin/admin-wire-transfers', icon: '🔄' },
+  { name: 'Linked Bank Accounts', path: '/admin/linked-bank-accounts', icon: '🔗' },
   { name: 'Oakline Pay', path: '/admin/oakline-pay-management', icon: '💰' },
   { name: 'Crypto Management', path: '/admin/admin-crypto', icon: '₿' },
   { name: 'Email Center', path: '/admin/admin-email', icon: '📧' },

@@ -62,7 +62,8 @@ const adminPages = [
       { name: 'Wire Transfers', path: '/admin/admin-wire-transfers', icon: '💵' },
       { name: 'Manual Transactions', path: '/admin/manual-transactions', icon: '✏️' },
       { name: 'Bulk Transactions', path: '/admin/bulk-transactions', icon: '📦' },
-      { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' }
+      { name: 'Mobile Check Deposits', path: '/admin/mobile-check-deposits', icon: '📱' },
+      { name: 'Linked Bank Accounts', path: '/admin/linked-bank-accounts', icon: '🔗' }
     ]
   },
   {
