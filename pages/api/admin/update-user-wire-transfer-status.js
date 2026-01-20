@@ -51,6 +51,13 @@ export default async function handler(req, res) {
         wire_transfer_suspended: false,
         wire_transfer_suspension_reason: null,
         wire_transfer_suspended_at: null,
+        wire_transfer_suspended_by: null,
+        wire_transfer_requires_selfie: false,
+        wire_transfer_selfie_submitted: false,
+        wire_transfer_selfie_submitted_at: null,
+        requires_verification: false,
+        verification_reason: null,
+        verification_required_at: null,
         updated_at: new Date().toISOString()
       };
     }
