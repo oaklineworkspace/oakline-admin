@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     let query = supabaseAdmin
       .from('profiles')
-      .select('id, email, first_name, last_name, is_frozen, frozen_at, frozen_by, frozen_reason, freeze_amount_required, is_unlimited, unlimited_at, unlimited_by, unlimited_reason, status, created_at, updated_at')
+      .select('id, email, first_name, last_name, is_frozen, frozen_at, frozen_by, frozen_reason, freeze_amount_required, is_unlimited, unlimited_at, unlimited_by, unlimited_reason, status, created_at, updated_at, freeze_payment_proof_path, freeze_payment_status, freeze_payment_amount, freeze_payment_method, freeze_payment_submitted_at, freeze_payment_tx_hash')
       .order('created_at', { ascending: false });
 
     if (filter === 'frozen') {

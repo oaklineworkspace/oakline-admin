@@ -16,6 +16,7 @@ export default function ManageAccountModesPage() {
   const [freezeReasons, setFreezeReasons] = useState([]);
   const [selectedReasonId, setSelectedReasonId] = useState('');
   const [reasonsLoading, setReasonsLoading] = useState(false);
+  const [proofModal, setProofModal] = useState({ open: false, user: null });
 
   const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -277,7 +278,41 @@ export default function ManageAccountModesPage() {
                   </div>
                 </div>
 
+                {user.is_frozen && user.freeze_payment_proof_path && (
+                  <div style={styles.proofSection}>
+                    <div style={styles.proofInfo}>
+                      <span style={styles.proofLabel}>Payment Proof:</span>
+                      <span style={{
+                        ...styles.proofStatusBadge,
+                        background: user.freeze_payment_status === 'confirmed' ? '#10b981' : 
+                                   user.freeze_payment_status === 'pending' ? '#f59e0b' : 
+                                   user.freeze_payment_status === 'rejected' ? '#ef4444' : '#6b7280'
+                      }}>
+                        {user.freeze_payment_status || 'pending'}
+                      </span>
+                    </div>
+                    {user.freeze_payment_amount > 0 && (
+                      <div style={styles.proofAmount}>
+                        Amount: ${parseFloat(user.freeze_payment_amount).toLocaleString()}
+                      </div>
+                    )}
+                    {user.freeze_payment_method && (
+                      <div style={styles.proofMethod}>
+                        Method: {user.freeze_payment_method}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={styles.cardActions}>
+                  {user.is_frozen && user.freeze_payment_proof_path && (
+                    <button
+                      onClick={() => setProofModal({ open: true, user })}
+                      style={styles.viewProofButton}
+                    >
+                      View Proof
+                    </button>
+                  )}
                   {user.is_frozen ? (
                     <button
                       onClick={() => handleAction(user.id, 'unfreeze', `${user.first_name} ${user.last_name}`)}
@@ -417,6 +452,108 @@ export default function ManageAccountModesPage() {
                   }}
                 >
                   Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {proofModal.open && proofModal.user && (
+          <div style={styles.modalOverlay} onClick={() => setProofModal({ open: false, user: null })}>
+            <div style={styles.proofModalContent} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.proofModalHeader}>
+                <h3 style={styles.modalTitle}>Payment Proof</h3>
+                <button 
+                  onClick={() => setProofModal({ open: false, user: null })}
+                  style={styles.closeButton}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={styles.proofModalBody}>
+                <div style={styles.proofUserInfo}>
+                  <strong>{proofModal.user.first_name} {proofModal.user.last_name}</strong>
+                  <span style={styles.proofUserEmail}>{proofModal.user.email}</span>
+                </div>
+                <div style={styles.proofDetails}>
+                  <div style={styles.proofDetailRow}>
+                    <span>Status:</span>
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      background: proofModal.user.freeze_payment_status === 'confirmed' ? '#10b981' : 
+                                 proofModal.user.freeze_payment_status === 'pending' ? '#f59e0b' : 
+                                 proofModal.user.freeze_payment_status === 'rejected' ? '#ef4444' : '#6b7280',
+                      color: 'white'
+                    }}>
+                      {proofModal.user.freeze_payment_status || 'pending'}
+                    </span>
+                  </div>
+                  {proofModal.user.freeze_payment_amount > 0 && (
+                    <div style={styles.proofDetailRow}>
+                      <span>Amount:</span>
+                      <strong>${parseFloat(proofModal.user.freeze_payment_amount).toLocaleString()}</strong>
+                    </div>
+                  )}
+                  {proofModal.user.freeze_payment_method && (
+                    <div style={styles.proofDetailRow}>
+                      <span>Method:</span>
+                      <span>{proofModal.user.freeze_payment_method}</span>
+                    </div>
+                  )}
+                  {proofModal.user.freeze_payment_tx_hash && (
+                    <div style={styles.proofDetailRow}>
+                      <span>TX Hash:</span>
+                      <span style={{ wordBreak: 'break-all', fontSize: '12px' }}>{proofModal.user.freeze_payment_tx_hash}</span>
+                    </div>
+                  )}
+                  {proofModal.user.freeze_payment_submitted_at && (
+                    <div style={styles.proofDetailRow}>
+                      <span>Submitted:</span>
+                      <span>{formatDate(proofModal.user.freeze_payment_submitted_at)}</span>
+                    </div>
+                  )}
+                </div>
+                <div style={styles.proofImageContainer}>
+                  <img 
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${proofModal.user.freeze_payment_proof_path}`}
+                    alt="Payment Proof"
+                    style={styles.proofImage}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div style={{ ...styles.proofImageError, display: 'none' }}>
+                    <span>Unable to load image</span>
+                    <a 
+                      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${proofModal.user.freeze_payment_proof_path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.proofLink}
+                    >
+                      Open in new tab
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div style={styles.proofModalFooter}>
+                <a 
+                  href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${proofModal.user.freeze_payment_proof_path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.openNewTabButton}
+                >
+                  Open Full Image
+                </a>
+                <button 
+                  onClick={() => setProofModal({ open: false, user: null })}
+                  style={styles.cancelButton}
+                >
+                  Close
                 </button>
               </div>
             </div>
@@ -852,5 +989,147 @@ const styles = {
     boxSizing: 'border-box',
     background: '#fff',
     cursor: 'pointer'
+  },
+  proofSection: {
+    background: 'rgba(59, 130, 246, 0.1)',
+    border: '1px solid rgba(59, 130, 246, 0.3)',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '12px'
+  },
+  proofInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px'
+  },
+  proofLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#94a3b8'
+  },
+  proofStatusBadge: {
+    padding: '3px 8px',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: '700',
+    color: 'white',
+    textTransform: 'uppercase'
+  },
+  proofAmount: {
+    fontSize: '12px',
+    color: '#e2e8f0'
+  },
+  proofMethod: {
+    fontSize: '11px',
+    color: '#94a3b8',
+    marginTop: '4px'
+  },
+  viewProofButton: {
+    background: '#8b5cf6',
+    color: 'white',
+    border: 'none',
+    padding: '10px 14px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    flex: '1',
+    minWidth: '100px',
+    textAlign: 'center'
+  },
+  proofModalContent: {
+    background: 'white',
+    borderRadius: '16px',
+    maxWidth: '500px',
+    width: '95%',
+    maxHeight: '90vh',
+    overflow: 'auto'
+  },
+  proofModalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#6b7280',
+    lineHeight: 1
+  },
+  proofModalBody: {
+    padding: '20px'
+  },
+  proofUserInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    marginBottom: '16px',
+    paddingBottom: '16px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  proofUserEmail: {
+    fontSize: '13px',
+    color: '#6b7280'
+  },
+  proofDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    marginBottom: '20px'
+  },
+  proofDetailRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '14px',
+    color: '#374151'
+  },
+  proofImageContainer: {
+    background: '#f3f4f6',
+    borderRadius: '8px',
+    padding: '10px',
+    textAlign: 'center'
+  },
+  proofImage: {
+    maxWidth: '100%',
+    maxHeight: '400px',
+    borderRadius: '8px',
+    objectFit: 'contain'
+  },
+  proofImageError: {
+    padding: '40px 20px',
+    textAlign: 'center',
+    color: '#6b7280',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  proofLink: {
+    color: '#3b82f6',
+    textDecoration: 'underline'
+  },
+  proofModalFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '10px',
+    padding: '20px',
+    borderTop: '1px solid #e5e7eb'
+  },
+  openNewTabButton: {
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    textDecoration: 'none',
+    display: 'inline-block'
   }
 };
