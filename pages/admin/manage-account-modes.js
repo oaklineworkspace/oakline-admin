@@ -17,6 +17,9 @@ export default function ManageAccountModesPage() {
   const [selectedReasonId, setSelectedReasonId] = useState('');
   const [reasonsLoading, setReasonsLoading] = useState(false);
   const [proofModal, setProofModal] = useState({ open: false, user: null, signedUrl: null, urlLoading: false });
+  const [paymentStatusLoading, setPaymentStatusLoading] = useState(false);
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -70,6 +73,8 @@ export default function ManageAccountModesPage() {
 
   const openProofModal = async (user) => {
     setProofModal({ open: true, user, signedUrl: null, urlLoading: true });
+    setShowRejectInput(false);
+    setRejectionReason('');
     
     try {
       const headers = await getAuthHeaders();
@@ -92,6 +97,49 @@ export default function ManageAccountModesPage() {
     } catch (err) {
       console.error('Error fetching signed URL:', err);
       setProofModal(prev => ({ ...prev, urlLoading: false }));
+    }
+  };
+
+  const closeProofModal = () => {
+    setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false });
+    setShowRejectInput(false);
+    setRejectionReason('');
+  };
+
+  const handlePaymentStatusUpdate = async (status) => {
+    if (!proofModal.user) return;
+    
+    if (status === 'rejected' && !showRejectInput) {
+      setShowRejectInput(true);
+      return;
+    }
+
+    setPaymentStatusLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/admin/update-freeze-payment-status', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          userId: proofModal.user.id,
+          status,
+          rejectionReason: status === 'rejected' ? rejectionReason : undefined
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update status');
+      }
+
+      setSuccess(`Payment ${status === 'confirmed' ? 'confirmed' : 'rejected'} successfully`);
+      closeProofModal();
+      fetchUsers();
+    } catch (err) {
+      console.error('Error updating payment status:', err);
+      setError(err.message);
+    } finally {
+      setPaymentStatusLoading(false);
     }
   };
 
@@ -486,12 +534,12 @@ export default function ManageAccountModesPage() {
         )}
 
         {proofModal.open && proofModal.user && (
-          <div style={styles.modalOverlay} onClick={() => setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false })}>
+          <div style={styles.modalOverlay} onClick={closeProofModal}>
             <div style={styles.proofModalContent} onClick={(e) => e.stopPropagation()}>
               <div style={styles.proofModalHeader}>
                 <h3 style={styles.modalTitle}>Payment Proof</h3>
                 <button 
-                  onClick={() => setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false })}
+                  onClick={closeProofModal}
                   style={styles.closeButton}
                 >
                   ×
@@ -580,6 +628,19 @@ export default function ManageAccountModesPage() {
                   )}
                 </div>
               </div>
+              {showRejectInput && (
+                <div style={styles.rejectReasonSection}>
+                  <label style={styles.label}>Rejection Reason:</label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter reason for rejection..."
+                    style={styles.textarea}
+                    rows={2}
+                  />
+                </div>
+              )}
+
               <div style={styles.proofModalFooter}>
                 {proofModal.signedUrl && (
                   <a 
@@ -591,8 +652,36 @@ export default function ManageAccountModesPage() {
                     Open Full Image
                   </a>
                 )}
+                
+                {proofModal.user.freeze_payment_status === 'pending' && (
+                  <>
+                    <button 
+                      onClick={() => handlePaymentStatusUpdate('confirmed')}
+                      disabled={paymentStatusLoading}
+                      style={styles.confirmPaymentButton}
+                    >
+                      {paymentStatusLoading ? '...' : 'Confirm Payment'}
+                    </button>
+                    <button 
+                      onClick={() => handlePaymentStatusUpdate('rejected')}
+                      disabled={paymentStatusLoading}
+                      style={styles.rejectPaymentButton}
+                    >
+                      {paymentStatusLoading ? '...' : (showRejectInput ? 'Submit Rejection' : 'Reject Payment')}
+                    </button>
+                  </>
+                )}
+                
+                {proofModal.user.freeze_payment_status === 'confirmed' && (
+                  <span style={styles.statusConfirmed}>Payment Confirmed</span>
+                )}
+                
+                {proofModal.user.freeze_payment_status === 'rejected' && (
+                  <span style={styles.statusRejected}>Payment Rejected</span>
+                )}
+                
                 <button 
-                  onClick={() => setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false })}
+                  onClick={closeProofModal}
                   style={styles.cancelButton}
                 >
                   Close
@@ -1179,5 +1268,44 @@ const styles = {
     textAlign: 'center',
     color: '#6b7280',
     fontSize: '14px'
+  },
+  rejectReasonSection: {
+    padding: '0 20px 20px 20px'
+  },
+  confirmPaymentButton: {
+    background: '#10b981',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '600'
+  },
+  rejectPaymentButton: {
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '600'
+  },
+  statusConfirmed: {
+    background: '#d1fae5',
+    color: '#065f46',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: '600'
+  },
+  statusRejected: {
+    background: '#fee2e2',
+    color: '#991b1b',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: '600'
   }
 };
