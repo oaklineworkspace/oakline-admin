@@ -180,6 +180,93 @@ export default async function handler(req, res) {
       }
     }
 
+    // Send unfreeze notification email
+    if (action === 'unfreeze' && data.email) {
+      try {
+        // Get bank details for contact info
+        const { data: bankDetails } = await supabaseAdmin
+          .from('bank_details')
+          .select('name, email_support, phone')
+          .single();
+
+        const bankName = bankDetails?.name || 'Oakline Bank';
+        const supportEmail = bankDetails?.email_support || 'support@theoaklinebank.com';
+        const bankPhone = bankDetails?.phone || '+1 (636) 635-6122';
+
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+              <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 32px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">✅ Account Restored</h1>
+                <p style="color: #ffffff; opacity: 0.9; font-size: 16px; margin: 8px 0 0 0;">${bankName} Account Update</p>
+              </div>
+              
+              <div style="padding: 40px 32px;">
+                <h2 style="color: #059669; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">
+                  Dear ${data.first_name || 'Valued Customer'},
+                </h2>
+                
+                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                  Great news! We are pleased to inform you that the freeze on your account has been successfully removed. Your account is now fully restored and all services are available.
+                </p>
+                
+                <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                  <h3 style="color: #065f46; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">What This Means:</h3>
+                  <ul style="color: #047857; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                    <li>All account features are now accessible</li>
+                    <li>You can make deposits and withdrawals</li>
+                    <li>Card transactions are enabled</li>
+                    <li>Wire transfers and payments are available</li>
+                  </ul>
+                </div>
+                
+                <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                  <h3 style="color: #0369a1; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Need Assistance?</h3>
+                  <p style="color: #0c4a6e; font-size: 14px; line-height: 1.6; margin: 0;">
+                    If you have any questions or need further assistance, please don't hesitate to contact us:
+                  </p>
+                  <p style="color: #0369a1; font-size: 14px; margin: 12px 0 0 0;">
+                    📧 Email: <a href="mailto:${supportEmail}" style="color: #0369a1;">${supportEmail}</a><br/>
+                    📞 Phone: ${bankPhone}
+                  </p>
+                </div>
+                
+                <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
+                  Thank you for your patience and for being a valued customer. We appreciate your continued trust in ${bankName}.
+                </p>
+              </div>
+              
+              <div style="background-color: #f7fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #718096; font-size: 12px; margin: 0;">
+                  © ${new Date().getFullYear()} ${bankName}. All rights reserved.<br/>
+                  Member FDIC | This is an automated notification.
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
+        await sendEmail({
+          to: data.email,
+          subject: `✅ Good News: Your ${bankName} Account Has Been Restored`,
+          html: emailHtml,
+          type: EMAIL_TYPES.NOTIFY
+        });
+
+        console.log(`Unfreeze notification email sent to ${data.email}`);
+      } catch (emailError) {
+        console.error('Failed to send unfreeze notification email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: `Successfully ${action.replace('_', ' ')} for user`,
