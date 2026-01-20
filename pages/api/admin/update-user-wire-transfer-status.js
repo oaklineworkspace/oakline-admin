@@ -48,9 +48,6 @@ export default async function handler(req, res) {
         wire_transfer_requires_selfie: true,
         wire_transfer_selfie_submitted: false,
         wire_transfer_selfie_submitted_at: null,
-        requires_verification: true,
-        verification_reason: reason,
-        verification_required_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
     } else {
@@ -62,9 +59,6 @@ export default async function handler(req, res) {
         wire_transfer_requires_selfie: false,
         wire_transfer_selfie_submitted: false,
         wire_transfer_selfie_submitted_at: null,
-        requires_verification: false,
-        verification_reason: null,
-        verification_required_at: null,
         updated_at: new Date().toISOString()
       };
     }
