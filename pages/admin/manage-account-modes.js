@@ -519,7 +519,7 @@ export default function ManageAccountModesPage() {
                 </div>
                 <div style={styles.proofImageContainer}>
                   <img 
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${proofModal.user.freeze_payment_proof_path}`}
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/crypto-deposit-proofs/${proofModal.user.freeze_payment_proof_path}`}
                     alt="Payment Proof"
                     style={styles.proofImage}
                     onError={(e) => {
@@ -530,7 +530,7 @@ export default function ManageAccountModesPage() {
                   <div style={{ ...styles.proofImageError, display: 'none' }}>
                     <span>Unable to load image</span>
                     <a 
-                      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${proofModal.user.freeze_payment_proof_path}`}
+                      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/crypto-deposit-proofs/${proofModal.user.freeze_payment_proof_path}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={styles.proofLink}
@@ -542,7 +542,7 @@ export default function ManageAccountModesPage() {
               </div>
               <div style={styles.proofModalFooter}>
                 <a 
-                  href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${proofModal.user.freeze_payment_proof_path}`}
+                  href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/crypto-deposit-proofs/${proofModal.user.freeze_payment_proof_path}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={styles.openNewTabButton}
