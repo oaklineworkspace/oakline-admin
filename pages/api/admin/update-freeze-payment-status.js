@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     const updateData = {
       freeze_payment_status: status,
       freeze_payment_reviewed_at: new Date().toISOString(),
-      freeze_payment_reviewed_by: authResult.admin.id,
+      freeze_payment_reviewed_by: authResult.adminId,
       updated_at: new Date().toISOString()
     };
 
