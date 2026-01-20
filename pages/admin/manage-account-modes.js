@@ -16,7 +16,7 @@ export default function ManageAccountModesPage() {
   const [freezeReasons, setFreezeReasons] = useState([]);
   const [selectedReasonId, setSelectedReasonId] = useState('');
   const [reasonsLoading, setReasonsLoading] = useState(false);
-  const [proofModal, setProofModal] = useState({ open: false, user: null });
+  const [proofModal, setProofModal] = useState({ open: false, user: null, signedUrl: null, urlLoading: false });
 
   const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -65,6 +65,33 @@ export default function ManageAccountModesPage() {
       console.error('Error fetching freeze reasons:', err);
     } finally {
       setReasonsLoading(false);
+    }
+  };
+
+  const openProofModal = async (user) => {
+    setProofModal({ open: true, user, signedUrl: null, urlLoading: true });
+    
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/admin/get-signed-url', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          path: user.freeze_payment_proof_path,
+          bucket: 'crypto-deposit-proofs'
+        })
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.signedUrl) {
+        setProofModal(prev => ({ ...prev, signedUrl: data.signedUrl, urlLoading: false }));
+      } else {
+        console.error('Failed to get signed URL:', data.error);
+        setProofModal(prev => ({ ...prev, urlLoading: false }));
+      }
+    } catch (err) {
+      console.error('Error fetching signed URL:', err);
+      setProofModal(prev => ({ ...prev, urlLoading: false }));
     }
   };
 
@@ -307,7 +334,7 @@ export default function ManageAccountModesPage() {
                 <div style={styles.cardActions}>
                   {user.is_frozen && user.freeze_payment_proof_path && (
                     <button
-                      onClick={() => setProofModal({ open: true, user })}
+                      onClick={() => openProofModal(user)}
                       style={styles.viewProofButton}
                     >
                       View Proof
@@ -459,12 +486,12 @@ export default function ManageAccountModesPage() {
         )}
 
         {proofModal.open && proofModal.user && (
-          <div style={styles.modalOverlay} onClick={() => setProofModal({ open: false, user: null })}>
+          <div style={styles.modalOverlay} onClick={() => setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false })}>
             <div style={styles.proofModalContent} onClick={(e) => e.stopPropagation()}>
               <div style={styles.proofModalHeader}>
                 <h3 style={styles.modalTitle}>Payment Proof</h3>
                 <button 
-                  onClick={() => setProofModal({ open: false, user: null })}
+                  onClick={() => setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false })}
                   style={styles.closeButton}
                 >
                   ×
@@ -518,39 +545,54 @@ export default function ManageAccountModesPage() {
                   )}
                 </div>
                 <div style={styles.proofImageContainer}>
-                  <img 
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/crypto-deposit-proofs/${proofModal.user.freeze_payment_proof_path}`}
-                    alt="Payment Proof"
-                    style={styles.proofImage}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div style={{ ...styles.proofImageError, display: 'none' }}>
-                    <span>Unable to load image</span>
-                    <a 
-                      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/crypto-deposit-proofs/${proofModal.user.freeze_payment_proof_path}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={styles.proofLink}
-                    >
-                      Open in new tab
-                    </a>
-                  </div>
+                  {proofModal.urlLoading ? (
+                    <div style={styles.proofImageLoading}>
+                      <span>Loading image...</span>
+                    </div>
+                  ) : proofModal.signedUrl ? (
+                    <>
+                      <img 
+                        src={proofModal.signedUrl}
+                        alt="Payment Proof"
+                        style={styles.proofImage}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div style={{ ...styles.proofImageError, display: 'none' }}>
+                        <span>Unable to load image</span>
+                        <a 
+                          href={proofModal.signedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={styles.proofLink}
+                        >
+                          Open in new tab
+                        </a>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={styles.proofImageError}>
+                      <span>Unable to load image</span>
+                      <span style={{ fontSize: '12px', color: '#9ca3af' }}>The image may have been moved or deleted</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={styles.proofModalFooter}>
-                <a 
-                  href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/crypto-deposit-proofs/${proofModal.user.freeze_payment_proof_path}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.openNewTabButton}
-                >
-                  Open Full Image
-                </a>
+                {proofModal.signedUrl && (
+                  <a 
+                    href={proofModal.signedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.openNewTabButton}
+                  >
+                    Open Full Image
+                  </a>
+                )}
                 <button 
-                  onClick={() => setProofModal({ open: false, user: null })}
+                  onClick={() => setProofModal({ open: false, user: null, signedUrl: null, urlLoading: false })}
                   style={styles.cancelButton}
                 >
                   Close
@@ -1131,5 +1173,11 @@ const styles = {
     fontWeight: '600',
     textDecoration: 'none',
     display: 'inline-block'
+  },
+  proofImageLoading: {
+    padding: '60px 20px',
+    textAlign: 'center',
+    color: '#6b7280',
+    fontSize: '14px'
   }
 };
