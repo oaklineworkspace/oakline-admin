@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { sendEmail, EMAIL_TYPES } from '../../../lib/email';
+import { createCardForAccount } from '../../../lib/cardGenerator';
 
 async function generateUniqueAccountNumber() {
   const maxAttempts = 20;
