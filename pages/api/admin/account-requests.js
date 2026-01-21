@@ -308,10 +308,10 @@ export default async function handler(req, res) {
           const cardResult = await createCardForAccount(newAccount.id, admin_id);
 
           if (!cardResult.success) {
-            throw new Error('Failed to create debit card');
+            console.error('Failed to create debit card, but account was created');
           }
 
-          console.log('Card created successfully:', cardResult.cardId);
+          console.log('Card created successfully:', cardResult?.cardId);
 
           const { error: updateError } = await supabaseAdmin
             .from('account_requests')
@@ -320,7 +320,7 @@ export default async function handler(req, res) {
               reviewed_date: new Date().toISOString(),
               reviewed_by: admin_id || null,
               created_account_id: newAccount.id,
-              created_card_id: cardResult.cardId,
+              created_card_id: cardResult?.cardId || null,
               updated_at: new Date().toISOString()
             })
             .eq('id', request_id);

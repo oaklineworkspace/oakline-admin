@@ -81,7 +81,7 @@ export default function ManageAccountRequests() {
         body: JSON.stringify({
           request_id: request.id,
           action: 'approve',
-          admin_id: null
+          admin_id: session.user.id
         })
       });
 
@@ -142,7 +142,7 @@ export default function ManageAccountRequests() {
           request_id: selectedRequest.id,
           action: 'reject',
           rejection_reason: formData.rejectionReason,
-          admin_id: null
+          admin_id: session.user.id
         })
       });
 
