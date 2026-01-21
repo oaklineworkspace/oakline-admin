@@ -285,7 +285,7 @@ export default async function handler(req, res) {
             routing_number: bankDetails?.routing_number || '075915826',
             account_type: request.account_type_name,
             balance: 0,
-            status: 'active',
+            status: 'pending_funding',
             min_deposit: request.account_type?.min_deposit || 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
