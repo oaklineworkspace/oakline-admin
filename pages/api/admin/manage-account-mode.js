@@ -39,7 +39,8 @@ export default async function handler(req, res) {
           freeze_payment_proof_path: null,
           freeze_payment_amount: 0,
           freeze_payment_method: null,
-          freeze_payment_tx_hash: null
+          freeze_payment_tx_hash: null,
+          freeze_payment_date: null
         };
         if (amountRequired !== undefined && amountRequired !== null) {
           updateData.freeze_amount_required = parseFloat(amountRequired) || 0;
