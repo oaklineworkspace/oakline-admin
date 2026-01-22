@@ -34,7 +34,8 @@ export default async function handler(req, res) {
           is_frozen: true,
           frozen_at: now,
           frozen_by: adminId,
-          frozen_reason: reason || 'Account frozen by admin'
+          frozen_reason: reason || 'Account frozen by admin',
+          freeze_payment_status: 'pending'
         };
         if (amountRequired !== undefined && amountRequired !== null) {
           updateData.freeze_amount_required = parseFloat(amountRequired) || 0;
@@ -46,7 +47,8 @@ export default async function handler(req, res) {
           frozen_at: null,
           frozen_by: null,
           frozen_reason: null,
-          freeze_amount_required: 0
+          freeze_amount_required: 0,
+          freeze_payment_status: null
         };
         break;
       case 'set_unlimited':
