@@ -257,7 +257,21 @@ export default function ManageAccountModesPage() {
         </div>
 
         {error && <div style={styles.errorMessage}>{error}</div>}
-        {success && <div style={styles.successMessage}>{success}</div>}
+        {success && (
+          <div style={styles.successModalOverlay}>
+            <div style={styles.successModal}>
+              <div style={styles.successIcon}>✓</div>
+              <h3 style={styles.successTitle}>Success!</h3>
+              <p style={styles.successText}>{success}</p>
+              <button 
+                onClick={() => setSuccess('')} 
+                style={styles.successCloseButton}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={styles.filterSection}>
           <label style={styles.filterLabel}>Filter by Status:</label>
@@ -394,7 +408,11 @@ export default function ManageAccountModesPage() {
                       disabled={actionLoading[`unfreeze_${user.id}`]}
                       style={styles.unfreezeButton}
                     >
-                      {actionLoading[`unfreeze_${user.id}`] ? '...' : 'Unfreeze'}
+                      {actionLoading[`unfreeze_${user.id}`] ? (
+                        <span className="spinner-small"></span>
+                      ) : (
+                        'Unfreeze'
+                      )}
                     </button>
                   ) : (
                     <button
@@ -402,7 +420,11 @@ export default function ManageAccountModesPage() {
                       disabled={actionLoading[`freeze_${user.id}`]}
                       style={styles.freezeButton}
                     >
-                      {actionLoading[`freeze_${user.id}`] ? '...' : 'Freeze'}
+                      {actionLoading[`freeze_${user.id}`] ? (
+                        <span className="spinner-small"></span>
+                      ) : (
+                        'Freeze'
+                      )}
                     </button>
                   )}
 
@@ -412,7 +434,11 @@ export default function ManageAccountModesPage() {
                       disabled={actionLoading[`remove_unlimited_${user.id}`]}
                       style={styles.removeUnlimitedButton}
                     >
-                      {actionLoading[`remove_unlimited_${user.id}`] ? '...' : 'Remove Unlimited'}
+                      {actionLoading[`remove_unlimited_${user.id}`] ? (
+                        <span className="spinner-small"></span>
+                      ) : (
+                        'Remove Unlimited'
+                      )}
                     </button>
                   ) : (
                     <button
@@ -420,7 +446,11 @@ export default function ManageAccountModesPage() {
                       disabled={actionLoading[`set_unlimited_${user.id}`]}
                       style={styles.setUnlimitedButton}
                     >
-                      {actionLoading[`set_unlimited_${user.id}`] ? '...' : 'Set Unlimited'}
+                      {actionLoading[`set_unlimited_${user.id}`] ? (
+                        <span className="spinner-small"></span>
+                      ) : (
+                        'Set Unlimited'
+                      )}
                     </button>
                   )}
                 </div>
@@ -700,6 +730,73 @@ const styles = {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%)',
     padding: '15px'
+  },
+  // Add these new styles
+  successModalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
+    backdropFilter: 'blur(4px)',
+  },
+  successModal: {
+    backgroundColor: 'white',
+    padding: '30px',
+    borderRadius: '16px',
+    textAlign: 'center',
+    maxWidth: '400px',
+    width: '90%',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+  },
+  successIcon: {
+    width: '60px',
+    height: '60px',
+    backgroundColor: '#d1fae5',
+    color: '#059669',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '30px',
+    margin: '0 auto 20px',
+  },
+  successTitle: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#111827',
+    margin: '0 0 10px',
+  },
+  successText: {
+    color: '#4b5563',
+    fontSize: '16px',
+    margin: '0 0 25px',
+    lineHeight: '1.5',
+  },
+  successCloseButton: {
+    backgroundColor: '#059669',
+    color: 'white',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    border: 'none',
+    fontWeight: '600',
+    cursor: 'pointer',
+    width: '100%',
+    transition: 'background-color 0.2s',
+  },
+  spinnerSmall: {
+    width: '16px',
+    height: '16px',
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderRadius: '50%',
+    borderTopColor: 'white',
+    animation: 'spin 0.8s linear infinite',
+    display: 'inline-block',
   },
   header: {
     display: 'flex',
