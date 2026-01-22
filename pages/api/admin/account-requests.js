@@ -306,6 +306,22 @@ export default async function handler(req, res) {
 
           console.log('Account created successfully:', newAccount.id);
 
+          // Create initial deposit entry to avoid "Deposit not found" error
+          const { error: depositError } = await supabaseAdmin
+            .from('account_opening_crypto_deposits')
+            .insert([{
+              user_id: request.user_id,
+              account_id: newAccount.id,
+              required_amount: request.account_type?.min_deposit || 0,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+
+          if (depositError) {
+            console.error('Error creating initial deposit record:', depositError);
+          }
+
           const cardResult = await createCardForAccount(newAccount.id, admin_id);
 
           if (!cardResult.success) {
