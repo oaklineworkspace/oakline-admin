@@ -28,6 +28,19 @@ export default async function handler(req, res) {
           memo,
           crypto_type,
           network_type
+        ),
+        accounts:account_id (
+          *,
+          applications (
+            first_name,
+            last_name,
+            email
+          ),
+          profiles:user_id (
+            first_name,
+            last_name,
+            email
+          )
         )
       `)
       .order('created_at', { ascending: false });
