@@ -550,13 +550,17 @@ export default function ManageAccountModesPage() {
                 </button>
                 <button
                   onClick={handleReasonSubmit}
-                  disabled={reasonModal.action === 'freeze' ? (!selectedReasonId || (selectedReasonId === 'custom' && !freezeReason.trim())) : !freezeReason.trim()}
+                  disabled={actionLoading[`${reasonModal.action}_${reasonModal.userId}`] || (reasonModal.action === 'freeze' ? (!selectedReasonId || (selectedReasonId === 'custom' && !freezeReason.trim())) : !freezeReason.trim())}
                   style={{
                     ...(reasonModal.action === 'freeze' ? styles.freezeButton : styles.setUnlimitedButton),
-                    opacity: (reasonModal.action === 'freeze' ? (!selectedReasonId || (selectedReasonId === 'custom' && !freezeReason.trim())) : !freezeReason.trim()) ? 0.5 : 1
+                    opacity: (actionLoading[`${reasonModal.action}_${reasonModal.userId}`] || (reasonModal.action === 'freeze' ? (!selectedReasonId || (selectedReasonId === 'custom' && !freezeReason.trim())) : !freezeReason.trim())) ? 0.5 : 1
                   }}
                 >
-                  Confirm
+                  {actionLoading[`${reasonModal.action}_${reasonModal.userId}`] ? (
+                    <span className="spinner-small"></span>
+                  ) : (
+                    'Confirm'
+                  )}
                 </button>
               </div>
             </div>
