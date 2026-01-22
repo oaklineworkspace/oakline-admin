@@ -425,9 +425,9 @@ export default function ManageAccountOpeningDeposits() {
                             <h3 style={styles.accountNumber}>{account.account_number}</h3>
                             <p style={styles.accountType}>{account.account_type}</p>
                             <p style={styles.userName}>
-                              {account.applications?.first_name || account.profiles?.first_name} {account.applications?.last_name || account.profiles?.last_name}
+                              {account.applications?.first_name} {account.applications?.last_name}
                             </p>
-                            <p style={styles.userEmail}>{account.applications?.email || account.profiles?.email}</p>
+                            <p style={styles.userEmail}>{account.applications?.email}</p>
                           </div>
                           {deposit && (
                             <span style={{

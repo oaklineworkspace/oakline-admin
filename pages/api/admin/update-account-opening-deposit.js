@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
     const { data: oldDeposit, error: fetchError } = await supabaseAdmin
       .from('account_opening_crypto_deposits')
-      .select('*, crypto_assets(*), admin_assigned_wallets(*), accounts!inner(*, applications!left(*))')
+      .select('*, crypto_assets(*), admin_assigned_wallets(*), accounts!inner(*, applications!inner(*))')
       .eq('id', depositId)
       .single();
 

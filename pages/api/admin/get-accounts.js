@@ -21,12 +21,6 @@ export default async function handler(req, res) {
           last_name,
           email,
           account_types
-        ),
-        profiles:user_id (
-          id,
-          first_name,
-          last_name,
-          email
         )
       `)
       .order('created_at', { ascending: false });
