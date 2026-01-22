@@ -13,8 +13,6 @@ export default async function handler(req, res) {
       .from('accounts')
       .select(`
         *,
-        user_id,
-        application_id,
         applications (
           id,
           first_name,
