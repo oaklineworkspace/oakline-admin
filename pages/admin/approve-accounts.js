@@ -37,7 +37,7 @@ export default function ApproveAccounts() {
       };
 
       // Fetch all accounts including 'active' status
-      const statusesToFetch = ['pending', 'approved', 'pending_funding', 'active', 'suspended', 'closed', 'rejected'];
+      const statusesToFetch = ['approve', 'approved', 'pending_funding', 'active', 'suspended', 'closed', 'rejected'];
 
       const responses = await Promise.all(
         statusesToFetch.map(status => 
@@ -200,15 +200,12 @@ export default function ApproveAccounts() {
     const matchesSearch = account.account_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          account.applications?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          account.applications?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         account.applications?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         account.profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         account.profiles?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         account.profiles?.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         account.applications?.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === 'all' || account.status === filterStatus;
 
     const matchesTab = activeTab === 'all' ||
-                      (activeTab === 'pending' && ['pending', 'approved', 'pending_funding'].includes(account.status)) ||
+                      (activeTab === 'pending' && ['approve', 'approved', 'pending_funding'].includes(account.status)) ||
                       (activeTab === 'active' && account.status === 'active') ||
                       (activeTab === 'suspended' && account.status === 'suspended') ||
                       (activeTab === 'closed' && account.status === 'closed') ||
@@ -219,7 +216,7 @@ export default function ApproveAccounts() {
 
   const stats = {
     total: accounts.length,
-    pending: accounts.filter(a => ['pending', 'approved', 'pending_funding'].includes(a.status)).length,
+    pending: accounts.filter(a => ['approve', 'approved', 'pending_funding'].includes(a.status)).length,
     active: accounts.filter(a => a.status === 'active').length,
     suspended: accounts.filter(a => a.status === 'suspended').length,
     closed: accounts.filter(a => a.status === 'closed').length,
@@ -302,7 +299,7 @@ export default function ApproveAccounts() {
           />
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={styles.filterSelect}>
             <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
+            <option value="approve">Approve</option>
             <option value="approved">Approved</option>
             <option value="pending_funding">Pending Funding</option>
             <option value="active">Active</option>
@@ -355,17 +352,15 @@ export default function ApproveAccounts() {
                   </div>
 
                   <div style={styles.accountBody}>
-                    {(account.applications || account.profiles) && (
+                    {account.applications && (
                       <>
                         <div style={styles.accountInfo}>
                           <span style={styles.infoLabel}>Name:</span>
-                          <span style={styles.infoValue}>
-                            {account.applications?.first_name || account.profiles?.first_name} {account.applications?.last_name || account.profiles?.last_name}
-                          </span>
+                          <span style={styles.infoValue}>{account.applications.first_name} {account.applications.last_name}</span>
                         </div>
                         <div style={styles.accountInfo}>
                           <span style={styles.infoLabel}>Email:</span>
-                          <span style={styles.infoValue}>{account.applications?.email || account.profiles?.email}</span>
+                          <span style={styles.infoValue}>{account.applications.email}</span>
                         </div>
                       </>
                     )}
